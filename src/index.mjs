@@ -1,0 +1,830 @@
+import cfg from "./inc/config.mjs";
+import db from "./inc/sql.mjs";
+import lib from "./inc/lib.mjs";
+import cuffeo from "cuffeo";
+import fs from "fs";
+import path from "path";
+import { execSync } from "child_process";
+import { getMotd, setMotd } from "./inc/motd.mjs";
+import { getAboutText, setAboutText, getRulesText, setRulesText, getTermsText, setTermsText } from "./inc/page_texts.mjs";
+import flummpress from "flummpress";
+import { handleUpload } from "./upload_handler.mjs";
+import { handleAvatarUpload, handleAvatarDelete } from "./avatar_handler.mjs";
+import { handleRethumbUpload } from "./rethumb_handler.mjs";
+import { handleMemeUpload } from "./meme_upload_handler.mjs";
+import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
+import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
+import { handleMetaExtract } from "./meta_extract_handler.mjs";
+import { handleMetaStrip } from "./meta_strip_handler.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout } from "./inc/settings.mjs";
+import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
+import { createI18n } from "./inc/i18n.mjs";
+
+const nginx502 = `<html>
+<head><title>502 Bad Gateway</title></head>
+<body bgcolor="white">
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>`;
+
+const origLog = console.log;
+
+console.log = function(...args) {
+    if (process.env.NODE_ENV === 'production') {
+        if (typeof args[0] === 'string' && args[0].includes('[BOOT]')) {
+            origLog.apply(console, args);
+        }
+        return;
+    }
+    origLog.apply(console, args);
+};
+
+const logCrash = (type, err) => {
+  const timestamp = new Date().toISOString();
+  const errMsg = err instanceof Error ? `${err.stack || err.message}` : JSON.stringify(err);
+  const logEntry = `[${timestamp}] ${type}: ${errMsg}\n\n`;
+
+  console.error(`[CRASH] ${type}:`, err);
+
+  try {
+    if (!fs.existsSync(cfg.paths.logs)) {
+      fs.mkdirSync(cfg.paths.logs, { recursive: true });
+    }
+    fs.appendFileSync(path.join(cfg.paths.logs, 'crash.log'), logEntry);
+  } catch (e) {
+    console.error('Failed to write to crash.log:', e);
+  }
+};
+
+process.on('unhandledRejection', err => {
+  if (err && err.code === 'ERR_HTTP_HEADERS_SENT') return;
+  logCrash('Unhandled Rejection', err);
+  if (process.env.NODE_ENV === 'production') {
+    // In production, we might want to restart, but let's see if we can stay alive
+    // throw err; 
+  }
+});
+
+process.on('uncaughtException', err => {
+  logCrash('Uncaught Exception', err);
+  process.exit(1);
+});
+
+(async () => {
+  const self = {
+    _trigger: new Map(),
+    trigger: function trigger(args) {
+      this.call = args.call;
+      this.help = args.help || false;
+      this.level = args.level || 0;
+      this.name = args.name;
+      this.active = args.hasOwnProperty("active") ? args.active : true;
+      this.clients = args.clients || ["irc", "tg", "slack", "matrix"];
+      this.f = args.f;
+    },
+    bot: await new cuffeo(cfg.clients)
+  };
+
+  // Ensure storage directories exist
+  const initDirs = [
+    cfg.paths.a, cfg.paths.b, cfg.paths.t, cfg.paths.ca, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
+    path.join(cfg.paths.pending, 'b'), path.join(cfg.paths.pending, 't'), path.join(cfg.paths.pending, 'ca'),
+    path.join(cfg.paths.deleted, 'b'), path.join(cfg.paths.deleted, 't'), path.join(cfg.paths.deleted, 'ca')
+  ];
+  for (const dir of initDirs) {
+    if (!fs.existsSync(dir)) {
+      console.log(`[BOOT] Creating directory: ${dir}`);
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  const timeout = 10000; // 10s module load timeout
+
+  // Ensure clients are resolved (Safe-guard for Docker/Node versions)
+  if (self.bot.clients) {
+    self.bot.clients = await Promise.all(self.bot.clients);
+  }
+
+  console.time("loading");
+  const modules = {
+    events: (await fs.promises.readdir("./src/inc/events")).filter(f => f.endsWith(".mjs")),
+    trigger: (await fs.promises.readdir("./src/inc/trigger")).filter(f => f.endsWith(".mjs"))
+  };
+
+  console.timeLog("loading", "directories");
+  const blah = (await Promise.all(Object.entries(modules).map(async ([dir, mods]) => ({
+    [dir]: (await Promise.all(mods.map(async mod => {
+      const res = await Promise.race([
+        (await import(`./inc/${dir}/${mod}`)).default(self),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`Module loading timed out: ${dir}/${mod}`)), timeout))
+      ]);
+      console.timeLog("loading", `${dir}/${mod}`);
+      return res;
+    }))).flat(2)
+  })))).reduce((a, b) => ({ ...a, ...b }));
+
+  blah.events.forEach(event => {
+    console.timeLog("loading", `registering event > ${event.name}`);
+    self.bot.on(event.listener, event.f);
+  });
+
+  blah.trigger.forEach(trigger => {
+    console.timeLog("loading", `registering trigger > ${trigger.name}`);
+    self._trigger.set(trigger.name, new self.trigger(trigger));
+  });
+
+  // Initial halls cache
+  await updateHallsCache();
+
+  //console.timeEnd("loading");
+
+
+  // websrv
+  const app = new flummpress();
+  const router = app.router;
+  const tpl = app.tpl;
+
+
+  // Security headers — applied to every response before any route logic
+  app.use(async (req, res) => {
+    const isSecure = cfg.main.url?.full?.startsWith('https');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    if (isSecure) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+  });
+
+  // Block source map requests early — flummpress crashes on unknown MIME types (e.g. .map)
+  app.use(async (req, res) => {
+    if (req.url?.pathname?.endsWith('.map')) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not Found');
+    }
+  });
+
+  app.use(async (req, res) => {
+//     if (cfg.main.development && req.method === 'POST') console.error(`[BOOT] [DEBUG_POST] ${req.method} ${req.url.pathname}`);
+//     const ua = (req.headers['user-agent'] || '').toLowerCase();
+//     if (ua.includes('discordbot')) {
+//       const isOembed = req.url.pathname.endsWith('.json');
+//       if (isOembed) {
+//         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+//           type: "link",
+//           version: "1.0",
+//           title: "STOP USING DISCORD",
+//           provider_name: "STOP USING DISCORD",
+//           provider_url: "https://example.com"
+//         }));
+//         req.url.pathname = '/discordbot';
+//         return;
+//       }
+
+//       res.writeHead(200, { 'Content-Type': 'text/html' }).end(`<!DOCTYPE html>
+// <html>
+// <head>
+//   <meta charset="utf-8" />
+//   <meta name="theme-color" content="#FF0000" />
+//   <meta property="og:site_name" content="STOP USING DISCORD" />
+//   <meta property="og:title" content="STOP USING DISCORD" />
+//   <meta property="og:description" content="DISCORD IS EVIL, DO YOURSELF A FAVOUR AND STOP USING IT! THERE ARE ALTERNATIVES OUT THERE THAT DO NOT FUCK YOU OVER!" />
+//   <meta property="og:image" content="https://i.imgur.com/erSILuG.png" />
+//   <meta property="og:type" content="article" />
+//   <meta property="twitter:card" content="summary_large_image" />
+//   <title>STOP USING DISCORD</title>
+// </head>
+// <body></body>
+// </html>`);
+//       req.url.pathname = '/discordbot';
+//       return;
+//     }
+
+    // sessionhandler
+    req.session = false;
+    if (req.url.pathname.match(/^\/(s)\//) && !req.url.pathname.startsWith('/s/emojis/'))
+      return;
+    if (req.url.pathname === '/manifest.json' || req.url.pathname === '/sw.js')
+      return;
+    if (req.url.pathname.match(/^\/(b|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
+      if (cfg.websrv.private_society && !req.cookies?.session) {
+        res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502);
+        req.url.pathname = '/private_society_media_bypass';
+        return;
+      }
+      if (getProtectFiles() && !req.cookies?.session) {
+        res.writeHead(401).end('Unauthorized');
+        req.url.pathname = '/protect_files_bypass';
+        return;
+      }
+      return;
+    }
+    const availableThemes = cfg.websrv.themes || ['amoled', 'atmos', 'f0ck', 'f0ck95d', 'iced', 'orange', 'p1nk', '4d'];
+    const defaultTheme = cfg.websrv.theme || 'amoled';
+    req.theme = (req.cookies?.theme && availableThemes.includes(req.cookies.theme)) ? req.cookies.theme : defaultTheme;
+    req.fullscreen = req.cookies.fullscreen || 0;
+
+    if (req.cookies.session) {
+      const user = await db`
+        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language
+        from "user_sessions"
+        left join "user" on "user".id = "user_sessions".user_id
+        left join "user_options" on "user_options".user_id = "user_sessions".user_id
+        where "user_sessions".session = ${lib.sha256(req.cookies.session)}
+        limit 1
+      `;
+
+      if (user.length === 0) {
+        res.writeHead(307, { // delete session
+          "Cache-Control": "no-cache, public",
+          "Set-Cookie": `session=; ${lib.getCookieOptions('Thu, 01 Jan 1970 00:00:00 GMT')}`,
+          "Location": req.url.originalUrl || req.url.pathname + (req.url.search || "")
+        }).end();
+        req.url.pathname = '/session_invalid_bypass';
+        return;
+      }
+
+      req.session = user[0];
+      // csrf_token is loaded from user_sessions table via the session query above
+
+      // Ban check
+      if (req.session.banned && !req.url.pathname.match(/^\/(banned|logout)(\/)?$/)) {
+        const now = new Date();
+        if (req.session.ban_expires && new Date(req.session.ban_expires) < now) {
+          // Ban expired, lift it
+          await db`update "user" set banned = false, ban_reason = null, ban_expires = null where id = ${+req.session.id}`;
+          req.session.banned = false;
+        } else {
+          res.writeHead(307, {
+            "Location": "/banned"
+          }).end();
+          req.url.pathname = '/ban_redirect_bypass';
+          return;
+        }
+      }
+
+      // Password change check - Lockdown all other actions
+      if (req.session.force_password_change && !req.url.pathname.match(/^\/(api\/v2\/settings\/password|logout)(\/)?$/)) {
+        // If it's an API request or something other than a main page load, block it
+        if (req.headers['x-requested-with'] === 'XMLHttpRequest' || req.url.pathname.startsWith('/api/')) {
+          res.writeHead(403, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: "Password change required", force_password_change: true }));
+          req.url.pathname = '/force_password_change_bypass';
+          return;
+        }
+        // For standard GET requests, we let it through so the header.html can render the modal,
+        // but we'll use CSS to hide the content in header.html.
+      }
+
+      // log last action (Fire-and-Forget)
+      if (!req.url.pathname.startsWith('/api/notifications')) {
+        db`
+        update "user_sessions" set ${db({
+          last_used: ~~(Date.now() / 1e3),
+          last_action: req.url.pathname,
+          browser: req.headers['user-agent']
+        }, 'last_used', 'last_action', 'browser')
+          }
+        where id = ${+user[0].sess_id}
+        `.catch(e => console.error('[MIDDLEWARE] Session update failed:', e));
+
+        // Update last_seen on user table (Fire-and-Forget) — feeds the 30-day orakel pool
+        db`update "user" set last_seen = ${~~(Date.now() / 1e3)} where id = ${+user[0].id}`
+          .catch(e => console.error('[MIDDLEWARE] last_seen update failed:', e));
+      }
+
+      if (req.session.admin) {
+        const pending = await db`select count(*) as c from "items" where active = false and is_deleted = false`;
+        req.session.pending_count = pending[0].c;
+      }
+
+      // Calculate uploads remaining globally for the modal
+      if (!req.session.admin && !req.session.is_moderator) {
+          const twelveHoursAgo = ~~(Date.now() / 1000) - (12 * 3600);
+          const uploadCount = await db`
+              SELECT count(*) as count
+              FROM items
+              WHERE username = ${req.session.user}
+              AND stamp > ${twelveHoursAgo}
+              AND is_deleted = false
+          `;
+          req.session.uploads_remaining = Math.max(0, cfg.main.upload_limit - parseInt(uploadCount[0].count));
+      } else {
+          req.session.uploads_remaining = undefined; // Unlimited for admins/mods
+      }
+
+      req.session.theme = req.theme;
+      req.session.fullscreen = req.cookies.fullscreen;
+      
+      // Global upload settings for shared templates
+      const { getMinTags } = await import("./inc/settings.mjs");
+      req.session.min_tags = getMinTags();
+      req.session.mimes_json = JSON.stringify(cfg.mimes);
+      req.session.allowed_mimes = Object.keys(cfg.mimes).join(',');
+      req.session.max_file_size = lib.formatSize(cfg.main.maxfilesize * (req.session.admin ? cfg.main.adminmultiplier : 1));
+      req.session.max_file_size_bytes = Math.floor(cfg.main.maxfilesize * (req.session.admin ? cfg.main.adminmultiplier : 1));
+
+      // update userprofile (Fire-and-Forget)
+      // NOTE: mode is included in the INSERT for first-time row creation (NOT NULL col),
+      // but intentionally excluded from ON CONFLICT DO UPDATE — mode is only updated
+      // by the explicit /mode/:n route to prevent cross-device race conditions.
+      db`
+        insert into "user_options" ${db({
+        user_id: +user[0].id,
+        mode: user[0].mode ?? 0,
+        theme: req.theme,
+        fullscreen: req.session.fullscreen || 0,
+        excluded_tags: req.session.excluded_tags || [],
+        font: req.session.font || null,
+        disable_autoplay: req.session.disable_autoplay ?? (cfg.websrv.enable_autoplay === false),
+        disable_swiping: req.session.disable_swiping ?? (cfg.websrv.enable_swiping === false),
+        show_background: req.session.show_background ?? (cfg.websrv.background !== false),
+        ruffle_volume: user[0].ruffle_volume ?? null,
+        ruffle_background: user[0].ruffle_background ?? true,
+        quote_emojis: user[0].quote_emojis ?? true,
+        embed_youtube_in_comments: user[0].embed_youtube_in_comments ?? (cfg.websrv.embed_youtube_in_comments !== false),
+        hide_koepfe: user[0].hide_koepfe ?? false,
+        language: (user[0].language && user[0].language.trim()) ? user[0].language.trim() : null
+      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language')
+        }
+        on conflict ("user_id") do update set
+        theme = excluded.theme,
+          fullscreen = excluded.fullscreen,
+          excluded_tags = excluded.excluded_tags,
+          font = excluded.font,
+          disable_autoplay = excluded.disable_autoplay,
+          disable_swiping = excluded.disable_swiping,
+          show_background = excluded.show_background,
+          ruffle_volume = excluded.ruffle_volume,
+          ruffle_background = excluded.ruffle_background,
+          quote_emojis = excluded.quote_emojis,
+          embed_youtube_in_comments = excluded.embed_youtube_in_comments,
+          hide_koepfe = excluded.hide_koepfe,
+          language = excluded.language,
+          user_id = excluded.user_id
+      `.catch(e => console.error('[MIDDLEWARE] Options sync failed:', e));
+    }
+
+    const queryMode = req.url.qs?.mode !== undefined ? +req.url.qs.mode : undefined;
+    req.mode = queryMode !== undefined ? queryMode : (req.session ? +(req.session.mode ?? 0) : +(req.cookies?.mode ?? 0));
+
+    // Guest protection: Strictly enforce SFW mode (0) for non-logged-in users
+    if (!req.session) {
+      req.mode = 0;
+    }
+
+    // Private Society gate — require login for all content when enabled
+    if (cfg.websrv.private_society && !req.session) {
+      const publicPaths = /^\/(s|login|logout|register|activate|forgot-password|reset-password|banned|api\/v2\/auth|manifest\.json|sw\.js|robots\.txt|favicon\.(ico|png|gif)|s\/img\/duck-icon-(192|512)\.png)(\/.*)?$/;
+      if (!publicPaths.test(req.url.pathname)) {
+        // For AJAX requests, return 502 so it looks like the backend is down
+        if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+          res.writeHead(502, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: 'Bad Gateway' }));
+          req.url.pathname = '/private_society_bypass';
+          return;
+        }
+        // For page requests, return 502 Bad Gateway for all paths except homepage (which shows the gate)
+        if (req.url.pathname !== '/') {
+          res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502);
+          req.url.pathname = '/private_society_bypass';
+          return;
+        }
+      }
+    }
+  });
+
+  // CSRF validation helper — used by route handlers that have already populated req.session
+  // NOTE: Cannot be used in flummpress app.use() middlewares for upload/avatar bypass handlers
+  //       because flummpress runs ALL middlewares in parallel (Promise.all), so the session
+  //       middleware hasn't finished by the time these run. Those handlers validate CSRF inline.
+  const validateCsrf = (req, res) => {
+    if (req.session && req.session.csrf_token) {
+      const token = req.headers['x-csrf-token'] || req.body?.csrf_token || req.post?.csrf_token || req.url.qs?.csrf_token;
+      if (!token || token !== req.session.csrf_token) {
+        console.error(`[CSRF] Blocked ${req.method} ${req.url.pathname} for user ${req.session.user}. Reason: ${!token ? 'Missing token' : 'Token mismatch'}`);
+        res.writeHead(403, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: 'Invalid CSRF token' }));
+        req.url.pathname = '/csrf_blocked_bypass';
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // CSRF Validation Middleware — only works for routes that go through the router (not bypass handlers)
+  // because the session middleware will have completed by the time router callbacks execute.
+  app.use(async (req, res) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
+    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps'].includes(req.url.pathname)) return;
+    // Hall manager routes are handled by bypass middleware with their own session auth
+    if (req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
+    // User hall image upload is handled by bypass middleware below
+    if (req.url.pathname.match(/^\/api\/v2\/me\/halls\/[^/]+\/image$/)) return;
+    if (!validateCsrf(req, res)) return;
+  });
+
+  // Bypass middleware for direct upload handling
+  // CSRF is validated inside handleUpload after its own session lookup
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/upload') {
+      await handleUpload(req, res, self);
+      req.url.pathname = '/handled_upload_bypass';
+    }
+  });
+
+  // Bypass middleware for video/image metadata extraction and GPS stripping
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/meta/extract-file') {
+      await handleMetaExtract(req, res);
+      req.url.pathname = '/handled_meta_extract_bypass';
+    }
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/meta/strip-gps') {
+      await handleMetaStrip(req, res);
+      req.url.pathname = '/handled_meta_strip_bypass';
+    }
+  });
+
+  // Bypass middleware for avatar upload (needs raw body before router consumes it)
+  // CSRF is validated inside handleAvatarUpload/handleAvatarDelete after their own session lookups
+  app.use(async (req, res) => {
+    if (req.url.pathname === '/api/v2/settings/uploadAvatar') {
+      if (req.method === 'POST') {
+        await handleAvatarUpload(req, res);
+        req.url.pathname = '/handled_avatar_upload_bypass';
+      } else if (req.method === 'DELETE') {
+        await handleAvatarDelete(req, res);
+        req.url.pathname = '/handled_avatar_delete_bypass';
+      }
+    }
+  });
+
+  // Bypass middleware for custom thumbnail uploads
+  app.use(async (req, res) => {
+    const thumbMatch = req.url.pathname.match(/^\/api\/v2\/items\/([^/]+)\/thumbnail$/);
+    if (req.method === 'POST' && thumbMatch) {
+        await handleRethumbUpload(req, res, thumbMatch[1]);
+        req.url.pathname = '/handled_rethumb_upload_bypass';
+    }
+  });
+
+  // Bypass middleware for meme template uploads
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/admin/memes') {
+      await handleMemeUpload(req, res);
+      req.url.pathname = '/handled_meme_upload_bypass';
+    }
+  });
+
+  // Bypass middleware for emoji uploads
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/admin/emojis') {
+      await handleEmojiUpload(req, res);
+      req.url.pathname = '/handled_emoji_upload_bypass';
+    }
+  });
+
+  // Bypass middleware for hall image uploads (multipart — needs raw body)
+  app.use(async (req, res) => {
+    const hallImgMatch = req.url.pathname.match(/^\/api\/v2\/admin\/halls\/([^/]+)\/image$/);
+    if (hallImgMatch) {
+      console.error('[BOOT] [HALL BYPASS] Image path hit:', req.method, req.url.pathname, 'cookies:', JSON.stringify(Object.keys(req.cookies || {})));
+      req.params = req.params || {};
+      req.params.slug = decodeURIComponent(hallImgMatch[1]);
+      if (req.method === 'POST') {
+        await handleHallImageUpload(req, res);
+        req.url.pathname = '/handled_hall_img_bypass';
+      } else if (req.method === 'DELETE') {
+        await handleHallImageDelete(req, res);
+        req.url.pathname = '/handled_hall_img_bypass';
+      }
+    }
+    // POST /api/v2/admin/halls (no slug) — create new hall
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/admin/halls') {
+      await handleHallCreate(req, res);
+      req.url.pathname = '/handled_hall_bypass';
+    }
+    const hallDeleteMatch = req.url.pathname.match(/^\/api\/v2\/admin\/halls\/([^/]+)$/);
+    if (hallDeleteMatch && (req.method === 'DELETE' || req.method === 'PATCH')) {
+      console.error('[BOOT] [HALL BYPASS] CRUD path hit:', req.method, req.url.pathname);
+      req.params = req.params || {};
+      req.params.slug = decodeURIComponent(hallDeleteMatch[1]);
+      if (req.method === 'DELETE') {
+        await handleHallDelete(req, res);
+      } else {
+        await handleHallUpdate(req, res);
+      }
+      req.url.pathname = '/handled_hall_bypass';
+    }
+  });
+
+  // Bypass middleware for user hall image uploads (multipart — raw body needed)
+  app.use(async (req, res) => {
+    const userHallImgMatch = req.url.pathname.match(/^\/api\/v2\/me\/halls\/([^/]+)\/image$/);
+    if (userHallImgMatch && req.method === 'POST') {
+      console.error('[BOOT] [USER_HALL BYPASS] Image upload:', req.url.pathname);
+      const { handleUserHallImageUpload } = await import('./user_hall_image_handler.mjs');
+      await handleUserHallImageUpload(req, res, decodeURIComponent(userHallImgMatch[1]));
+      req.url.pathname = '/handled_user_hall_img_bypass';
+    }
+  });
+
+  tpl.views = "views";
+  tpl.debug = true;
+  tpl.cache = false;
+
+  // i18n — load active language from config (default: 'en')
+  const { t, lang } = createI18n(cfg.websrv.language || 'en');
+
+  // Get git commit hash for debug display
+  let gitHash = process.env.GIT_HASH || 'unknown';
+  if (gitHash === 'unknown') {
+    try {
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+      const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+      gitHash = `${branch}-${hash}`;
+    } catch (e) {
+      // console.warn('Could not get git hash:', e.message);
+    }
+  }
+  console.log('Git hash:', gitHash);
+
+  // Fetch MOTD from database with retry logic
+  let motdLoaded = false;
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (!motdLoaded && attempts < maxAttempts) {
+    try {
+      attempts++;
+      const settings = await db`SELECT value FROM site_settings WHERE key = 'motd' LIMIT 1`;
+      if (settings.length > 0) {
+        setMotd(settings[0].value);
+        console.log(`[BOOT] MOTD loaded on attempt ${attempts}`);
+      } else {
+        console.log(`[BOOT] No MOTD found in database (attempt ${attempts})`);
+      }
+      motdLoaded = true;
+    } catch (e) {
+      console.warn(`[BOOT] MOTD fetch failed (attempt ${attempts}):`, e.message);
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+      }
+    }
+  }
+
+  if (!motdLoaded) {
+    console.error('[BOOT] MOTD failed to load after maximum attempts');
+  }
+
+  // Fetch Manual Approval setting
+  try {
+    const approvalSetting = await db`SELECT value FROM site_settings WHERE key = 'manual_approval' LIMIT 1`;
+    if (approvalSetting.length > 0) {
+      setManualApproval(approvalSetting[0].value === 'true');
+      console.log(`[BOOT] Manual Approval setting loaded: ${getManualApproval()}`);
+    } else {
+      console.log(`[BOOT] No Manual Approval setting found, defaulting to true`);
+      setManualApproval(true);
+    }
+  } catch (e) {
+    console.warn(`[BOOT] Manual Approval fetch failed:`, e.message);
+  }
+
+  // Fetch min_tags setting
+  try {
+    const mtSetting = await db`SELECT value FROM site_settings WHERE key = 'min_tags' LIMIT 1`;
+    if (mtSetting.length > 0) {
+      setMinTags(parseInt(mtSetting[0].value));
+      console.log(`[BOOT] Min Tags setting loaded: ${getMinTags()}`);
+    } else {
+      console.log(`[BOOT] No Min Tags setting found, defaulting to 3`);
+      setMinTags(3); // Match default in settings.mjs
+    }
+  } catch (e) {
+    console.warn(`[BOOT] Min Tags fetch failed:`, e.message);
+  }
+
+  // Fetch registration_open setting
+  try {
+    const regSetting = await db`SELECT value FROM site_settings WHERE key = 'registration_open' LIMIT 1`;
+    if (regSetting.length > 0) setRegistrationOpen(regSetting[0].value === 'true');
+  } catch (e) {
+    console.warn(`[BOOT] Registration Open fetch failed:`, e.message);
+  }
+
+  // Fetch trusted_uploads setting
+  try {
+    const tuSetting = await db`SELECT value FROM site_settings WHERE key = 'trusted_uploads' LIMIT 1`;
+    if (tuSetting.length > 0) {
+      setTrustedUploads(parseInt(tuSetting[0].value));
+      console.log(`[BOOT] Trusted Uploads setting loaded: ${getTrustedUploads()}`);
+    } else {
+      console.log(`[BOOT] No Trusted Uploads setting found, defaulting to ${getTrustedUploads()}`);
+    }
+  } catch (e) {
+    console.warn(`[BOOT] Trusted Uploads fetch failed:`, e.message);
+  }
+
+  // Load bypass_duplicate_check from config.json (static — not a DB setting)
+  if (cfg.websrv.bypass_duplicate_check === true) {
+    setBypassDuplicateCheck(true);
+    console.log(`[BOOT] Duplicate check bypass ENABLED via config.json`);
+  }
+
+  // Load protect_files from config.json (static — not a DB setting)
+  if (cfg.websrv.protect_files === true) {
+    setProtectFiles(true);
+    console.log(`[BOOT] File protection ENABLED via config.json — direct file links require login`);
+  }
+
+  // Load private_messages from config.json (static — not a DB setting)
+  // Default is true; set to false to fully disable private messaging
+  setPrivateMessages(cfg.websrv.private_messages !== false);
+  console.log(`[BOOT] Private messaging: ${cfg.websrv.private_messages !== false ? 'ENABLED' : 'DISABLED'}`);
+  
+  // Load default_layout from config.json (static)
+  if (cfg.websrv.default_layout) {
+    setDefaultLayout(cfg.websrv.default_layout);
+    console.log(`[BOOT] Default layout set to: ${getDefaultLayout()}`);
+  }
+
+  // Fetch about_text from database
+  try {
+    const aboutSetting = await db`SELECT value FROM site_settings WHERE key = 'about_text' LIMIT 1`;
+    if (aboutSetting.length > 0) {
+      setAboutText(aboutSetting[0].value);
+      console.log(`[BOOT] About text loaded`);
+    }
+  } catch (e) {
+    console.warn(`[BOOT] About text fetch failed:`, e.message);
+  }
+
+  // Fetch rules_text from database
+  try {
+    const rulesSetting = await db`SELECT value FROM site_settings WHERE key = 'rules_text' LIMIT 1`;
+    if (rulesSetting.length > 0) {
+      setRulesText(rulesSetting[0].value);
+      console.log(`[BOOT] Rules text loaded`);
+    }
+  } catch (e) {
+    console.warn(`[BOOT] Rules text fetch failed:`, e.message);
+  }
+
+  // Fetch terms_text from database
+  try {
+    const termsSetting = await db`SELECT value FROM site_settings WHERE key = 'terms_text' LIMIT 1`;
+    if (termsSetting.length > 0) {
+      setTermsText(termsSetting[0].value);
+      console.log(`[BOOT] Terms text loaded`);
+    }
+  } catch (e) {
+    console.warn(`[BOOT] Terms text fetch failed:`, e.message);
+  }
+
+  const globals = {
+    lul: cfg.websrv.lul,
+    themes: cfg.websrv.themes,
+    default_theme: cfg.websrv.theme || 'f0ck',
+    modes: cfg.allowedModes,
+    api: cfg.websrv.api,
+    site: cfg.main.url.full,
+    domain: cfg.main.url.domain,
+    hide_comments_from_public: cfg.main.hide_comments_from_public,
+    git_hash: typeof gitHash !== 'undefined' ? gitHash : 'unknown',
+    discord: cfg.main.discord,
+    get motd() { return getMotd(); },
+    get manual_approval() { return getManualApproval(); },
+    get min_tags() { return getMinTags(); },
+    get registration_open() { return getRegistrationOpen(); },
+    registration_web_toggle_enabled: cfg.websrv.open_registration_web_toggle !== false,
+    get trusted_uploads() { return getTrustedUploads(); },
+    get about_text() { return getAboutText(); },
+    get rules_text() { return getRulesText(); },
+    get terms_text() { return getTermsText(); },
+    get halls() { return getHalls(); },
+    smtp_enabled: !!(cfg.smtp && cfg.smtp.enabled && cfg.smtp.mail_reset_password),
+    show_background_cfg: cfg.websrv.background !== false,
+    allowed_mimes: Object.keys(cfg.mimes).concat([...new Set(Object.values(cfg.mimes))].map(ext => `.${ext}`)).join(','),
+    mimes_json: JSON.stringify(cfg.mimes),
+    development: cfg.main.development || false,
+    show_mime_picker: cfg.websrv.show_mime_picker !== false,
+    private_society: cfg.websrv.private_society || false,
+    show_content_warning: cfg.websrv.show_content_warning !== false,
+    web_url_upload: !!cfg.websrv.web_url_upload,
+    enable_youtube_upload: cfg.websrv.enable_youtube_upload !== false,
+    upload_limit: cfg.main.upload_limit ?? 69,
+    meme_creator: !!cfg.websrv.meme_creator,
+    custom_favicon: cfg.websrv.custom_favicon || "",
+    custom_brand_image: Array.isArray(cfg.websrv.custom_brand_image) ? cfg.websrv.custom_brand_image[0] : (cfg.websrv.custom_brand_image || ""),
+    site_description: cfg.websrv.description || "The webs dumpster",
+    enable_nsfl: !!cfg.enable_nsfl,
+    nsfl_tag_id: cfg.nsfl_tag_id || 3,
+    scroller_mime_cats: Array.isArray(cfg.allowedMimes) ? cfg.allowedMimes.filter(c => ['video','image','audio'].includes(c)) : ['video','image','audio'],
+    themes_json: JSON.stringify(cfg.websrv.themes || []),
+    enable_profile_description: !!cfg.websrv.enable_profile_description,
+    get private_messages() { return getPrivateMessages(); },
+    matrix_enabled: cfg.clients.find(c => c.type === 'matrix')?.enabled || false,
+    ts: Date.now(),
+    get default_layout() { return getDefaultLayout(); },
+    show_koepfe: !!cfg.websrv.show_koepfe,
+    allow_language_change: cfg.websrv.allow_language_change !== false,
+    use_ententeich: !!cfg.websrv.use_ententeich,
+    enable_xd_score: !!cfg.websrv.enable_xd_score,
+    enable_swf: !!cfg.websrv.enable_swf,
+    enable_danmaku: cfg.websrv.enable_danmaku !== false,
+    enable_global_chat: !!cfg.websrv.enable_global_chat,
+    embed_youtube_in_comments: cfg.websrv.embed_youtube_in_comments !== false,
+    koepfe_json: JSON.stringify(cfg.websrv.koepfe || []),
+    custom_brand_images_json: JSON.stringify(cfg.websrv.custom_brand_image || []),
+    allowed_comment_images: cfg.websrv.allowed_comment_images || [],
+    allowed_comment_images_json: JSON.stringify(cfg.websrv.allowed_comment_images || []),
+
+    get fonts() {
+      try {
+        const fontsDir = path.join(path.resolve(), 'public/s/fonts');
+        if (!fs.existsSync(fontsDir)) return [];
+        return fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff2?)$/i.test(f)).map(f => ({
+          name: f.split('.').shift(),
+          file: f
+        }));
+      } catch (e) {
+        return [];
+      }
+    },
+
+    // i18n
+    t,
+    lang
+  };
+
+  tpl.globals = globals;
+
+  // Monkey-patch render to ensure mode and theme are passed
+  const originalRender = tpl.render;
+  const defaultI18n = { t, lang };
+  tpl.render = function (view, data, req) {
+    // Resolve per-request language BEFORE building data, so the correct
+    // t() and lang are available from the start (not overridden by globals).
+    let perRequestT = t;
+    let perRequestLang = lang;
+
+    if (req) {
+      const VALID_LANGS = ['en', 'de', 'nl', 'zange'];
+      const rawLang = (req.session?.language && req.session.language.trim())
+        || (req.cookies?.language && req.cookies.language.trim())
+        || cfg.websrv.language || 'en';
+      const userLang = VALID_LANGS.includes(rawLang) ? rawLang : (cfg.websrv.language || 'en');
+      const perRequest = createI18n(userLang);
+      perRequestT = perRequest.t;
+      perRequestLang = perRequest.lang;
+      if (process.env.NODE_ENV !== 'production')
+        console.log(`[i18n] render: user=${req.session?.user} rawLang=${rawLang} userLang=${userLang}`);
+    } else if (data && data.t && data.lang) {
+      // Called from @include — inherit t and lang from the parent render's data
+      perRequestT = data.t;
+      perRequestLang = data.lang;
+    }
+
+    // Build data: globals first, then caller-supplied data, then per-request i18n last
+    // so t/lang always reflect the user's language, not the site default.
+    // ALSO mutate globals.t and globals.lang: flummpress spreads this.#globals LAST
+    // inside render(), so globals must carry the per-request values too.
+    globals.t = perRequestT;
+    globals.lang = perRequestLang;
+    data = Object.assign({}, globals, data || {}, {
+      t: perRequestT,
+      lang: perRequestLang
+    });
+
+    // Random brand image per-render
+    const brand = cfg.websrv.custom_brand_image;
+    if (Array.isArray(brand) && brand.length > 0) {
+      data.custom_brand_image = brand[Math.floor(Math.random() * brand.length)];
+    }
+
+    if (req) {
+      if (req.mode !== undefined) data.mode = req.mode;
+      data.theme = req.theme || req.cookies?.theme || cfg.websrv.theme || 'f0ck';
+      if (!data.url) data.url = req.url;
+      data.user_strict_bool = (req.session && req.session.strict_mode) ? true : false;
+      data.user_logged_in_bool = !!req.session;
+      data.csrf_token = req.session?.csrf_token || '';
+      data.max_file_size = lib.formatSize(cfg.main.maxfilesize * (req.session?.admin ? cfg.main.adminmultiplier : 1));
+      data.max_file_size_bytes = Math.floor(cfg.main.maxfilesize * (req.session?.admin ? cfg.main.adminmultiplier : 1));
+      data.web_url_upload = data.web_url_upload !== undefined ? data.web_url_upload : !!cfg.websrv.web_url_upload;
+    } else {
+      data.theme = data.theme || cfg.websrv.theme || 'f0ck';
+      data.user_strict_bool = false;
+      data.user_logged_in_bool = false;
+    }
+
+    return originalRender.call(tpl, view, data, (data.url && data.url !== req?.url) ? undefined : req);
+  };
+
+  router.use(tpl);
+  router.self = self;
+
+  await router.importRoutesFromPath("src/inc/routes", tpl);
+
+  app.listen(cfg.websrv.port);
+
+})();

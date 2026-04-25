@@ -1,0 +1,177 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <div class="container">
+    <h1>ADMINBEREICH</h1>
+    <h5>Hallo, {{ session.user }}</h5>
+    <span>Hier entsteht eine Internetpräsenz!</span><br>
+    <hr>
+    <p>f0ck stats: @if(typeof totals !== "undefined")total: {{ totals.total }} | tagged: {{ totals.tagged }} | untagged: {{ totals.untagged }} | sfw: {{ totals.sfw }} | nsfw: {{ totals.nsfw }}@endif</p>
+    <hr>
+    <div class="admintools">
+      <p>Adminwerkzeuge</p>
+      <ul>
+        <li><a href="/mod/audit">Audit Log</a></li>
+        <li><a href="/admin/approve">Approval Queue</a></li>
+        <li><a href="/admin/sessions">Sessions</a></li>
+        <li><a href="/admin/tokens">Invite Tokens</a></li>
+        <li><a href="/admin/users">User Manager</a></li>
+        <li><a href="/admin/emojis">Emoji Manager</a></li>
+        <li><a href="/admin/memes">Meme Manager</a></li>
+        <li><a href="/admin/halls">Hall Manager</a></li>
+        <li><a href="/admin/motd">MOTD Manager</a></li>
+        <li><a href="/admin/about">About Page</a></li>
+        <li><a href="/admin/rules">Rules Page</a></li>
+      </ul>
+
+      <hr style="margin: 20px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
+
+      <div class="settings-toggle" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <label style="display: block; font-weight: bold; color: var(--accent);">Manual Upload Approval</label>
+          <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">If enabled, mods must approve every upload.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="manual_approval_toggle" {{ manual_approval ? 'checked' : '' }} onchange="saveAdminSettings()">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      @if(registration_web_toggle_enabled)
+      <div class="settings-toggle" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+        <div>
+          <label style="display: block; font-weight: bold; color: var(--accent);">Open Registration</label>
+          <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">Allow registration without invite tokens. Requires email activation.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="registration_open_toggle" {{ registration_open ? 'checked' : '' }} onchange="saveAdminSettings()">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      @endif
+
+      <div class="settings-item" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+        <div>
+          <label style="display: block; font-weight: bold; color: var(--accent);">Minimum Tags</label>
+          <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">Minimum number of tags required per upload.</p>
+        </div>
+        <input type="number" id="min_tags_input" value="{{ min_tags }}" min="1" max="20" style="width: 60px; background: #333; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; text-align: center;" onchange="saveAdminSettings()">
+      </div>
+
+      <div class="settings-item" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+        <div>
+          <label style="display: block; font-weight: bold; color: var(--accent);">Trusted Upload Threshold</label>
+          <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">New users with fewer than this many approved uploads must still go through manual approval, even if the global toggle is off. Set to 0 to disable.</p>
+        </div>
+        <input type="number" id="trusted_uploads_input" value="{{ trusted_uploads }}" min="0" max="999" style="width: 60px; background: #333; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; text-align: center;" onchange="saveAdminSettings()">
+      </div>
+
+
+      <div class="settings-item" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+        <div>
+          <label style="display: block; font-weight: bold; color: var(--accent);">Tag Image Cache</label>
+          <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">Regenerate thumbnails for the /tags page. This may take a while.</p>
+        </div>
+        <button onclick="regenerateTagImages()" id="regen_tag_btn" style="background: #007bff; border: 0; color: #fff; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold;">Regenerate All</button>
+      </div>
+
+
+      <span id="settings-status" style="display: block; margin-top: 10px; font-size: 0.8em; font-weight: bold; text-align: right;"></span>
+    </div>
+  </div>
+
+  <style>
+    .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(24px); background-color: #000; }
+  </style>
+
+  <script>
+    async function saveAdminSettings() {
+      const status = document.getElementById('settings-status');
+      const approvalToggle = document.getElementById('manual_approval_toggle');
+      const registrationToggle = document.getElementById('registration_open_toggle');
+      const minTagsInput = document.getElementById('min_tags_input');
+      const trustedUploadsInput = document.getElementById('trusted_uploads_input');
+
+      status.textContent = 'Saving...';
+      status.style.color = 'var(--accent)';
+
+      try {
+        const res = await fetch('/admin/settings', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            manual_approval: approvalToggle.checked ? 'on' : 'off',
+            ...(registrationToggle ? { registration_open: registrationToggle.checked ? 'on' : 'off' } : {}),
+            min_tags: minTagsInput.value,
+            trusted_uploads: trustedUploadsInput.value,
+            csrf_token: '{{ csrf_token }}'
+          }).toString()
+        });
+        
+        if (!res.ok) throw new Error('Server returned ' + res.status);
+        
+        const data = await res.json();
+        if (data.success) {
+          status.textContent = 'Saved!';
+          status.style.color = '#28a745';
+          setTimeout(() => { status.textContent = ''; }, 2000);
+        } else {
+          throw new Error(data.msg || 'Save failed');
+        }
+      } catch (err) {
+        console.error('Settings save error:', err);
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = '#d9534f';
+      }
+    }
+
+    async function regenerateTagImages() {
+      const btn = document.getElementById('regen_tag_btn');
+      const status = document.getElementById('settings-status');
+      
+      if (!confirm('Are you sure you want to trigger a full regeneration of all tag images? This will run in the background.')) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      status.textContent = 'Triggering regeneration...';
+      status.style.color = 'var(--accent)';
+
+      try {
+        const res = await fetch('/admin/tag_image/regenerate_all', {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          status.textContent = data.message;
+          status.style.color = '#28a745';
+          btn.textContent = 'Started!';
+          setTimeout(() => { 
+            btn.disabled = false;
+            btn.textContent = 'Regenerate All';
+            status.textContent = '';
+          }, 5000);
+        } else {
+          throw new Error(data.msg || 'Action failed');
+        }
+      } catch (err) {
+        console.error('Regeneration error:', err);
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = '#d9534f';
+        btn.disabled = false;
+        btn.textContent = 'Regenerate All';
+      }
+    }
+
+  </script>
+</div>
+</div>
+@include(snippets/footer)

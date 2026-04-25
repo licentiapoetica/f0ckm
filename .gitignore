@@ -1,0 +1,13 @@
+node_modules/
+logs/*.log
+config.json
+public/b
+public/ca
+public/t
+deleted/b
+deleted/ca
+deleted/t
+tmp/*
+tools
+public/a
+public/tag_cache

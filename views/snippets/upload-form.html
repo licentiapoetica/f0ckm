@@ -1,0 +1,129 @@
+<form id="upload-form" class="upload-form" enctype="multipart/form-data" data-mimes='{!! mimes_json !!}' data-max-bytes="{{ max_file_size_bytes }}">
+    <div class="form-section">
+        @if(web_url_upload)
+        <div class="upload-mode-tabs">
+            <button type="button" class="upload-mode-tab active" data-mode="file">
+                <i class="fa-solid fa-upload"></i>
+                {{ t('upload.file_tab') }}
+            </button>
+            <button type="button" class="upload-mode-tab" data-mode="url">
+                <i class="fa-solid fa-link"></i>
+                @if(enable_youtube_upload){{ t('upload.url_tab_yt') }}@else {{ t('upload.url_tab') }} @endif
+            </button>
+        </div>
+        @endif
+
+        <!-- File input area -->
+        <div class="upload-mode-content" id="mode-file">
+            <div class="drop-zone" id="upload-form-drop-zone">
+                <input type="file" class="file-input" name="file" accept="{{ allowed_mimes }}">
+                <div class="drop-zone-prompt">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 4rem; opacity: 0.7; margin-bottom: 1rem;"></i>
+                    <p style="font-size: 1.1rem; font-weight: 500;">{{ t('upload.drop_here') }}</p>
+                    <p style="font-size: 0.9rem; opacity: 0.6;">(max {{ max_file_size }})@if(session.admin) <span style="color: var(--accent);">{{ t('upload.admin_boost') }}</span>@endif</p>
+                </div>
+                <!-- Preview Container -->
+                <div class="file-preview" style="display: none;">
+                    <!-- Video will be injected here via JS -->
+                    <div class="file-meta-row">
+                        <div class="file-info">
+                            <span class="file-name"></span>
+                            <span class="file-size"></span>
+                        </div>
+                        <button type="button" class="btn-remove" title="{{ t('upload.remove_file') }}">✕</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if(web_url_upload)
+        <!-- URL input area -->
+        <div class="upload-mode-content" id="mode-url" style="display: none;">
+            <div class="url-input-container">
+                <input type="url" id="url-upload-input" name="url" placeholder="@if(enable_youtube_upload){{ t('upload.url_placeholder_yt') }}@else {{ t('upload.url_placeholder') }}@endif" autocomplete="off">
+            </div>
+            <div class="url-type-badge" id="url-type-badge" style="display: none;"></div>
+        </div>
+        @endif
+        
+        <!-- Custom Thumbnail for Flash -->
+        <div class="form-section" id="custom-thumbnail-section" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+            <label>{{ t('upload.custom_thumbnail') }}</label>
+            <span style="opacity: 0.5; font-weight: normal;">{{ t('upload.custom_thumbnail_hint') }}</span>
+            <div class="custom-thumbnail-input">
+                <input type="file" name="thumbnail" id="upload-thumbnail-input" accept="image/jpeg,image/png,image/webp" style="font-size: 0.9rem;">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <label>{{ t('upload.rating') }} <span class="required">*</span></label>
+        <div class="rating-options">
+            <label class="rating-option">
+                <input type="radio" name="rating" value="sfw" required>
+                <span class="rating-label sfw">SFW</span>
+            </label>
+            <label class="rating-option">
+                <input type="radio" name="rating" value="nsfw">
+                <span class="rating-label nsfw">NSFW</span>
+            </label>
+            @if(enable_nsfl)
+            <label class="rating-option">
+                <input type="radio" name="rating" value="nsfl">
+                <span class="rating-label nsfl">NSFL</span>
+            </label>
+            @endif
+        </div>
+    </div>
+
+    <div class="form-section">
+        <label class="oc-option">
+            <input type="checkbox" name="is_oc" id="upload-oc-checkbox">
+            <span class="oc-label">{{ t('upload.original_content') }}</span>
+        </label>
+    </div>
+
+    <div class="form-section">
+        <label>{{ t('upload.tags') }} <span class="required">*</span> <span class="tag-count">(0/{{ min_tags }} {{ t('upload.tags_minimum') }})</span></label>
+        <div class="tag-input-container">
+            <div class="sync-spinner">
+                <span class="spinner-icon"></span>
+                <span>{{ t('upload.extracting_title') }}</span>
+            </div>
+            <div class="tags-list"></div>
+            <input type="text" class="tag-input" placeholder="{{ t('upload.tag_placeholder') }}" autocomplete="off" enterkeyhint="enter">
+            <div class="tag-suggestions"></div>
+        </div>
+        <input type="hidden" name="tags" class="tags-hidden">
+        <div class="meta-suggestions-container" style="display: none;">
+            <div class="suggestions-header">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> {{ t('upload.suggestions_header') }}
+            </div>
+            <div class="meta-suggestions-list"></div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <label>{{ t('upload.comment') }} <span style="opacity: 0.5; font-weight: normal;">{{ t('upload.comment_optional') }}</span></label>
+        <div class="upload-comment-input comment-input">
+            <textarea class="upload-comment" placeholder="{{ t('upload.comment_placeholder') }}" maxlength="2000"></textarea>
+            <div class="input-actions"></div>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn-upload" disabled>
+            <span class="btn-text">{{ t('upload.select_file') }}</span>
+            <span class="btn-loading" style="display: none;">{{ t('upload.uploading') }}</span>
+        </button>
+    </div>
+
+    <div class="upload-progress" style="display: none;">
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+        <span class="progress-text">0%</span>
+    </div>
+
+    <div class="upload-status"></div>
+</form>

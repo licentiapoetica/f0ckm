@@ -1,0 +1,31 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <div class="rules">
+    @if(terms_text)
+    <div class="dynamic-page-content" id="terms-dynamic-content"></div>
+    <textarea id="terms-raw-data" hidden>{!! terms_text !!}</textarea>
+    <script>
+      (function() {
+        var raw = document.getElementById('terms-raw-data');
+        var el  = document.getElementById('terms-dynamic-content');
+        function render() {
+          if (raw && el && typeof marked !== 'undefined') {
+            el.innerHTML = marked.parse(raw.value || '', { gfm: true, breaks: true });
+            raw.remove();
+          }
+        }
+        if (typeof marked !== 'undefined') {
+          render();
+        } else {
+          document.addEventListener('DOMContentLoaded', render);
+        }
+      })();
+    </script>
+    @else
+    <h1>Terms of Service</h1>
+    @endif
+  </div>
+</div>
+</div>
+@include(snippets/footer)

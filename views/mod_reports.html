@@ -1,0 +1,352 @@
+@include(snippets/header)
+
+<div class="pagewrapper">
+<div id="main">
+    <style>
+    .mod-reports-table .btn, .mod-reports-table button {
+        border-radius: 0 !important;
+    }
+</style>
+
+    <div class="container mod-reports-page">
+        <h1>User Reports</h1>
+        <hr>
+        <div class="row" style="margin-bottom: 20px;">
+            <div class="col-md-12">
+                <select id="report-status-filter" class="form-control" style="width: 200px; display: inline-block;">
+                    <option value="pending">Pending</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <button class="btn btn-secondary" onclick="loadReports(1)">Refresh</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-dark">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Reporter</th>
+                        <th>Target</th>
+                        <th>Reason</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="reports-table-body">
+                    <tr><td colspan="6" class="text-center">Loading reports...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="reports-pagination" style="text-align: center; margin-top: 15px;"></div>
+    </div>
+<script>
+window.currentPage = window.currentPage || 1;
+
+window.loadReports = async function(page = 1) {
+    window.currentPage = page;
+    const status = document.getElementById('report-status-filter').value;
+    const tbody = document.getElementById('reports-table-body');
+    const pag = document.getElementById('reports-pagination');
+    
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading reports...</td></tr>';
+    
+    try {
+        const res = await fetch('/api/v2/mod/reports?status=' + status + '&page=' + page);
+        const data = await res.json();
+        
+        if (data.success) {
+            window.currentReports = data.reports;
+            window.emojiMap = new Map();
+            if (data.emojis) {
+                data.emojis.forEach(emojiObj => window.emojiMap.set(emojiObj.name.toLowerCase(), emojiObj.url));
+            }
+            tbody.innerHTML = '';
+            if (data.reports.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No reports found.</td></tr>';
+                return;
+            }
+            
+            data.reports.forEach(r => {
+                let targetHtml = '';
+                if (r.comment_id) {
+                    targetHtml += 'Comment: <a href="#" onclick="window.expandItem(event, ' + r.id + ')">#' + r.comment_id + '</a> (Click to expand)';
+                } else if (r.resolved_item_id) {
+                    targetHtml += 'Item: <a href="#" onclick="window.expandItem(event, ' + r.id + ')">#' + r.resolved_item_id + '</a> (Click to expand)';
+                } else if (r.reported_user_name) {
+                    targetHtml += 'User: <a href="/user/' + r.reported_user_name + '">' + r.reported_user_name + '</a>';
+                }
+
+                let actionHtml = '';
+                if (status === 'pending') {
+                    actionHtml = 
+                        '<button class="btn btn-sm btn-success" onclick="window.resolveReport(' + r.id + ', &quot;resolved&quot;)">Resolve</button> ' +
+                        '<button class="btn btn-sm btn-danger" onclick="window.resolveReport(' + r.id + ', &quot;rejected&quot;)">Reject</button>';
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = 
+                    '<td>' + r.id + '</td>' +
+                    '<td><a href="/user/' + r.reporter_name + '">' + r.reporter_name + '</a></td>' +
+                    '<td>' + targetHtml + '</td>' +
+                    '<td>' + r.reason + '</td>' +
+                    '<td>' + new Date(r.created_at).toLocaleString() + '</td>' +
+                    '<td>' + actionHtml + '</td>';
+                tbody.appendChild(tr);
+            });
+
+            // Pagination
+            pag.innerHTML = '';
+            if (data.pages > 1) {
+                if (data.page > 1) {
+                    pag.innerHTML += '<button class="btn btn-sm btn-secondary" onclick="window.loadReports(' + (data.page - 1) + ')">Prev</button> ';
+                }
+                pag.innerHTML += 'Page ' + data.page + ' of ' + data.pages + ' ';
+                if (data.page < data.pages) {
+                    pag.innerHTML += '<button class="btn btn-sm btn-secondary" onclick="window.loadReports(' + (data.page + 1) + ')">Next</button>';
+                }
+            }
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error: ' + data.msg + '</td></tr>';
+        }
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Network Error</td></tr>';
+    }
+};
+
+window.resolveReport = async function(id, action) {
+    if (!confirm('Mark report #' + id + ' as ' + action + '?')) return;
+    try {
+        const params = new URLSearchParams();
+        params.append('action', action);
+        
+        const res = await fetch('/api/v2/mod/reports/' + id + '/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.loadReports(window.currentPage);
+        } else {
+            alert('Error: ' + data.msg);
+        }
+    } catch (e) {
+        alert('Network error');
+    }
+};
+
+window.expandItem = function(e, id) {
+    e.preventDefault();
+    const tr = e.target.closest('tr');
+    
+    // Toggle logic: If the next row is an expanded row, remove it and return.
+    if (tr.nextElementSibling && tr.nextElementSibling.classList.contains('expanded-report')) {
+        tr.nextElementSibling.remove();
+        return;
+    }
+    
+    // Lookup the report locally
+    const r = window.currentReports.find(x => x.id === id);
+    if (!r) return;
+
+    // Checking if the moderator is also a superadmin for ban abilities
+    const isAdmin = window.f0ckSession && window.f0ckSession.admin;
+
+    // Build the Expansion Row
+    const expTr = document.createElement('tr');
+    expTr.className = 'expanded-report';
+    const isComment = !!r.comment_id;
+    const isItem = !!r.resolved_item_id && r.resolved_item_dest;
+
+    let previewHtml = '';
+    // Only show media preview for direct Item reports
+    if (isItem && !isComment) {
+        const mime = r.resolved_item_mime || '';
+        const src = '/b/' + r.resolved_item_dest;
+        const baseStyle = 'max-height: 250px; border: 1px solid #333; border-radius: 4px;';
+        if (mime.startsWith('image/')) {
+            previewHtml = '<div><img src="' + src + '" style="' + baseStyle + ' background: #000;"></div>';
+        } else if (mime.startsWith('audio/')) {
+            previewHtml = '<div><audio src="' + src + '" controls style="' + baseStyle + '"></audio></div>';
+        } else {
+            previewHtml = '<div><video src="' + src + '" controls loop style="' + baseStyle + ' background: #000;"></video></div>';
+        }
+    }
+    if (isComment) {
+        let escapedContent = (r.comment_body || '[Deleted or Empty]')
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        // Handle Emojis
+        if (window.emojiMap) {
+            escapedContent = escapedContent.replace(/:([a-z0-9_]+):/g, function(match, code) {
+                var url = window.emojiMap.get(code.toLowerCase());
+                if (url) {
+                    return '<img src="' + url + '" style="height:24px;vertical-align:middle;" alt="' + code + '" title=":' + code + ':">';
+                }
+                return match;
+            });
+        }
+
+        previewHtml += '<div style="background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid #444; color: #eee; font-family: monospace; max-height: 250px; overflow-y: auto; white-space: pre-wrap; font-size: 0.9rem;">' + 
+            '<strong>Reported Comment:</strong><br><br>' + escapedContent + 
+            '</div>';
+    }
+
+    let buttonsHtml = '';
+    // Delete Video button only for direct Video reports
+    if (isItem && !isComment) {
+        buttonsHtml += '<button class="btn btn-sm btn-danger" style="padding: 6px 15px;" onclick="window.adminDeleteItem(' + r.resolved_item_id + ')">Delete Item</button>';
+    }
+    if (isComment) {
+        buttonsHtml += '<button class="btn btn-sm btn-danger" style="padding: 6px 15px;" onclick="window.adminDeleteComment(' + r.comment_id + ')">Delete Comment</button>';
+        if (r.resolved_item_id) {
+            buttonsHtml += '<a href="/' + r.resolved_item_id + '" class="btn btn-sm btn-info" style="padding: 6px 15px; text-decoration: none; color: white; border: 1px solid #0dcaf0;" target="_blank">View Video</a>';
+        }
+    }
+
+    // Punitive actions target the reported party
+    if (r.reported_user_id) {
+        // Only show punitive actions if viewer is admin OR reported user is NOT an admin
+        if (isAdmin || !r.reported_user_is_admin) {
+            const warnLabel = isItem ? 'Warn Uploader' : (isComment ? 'Warn Commenter' : 'Warn User');
+            buttonsHtml += '<button class="btn btn-sm btn-warning" style="padding: 6px 15px;" onclick="window.modWarnUser(' + r.reported_user_id + ')">' + warnLabel + ' (' + r.reported_user_name + ')</button>';
+            const banLabel = isItem ? 'Ban Uploader' : (isComment ? 'Ban Commenter' : 'Ban User');
+            buttonsHtml += '<button class="btn btn-sm btn-danger" style="padding: 6px 15px;" onclick="window.adminBanUser(' + r.reported_user_id + ')">' + banLabel + ' (' + r.reported_user_name + ')</button>';
+        } else {
+            buttonsHtml += '<span style="color:var(--gray); font-style: italic; opacity:0.8; margin-left: 10px;">(Admin Protection Active)</span>';
+        }
+    } else {
+        buttonsHtml += '<span style="color:var(--gray); opacity:0.6;">(Anonymous/Unknown Source)</span>';
+    }
+
+    expTr.innerHTML = 
+        '<td colspan="6" style="background: rgba(0,0,0,0.3); border-left: 3px solid var(--accent); padding: 20px;">' +
+            '<div style="display: flex; gap: 40px; align-items: center;">' +
+                previewHtml +
+                '<div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">' +
+                    '<div style="font-weight: bold; opacity: 1; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1.5px; margin-bottom: 5px;">Moderation Action:</div>' +
+                    '<div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">' +
+                        buttonsHtml +
+                        '<button class="btn btn-sm btn-secondary" style="border: 1px solid #555; padding: 6px 15px;" onclick="window.modWarnUser(' + r.reporter_id + ')">Warn Reporter (' + r.reporter_name + ')</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</td>';
+    
+tr.insertAdjacentElement('afterend', expTr);
+};
+
+window.adminDeleteComment = function(id) {
+    window.ModAction.confirm('Delete Comment #' + id, 'Are you sure you want to delete this comment? This action is permanent.', async (reason) => {
+        const params = new URLSearchParams();
+        params.append('reason', reason);
+        const res = await fetch('/api/comments/' + id + '/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (window.showFlash) window.showFlash('comment deleted', 'success');
+        } else {
+            throw new Error(data.msg || 'Unknown error');
+        }
+    });
+};
+
+window.adminDeleteItem = function(id) {
+    window.ModAction.confirm('Delete Item #' + id, 'Are you sure you want to delete this item? This action is permanent.', async (reason) => {
+        const params = new URLSearchParams();
+        params.append('postid', id);
+        params.append('reason', reason);
+        const res = await fetch('/api/v2/admin/deletepost', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (window.showFlash) window.showFlash('item deleted', 'success');
+        } else {
+            throw new Error(data.msg || 'Unknown error');
+        }
+    });
+};
+
+window.modWarnUser = function(userId) {
+    window.ModAction.confirm('Warn User ID ' + userId, 'A live notification will be sent to the user via SSE.', async (reason) => {
+        const params = new URLSearchParams();
+        params.append('user_id', userId);
+        params.append('reason', reason);
+        const res = await fetch('/api/v2/mod/warnings/issue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (window.showFlash) window.showFlash('user has been warned', 'success');
+        } else {
+            throw new Error(data.msg || 'Unknown error');
+        }
+    });
+};
+
+window.adminBanUser = function(userId) {
+    const isAdmin = window.f0ckSession && window.f0ckSession.admin;
+    const promptHtml = 
+        '<p>This will restrict the user from accessing their account and performing most actions.</p>' +
+        '<div style="margin-top:10px;">' +
+            '<label>Ban Duration:</label>' +
+            '<select id="ban-duration-select" class="form-control" style="margin-top:5px;">' +
+                (isAdmin ? '<option value="permanent">Permanent</option>' : '') +
+                '<option value="1">1 Hour</option>' +
+                '<option value="6">6 Hours</option>' +
+                '<option value="24">24 Hours (1 Day)</option>' +
+                (!isAdmin ? '<option value="48">48 Hours (2 Days)</option>' : '') +
+                (isAdmin ? '<option value="168">168 Hours (1 Week)</option>' : '') +
+                (isAdmin ? '<option value="720">720 Hours (1 Month)</option>' : '') +
+            '</select>' +
+        '</div>';
+
+    window.ModAction.confirm('Ban User ID ' + userId, promptHtml, async (reason) => {
+        const duration = document.getElementById('ban-duration-select').value;
+        const params = new URLSearchParams();
+        params.append('user_id', userId);
+        params.append('reason', reason);
+        params.append('duration', duration);
+        
+        const res = await fetch('/api/v2/admin/ban', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (window.showFlash) window.showFlash('User banned cleanly.', 'success');
+        } else {
+            throw new Error(data.msg || 'Unknown error');
+        }
+    });
+};
+
+(function() {
+    const filter = document.getElementById('report-status-filter');
+    if (filter) {
+        // Prevent stacking, although safe here
+        filter.onchange = () => window.loadReports(1);
+    }
+    window.loadReports(1);
+})();
+</script>
+</div>
+</div>
+</div>
+@include(snippets/footer)
+

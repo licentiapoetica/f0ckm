@@ -1,0 +1,22 @@
+@include(snippets/header)
+<div id="main">
+  <div class="container">
+    <div class="_error_wrapper">
+      <div class="err">
+        <div class="_error_topbar">
+          <span>(Ͼ˳Ͽ)..!!!</span>
+        </div>
+        <div class="_error_content">
+          <a href="/random">
+            <img src="/s/img/404.gif" alt="ZOMG">
+          </a>
+            <div class="_error_message">
+              <span>{{ t('error.label') }}</span>
+            <code>{{ message }}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+@include(snippets/footer)

@@ -1,0 +1,192 @@
+{{-- LEGACY LAYOUT — 2-column (main + fixed right sidebar) --}}
+{{-- Used by: members with use_new_layout = false --}}
+<div class="item-layout-container">
+
+    {{-- MAIN CONTENT: media + navigation + metadata + comments --}}
+    <div class="item-main-content">
+
+        <div class="_204863">
+            <div class="location">{{ link.main }}{{ item.id }}{{ link.suffix }}</div>
+            <div class="gapLeft"></div>
+        </div>
+
+        <div class="content">
+            <div class="previous-post">
+                @if(pagination.next)
+                <div class="arrow-prev">
+                    <a id="prev" href="{{ link.main }}{{ pagination.next }}{{ link.suffix }}"></a>
+                </div>
+                @else
+                <div class="arrow-prev">
+                    <a id="prev" href="#" style="color: #ccc !important;"></a>
+                </div>
+                @endif
+            </div>
+            <div class="media-object">
+                @include(snippets/item-media)
+            </div>
+            <div class="next-post">
+                @if(pagination.prev)
+                <div class="arrow-next">
+                    <a id="next" href="{{ link.main }}{{ pagination.prev }}{{ link.suffix }}"></a>
+                </div>
+                @else
+                <div class="arrow-next">
+                    <a id="next" href="#" style="color: #ccc !important;"></a>
+                </div>
+                @endif
+            </div>
+        </div>
+        <div class="metadata">
+
+            <div class="kontrollelement">
+                <div class="einheit">
+                    @if(typeof pagination !== "undefined")
+                    <nav class="steuerung">
+                        @if(pagination.next)
+                        <a class="nav-prev" href="{{ link.main }}{{ pagination.next }}{{ link.suffix }}">← {{ t('nav.prev') }}</a>
+                        @else
+                        <a class="nav-prev" href="#" style="visibility: hidden">← {{ t('nav.prev') }}</a>
+                        @endif
+                        <span>|</span>
+                        <a id="random" class="" href="/random">
+                            <span>{{ t('nav.random_nav') }}</span>
+                        </a>
+                        <span>|</span>
+                        @if(pagination.prev)
+                        <a class="nav-next" href="{{ link.main }}{{ pagination.prev }}{{ link.suffix }}">{{ t('nav.next') }} →</a>
+                        @else
+                        <a class="nav-next" href="#" style="visibility: hidden">{{ t('nav.next') }} →</a>
+                        @endif
+                    </nav>
+                    @endif
+                </div>
+            </div>
+
+            <div class="blahlol">
+                @if(use_ententeich)
+                <div class="ententeich-block" style="--author-accent: @if(item.author_color){{ item.author_color }}@else var(--acent) @endif; --author-border: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif;">
+
+                    <div class="enten-avatar">
+                        <a href="/user/{{ (item.username || '').toLowerCase() }}">
+                            @if(item.author_avatar_file)
+                                <img src="/a/{{ item.author_avatar_file }}" />
+                            @elseif(item.author_avatar && item.author_avatar > 0)
+                                <img src="/t/{{ item.author_avatar }}.webp" />
+                            @else
+                                <img src="/a/default.png" style="border-color: #444;" />
+                            @endif
+                        </a>
+                    </div>
+                    <div class="enten-info">
+                        <div class="enten-header">
+                            <div class="enten-username-container">
+                                <a href="/user/{{ (item.username || '').toLowerCase() }}" tooltip="ID: {{ item.author_id }}" class="enten-username">{!! item.author_display_name || item.username !!}</a>
+                            </div>
+                            <span class="enten-timestamp"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
+                        </div>
+                        <div class="enten-description">
+                            {!! item.author_description || '' !!}
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <span class="badge badge-dark">
+
+                    <a href="/{{ item.id }}" class="id-link" @if(use_ententeich)style="display:none"@endif>{{ item.id }}</a>
+                    @if(item.src.short)@if(!use_ententeich) — @endif<a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a>@endif
+                    @if(session && !use_ententeich) — [<a id="a_username" data-username="{!! item.username || '' !!}" href="/user/{{ (item.username || '').toLowerCase() }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
+                    @if(item.is_oc)@if(!use_ententeich || item.src.short) — @endif<span class="oc-badge" tooltip="Original Content">OC</span>@endif
+                </span>
+                @if(!use_ententeich) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span> — @endif
+                @if(item.primaryHall)
+                <span class="badge hall-badge-wrap">
+                    <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary">{{ item.primaryHall.name }}</a>@if(is_mod_or_admin)&nbsp;<a class="remove-from-hall" href="#" data-hall="{{ item.primaryHall.slug }}" title="Remove from hall"><i class="fa-solid fa-xmark"></i></a>@endif@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
+                </span>@if(!use_ententeich) —@endif
+                @endif
+
+
+                @if(session)
+
+                <div class="gapRight">
+                    @if(user_has_favorited)
+                    <i class="iconset fa-solid fa-heart" id="a_favo" title="Favorite"></i>
+                    @else
+                    <i class="iconset fa-regular fa-heart" id="a_favo" title="Favorite"></i>
+                    @endif
+                    <i class="iconset {{ isSubscribed ? 'fa-solid' : 'fa-regular' }} fa-bell" id="subscribe-btn" data-item-id="{{ item.id }}" title="{{ isSubscribed ? 'Subscribed' : 'Subscribe' }}"></i>
+                    <i class="iconset fa-solid fa-triangle-exclamation report-item-btn" data-item-id="{{ item.id }}" title="Report this post"></i>
+                    <i class="iconset fa-solid fa-building-columns" id="a_hall" data-item-id="{{ item.id }}" data-halls="{{ halls_slugs }}" data-user-halls="{{ user_halls_slugs }}" data-current-hall="{{ (tmp.hall && typeof tmp.hall === 'object') ? tmp.hall.slug : (tmp.hall || '') }}" data-current-user-hall="{{ (tmp.userHall && typeof tmp.userHall === 'object') ? tmp.userHall.slug : (tmp.userHall || '') }}" data-current-user-hall-owner="{{ tmp.userHallOwner || '' }}" title="Add to Hall"></i>
+                    @if(can_manage_item)
+                    <i class="iconset {{ item.is_oc ? 'fa-solid' : 'fa-regular' }} fa-star" id="a_oc" data-item-id="{{ item.id }}" data-is-oc="{{ item.is_oc }}" title="{{ item.is_oc ? 'Remove OC status' : 'Mark as OC' }}"></i>
+                    @if(can_extract_meta)
+                    <i class="iconset fa-solid fa-magic" id="a_metadata" data-item-id="{{ item.id }}" title="Extract Metadata"></i>
+                    @endif
+                    @if(item.mime === 'application/x-shockwave-flash' || item.mime === 'application/vnd.adobe.flash.movie')
+                    <i class="iconset fa-solid fa-image" id="a_rethumb" data-item-id="{{ item.id }}" title="Re-upload Thumbnail"></i>
+                    @endif
+                    @endif
+                    @if(is_mod_or_admin)
+                    <i class="iconset fa-solid fa-thumbtack{{ item.is_pinned ? ' active' : '' }}" id="a_pin" data-pinned="{{ item.is_pinned }}" title="{{ item.is_pinned ? 'Unpin from main' : 'Pin to main' }}"></i>
+                    <i class="iconset fa-solid fa-xmark" id="a_delete" title="Delete"></i>
+                    @endif
+                </div>
+                @endif
+                <span class="badge badge-dark" id="tags">
+                    <span class="tags-inner">
+                        @if(typeof item.tags !== "undefined")
+                        @each(item.tags as tag)
+                        <span tooltip="{!! tag.display_name || tag.user !!}" class="badge {{ tag.badge }} mr-2">
+                            <a href="/tag/{{ tag.normalized }}">{!! tag.tag !!}</a>@if(is_mod_or_admin)&nbsp;<a class="removetag" href="#"><i class="fa-solid fa-xmark"></i></a>@endif
+                        </span>
+                        @endeach
+                        @endif
+                    </span>
+                    @if(item.tags && item.tags.length > 10)
+                    <a href="#" class="show-tags-toggle" data-count="{{ item.tags.length - 10 }}">show {{ item.tags.length - 10 }} more</a>
+                    @endif
+                    @if(session)
+                    <div class="tag-controls">
+                        <a href="#" id="a_addtag" class="tag-btn" flow="up-left">
+                            <i class="fa-solid fa-plus"></i>
+                        </a>
+                        @if(can_manage_item)
+                        <button class="rating-btn {{ item.is_nsfl ? 'is-nsfl' : (item.is_nsfw ? 'is-nsfw' : (item.is_sfw ? 'is-sfw' : 'is-untagged')) }}" id="a_toggle" title="Toggle Rating">{{ item.is_nsfl ? 'NSFL' : (item.is_nsfw ? 'NSFW' : (item.is_sfw ? 'SFW' : '?')) }}</button>
+                        @endif
+                    </div>
+                    @endif
+                </span>
+                <span class="badge" id="favs" @if(!item.favorites.length) hidden@endif>
+                    @each(item.favorites as fav)
+                    <a href="/user/{{ fav.user.toLowerCase() }}" tooltip="{!! fav.display_name || fav.user !!}" flow="up"><img src="@if(fav.avatar_file)/a/{{ fav.avatar_file }}@elseif(fav.avatar)/t/{{ fav.avatar }}.webp@else/a/default.png@endif" style="height: 32px; width: 32px@if(fav.username_color); border-color: {{ fav.username_color }}@endif" loading="lazy" /></a>
+                    @endeach
+                </span>
+                @if(enable_xd_score && item.xd_score > 0)
+                <div class="xd-score-wrapper">
+                <span class="xd-score-badge xd-tier-{{ item.xd_tier }}" tooltip="xD Score: {{ item.xd_score }} pts" flow="up">
+                    {{ item.xd_label }} <span class="xd-score-num">{{ item.xd_score }}</span>
+                </span>
+                </div>
+                @endif
+            </div>
+        </div>
+
+        <div id="comments-container"
+             data-item-id="{{ item.id }}"
+             @if(session) data-user="{{ session.user }}" @endif
+             @if(session && (session.admin || session.is_moderator)) data-is-admin="true" @endif
+             @if(item.is_comments_locked) data-is-locked="true" @endif>
+            @if(!item.is_comments_locked)
+            <div class="comment-input main-input">
+                <textarea disabled></textarea>
+            </div>
+            @endif
+        </div>
+        <script id="initial-subscription" type="application/json">{{ isSubscribed }}</script>
+
+    </div>
+
+    {{-- RIGHT SIDEBAR: recent activity (fixed to viewport) --}}
+
+</div>

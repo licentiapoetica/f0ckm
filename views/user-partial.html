@@ -1,0 +1,403 @@
+<div class="profile_head">
+    @if(user.is_ghost)
+    <div class="profile_head_avatar">
+        <div class="avatar-placeholder" style="background: #444; color: #888; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 4px;">?</div>
+    </div>
+    @elseif(user.avatar_file)
+    <div class="profile_head_avatar">
+        <img src="/a/{{ user.avatar_file }}" style="display: grid;width: 55px" />
+    </div>
+    @elseif(user.avatar && user.avatar > 0)
+    <div class="profile_head_avatar">
+        <img src="/t/{{ user.avatar }}.webp" style="display: grid;width: 55px" />
+    </div>
+    @else
+    <div class="profile_head_avatar">
+        <img src="/a/default.png" style="display: grid;width: 55px" />
+    </div>
+    @endif
+    <div class="layersoffear">
+        <div class="profile_head_username">
+            <span @if(user.username_color) style="color: {{ user.username_color }}" @endif>@if(user.admin)&#9889;&nbsp;@elseif(user.is_moderator)&#128737;&nbsp;@endif{!! user.display_name || user.user !!}@if(user.is_ghost) <span class="badge badge-secondary" style="font-size: 0.5em; vertical-align: middle; background-color: #5bc0de; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">LEGACY</span>@endif @if(user.banned) <span class="badge badge-danger" tooltip="{{ user.ban_duration }}" style="font-size: 0.5em; vertical-align: middle; background-color: #d9534f; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">BANNED</span>@endif</span>@if(user.display_name) <span style="font-size: 0.65em; color: #666; font-weight: 400; margin-left: 5px; letter-spacing: 0.5px;">({!! user.user !!})</span>@endif
+            @if(enable_profile_description && user.description)
+            <div class="profile_description">{!! user.description !!}</div>
+            @endif
+            @if(session && session.id !== user.user_id && private_messages)
+                <button id="send-dm-btn" class="btn btn-sm btn-outline-info" data-username="{!! user.user !!}" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.message_btn') }}</button>
+            @endif
+            @if(session && session.id === user.user_id)
+                <!--<button id="subscribe-all-uploads-btn" class="btn btn-sm btn-outline-info" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">Subscribe to all my uploads</button>-->
+            @endif
+        </div>
+        <div class="profile_head_user_stats">
+            @if(user.is_ghost)
+                <div class="stat-legacy">{{ t('profile.legacy_record') }} <time class="timeago" tooltip="{{ user.timestamp.timefull }}">{{ user.timestamp.timeago }}</time></div>
+            @else
+                <div class="stat-id">ID: {{ user.user_id || user.id }}</div>
+                <div class="stat-joined">{{ t('profile.joined') }} <time class="timeago" tooltip="{{ user.timestamp.timefull }}">{{ user.timestamp.timeago }}</time></div>
+                    @if(!user.is_ghost)
+                        <div class="stat-comments">{{ t('profile.stat_comments') }} <a href="/user/{!! user.user !!}/comments">{{ count.comments }}</a></div>
+                        <div class="stat-tags">{{ t('profile.stat_tags') }} {{ count.tags }}</div>
+                        @if(!user.is_ghost)
+                        <div class="stat-halls">{{ t('profile.stat_halls') }} <a href="/user/{!! user.user !!}/halls">{{ count.halls }}</a></div>
+                        @endif
+                    @endif
+                @if(session)
+                @if(session.id !== user.user_id)
+                    @if(session.admin || session.is_moderator)
+                        @if(session.admin || !user.admin)
+                            @if(user.banned)
+                            <button id="unban-user-btn" class="btn btn-sm btn-outline-success" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid #5cb85c; color: #5cb85c; background: transparent; cursor: pointer;">{{ t('profile.unban_btn') }}</button>
+                            @else
+                            <button id="ban-user-btn" class="btn btn-sm btn-outline-danger" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.ban_btn') }}</button>
+                            @endif
+                            <button id="warn-user-btn" class="btn btn-sm btn-outline-warning" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;">{{ t('profile.warn_btn') }}</button>
+                        @endif
+                        @if(session.admin)
+                        <button id="admin-subscribe-user-btn" class="btn btn-sm btn-outline-warning" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;">{{ t('profile.subscribe_uploads_btn') }}</button>
+                        @endif
+                    @endif
+                @endif
+                @endif
+            @endif
+        </div>
+    </div>
+</div>
+<div class="user_content_wrapper">
+    <div class="user-uploads">
+        <div class="uploads-header">
+            {{ t('profile.uploads_label') }}: {{ count.f0cks }} <a href="{{ (f0cks.link && f0cks.link.main) ? f0cks.link.main : '#' }}">{{ t('profile.view_all') }}</a>
+        </div>
+        @if(count.f0cks)
+        <div class="posts no-infinite-scroll">
+            @each(f0cks.items as item)
+            <a href="{{ f0cks.link.main }}{{ item.id }}" class="{{ item.is_pinned ? 'anim-boxshadow ' : '' }}thumb lazy-thumb {{ item.is_pinned ? 'is-pinned' : '' }}" data-file="{{ item.dest }}" data-mime="{{ item.mime }}" data-user="{!! item.display_name || item.username !!}" data-ext="{{ item.mime.split('/')[1].replace('youtube', 'yt').replace('x-shockwave-flash', 'flash').replace('vnd.adobe.flash.movie', 'flash').toUpperCase() }}" data-mode="{{ item.tag_id == nsfl_tag_id ? 'nsfl' : (item.tag_id == 2 ? 'nsfw' : (item.tag_id == 1 ? 'sfw' : 'null')) }}" data-bg="/t/{{ item.id }}.webp">
+                <div class="thumb-indicators">
+                    @if(item.is_pinned)
+                    <i class="fa-solid fa-thumbtack pin-indicator anim"></i>
+                    @endif
+                    @if(item.is_oc)
+                    <span class="oc-indicator anim">OC</span>
+                    @endif
+                </div>
+                <p></p>
+            </a>
+            @endeach
+        </div>
+        @else
+        {{ t('profile.no_uploads') }}
+        @endif
+    </div>
+    @if(!user.is_ghost)
+    <div class="favs">
+        <div class="favs-header">
+            {{ t('profile.favs_label') }}: {{ count.favs }} <a href="@if(favs.link && favs.link.main){{ favs.link.main }}@else#@endif">{{ t('profile.view_all') }}</a>
+        </div>
+        @if(count.favs)
+        <div class="posts no-infinite-scroll">
+            @each(favs.items as item)
+            <a href="{{ favs.link.main }}{{ item.id }}" class="{{ item.is_pinned ? 'anim-boxshadow ' : '' }}thumb lazy-thumb {{ item.is_pinned ? 'is-pinned' : '' }}" data-file="{{ item.dest }}" data-mime="{{ item.mime }}" data-user="{!! item.display_name || item.username !!}" data-ext="{{ item.mime.split('/')[1].replace('youtube', 'yt').replace('x-shockwave-flash', 'flash').replace('vnd.adobe.flash.movie', 'flash').toUpperCase() }}" data-mode="{{ item.tag_id == nsfl_tag_id ? 'nsfl' : (item.tag_id == 2 ? 'nsfw' : (item.tag_id == 1 ? 'sfw' : 'null')) }}" data-bg="/t/{{ item.id }}.webp">
+                <div class="thumb-indicators">
+                    @if(item.is_pinned)
+                    <i class="fa-solid fa-thumbtack pin-indicator anim"></i>
+                    @endif
+                    @if(item.is_oc)
+                    <span class="oc-indicator anim">OC</span>
+                    @endif
+                </div>
+                <p></p>
+            </a>
+            @endeach
+        </div>
+        @else
+        {{ t('profile.no_favs') }}
+        @endif
+    </div>
+    @endif
+</div>
+
+@if(session)
+@if(session.id !== user.user_id)
+@if(!user.is_ghost)
+@if(session.admin || session.is_moderator)
+<!-- Ban Modal -->
+<div id="ban-modal" class="modal" style="display: none; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8);">
+    <div class="modal-content" style="background-color: var(--bg); margin: 15% auto; padding: 20px; border: 1px solid var(--accent); width: 400px; border-radius: 8px;">
+        <h2 style="color: var(--accent); margin-top: 0;">{{ t('profile.ban_modal_title') }}</h2>
+        <form id="ban-form">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">{{ t('profile.ban_modal_reason') }}</label>
+                <input type="text" id="ban-reason" style="width: 100%; padding: 8px; background: #222; border: 1px solid #444; color: #fff;" required>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px;">{{ t('profile.ban_modal_duration') }}</label>
+                <select id="ban-duration" style="width: 100%; padding: 8px; background: #222; border: 1px solid #444; color: #fff;">
+                    <option value="1">{{ t('profile.ban_1h') }}</option>
+                    <option value="24">{{ t('profile.ban_1d') }}</option>
+                    <option value="168">{{ t('profile.ban_1w') }}</option>
+                    <option value="720">{{ t('profile.ban_1m') }}</option>
+                    <option value="permanent">{{ t('profile.ban_permanent') }}</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" id="ban-modal-close" style="padding: 8px 15px; background: #444; border: none; color: #fff; cursor: pointer;">{{ t('profile.ban_modal_cancel') }}</button>
+                <button type="submit" style="padding: 8px 15px; background: var(--accent); border: none; color: var(--bg); font-weight: bold; cursor: pointer;">{{ t('profile.ban_modal_confirm') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Warn Modal -->
+<div id="warn-modal" class="modal" style="display: none; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8);">
+    <div class="modal-content" style="background-color: var(--bg); margin: 15% auto; padding: 20px; border: 1px solid #f0ad4e; width: 400px; border-radius: 8px;">
+        <h2 style="color: #f0ad4e; margin-top: 0;">{{ t('profile.warn_modal_title') }}</h2>
+        <form id="warn-form">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">{{ t('profile.warn_modal_reason') }}</label>
+                <textarea id="warn-reason" style="width: 100%; padding: 8px; background: #222; border: 1px solid #444; color: #fff; height: 100px;" required></textarea>
+                <p style="font-size: 0.8em; color: #aaa; margin-top: 5px;">{{ t('profile.warn_modal_hint') }}</p>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" id="warn-modal-close" style="padding: 8px 15px; background: #444; border: none; color: #fff; cursor: pointer;">{{ t('profile.warn_modal_cancel') }}</button>
+                <button type="submit" style="padding: 8px 15px; background: #f0ad4e; border: none; color: #000; font-weight: bold; cursor: pointer;">{{ t('profile.warn_modal_submit') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const banBtn = document.getElementById('ban-user-btn');
+        const unbanBtn = document.getElementById('unban-user-btn');
+        const warnBtn = document.getElementById('warn-user-btn');
+        const banModal = document.getElementById('ban-modal');
+        const warnModal = document.getElementById('warn-modal');
+        const banClose = document.getElementById('ban-modal-close');
+        const warnClose = document.getElementById('warn-modal-close');
+        const banForm = document.getElementById('ban-form');
+        const warnForm = document.getElementById('warn-form');
+        const userId = '{{ user.user_id || user.id }}';
+
+        if (banBtn) {
+            banBtn.onclick = () => {
+                // Filter duration options for moderators
+                const isAdmin = {{ session.admin ? 'true' : 'false' }};
+                const durationSelect = document.getElementById('ban-duration');
+                if (durationSelect && !isAdmin) {
+                    Array.from(durationSelect.options).forEach(opt => {
+                        const val = opt.value;
+                        if (val === 'permanent' || parseInt(val) > 48) {
+                            opt.style.display = 'none';
+                            opt.disabled = true;
+                        }
+                    });
+                    // Ensure a valid option is selected
+                    if (durationSelect.value === 'permanent' || parseInt(durationSelect.value) > 48) {
+                        durationSelect.value = "1";
+                    }
+                }
+                banModal.style.display = 'block';
+            };
+        }
+        if (warnBtn) {
+            warnBtn.onclick = () => warnModal.style.display = 'block';
+        }
+
+        if (unbanBtn) {
+            unbanBtn.onclick = async () => {
+                if (!confirm('{{ t('profile.confirm_unban') }}')) return;
+                try {
+                    const res = await fetch('/api/v2/admin/unban', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        },
+                        body: JSON.stringify({ user_id: userId })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        if (window.showFlash) window.showFlash('{{ t('profile.unban_success') }}', 'success');
+                        else alert('{{ t('profile.unban_success') }}');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.msg);
+                    }
+                } catch (err) {
+                    alert('Failed to unban user: ' + err.message);
+                }
+            };
+        }
+
+        if (banClose) {
+            banClose.onclick = () => banModal.style.display = 'none';
+        }
+        if (warnClose) {
+            warnClose.onclick = () => warnModal.style.display = 'none';
+        }
+
+        window.onclick = (event) => {
+            if (event.target == banModal) {
+                banModal.style.display = 'none';
+            }
+            if (event.target == warnModal) {
+                warnModal.style.display = 'none';
+            }
+        };
+
+        if (banForm) {
+            banForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const reason = document.getElementById('ban-reason').value;
+                const duration = document.getElementById('ban-duration').value;
+
+                try {
+                    const res = await fetch('/api/v2/admin/ban', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        },
+                        body: JSON.stringify({ user_id: userId, reason, duration })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        if (window.showFlash) window.showFlash('{{ t('profile.ban_success') }}', 'success');
+                        else alert('{{ t('profile.ban_success') }}');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.msg);
+                    }
+                } catch (err) {
+                    alert('Failed to ban user: ' + err.message);
+                }
+            };
+        }
+
+        if (warnForm) {
+            warnForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const reason = document.getElementById('warn-reason').value;
+                const submitBtn = warnForm.querySelector('button[type="submit"]');
+
+                try {
+                    submitBtn.disabled = true;
+                    submitBtn.innerText = '{{ t('profile.warning_issuing') }}';
+                    
+                    const payload = new URLSearchParams();
+                    payload.append('user_id', userId);
+                    payload.append('reason', reason);
+
+                    const res = await fetch('/api/v2/mod/warnings/issue', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        },
+                        body: payload
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        document.getElementById('warn-reason').value = '';
+                        warnModal.style.display = 'none';
+                        if (window.showFlash) window.showFlash('{{ t('profile.warning_success') }}', 'success');
+                    } else {
+                        alert('Error: ' + data.msg);
+                    }
+                } catch (err) {
+                    alert('Failed to issue warning: ' + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = '{{ t('profile.warning_issue_btn') }}';
+                }
+            };
+        }
+
+        const subUserBtn = document.getElementById('admin-subscribe-user-btn');
+        if (subUserBtn && userId) {
+            subUserBtn.onclick = async () => {
+                if (!confirm('{{ t('profile.confirm_subscribe_uploads') }}')) return;
+
+                subUserBtn.disabled = true;
+                subUserBtn.innerText = '{{ t('profile.subscribing') }}';
+
+                try {
+                    const res = await fetch('/api/v2/admin/subscribe-user-to-uploads', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        },
+                        body: JSON.stringify({ user_id: userId })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('{{ t('profile.subscribed') }}');
+                        subUserBtn.innerText = '{{ t('profile.subscribed') }}';
+                    } else {
+                        alert('Error: ' + (data.msg || data.message));
+                        subUserBtn.disabled = false;
+                        subUserBtn.innerText = '{{ t('profile.subscribe_uploads_btn') }}';
+                    }
+                } catch (err) {
+                    alert('Failed to subscribe user: ' + err.message);
+                    subUserBtn.disabled = false;
+                    subUserBtn.innerText = '{{ t('profile.subscribe_uploads_btn') }}';
+                }
+            };
+        }
+    })();
+</script>
+@endif
+@endif
+@endif
+@endif
+
+@if(session && session.id === user.user_id)
+<script>
+    (function () {
+        const subAllBtn = document.getElementById('subscribe-all-uploads-btn');
+        if (subAllBtn) {
+            subAllBtn.onclick = async () => {
+                if (!confirm('{{ t('profile.confirm_subscribe_uploads') }}')) return;
+
+                subAllBtn.disabled = true;
+                subAllBtn.innerText = '{{ t('profile.subscribing') }}';
+
+                try {
+                    const res = await fetch('/api/v2/user/subscribe-all-uploads', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(data.message);
+                        subAllBtn.innerText = '{{ t('profile.subscribed') }}';
+                        setTimeout(() => {
+                            subAllBtn.innerText = '{{ t('profile.subscribe_to_my_uploads') }}';
+                            subAllBtn.disabled = false;
+                        }, 3000);
+                    } else {
+                        alert('Error: ' + data.message);
+                        subAllBtn.disabled = false;
+                        subAllBtn.innerText = '{{ t('profile.subscribe_to_my_uploads') }}';
+                    }
+                } catch (err) {
+                    alert('Failed to subscribe: ' + err.message);
+                    subAllBtn.disabled = false;
+                    subAllBtn.innerText = '{{ t('profile.subscribe_to_my_uploads') }}';
+                }
+            };
+        }
+    })();
+</script>
+@endif
+
+<div class="pagination-container-fluid" @if(typeof hidePagination !=='undefined' && hidePagination) style="display: none;" @endif>
+  <div class="pagination-wrapper bottom-pagination fixed-pagination">
+    @include(snippets/pagination)
+  </div>
+</div>

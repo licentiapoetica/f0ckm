@@ -1,0 +1,12 @@
+<div class="container" style="padding-top: 20px;">
+    <h3 style="text-align: center;">{{ t('nav.halls') }}</h3>
+    <div class="tags-grid no-infinite-scroll" id="halls-container">
+        @include(hall-cards)
+    </div>
+</div>
+
+<div class="pagination-container-fluid" @if(typeof hidePagination !=='undefined' && hidePagination) style="display: none;" @endif>
+  <div class="pagination-wrapper bottom-pagination fixed-pagination">
+    @include(snippets/pagination)
+  </div>
+</div>

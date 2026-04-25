@@ -1,0 +1,308 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <div class="settings">
+    <h1>{{ t('settings.title') }}</h1>
+    <h2>{{ t('settings.avatar') }}</h2>
+    <div class="avatar-settings-wrapper">
+      <div class="avatar-preview-container">
+        <div class="avatar-preview-label">{{ t('settings.current_avatar') }}</div>
+        @if(avatar_file)
+        <a href="/user/{!! session.user !!}" target="_blank">
+          <img id="avatar-preview" class="avatar-preview-img" src="/a/{{ avatar_file }}">
+        </a>
+        @elseif(session.avatar && session.avatar > 0)
+        <a href="/user/{!! session.user !!}" target="_blank">
+          <img id="avatar-preview" class="avatar-preview-img" src="/t/{{ session.avatar }}.webp">
+        </a>
+        @else
+        <div id="avatar-preview" class="avatar-preview-img avatar-placeholder">?</div>
+        @endif
+      </div>
+
+      <div class="avatar-upload-section">
+        <h4>{{ t('settings.upload_custom_avatar') }}</h4>
+        <p class="avatar-hint">{{ t('settings.avatar_hint') }}</p>
+
+        <div class="avatar-upload-wrapper">
+          <input type="file" id="avatar-file-input" accept="image/gif,image/jpeg,image/png,image/webp" hidden>
+          <button type="button" id="avatar-choose-btn" class="button">{{ t('settings.choose_file') }}</button>
+          <span id="avatar-filename" class="avatar-filename">{{ t('settings.no_file_selected') }}</span>
+        </div>
+
+        <div class="avatar-progress-wrapper" id="avatar-progress-wrapper" style="display: none;">
+          <div class="avatar-progress-bar">
+            <div class="avatar-progress-fill" id="avatar-progress-fill"></div>
+          </div>
+          <span class="avatar-progress-text" id="avatar-progress-text">0%</span>
+        </div>
+
+        <div class="avatar-upload-actions">
+          <button type="button" id="avatar-upload-btn" class="button" disabled>{{ t('settings.upload_btn') }}</button>
+          @if(avatar_file)
+          <button type="button" id="avatar-remove-btn" class="button button-danger">{{ t('settings.remove_custom') }}</button>
+          @endif
+        </div>
+        <div id="avatar-upload-status" class="avatar-status"></div>
+      </div>
+    </div>
+    @if(enable_profile_description)
+    <div class="profile-settings-wrapper">
+        <div class="setting-item">
+          <label for="profile_description">{{ t('settings.custom_description') }}</label>
+          <textarea id="profile_description" class="input" placeholder="{{ t('settings.description_placeholder') }}" maxlength="255">{!! session.description || '' !!}</textarea>
+          <div class="profile-settings-actions">
+            <button type="button" id="btn-save-description" class="button">{{ t('settings.save_description') }}</button>
+            <button type="button" id="btn-clear-description" class="button button-danger">{{ t('settings.clear') }}</button>
+          </div>
+          <div id="description-status" class="avatar-status"></div>
+        </div>
+    </div>
+    @endif
+    <h2>{{ t('settings.preferences') }}</h2>
+    <div class="preferences-settings-wrapper">
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.ui_section') }}</legend>
+        <div class="setting-item" style="margin-bottom: 15px;">
+          <label for="show_motd_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="show_motd_toggle" @if(session.show_motd !==false) checked @endif>
+            <span>{{ t('settings.show_motd') }}</span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <label for="use_new_layout_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="use_new_layout_toggle" @if(session.use_new_layout === true) checked @endif>
+            <span>{{ t('settings.modern_layout') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.modern_layout_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="disable_autoplay_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="disable_autoplay_toggle" @if(session.disable_autoplay === true) checked @endif>
+            <span>{{ t('settings.disable_autoplay') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.disable_autoplay_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="disable_swiping_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="disable_swiping_toggle" @if(session.disable_swiping === true) checked @endif>
+            <span>{{ t('settings.disable_swiping') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.disable_swiping_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="show_background_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="show_background_toggle" @if(session.show_background !== false) checked @endif>
+            <span>{{ t('settings.enable_bg_blur') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.enable_bg_blur_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="quote_emojis_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="quote_emojis_toggle" @if(session.quote_emojis !== false) checked @endif>
+            <span>{{ t('settings.render_emojis') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.render_emojis_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="embed_youtube_in_comments_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="embed_youtube_in_comments_toggle" @if(session.embed_youtube_in_comments !== false) checked @endif>
+            <span>{{ t('settings.embed_yt') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.embed_yt_hint') }}</small>
+        </div>
+        @if(show_koepfe)
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="hide_koepfe_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="hide_koepfe_toggle" @if(session.hide_koepfe === true) checked @endif>
+            <span>{{ t('settings.hide_koepfe') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.hide_koepfe_hint') }}</small>
+        </div>
+        @endif
+        @if(allow_language_change)
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="language_select" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.language') }}</label>
+          <select id="language_select" class="input" style="padding: 6px 10px; max-width: 220px;">
+            <option value="" @if(!session.language) selected @endif>{{ t('settings.language_default') }}</option>
+            <option value="en" @if(session.language === 'en') selected @endif>{{ t('settings.language_en') }}</option>
+            <option value="de" @if(session.language === 'de') selected @endif>{{ t('settings.language_de') }}</option>
+            <option value="nl" @if(session.language === 'nl') selected @endif>{{ t('settings.language_nl') }}</option>
+            <option value="zange" @if(session.language === 'zange') selected @endif>{{ t('settings.language_zange') }}</option>
+          </select>
+          <br><small class="text-muted">{{ t('settings.language_hint') }}</small>
+        </div>
+        @endif
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="wheel_nav_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="wheel_nav_toggle">
+            <span>{{ t('settings.scroll_nav') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.scroll_nav_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 20px;">
+          <label for="username_color_picker" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.username_color') }}</label>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <input type="color" id="username_color_picker" value="{{ session.username_color || '#ffffff' }}" style="width: 50px; height: 30px; padding: 0; border: 1px solid var(--nav-border-color); cursor: pointer; background: none;">
+            <input type="text" id="username_color_hex" value="{{ session.username_color || '#ffffff' }}" maxlength="7" placeholder="#ffffff" class="input" style="width: 90px; font-family: monospace; font-size: 0.9em; padding: 4px 8px; height: 30px;">
+            <button type="button" id="btn-save-username-color" class="button" style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save_color') }}</button>
+            <button type="button" id="btn-reset-username-color" class="button button-secondary" style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.reset') }}</button>
+          </div>
+          <small class="text-muted">{{ t('settings.username_color_hint') }}</small>
+        </div>
+        <div class="setting-item" style="margin-top: 20px;">
+          <label for="website_font_select" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.website_font') }}</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="website_font_select" class="input" style="flex: 1; max-width: 300px;">
+              <option value="">{{ t('settings.font_default') }}</option>
+              @each(fonts as font)
+              <option value="{{ font.file }}" @if(session.font === font.file) selected @endif>{{ font.name }}</option>
+              @endeach
+            </select>
+          </div>
+        </div>
+        <div class="setting-item" style="margin-top: 20px;">
+          <label for="website_theme_select" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.theme') }}</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="website_theme_select" class="input" style="flex: 1; max-width: 300px;">
+              @each(themes as t)
+              <option value="{{ t }}" @if(theme === t) selected @endif>{{ t }}</option>
+              @endeach
+            </select>
+          </div>
+        </div>
+        </fieldset>
+        @if(enable_swf)
+        <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.flash_section') }}</legend>
+            <div class="setting-item" style="margin-bottom: 15px;">
+                <label for="ruffle_volume_input" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.flash_volume') }}</label>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <input type="range" id="ruffle_volume_input" min="0" max="1" step="0.01" value="{{ session.ruffle_volume !== undefined && session.ruffle_volume !== null ? session.ruffle_volume : 0.5 }}" class="xd-slider" style="flex: 1; min-width: 140px;">
+                    <span id="ruffle_volume_val" class="xd-slider-val">{{ session.ruffle_volume !== undefined && session.ruffle_volume !== null ? Math.round(session.ruffle_volume * 100) : 50 }}%</span>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label for="ruffle_background_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="ruffle_background_toggle" @if(session.ruffle_background !== false) checked @endif>
+                    <span>{{ t('settings.flash_bg') }}</span>
+                </label>
+                <small class="text-muted" style="margin-left: 25px;">{{ t('settings.flash_bg_hint') }}</small>
+            </div>
+            <div style="margin-top: 15px;">
+                <button type="button" id="btn-save-ruffle-settings" class="button" style="padding: 5px 15px;">{{ t('settings.save_flash') }}</button>
+                <div id="ruffle-settings-status" class="avatar-status"></div>
+            </div>
+        </fieldset>
+        @endif
+        @if(enable_xd_score)
+        <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.content_filters') }}</legend>
+            <div class="setting-item" style="margin-bottom: 10px;">
+                <label for="min_xd_score_input" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.min_xd_score') }}</label>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <input type="range" id="min_xd_score_input" min="0" max="100" step="1" value="{{ session.min_xd_score || 0 }}" class="xd-slider" style="flex: 1; min-width: 140px;">
+                    <span id="xd_score_val" class="xd-slider-val">{{ session.min_xd_score || 0 }}</span>
+                    <span id="xd_score_tier_label" class="xd-score-badge" style="display: none;"></span>
+                    <button type="button" id="btn-save-min-xd-score" class="button" style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save') }}</button>
+                    <button type="button" id="btn-reset-min-xd-score" class="button button-secondary" style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.reset') }}</button>
+                </div>
+                <small class="text-muted">{{ t('settings.min_xd_score_hint') }}</small>
+                <div id="xd-score-status" class="avatar-status"></div>
+            </div>
+        </fieldset>
+        @endif
+    </div>
+    <h2>{{ t('settings.account') }}</h2>
+    <div class="account-settings-wrapper" style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
+      <table class="table account-info-table" style="margin-bottom: 30px; border-collapse: separate; border-spacing: 0 5px;">
+        <tbody>
+          <tr>
+            <td style="width: 150px; font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.user_id') }}</td>
+            <td style="border: none;">{{ session.id }}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.username') }}</td>
+            <td style="border: none;">{!! session.user !!}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.display_name') }}</td>
+            <td style="border: none; display: flex; align-items: center; gap: 10px;">
+              <input type="text" id="display_name_input" class="input" placeholder="{{ t('settings.display_name_placeholder') }}" value="{!! session.display_name || '' !!}" maxlength="32" style="max-width: 200px; height: 30px; font-size: 0.9em;">
+              <button type="button" id="btn-update-display-name" class="button" style="padding: 2px 10px; font-size: 0.8em; height: 30px;">{{ t('settings.save') }}</button>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.email') }}</td>
+            <td id="display-email" style="border: none;">{{ email || t('settings.email_not_set') }}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.joined') }}</td>
+            <td style="border: none;">@if(joined){{ new Date(joined).toLocaleDateString() }}@else {{ t('settings.joined_unknown') }} @endif</td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="display-name-status" class="avatar-status" style="margin-bottom: 20px;"></div>
+
+      <div class="account-actions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+        <div class="password-change-section" style="display: flex; flex-direction: column; gap: 15px;">
+          <h4 style="margin-top: 0; color: var(--accent);">{{ t('settings.change_password') }}</h4>
+          <form id="password-change-form" style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="password" id="current_password" class="input" placeholder="{{ t('settings.current_password') }}" required autocomplete="current-password">
+            <input type="password" id="new_password" class="input" placeholder="{{ t('settings.new_password') }}" required minlength="20" autocomplete="new-password">
+            <input type="password" id="new_password_confirm" class="input" placeholder="{{ t('settings.confirm_new_password') }}" required minlength="20" autocomplete="new-password">
+            <button type="submit" id="btn-update-password" class="button">{{ t('settings.update_password') }}</button>
+          </form>
+          <div id="password-status" class="avatar-status"></div>
+        </div>
+
+        <div class="email-update-section" style="display: flex; flex-direction: column; gap: 15px;">
+          <h4 style="margin-top: 0; color: var(--accent);">{{ t('settings.update_email') }}</h4>
+          <form id="email-update-form" style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="email" id="email_input" class="input" placeholder="{{ t('settings.new_email') }}" value="{{ email }}" required>
+            <button type="submit" id="btn-update-email" class="button">{{ t('settings.update_email_btn') }}</button>
+          </form>
+          @if(smtp_enabled)
+          {!! t('settings.email_warning_smtp') !!}
+          @else
+          {!! t('settings.email_info_no_smtp') !!}
+          @endif
+          <div id="email-status" class="avatar-status"></div>
+        </div>
+      </div>
+    </div>
+    @if(matrix_enabled)
+    <h2>{{ t('settings.linked_accounts') }}</h2>
+    <div class="linked-accounts-wrapper">
+      <p>{{ t('settings.matrix_link_desc') }}</p>
+      
+      <div id="linked-accounts-container" style="margin-bottom: 1rem;">
+        <strong>{{ t('settings.active_links') }}</strong>
+        <div id="linked-accounts-list" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 5px;">
+           <span class="text-muted">{{ t('settings.loading') }}</span>
+        </div>
+      </div>
+
+      <div class="link-action-area">
+        <h4 style="margin-top: 20px;">{{ t('settings.add_new_link') }}</h4>
+        <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9em;">
+          {!! t('settings.matrix_instructions') !!}
+        </p>
+        
+        <div id="token-display-area" style="display: none; margin-bottom: 15px;">
+           <div class="alert alert-info">
+             <strong>{{ t('settings.your_token') }}</strong> <code id="generated-token-code" style="font-size: 1.2em; user-select: all; margin-left: 10px;"></code>
+             <br><small>{{ t('settings.one_time_use') }}</small>
+           </div>
+        </div>
+
+        <button id="btn-gen-link-token" class="button button-primary">{{ t('settings.generate_token') }}</button>
+      </div>
+    </div>
+    @endif
+
+    <script src="/s/js/settings.js?v=@mtime(/public/s/js/settings.js)"></script>
+  </div>
+</div>
+</div>
+@include(snippets/footer)

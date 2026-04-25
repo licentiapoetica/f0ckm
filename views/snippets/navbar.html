@@ -1,0 +1,369 @@
+@if(session)
+<!-- logged in -->
+<nav class="navbar navbar-expand-lg">
+
+  <!-- Brand: always visible, flush left -->
+  <a class="navbar-brand" href="/">
+    @if(custom_brand_image)
+      <img id="navbar-logo" src="{{ custom_brand_image }}" alt="{{ domain }}" style="max-height: 40px; vertical-align: middle; max-width: 180px; width: initial;">
+    @else
+      <span class="f0ck">{{ domain }}</span>
+    @endif
+  </a>
+
+  <!-- Nav links: desktop always-on, mobile hidden until toggled -->
+  <div class="nav-collapse" id="navbarContent">
+      <div class="nav-links">
+        <a id="nav-upload-link" style="cursor:pointer;"><i class="fa-solid fa-upload"></i> {{ t('nav.upload') }}</a>
+        @if(meme_creator)
+        <a href="/meme">{{ t('nav.meme') }}</a>
+        @endif
+        <div class="nav-user-dropdown nav-halls-dropdown">
+          <a href="/halls" class="nav-halls-btn" title="{{ t('nav.halls') }}">
+            <i class="fa-solid fa-building-columns"></i>
+          </a>
+        </div>
+        <a href="/tags" title="{{ t('nav.tags') }}"><i class="fa-solid fa-tag"></i></a>
+        <a href="/abyss" title="{{ t('nav.abyss') }}"><i class="fa-solid fa-dungeon"></i></a>
+        <a href="#" id="nav-search-btn" title="{{ t('nav.search') }}"><i class="fa-solid fa-magnifying-glass"></i></a>
+        @if(!/^\/\d$/.test(url.pathname))
+        <a href="/random" id="nav-random" title="{{ t('nav.random') }}"><i class="fa-solid fa-shuffle"></i></a>
+        @endif
+      </div>
+    </div>
+
+    <!-- Right controls: always visible, flush right -->
+    <div class="nav-right-group">
+
+      <!-- Avatar dropdown -->
+      <div class="nav-user-dropdown">
+        <button class="nav-user-btn nav-avatar-btn" id="nav-user-toggle">
+          @if(session.avatar_file)
+            <img class="nav-avatar-img" src="/a/{{ session.avatar_file }}" alt="{{ session.user }}" onerror="this.src='/a/default.png'">
+          @elseif(session.avatar && session.avatar > 0)
+            <img class="nav-avatar-img" src="/t/{{ session.avatar }}.webp" alt="{{ session.user }}" onerror="this.src='/a/default.png'">
+          @else
+            <img class="nav-avatar-img" src="/a/default.png" alt="{{ session.user }}">
+          @endif
+          <span class="nav-avatar-name" id="nav-display-name" @if(session.username_color)style="color: {{ session.username_color }}"@endif>{!! session.display_name || session.user !!}</span>
+          <span class="nav-avatar-caret">▾</span>
+        </button>
+        <div class="nav-user-menu" id="nav-user-menu">
+          <a href="/user/{!! session.user.toLowerCase() !!}">{{ t('nav.profile') }}</a>
+          <a href="/user/{!! session.user.toLowerCase() !!}/halls">{{ t('nav.my_halls') }}</a>
+          <a href="/user/{{ session.user.toLowerCase() }}/favs" class="mobile-only">{{ t('nav.favs') }}</a>
+          @if(session.admin)
+          <a href="/admin">Admin
+            @if(typeof session.pending_count !== 'undefined' && session.pending_count > 0)
+            <span class="notification-dot" title="{{ session.pending_count }} Pending" onclick="event.preventDefault(); window.location.href='/admin/approve';"></span>
+            @endif
+          </a>
+          @endif
+          @if(session.admin || session.is_moderator)
+          <a href="/mod">mod
+            @if(typeof session.pending_count !== 'undefined' && session.pending_count > 0)
+            <span class="notification-dot" title="{{ session.pending_count }} Pending" onclick="event.preventDefault(); window.location.href='/mod/approve';"></span>
+            @endif
+          </a>
+          @endif
+          <a href="/settings" class="mobile-only">{{ t('nav.settings') }}</a>
+          <div class="nav-user-divider"></div>
+          <a href="/logout" class="mobile-only">{{ t('nav.logout') }}</a>
+        </div>
+      </div>
+
+      <!-- Notification bell -->
+      <div id="nav-notifications" class="nav-item-rel">
+        <a href="#" id="nav-notif-btn" title="Notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notif-count" style="display:none">0</span>
+        </a>
+        <div id="notif-dropdown" class="notif-dropdown">
+          <div class="notif-header">
+            <span>{{ t('nav.notifications') }}</span>
+            <button id="mark-all-read">{{ t('nav.mark_all_read') }}</button>
+          </div>
+          <div class="notif-list">
+            <div class="notif-empty">{{ t('nav.no_notifications') }}</div>
+          </div>
+          <div class="notif-footer">
+            <a href="/notifications" class="view-all-notifs">{{ t('nav.view_all_notifications') }}</a>
+          </div>
+          <div class="submanage">
+            <a href="/subscriptions">{{ t('nav.manage_subscriptions') }}</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Favs -->
+      <a href="/user/{{ session.user.toLowerCase() }}/favs" title="Favorites" class="desktop-only"><i class="fa-solid fa-heart"></i></a>
+
+      <!-- DM -->
+      @if(private_messages)
+      <div id="nav-dm" class="nav-item-rel">
+        <a href="/messages" id="nav-dm-btn" title="Direct Messages">
+          <i class="fa-solid fa-envelope"></i>
+          <span id="dm-badge" class="notif-count-dm" style="display:none">0</span>
+        </a>
+      </div>
+      @endif
+
+      <!-- Quick Settings -->
+      <a href="/settings" title="Settings" class="desktop-only"><i class="fa-solid fa-gear"></i></a>
+
+      <!-- Filter -->
+      <a href="#" id="nav-filter-btn" title="Excluded Tags"><i class="fa-solid fa-filter"></i></a>
+
+      <!-- Logout -->
+      <a href="/logout" title="Logout" class="desktop-only"><i class="fa-solid fa-right-from-bracket"></i></a>
+
+      <!-- Hamburger: mobile only -->
+      <button class="navbar-toggler" type="button" id="nav-toggler"
+        onclick="document.getElementById('navbarContent').classList.toggle('show'); this.classList.toggle('is-open')">
+        <span></span><span></span><span></span>
+      </button>
+
+  </div><!-- /.nav-right-group -->
+
+  <!-- MOTD: below the nav row -->
+  <div class="motd-container" id="motd-container" @if(typeof motd==='undefined' || motd==='' ) style="display:none" @endif>
+    <span class="motd-content" id="motd-display"></span>
+    <div id="motd-data" style="display:none">@if(typeof motd !== 'undefined'){!! motd !!}@endif</div>
+    <div id="user-pref-show-motd" style="display:none">@if(session.show_motd !== false)true@else false @endif</div>
+  </div>
+
+</nav>
+@else
+<!-- not logged in -->
+@if(!private_society)
+<nav class="navbar navbar-expand-lg">
+
+  <a class="navbar-brand" href="/">
+    @if(custom_brand_image)
+      <img id="navbar-logo" src="{{ custom_brand_image }}" alt="{{ domain }}" style="max-height: 40px; vertical-align: middle; max-width: 180px; width: auto;">
+    @else
+      <span class="f0ck">{{ domain }}</span>
+    @endif
+  </a>
+
+  <div class="nav-collapse" id="navbarContent">
+    <div class="nav-links">
+      <a href="/tags" title="Tags"><i class="fa-solid fa-tag"></i></a>
+      <div class="">
+        <a href="/halls" class="nav-halls-btn" title="Halls">
+          <i class="fa-solid fa-building-columns"></i>
+        </a>
+        <div class="nav-user-menu">
+          <a href="/halls" style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px;"><i class="fa-solid fa-building-columns"></i> Overview</a>
+          @if(typeof halls !== 'undefined' && halls.length > 0)
+            @each(halls as h)
+              <a href="/h/{{ h.slug }}">{{ h.name }}</a>
+            @endeach
+          @else
+            <a href="/h/legendary">Legendary</a>
+          @endif
+        </div>
+      </div>
+      <a href="/tags" title="Tags"><i class="fa-solid fa-tag"></i></a>
+      <a href="/abyss" title="Abyss"><i class="fa-solid fa-dungeon"></i></a>
+      @if(!/^\/\d$/.test(url.pathname))
+      <a href="/random" id="nav-random" title="Random"><i class="fa-solid fa-shuffle"></i></a>
+      @endif
+      <a href="#" id="nav-search-btn" title="Search"><i class="fa-solid fa-magnifying-glass"></i></a>
+    </div>
+  </div>
+
+  <div class="nav-right-group">
+    <div class="nav-user-dropdown">
+      <button class="nav-user-btn" id="nav-visitor-toggle"><i class="fa-solid fa-user-secret"></i> {{ t('nav.guest') }} <span class="nav-avatar-caret">▾</span></button>
+      <div class="nav-user-menu" id="nav-visitor-menu">
+        <a href="#" id="nav-login-btn">{{ t('nav.login') }}</a>
+        <a href="#" id="nav-register-btn">{{ t('nav.register') }}</a>
+        <div class="nav-user-divider"></div>
+      </div>
+    </div>
+    <button class="navbar-toggler" type="button" id="nav-toggler"
+      onclick="document.getElementById('navbarContent').classList.toggle('show'); this.classList.toggle('is-open')">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <div class="motd-container" id="motd-container" @if(typeof motd==='undefined' || motd==='' ) style="display:none" @endif>
+    <span class="motd-content" id="motd-display"></span>
+    <div id="motd-data" style="display:none">@if(typeof motd !== 'undefined'){!! motd !!}@endif</div>
+  </div>
+
+</nav>
+@endif
+@endif
+
+
+
+<div id="login-modal" style="display: none;">
+  <div class="login-modal-content">
+    <button id="login-modal-close">&times;</button>
+    
+    <!-- Login View -->
+    <div id="modal-login-view">
+      <form class="login-form" method="post" action="/login" novalidate>
+        <h2 style="text-align: center; margin-bottom: 20px;">{{ t('auth.login_title') }}</h2>
+        <input type="text" name="username" placeholder="{{ t('auth.username_or_email') }}" autocomplete="off" required />
+        <input type="password" name="password" placeholder="{{ t('auth.password_placeholder_min') }}" autocomplete="off" required minlength="20" />
+        <p style="text-align: left; font-size: 0.9em; margin: 0;"><input type="checkbox" id="kmsi-modal" name="kmsi" />
+          <label for="kmsi-modal">{{ t('auth.stay_signed_in') }}</label>
+        </p>
+        <button type="submit">{{ t('auth.login_title') }}</button>
+        @if(smtp_enabled)
+        <div style="text-align: center; margin-top: 10px;">
+          <a href="#" id="modal-forgot-btn" style="font-size: 0.85em; color: var(--accent); text-decoration: underline;">{{ t('auth.forgot_password') }}</a>
+        </div>
+        @endif
+        @if(registration_open || private_society)
+        <p style="text-align: center; font-size: 0.9em; margin-top: 15px; color: #888;">
+          {{ t('auth.no_account') }} <a href="#" id="login-to-register" style="color: var(--accent); text-decoration: underline;">{{ t('auth.register_now') }}</a>
+        </p>
+        @endif
+      </form>
+    </div>
+
+    @if(smtp_enabled)
+    <!-- Forgot Password View -->
+    <div id="modal-forgot-view" style="display: none;">
+      <form class="login-form" id="forgot-password-form" novalidate>
+        <h2 style="text-align: center; margin-bottom: 20px;">{{ t('auth.forgot_title') }}</h2>
+        <p style="text-align: center; margin-bottom: 20px; font-size: 0.9em; color: #ccc;">{{ t('auth.forgot_desc') }}</p>
+        <input type="email" id="forgot-email" placeholder="{{ t('auth.email_address') }}" required />
+        <div id="forgot-status" style="margin-bottom: 15px; text-align: center; font-size: 0.9em;"></div>
+        <button type="submit">{{ t('auth.send_reset') }}</button>
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="#" id="forgot-to-login" style="font-size: 0.9em; color: var(--accent); text-decoration: underline;">{{ t('auth.back_to_login') }}</a>
+        </div>
+      </form>
+    </div>
+    @endif
+
+    <!-- Reset Password View -->
+    <div id="modal-reset-view" style="display: none;">
+      <form class="login-form" id="reset-password-form" novalidate>
+        <h2 style="text-align: center; margin-bottom: 20px;">{{ t('auth.reset_title') }}</h2>
+        <p style="text-align: center; margin-bottom: 20px; font-size: 0.9em; color: #ccc;">{{ t('auth.reset_desc') }}</p>
+        <input type="hidden" id="reset-token" />
+        <input type="password" id="reset-password" placeholder="{{ t('auth.new_password_min') }}" required minlength="20" autocomplete="new-password" />
+        <input type="password" id="reset-password-confirm" placeholder="{{ t('auth.confirm_new_password') }}" required minlength="20" autocomplete="new-password" />
+        <div id="reset-status" style="margin-bottom: 15px; text-align: center; font-size: 0.9em;"></div>
+        <button type="submit">{{ t('auth.update_password') }}</button>
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="#" id="reset-to-login" style="font-size: 0.9em; color: var(--accent); text-decoration: underline; display: none;">{{ t('auth.back_to_login') }}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@if(!private_society || session)
+<!-- Shortcuts Modal -->
+<div id="shortcuts-modal" style="display: none;">
+  <div class="login-modal-content">
+    <button id="shortcuts-modal-close">&times;</button>
+    <div class="shortcuts-content">
+      <h2 style="text-align: center; margin-bottom: 20px;">{{ t('shortcuts.title') }}</h2>
+      <div class="shortcut-list">
+        <div class="shortcut-item"><span><kbd>k</kbd></span><span>{{ t('shortcuts.search') }}</span></div>
+        <div class="shortcut-item"><span><kbd>m</kbd></span><span>{{ t('shortcuts.main_page') }}</span></div>
+        <div class="shortcut-item"><span><kbd>r</kbd></span><span>{{ t('shortcuts.random') }}</span></div>
+        <div class="shortcut-item"><span><kbd>z</kbd></span><span>{{ t('shortcuts.shuffle') }}</span></div>
+        <div class="shortcut-item"><span><kbd>u</kbd></span><span>{{ t('shortcuts.quick_upload') }}</span></div>
+        <div class="shortcut-item"><span><kbd>c</kbd></span><span>{{ t('shortcuts.toggle_comments') }}</span></div>
+        <div class="shortcut-item"><span><kbd>h</kbd></span><span>{{ t('shortcuts.toggle_sidebar') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Ctrl</kbd> + <kbd>&#46;</kbd></span><span>{{ t('shortcuts.focus_comment') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span><span>{{ t('shortcuts.send_comment') }}</span></div>
+        <div class="shortcut-item"><span><kbd>s</kbd></span><span>{{ t('shortcuts.flash_yank') }}</span></div>
+        @if(session)
+        <div class="shortcut-item"><span><kbd>e</kbd></span><span>{{ t('shortcuts.tag_exclude') }}</span></div>
+        <div class="shortcut-item"><span><kbd>i</kbd></span><span>{{ t('shortcuts.tag_input') }}</span></div>
+        @endif
+        <div class="shortcut-item"><span><kbd>l</kbd></span><span>{{ t('shortcuts.toggle_bg') }}</span></div>
+        <div class="shortcut-item"><span><kbd id="shortcut-theme">t</kbd></span><span>{{ t('shortcuts.cycle_themes') }}</span></div>
+        @if(session && session.admin)
+        <div class="shortcut-item"><span><kbd>x</kbd></span><span>{{ t('shortcuts.delete') }}</span></div>
+        <div class="shortcut-item"><span><kbd>p</kbd></span><span>{{ t('shortcuts.toggle_rating') }}</span></div>
+        @endif
+        <div class="shortcut-item"><span><kbd>Space</kbd></span><span>{{ t('shortcuts.play_pause') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Arrows</kbd></span><span>{{ t('shortcuts.next_prev') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Scroll</kbd></span><span>{{ t('shortcuts.scroll_nav') }}</span></div>
+        <div class="shortcut-item"><span><kbd>?</kbd></span><span>{{ t('shortcuts.show_help') }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="flash-container"></div>
+@endif
+
+<!-- Register Modal -->
+<div id="register-modal" style="display: none;">
+  <div class="login-modal-content">
+    <button id="register-modal-close">&times;</button>
+    <form class="login-form" id="modal-register-form" method="post" action="/register" novalidate>
+      <h2 style="text-align: center; margin-bottom: 20px;">{{ t('auth.register_title') }}</h2>
+      <div id="register-status" style="margin-bottom: 15px; text-align: center; font-size: 0.9em;"></div>
+      <input type="text" name="username" placeholder="{{ t('auth.username_placeholder') }}" autocomplete="off" required />
+      <input type="password" name="password" placeholder="{{ t('auth.password_placeholder') }}" autocomplete="off" required minlength="20"
+        title="Must be at least 20 characters long." />
+      <input type="password" name="password_confirm" placeholder="{{ t('auth.confirm_password') }}" autocomplete="off" required minlength="20" />
+      @if(registration_open)
+      <input type="email" name="email" placeholder="{{ t('auth.email_placeholder') }}" autocomplete="off" required />
+      @else
+      <input type="text" name="token" placeholder="{{ t('auth.invite_token') }}" autocomplete="off" required />
+      @endif
+      <input type="text" name="email_confirm_field" style="display: none !important;" tabindex="-1" autocomplete="off" />
+      <p style="text-align: left; font-size: 0.9em; margin: 0; color: #fff;">
+        <input type="checkbox" id="tos-modal" name="tos" required />
+        <label for="tos-modal">@if(private_society){{ t('auth.tos_private') }}@else{{ t('auth.tos_public') }} <a href="/terms" target="_blank" style="color: var(--accent); text-decoration: underline;">{{ t('auth.tos_terms') }}</a>, <a href="/rules" target="_blank" style="color: var(--accent); text-decoration: underline;">{{ t('auth.tos_rules') }}</a> {{ t('auth.tos_age') }}@endif</label>
+      </p>
+      <button type="submit">{{ t('auth.create_account') }}</button>
+      <div style="text-align: center; margin-top: 20px;">
+        <a href="#" id="register-to-login" style="font-size: 0.9em; color: var(--accent); text-decoration: underline;">{{ t('auth.back_to_login') }}</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Global Drag & Drop Feature for Logged-in Users -->
+@if(session)
+<!-- Global Drop Overlay -->
+<div id="drop-overlay">
+  <div class="overlay-content">
+    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 5rem;"></i>
+    <h2>{{ t('upload.drop_anywhere') }}</h2>
+  </div>
+</div>
+
+<!-- Upload Drag Modal -->
+<div id="upload-drag-modal">
+  <div class="modal-content">
+    <button class="modal-close" id="drag-modal-close" title="Cancel Upload">&times;</button>
+    <div class="modal-body">
+      <div class="upload-container" style="padding: 0; animation: none; opacity: 1;">
+          <h2>{{ t('upload.title') }}</h2>
+
+          <div class="upload-limit-info">
+              @if(session.uploads_remaining === undefined)
+              <span class="limit-unlimited"><i class="fa-solid fa-infinity"></i> {{ t('upload.unlimited') }}</span>
+              @elseif(session.uploads_remaining === 0)
+              <span class="limit-exhausted"><i class="fa-solid fa-triangle-exclamation"></i> {{ t('upload.limit_reached') }} (0/{{ upload_limit }})</span>
+              @else
+              <span class="limit-remaining"><i class="fa-solid fa-upload"></i> {{ session.uploads_remaining }}/{{ upload_limit }} {{ t('upload.remaining') }}</span>
+              @endif
+          </div>
+
+          @include(snippets/upload-form)
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/s/js/upload.js?v={{ ts }}"></script>
+<script src="/s/js/f0ck_upload_init.js?v={{ ts }}"></script>
+
+@endif

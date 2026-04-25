@@ -1,0 +1,68 @@
+@include(snippets/header)
+<div class="pagewrapper">
+    <div id="main">
+        <div class="meme-layout-wrapper">
+            <link rel="stylesheet" href="/s/css/meme-creator.css">
+            <link rel="preload" href="/s/impact.woff" as="font" type="font/woff" crossorigin>
+            <style>
+                .meme-title { font-family: 'Impact', 'VCR', sans-serif; }
+                
+                /* NUCLEAR VISIBILITY RESET: Override any and all parent constraints for this page */
+                @media (max-width: 950px) {
+                    /* Target all possible shell triggers */
+                    html, body, .pagewrapper, #main, .layout-modern react-wrapper, .layout-legacy react-wrapper { 
+                        height: auto !important; 
+                        overflow: visible !important; 
+                        min-height: 100vh !important;
+                        display: block !important; 
+                        flex: none !important;
+                    }
+                    
+                    #main {
+                        padding-bottom: 50px; /* Space for footer/controls */
+                    }
+                }
+            </style>
+            <div class="meme-creator-container">
+                <div class="meme-header">
+                    <h1 class="meme-title">{{ t('meme.create_meme') }} {!! template.name !!}</h1>            </div>
+                <div class="meme-editor-layout">
+                    <div class="canvas-wrapper">
+                        <canvas id="memeCanvas"></canvas>
+                    </div>
+
+                    <div class="meme-controls">
+                        <div id="textLayersContainer">
+                            <!-- Dynamic inputs injected by JS -->
+                        </div>
+
+                        <button id="addText" class="btn btn-secondary btn-block" style="margin-bottom: 20px;">
+                            <i class="fa fa-plus"></i> {{ t('meme.add_text_layer') }}
+                        </button>
+                            <div class="form-group" style="display: none;">
+                                <label for="tags">{{ t('meme.tags_label') }}</label>
+                                <input type="text" id="tags" value="meme, {!! template.category || 'General' !!}" placeholder="meme, funny, ...">
+                            </div>
+
+                        <button id="uploadMeme" class="btn btn-primary btn-block">
+                            <i class="fa fa-upload"></i> {{ t('meme.upload_btn') }}
+                        </button>
+                        <a href="/meme" class="btn btn-secondary btn-block">{{ t('meme.back_btn') }}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.memeTemplate = {
+                url: "{!! template.url !!}",
+                name: "{!! template.name !!}",
+                category: "{!! template.category || 'General' !!}",
+                sub_category: "{!! template.sub_category || '' !!}"
+            };
+            window.csrf_token = "{{ csrf_token }}";
+        </script>
+        <script src="/s/js/meme-creator.js?v={{ ts }}"></script>
+    </div>
+</div>
+@include(snippets/footer)

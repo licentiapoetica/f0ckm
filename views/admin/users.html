@@ -1,0 +1,389 @@
+@include(snippets/header)
+
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+    <style>
+        .admin-users-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            color: var(--white);
+        }
+        .admin-users-table th {
+            padding: 15px;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: #888;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .admin-users-table tr {
+            transition: all 0.2s ease;
+        }
+        .admin-users-table tbody tr {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .admin-users-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .admin-users-table td {
+            padding: 15px;
+            vertical-align: middle;
+        }
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .status-active { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; }
+        .status-pending { background: linear-gradient(135deg, #f08c00, #ffc107); color: #000; }
+        .status-banned { background: linear-gradient(135deg, #e03131, #f03e3e); color: #fff; }
+        
+        .method-tag {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            background: rgba(var(--accent-rgb, 0, 150, 255), 0.1);
+            border: 1px solid rgba(var(--accent-rgb, 0, 150, 255), 0.2);
+            color: var(--accent);
+            border-radius: 4px;
+        }
+        
+        .stat-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+            color: #ccc;
+            transition: color 0.2s, transform 0.1s;
+        }
+        .stat-box:hover {
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+        .stat-box svg { opacity: 0.6; }
+
+        .btn-modern {
+            border: 0;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: #fff;
+            white-space: nowrap;
+        }
+        .btn-modern:hover { opacity: 0.8; }
+        .btn-ban { background: #e03131; }
+        .btn-unban { background: #28a745; }
+        .btn-files { background: #f08c00; }
+        .btn-comms { background: #4dabf7; }
+        .btn-verify { background: #5c7cfa; }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #333, #111);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 1.2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; gap: 20px; flex-wrap: wrap;">
+            <div>
+                <h2 style="margin: 0; font-weight: 800; letter-spacing: -0.5px;">User Management</h2>
+                <p style="color: #888; margin: 5px 0 0 0;">Administration hub for <span id="total-count">{!! total !!}</span> registered members.</p>
+            </div>
+            <div style="flex-grow: 1; max-width: 400px; position: relative;">
+                <input type="text" id="user-search" placeholder="Search by name or email..." 
+                       style="width: 100%; padding: 12px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;"
+                       value="{{ q }}">
+                <div id="search-spinner" style="position: absolute; right: 15px; top: 12px; display: none;">
+                    <svg class="spinner" width="20" height="20" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite;">
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="90,150" stroke-dashoffset="0" style="stroke-linecap: round;"></circle>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="upload-form">
+            <table class="admin-users-table responsive-table">
+                <thead>
+                    <tr>
+                        <th>User & Contact</th>
+                        <th>Activity</th>
+                        <th>Registration</th>
+                        <th>Account Age</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table-body">
+                    @include(admin/users_list)
+                </tbody>
+            </table>
+            <div id="loading-trigger" style="height: 20px; margin-top: 10px;"></div>
+            <div id="no-users-msg" style="display: {{ users.length === 0 ? 'block' : 'none' }}; padding: 40px; text-align: center; color: #666;">
+                No users matched your search.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateUI(id, data, action) {
+            var rowId = id ? id : ('ghost-' + data.username);
+            var statusCell = document.getElementById('status-cell-' + rowId);
+            var actionsDiv = document.getElementById('actions-' + rowId);
+            if (!statusCell || !actionsDiv) return console.error('UI elements not found for ID', rowId);
+
+            if (action === 'activate') {
+                statusCell.innerHTML = '<span class="status-badge status-active">Active</span>';
+                var verifyBtn = actionsDiv.querySelector('.btn-verify');
+                if (verifyBtn) verifyBtn.remove();
+            } else if (action === 'ban') {
+                statusCell.innerHTML = '<span class="status-badge status-banned">Banned</span>';
+                var banBtn = actionsDiv.querySelector('.btn-ban');
+                if (banBtn) {
+                    banBtn.textContent = 'Unban';
+                    banBtn.className = 'btn-modern btn-unban';
+                    // We re-bind the onclick via HTML because simple assignment doesn't preserve the 'this' context in the same way with these handlers
+                }
+                var verifyBtn = actionsDiv.querySelector('.btn-verify');
+                if (verifyBtn) verifyBtn.remove();
+            } else if (action === 'unban') {
+                statusCell.innerHTML = '<span class="status-badge status-active">Active</span>';
+                var unbanBtn = actionsDiv.querySelector('.btn-unban');
+                if (unbanBtn) {
+                    unbanBtn.textContent = 'Ban';
+                    unbanBtn.className = 'btn-modern btn-ban';
+                }
+            }
+        }
+
+        async function activateUser(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Verify User', 'Manually verify account for <strong>' + escHTML(userName) + '</strong>?', async () => {
+                var res = await fetch('/api/v2/admin/users/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                    updateUI(id, data, 'activate');
+                } else {
+                    throw new Error(data.msg || 'Failed to verify user');
+                }
+            }, { hideReason: true });
+        }
+
+        async function banUser(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Ban User', 'Reason for banning <strong>' + escHTML(userName) + '</strong>?', async (reason) => {
+                var res = await fetch('/api/v2/admin/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, reason: reason, duration: 'permanent' })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash('User ' + escHTML(userName) + ' banned.', 'success');
+                    updateUI(id, data, 'ban');
+                } else {
+                    throw new Error(data.msg || 'Failed to ban user');
+                }
+            }, { hideReason: false, confirmText: 'Ban User' });
+        }
+
+        async function unbanUser(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Unban User', 'Unban account for <strong>' + escHTML(userName) + '</strong>?', async () => {
+                var res = await fetch('/api/v2/admin/unban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash('User ' + escHTML(userName) + ' unbanned.', 'success');
+                    updateUI(id, data, 'unban');
+                } else {
+                    throw new Error(data.msg || 'Failed to unban user');
+                }
+            }, { hideReason: true });
+        }
+
+        async function deleteUploads(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Delete Uploads', 'Are you SURE you want to delete ALL uploads by <strong>' + escHTML(userName) + '</strong>? This cannot be undone.', async () => {
+                var res = await fetch('/api/v2/admin/users/bulk-delete-items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, username: btn.dataset.username })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                } else {
+                    throw new Error(data.msg || 'Deletion failed');
+                }
+            }, { hideReason: true, confirmText: 'Delete Everything' });
+        }
+
+        async function deleteComments(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Delete Comments', 'Are you SURE you want to delete ALL comments by <strong>' + escHTML(userName) + '</strong>? This will be permanent.', async () => {
+                var res = await fetch('/api/v2/admin/users/bulk-delete-comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, username: btn.dataset.username })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                } else {
+                    throw new Error(data.msg || 'Deletion failed');
+                }
+            }, { hideReason: true, confirmText: 'Delete All Comments' });
+        }
+
+        async function adminSetDisplayName(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var currentDisplay = btn.dataset.display || '';
+
+            var hint = currentDisplay
+                ? 'Current nick: <strong style="color: var(--accent);">' + escHTML(currentDisplay) + '</strong><br>Enter a new stylized name, or leave empty to clear it.'
+                : 'Enter a stylized display name for <strong>' + escHTML(userName) + '</strong> (e.g. <code>F.O.O</code>). Leave empty to clear.';
+
+            ModAction.confirm('Set Display Name', hint, async (newName) => {
+                var res = await fetch('/api/v2/admin/users/set-display-name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, display_name: newName || '' })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg || 'Display name updated.', 'success');
+                    // Update button data attribute for next edit
+                    btn.dataset.display = data.display_name || '';
+                    // Refresh the row name link in the table
+                    var rowId = 'user-row-' + id;
+                    var row = document.getElementById(rowId);
+                    if (row) {
+                        var link = row.querySelector('.user-info-cell a');
+                        if (link && data.display_name) {
+                            link.innerHTML = '<span style="color: var(--accent);">' + escHTML(data.display_name) + '</span> <span style="font-size: 0.75em; color: #666;">(' + escHTML(userName) + ')</span>';
+                        } else if (link) {
+                            link.textContent = userName;
+                        }
+                    }
+                } else {
+                    throw new Error(data.msg || 'Failed to set display name');
+                }
+            }, { hideReason: false, allowEmpty: true, confirmText: 'Set Nick', placeholder: currentDisplay || 'e.g. F.O.O' });
+        }
+
+        var currentPage = {!! page !!};
+        var hasMore = {!! hasMore ? 'true' : 'false' !!};
+        var isLoading = false;
+        var searchQuery = '{{ q }}';
+
+        var searchInput = document.getElementById('user-search');
+        var tableBody = document.getElementById('user-table-body');
+        var loadingTrigger = document.getElementById('loading-trigger');
+        var noUsersMsg = document.getElementById('no-users-msg');
+        var spinner = document.getElementById('search-spinner');
+        var countSpan = document.getElementById('total-count');
+
+        async function fetchUsers(page, q, append) {
+            if (isLoading) return;
+            isLoading = true;
+            if (!append) spinner.style.display = 'block';
+
+            try {
+                var url = '/admin/users?page=' + page + '&q=' + encodeURIComponent(q);
+                var res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                
+                // Update state from headers
+                var total = res.headers.get('X-Total-Count');
+                var hasMoreHeader = res.headers.get('X-Has-More');
+                
+                if (total !== null) countSpan.textContent = total;
+                if (hasMoreHeader !== null) hasMore = (hasMoreHeader === 'true');
+
+                var html = await res.text();
+                
+                if (append) {
+                    tableBody.insertAdjacentHTML('beforeend', html);
+                } else {
+                    tableBody.innerHTML = html;
+                }
+                
+                noUsersMsg.style.display = (tableBody.children.length === 0) ? 'block' : 'none';
+            } catch (e) {
+                console.error('Fetch failed', e);
+            } finally {
+                isLoading = false;
+                spinner.style.display = 'none';
+            }
+        }
+
+        // Search Input Handling (Debounced)
+        var searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                searchQuery = searchInput.value;
+                currentPage = 1;
+                fetchUsers(1, searchQuery, false);
+            }, 300);
+        });
+
+        // Infinite Scroll
+        var observer = new IntersectionObserver(function(entries) {
+            if (entries[0].isIntersecting && hasMore && !isLoading) {
+                currentPage++;
+                fetchUsers(currentPage, searchQuery, true);
+            }
+        }, { threshold: 0.1 });
+        observer.observe(loadingTrigger);
+
+        // Styling for spinner
+        var style = document.createElement('style');
+        style.innerHTML = '@keyframes rotate { 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+    </script>
+</div>
+</div>
+
+@include(snippets/footer)

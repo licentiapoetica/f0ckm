@@ -1,0 +1,29 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+    <div class="container">
+        <h1>MODERATOR DASHBOARD</h1>
+        <h5>Hello, {!! session.user !!}</h5>
+        <hr>
+        @if(manualApproval)
+        <p>Stats: Pending Uploads: {!! pendingCount !!}</p>
+        <hr>
+        @endif
+        <div class="admintools">
+            <p>Tools</p>
+            <ul>
+                @if(manualApproval)
+                <li><a href="/mod/approve">Approval Queue @if(pendingCount > 0) <span class="badge badge-danger">{!! pendingCount !!}</span> @endif</a></li>
+                @endif
+                @if(session.admin || session.is_moderator)
+                <li><a href="/mod/audit">Audit Log</a></li>
+                <li><a href="/mod/reports">User Reports</a></li>
+                <li><a href="/mod/motd">MOTD</a></li>
+                <li><a href="/mod/halls">Hall Manager</a></li>
+                @endif
+            </ul>
+        </div>
+    </div>
+</div>
+</div>
+@include(snippets/footer)

@@ -1,0 +1,662 @@
+(function() {
+    let customEmojis = {};
+    let loading = false;
+    let loadingMore = false;
+    let currentPage = 1;
+    let hasMore = true;
+    let ioSentinel = null; // persistent sentinel element for IntersectionObserver
+    // Shared cache for activity across AJAX loads
+    if (!window._sidebarActivityCache) window._sidebarActivityCache = [];
+
+    const loadEmojis = async () => {
+        if (Object.keys(customEmojis).length > 0) return;
+        try {
+            const res = await fetch('/api/v2/emojis');
+            const data = await res.json();
+            if (data.success) {
+                data.emojis.forEach(e => {
+                    customEmojis[e.name] = e.url;
+                });
+            }
+        } catch (e) {
+            console.error("Sidebar Activity: Failed to load emojis", e);
+        }
+    };
+
+    const renderEmoji = (match, name) => {
+        if (customEmojis[name]) {
+            return `<img class="sidebar-comment-img emoji" src="${customEmojis[name]}" alt="${name}" title=":${name}:" loading="lazy">`;
+        }
+        return match;
+    };
+
+    const escapeHtml = (unsafe) => {
+        if (!unsafe) return '';
+        const div = document.createElement('div');
+        div.textContent = unsafe;
+        return div.innerHTML;
+    };
+
+    const renderCommentContent = (content) => {
+        if (!content) return '';
+
+        // Anti-recursion / Performance safeguard for extremely long comments
+        if (content.length > 50000) {
+            console.warn('Sidebar Activity: Comment too long, skipping markdown');
+            return `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 0; background: none; border: none; font-size: inherit; color: inherit;">${escapeHtml(content)}</pre>`;
+        }
+
+        if (typeof marked === 'undefined') {
+            return escapeHtml(content)
+                .replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n));
+        }
+
+        try {
+            // Extract and protect code blocks (```...```) before escaping
+            const codeBlocks = [];
+            let processed = content.replace(/```([\s\S]*?)```/g, (match) => {
+                const placeholder = `BLOCKPORTALX${codeBlocks.length}X`;
+                codeBlocks.push(marked.parse(match));
+                return placeholder;
+            });
+
+            let escaped = escapeHtml(processed)
+                .replace(/&gt;/g, ">"); // Restore > for markdown markers
+
+            // Handle Image Embeds (Client-side)
+            const siteOrigin = window.location.origin;
+            const escapedSiteUrl = siteOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const allowedHosts = [escapedSiteUrl];
+            if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
+                window.f0ckAllowedImages.forEach(h => {
+                    const escapedHost = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    allowedHosts.push(`(?:[a-z0-9-]+\\.)*${escapedHost}`);
+                });
+            }
+            const hostsRegexPart = allowedHosts.join('|');
+            // "Safe non-whitespace" stops at protocol boundaries so concatenated URLs aren't merged.
+            const safeS = `(?:(?!https?:\\/\\/)\\S)`;
+            const imageRegex = new RegExp(`(?<![\\(\\[])((?:https?:\\/\\/)?(?:${hostsRegexPart})(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
+
+            const renderer = new marked.Renderer();
+            renderer.blockquote = function (quote) {
+                let text = (typeof quote === 'string') ? quote : (quote.text || '');
+                text = text.replace(/<p>|<\/p>/g, '');
+                return text.split('\n').map(line => {
+                    if (!line.trim()) return '';
+                    return `<span class="greentext">&gt;${line}</span>`;
+                }).join('\n');
+            };
+            renderer.paragraph = function (text) {
+                return (typeof text === 'string') ? text : (text.text || '');
+            };
+
+            renderer.link = function (href, title, text) {
+                if (typeof href === 'object' && href !== null) {
+                    title = href.title; text = href.text || text; href = href.href;
+                }
+                if (!href) return text || '';
+                const titleAttr = title ? ` title="${title}"` : '';
+                const isExternal = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
+                let isSameSite = false;
+                
+                // Marked greedy autolink fix for spoiler brackets appended to URLs
+                let extraSuffix = '';
+                const lowerHref = href.toLowerCase();
+                if (lowerHref.endsWith('%5b/spoiler%5d')) {
+                    href = href.substring(0, href.length - 14);
+                    text = text.replace(/\[\/spoiler\]/ig, '');
+                    extraSuffix = '[/spoiler]';
+                } else if (lowerHref.endsWith('[/spoiler]')) {
+                    href = href.substring(0, href.length - 10);
+                    text = text.replace(/\[\/spoiler\]/ig, '');
+                    extraSuffix = '[/spoiler]';
+                }
+
+                if (href.startsWith(siteOrigin) || (href.startsWith('/') && !href.startsWith('//'))) {
+                    isSameSite = true;
+                } else {
+                    try {
+                        const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
+                        const urlObj = new URL(urlToParse, siteOrigin);
+                        isSameSite = (urlObj.hostname === window.location.hostname);
+                    } catch(e) {}
+                }
+
+                let displayText = text;
+                if (isSameSite && (text === href || text === href.replace(/^https?:\/\//, '') || text === href.replace(siteOrigin, ''))) {
+                    try {
+                        const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
+                        const url = new URL(urlToParse.startsWith('http') ? urlToParse : siteOrigin + (urlToParse.startsWith('/') ? '' : '/') + urlToParse);
+                        displayText = url.pathname + url.search + url.hash;
+                    } catch (e) {}
+                }
+
+                const isMention = href.startsWith('/user/') && text.startsWith('@');
+                if (isExternal && !isSameSite) {
+                    return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${displayText}<i class="fa-solid fa-arrow-up-right-from-square external-link-icon"></i></a>${extraSuffix}`;
+                }
+                return `<a href="${href}"${titleAttr}${isMention ? ' class="mention"' : ''}>${displayText}</a>${extraSuffix}`;
+            };
+            renderer.image = function (href, title, text) {
+                const src = (typeof href === 'object' && href !== null) ? (href.href || '') : (href || '');
+                const alt  = text  || '';
+                const ttl  = title ? ` title="${title}"` : '';
+                return `<img class="sidebar-comment-img" src="${src}" alt="${alt}"${ttl} loading="lazy">`;
+            };
+
+            // Line-by-line rendering to avoid paragraph collapsing and recursion
+            const renderedLines = escaped.split('\n').map(line => {
+                const trimmed = line.trimStart();
+                if (trimmed.startsWith('>')) {
+                    // Manual greentext handling — apply emoji if the user preference allows it
+                    const quoteContent = line.substring(line.indexOf('>') + 1);
+                    const quoteEmojis  = window.f0ckSession?.quote_emojis === true;
+                    const rendered     = quoteEmojis
+                        ? quoteContent.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n))
+                        : quoteContent;
+                    return `<span class="greentext">&gt;${rendered}</span>`;
+                }
+                
+                // Per-line limit to prevent marked.parse recursion on single giant lines
+                if (line.length > 10000) return line;
+
+                if (!line.trim()) return '&nbsp;';
+                
+                // Perform replacements on the single line
+                let processedLine = line;
+                processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
+                    const user = g1 || g2;
+                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                });
+                processedLine = processedLine.replace(imageRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) {
+                        fullUrl = '//' + url;
+                    }
+                    return `![image](${fullUrl})`;
+                });
+                
+                // Use marked for each line individually
+                const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
+                let rendered = marked.parseInline ? marked.parseInline(escapedAsterisks, { renderer: renderer }) : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+                
+                // Render emojis ONLY if this is NOT a quote line OR if the user prefers it
+                const quoteEmojis = window.f0ckSession?.quote_emojis === true;
+                if (!trimmed.startsWith('>') || quoteEmojis) {
+                    rendered = rendered.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n));
+                }
+                
+                return rendered;
+            });
+
+            let md = renderedLines.join('\n');
+
+            // YouTube label replacement: show icon + labeled link
+            md = md.replace(
+                /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?(?:[^"]*&(?:amp;)?)?v=|youtu\.be\/)([a-zA-Z0-9_\-]{11})[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
+                (match) => {
+                    const hrefMatch = match.match(/href="([^"]+)"/i);
+                    const href = hrefMatch ? hrefMatch[1] : '#';
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="sidebar-video-link"><i class="fa-brands fa-youtube"></i></a>`;
+                }
+            );
+
+            // Build regex for allowed media hosters (video/audio)
+            const escapedSiteHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const mediaHosts = [escapedSiteHost];
+            if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
+                window.f0ckAllowedImages.forEach(h => {
+                    const escaped = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    mediaHosts.push(`(?:[a-z0-9-]+\\.)*${escaped}`);
+                });
+            }
+            const mediaHostsPart = mediaHosts.join('|');
+            const mediaDomainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${mediaHostsPart})|(?=\\/[a-zA-Z0-9_\\-]))`;
+
+            // Video label replacement: instead of embedding, show a link
+            const videoEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
+            md = md.replace(videoEmbedRegex, (match, url) => {
+                let isSameSite = false;
+                try {
+                    const urlToParse = url.startsWith('//') ? window.location.protocol + url : url;
+                    const urlObj = new URL(urlToParse, siteOrigin);
+                    isSameSite = (urlObj.hostname === window.location.hostname);
+                } catch(e) {
+                    isSameSite = url.startsWith(siteOrigin) || (url.startsWith('/') && !url.startsWith('//'));
+                }
+                const label = isSameSite ? 'Video Link' : 'External Video Link';
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="sidebar-video-link"><i class="fa-solid fa-film"></i> ${label} &raquo;</a>`;
+            });
+
+            // Handle spoilers [spoiler]text[/spoiler] (supports nesting)
+            let prevMd;
+            let iterations = 0;
+            const spoilerRegex = /\[spoiler\]((?:(?!\[spoiler\])[\s\S])*?)\[\/spoiler\]/gi;
+            do {
+                prevMd = md;
+                md = md.replace(spoilerRegex, (match, content) => {
+                    return `<span class="spoiler">${content}</span>`;
+                });
+                iterations++;
+            } while (md !== prevMd && iterations < 10);
+
+            // Handle blur [blur]text[/blur] (supports nesting)
+            const blurRegex = /\[blur\]((?:(?!\[blur\])[\s\S])*?)\[\/blur\]/gi;
+            iterations = 0;
+            do {
+                prevMd = md;
+                md = md.replace(blurRegex, (match, content) => {
+                    return `<span class="blur-text">${content}</span>`;
+                });
+                iterations++;
+            } while (md !== prevMd && iterations < 10);
+            
+            // Restore protected code blocks
+            md = md.replace(/BLOCKPORTALX(\d+)X/g, (match, index) => {
+                return codeBlocks[index] || '';
+            });
+
+            return md;
+        } catch (e) {
+            return content;
+        }
+    };
+
+    const SIDEBAR_MAX_CHARS = 200;
+    const SIDEBAR_MAX_EMOJIS = 12;
+
+    const renderActivityItem = (c) => {
+        const rawContent = c.content || c.body || '';
+        const displayContent = renderCommentContent(rawContent);
+
+        // Build avatar URL — same priority as the rest of the app
+        let avatarSrc = '/a/default.png';
+        if (c.avatar_file) {
+            avatarSrc = `/a/${c.avatar_file}`;
+        } else if (c.avatar) {
+            avatarSrc = `/t/${c.avatar}.webp`;
+        }
+
+        const timeStr = c.created_at
+            ? (window.f0ckTimeAgo ? window.f0ckTimeAgo(c.created_at) : (c.timeago || c.created_at))
+            : (c.timeago || 'just now');
+        const tsAttr = c.created_at ? ` data-ts="${escapeHtml(c.created_at)}"` : '';
+
+        let itemPreview = '';
+        if (c.item_id) {
+            let mediaHtml = '';
+            mediaHtml = `<img src="/t/${c.item_id}.webp" style="width: 32px; height: 32px; object-fit: cover; border-radius: 2px;" onerror="this.style.display='none'" />`;
+
+            itemPreview = `
+                <div class="item-preview">
+                    <a href="/${c.item_id}">${mediaHtml}</a>
+                    <a href="/${c.item_id}#c${c.id}" style="font-size: 0.8em; color: var(--accent); text-decoration: none;">${(window.f0ckI18n && window.f0ckI18n.sidebar_view) || 'View'} &raquo;</a>
+                </div>`;
+        }
+
+        return `
+            <div class="comment" id="sc${c.id}">
+                <div class="comment-body">
+                    <div class="comment-header">
+                        <div class="comment-header-left">
+                            <a href="/user/${c.username.toLowerCase()}" class="sidebar-avatar-link">
+                                <img src="${avatarSrc}" class="sidebar-avatar" alt="${c.username}" loading="lazy" />
+                            </a>
+                            <a href="/user/${c.username.toLowerCase()}" class="comment-author" ${c.username_color ? `style="color: ${c.username_color}"` : ''}>${escapeHtml(c.display_name || c.username)}</a>
+                        </div>
+                        <span class="comment-time timeago" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
+                    </div>
+                    <div class="comment-content" style="font-size: 0.85em; line-height: 1.3;"><div class="comment-content-inner">${displayContent}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    ${itemPreview}
+                </div>
+            </div>`;
+    };
+
+    const checkOverflow = () => {
+        document.querySelectorAll('.sidebar-activity .comment-content-inner').forEach(inner => {
+            const container = inner.parentElement;
+            const btn = container.querySelector('.read-more-btn');
+            if (!btn) return;
+            
+            // If expanded, always show "see less"
+            if (container.classList.contains('expanded')) {
+                btn.style.display = 'block';
+                btn.textContent = window.f0ckI18n?.sidebar_see_less || 'see less';
+                return;
+            }
+
+            if (inner.scrollHeight > inner.clientHeight + 2) { // 2px buffer for rounding
+                btn.style.display = 'block';
+                btn.textContent = window.f0ckI18n?.sidebar_read_more || 'read more';
+                container.classList.add('has-overflow');
+            } else {
+                btn.style.display = 'none';
+                container.classList.remove('has-overflow');
+            }
+        });
+    };
+
+    // Event delegation — read-more expands, see-less collapses
+    document.addEventListener('click', (e) => {
+        // Read more / See less
+        const readBtn = e.target.closest('.read-more-btn');
+        if (readBtn) {
+            const contentDiv = readBtn.closest('.comment-content');
+            if (contentDiv) {
+                contentDiv.classList.toggle('expanded');
+                checkOverflow(); // Re-sync button text and visibility
+            }
+            return;
+        }
+    });
+
+    const renderFromCache = () => {
+        const container = document.getElementById('sidebar-activity-container');
+        if (!container || window._sidebarActivityCache.length === 0) return false;
+        
+        let html = '';
+        window._sidebarActivityCache.forEach(c => {
+            html += renderActivityItem(c);
+        });
+
+        if (window.Sanitizer) {
+            container.innerHTML = window.Sanitizer.clean(html);
+        } else {
+            container.innerHTML = html;
+        }
+        // Re-append IO sentinel so the scroll observer keeps working after re-renders
+        if (ioSentinel) {
+            container.appendChild(ioSentinel);
+        }
+        checkOverflow();
+        return true;
+    };
+
+    const SIDEBAR_PAGE_LIMIT = 50;
+
+    const loadActivity = async (silent = false) => {
+        const container = document.getElementById('sidebar-activity-container');
+        if (!container || loading) return;
+        
+        const hasCache = renderFromCache();
+        if (!hasCache && !silent) {
+            container.innerHTML = '<div class="loading">Loading activity...</div>';
+        }
+
+        loading = true;
+        currentPage = 1;
+        hasMore = true;
+        try {
+            const mode = typeof window.activeMode !== 'undefined' ? window.activeMode : '';
+            const res = await fetch(`/activity?json=true&page=1&mode=${mode}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json();
+
+            if (data.success && data.comments && data.comments.length > 0) {
+                window._sidebarActivityCache = data.comments.map(c => ({
+                    ...c,
+                    body: c.content || c.body
+                }));
+                hasMore = data.hasMore === true;
+                renderFromCache();
+                // Also check after a delay to account for image/emoji loading shifts
+                setTimeout(checkOverflow, 500);
+            } else if (container.innerHTML.includes('loading')) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No recent activity.</div>';
+                hasMore = false;
+            }
+        } catch (e) {
+            console.error("Sidebar Activity: Failed to load activity", e);
+            if (container.innerHTML.includes('loading')) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">Failed to load.</div>';
+            }
+            hasMore = false;
+        } finally {
+            loading = false;
+        }
+    };
+
+    const loadMoreActivity = async () => {
+        const container = document.getElementById('sidebar-activity-container');
+        if (!container || loading || loadingMore || !hasMore) return;
+
+        loadingMore = true;
+        const nextPage = currentPage + 1;
+
+        // Show a subtle loading row at the bottom
+        const sentinel = document.createElement('div');
+        sentinel.id = 'sidebar-load-more-sentinel';
+        sentinel.style.cssText = 'text-align:center;padding:8px 0;font-size:0.78em;color:#666;';
+        sentinel.textContent = 'Loading…';
+        container.appendChild(sentinel);
+
+        try {
+            const mode = typeof window.activeMode !== 'undefined' ? window.activeMode : '';
+            const res = await fetch(`/activity?json=true&page=${nextPage}&mode=${mode}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json();
+
+            // Remove sentinel before inserting real content
+            const s = document.getElementById('sidebar-load-more-sentinel');
+            if (s) s.remove();
+
+            if (data.success && data.comments && data.comments.length > 0) {
+                currentPage = nextPage;
+                hasMore = data.hasMore === true;
+
+                // Append only comments not already in the cache
+                const existingIds = new Set(window._sidebarActivityCache.map(c => String(c.id)));
+                const newComments = data.comments.filter(c => !existingIds.has(String(c.id))).map(c => ({
+                    ...c,
+                    body: c.content || c.body
+                }));
+
+                window._sidebarActivityCache.push(...newComments);
+
+                // Append new items to DOM
+                let html = '';
+                newComments.forEach(c => { html += renderActivityItem(c); });
+                if (html) {
+                    const temp = document.createElement('div');
+                    if (window.Sanitizer) {
+                        temp.innerHTML = window.Sanitizer.clean(html);
+                    } else {
+                        temp.innerHTML = html;
+                    }
+                    while (temp.firstElementChild) {
+                        container.appendChild(temp.firstElementChild);
+                    }
+                    // Keep the IO sentinel at the very end so it triggers on the next scroll
+                    if (ioSentinel) container.appendChild(ioSentinel);
+                    checkOverflow();
+                }
+            } else {
+                hasMore = false;
+                // Show end-of-feed indicator
+                const end = document.createElement('div');
+                end.style.cssText = 'text-align:center;padding:8px 0;font-size:0.75em;color:#444;';
+                end.textContent = '─ end of activity ─';
+                container.appendChild(end);
+            }
+        } catch (e) {
+            console.error("Sidebar Activity: Failed to load more", e);
+            const s = document.getElementById('sidebar-load-more-sentinel');
+            if (s) s.remove();
+        } finally {
+            loadingMore = false;
+        }
+    };
+
+    const handleNewActivity = (data) => {
+        const container = document.getElementById('sidebar-activity-container');
+        
+        // 1. Deduplicate: check if this comment ID is already in the cache
+        if (window._sidebarActivityCache.some(c => parseInt(c.id) === parseInt(data.id))) {
+            console.log("Sidebar Activity: Duplicate comment ignored", data.id);
+            return;
+        }
+
+        // 2. Update cache (prepend, no hard cap — infinite scroll handles depth)
+        const newItem = {
+            ...data,
+            body: data.body || data.content,
+            timeago: (window.f0ckI18n && window.f0ckI18n.timeago_just_now) || 'just now'
+        };
+        window._sidebarActivityCache.unshift(newItem);
+
+        // Update DOM if visible
+        if (container) {
+            const html = renderActivityItem(newItem);
+            const temp = document.createElement('div');
+            if (window.Sanitizer) {
+                temp.innerHTML = window.Sanitizer.clean(html);
+            } else {
+                temp.innerHTML = html;
+            }
+            const node = temp.firstElementChild;
+            if (node) {
+                node.classList.add('new-item-fade');
+                container.prepend(node);
+                checkOverflow();
+            }
+        }
+    };
+
+    const init = async () => {
+        await loadEmojis();
+        loadActivity();
+    };
+
+    // Listen for live activity from f0ckm.js
+    document.addEventListener('f0ck:activityReceived', (e) => {
+        console.log("Sidebar Activity: Live update received", e.detail);
+        handleNewActivity(e.detail);
+    });
+
+    const handleLiveEdit = (data) => {
+        const container = document.getElementById('sidebar-activity-container');
+        
+        // 1. Update cache
+        if (window._sidebarActivityCache) {
+            const comment = window._sidebarActivityCache.find(c => String(c.id) === String(data.comment_id));
+            if (comment) {
+                comment.content = data.content;
+                comment.body = data.content;
+            }
+        }
+
+        // 2. Update DOM if visible
+        if (container) {
+            const el = document.getElementById('sc' + data.comment_id);
+            if (el) {
+                const inner = el.querySelector('.comment-content-inner');
+                if (inner) {
+                    inner.innerHTML = renderCommentContent(data.content);
+                    el.classList.remove('new-item-fade');
+                    void el.offsetWidth;
+                    el.classList.add('new-item-fade');
+                    checkOverflow();
+                }
+            }
+        }
+    };
+
+    window.addEventListener('f0ck:comment_edited', (e) => {
+        console.log("Sidebar Activity: Live edit received", e.detail);
+        handleLiveEdit(e.detail);
+    });
+
+    let lastBoundMode = typeof window.activeMode !== 'undefined' ? window.activeMode : null;
+
+    // Handle AJAX item loads
+    document.addEventListener('f0ck:contentLoaded', () => {
+        const currentMode = typeof window.activeMode !== 'undefined' ? window.activeMode : null;
+        const modeChanged = lastBoundMode !== null && lastBoundMode !== currentMode;
+        lastBoundMode = currentMode;
+
+        console.log("Sidebar Activity: Page transition detected", modeChanged ? "(Mode changed)" : "");
+        
+        if (modeChanged) {
+            window._sidebarActivityCache = [];
+            currentPage = 1;
+            hasMore = true;
+            loadActivity(false); // Force reload with loading state
+        } else {
+            // Immediately render from cache to avoid flicker
+            renderFromCache();
+            // Background sync
+            loadActivity(true);
+        }
+    });
+
+    // Sync sidebar and comments-list layout on initial page load (Legacy View Only)
+    if (typeof syncSidebarAndComments === 'function') {
+        syncSidebarAndComments();
+    }
+
+    // Handle explicit mode changes (e.g. from item page where full transition doesn't occur)
+    document.addEventListener('f0ck:modeChanged', (e) => {
+        console.log("Sidebar Activity: Mode change detected", e.detail.mode);
+        lastBoundMode = e.detail.mode;
+        window._sidebarActivityCache = [];
+        currentPage = 1;
+        hasMore = true;
+        loadActivity(false);
+    });
+
+    // When the current user posts a comment, silently refresh sidebar to show it
+    document.addEventListener('f0ck:commentPosted', () => {
+        console.log("Sidebar Activity: Own comment posted, refreshing...");
+        loadActivity(true);
+    });
+
+    // Infinite scroll: load older comments when scrolling near the bottom
+    const bindScrollListener = () => {
+        const container = document.getElementById('sidebar-activity-container');
+        if (!container) return;
+
+        // Use IntersectionObserver if available (performant), fallback to scroll event
+        if (typeof IntersectionObserver !== 'undefined') {
+            // Create the sentinel once at module level so re-renders can re-append the same node
+            if (!ioSentinel) {
+                ioSentinel = document.createElement('div');
+                ioSentinel.id = 'sidebar-io-sentinel';
+                ioSentinel.style.height = '1px';
+                container.appendChild(ioSentinel);
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+                    loadMoreActivity();
+                }
+            }, { root: container, rootMargin: '0px 0px 80px 0px', threshold: 0 });
+
+            observer.observe(ioSentinel);
+        } else {
+            container.addEventListener('scroll', () => {
+                if (loading || loadingMore || !hasMore) return;
+                const nearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+                if (nearBottom) loadMoreActivity();
+            }, { passive: true });
+        }
+    };
+
+    // Initial load
+    const _origInit = init;
+    const initWithScroll = async () => {
+        await _origInit();
+        bindScrollListener();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWithScroll);
+    } else {
+        initWithScroll();
+    }
+
+    // Live updates are handled via SSE (f0ck:activityReceived event)
+})();

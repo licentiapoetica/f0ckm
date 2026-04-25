@@ -1,0 +1,31 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <div class="rules">
+    @if(rules_text)
+    <div class="dynamic-page-content" id="rules-dynamic-content"></div>
+    <textarea id="rules-raw-data" hidden>{!! rules_text !!}</textarea>
+    <script>
+      (function() {
+        var raw = document.getElementById('rules-raw-data');
+        var el  = document.getElementById('rules-dynamic-content');
+        function render() {
+          if (raw && el && typeof marked !== 'undefined') {
+            el.innerHTML = marked.parse(raw.value || '', { gfm: true, breaks: true });
+            raw.remove();
+          }
+        }
+        if (typeof marked !== 'undefined') {
+          render();
+        } else {
+          document.addEventListener('DOMContentLoaded', render);
+        }
+      })();
+    </script>
+    @else
+    <h1>Rules</h1>
+    @endif
+  </div>
+</div>
+</div>
+@include(snippets/footer)

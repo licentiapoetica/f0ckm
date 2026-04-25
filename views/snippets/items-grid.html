@@ -1,0 +1,16 @@
+@each(items as item)
+<a href="{{ link.main }}{{ item.id }}" class="{{ item.is_pinned ? 'anim-boxshadow ' : '' }}thumb {{ item.has_notification ? 'has-notif' : '' }} {{ item.is_pinned ? 'is-pinned' : '' }}" data-file="{{ item.dest }}" data-mime="{{ item.mime }}" data-user="{!! item.display_name || item.username !!}" data-ext="{{ item.mime.split('/')[1].replace('youtube', 'yt').replace('x-shockwave-flash', 'flash').replace('vnd.adobe.flash.movie', 'flash').toUpperCase() }}" data-mode="{{ item.tag_id == nsfl_tag_id ? 'nsfl' : (item.tag_id == 2 ? 'nsfw' : (item.tag_id == 1 ? 'sfw' : 'null')) }}" style="background-image: url('/t/{{ item.id }}.webp')">
+    <div class="thumb-indicators">
+        @if(item.is_pinned)
+        <i class="fa-solid fa-thumbtack pin-indicator anim"></i>
+        @endif
+        @if(item.is_oc)
+        <span class="oc-indicator anim">OC</span>
+        @endif
+        @if(enable_xd_score && item.xd_score > 0)
+        <span class="thumb-xd-indicator xd-tier-{{ item.xd_score >= 60 ? 5 : (item.xd_score >= 30 ? 4 : (item.xd_score >= 15 ? 3 : (item.xd_score >= 5 ? 2 : 1))) }}" title="xD Score: {{ item.xd_score }}">xD</span>
+        @endif
+    </div>
+    <p></p>
+</a>
+@endeach

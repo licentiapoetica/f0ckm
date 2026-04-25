@@ -1,0 +1,321 @@
+@include(snippets/header)
+
+<div class="pagewrapper">
+<div id="main">
+
+    <div class="container">
+        <h1>APPROVAL QUEUE</h1>
+        <p>Items here are pending approval.</p>
+
+        @if(pending.length > 0)
+        <h2>Pending Uploads</h2>
+        <div class="approval-grid">
+            @each(pending as post)
+            <div class="approval-card">
+                <div class="approval-card-media">
+                    @if(post.mime.startsWith('video'))
+                    <video controls loop muted preload="metadata">
+                        <source src="/mod/pending/b/{!! post.dest !!}" type="{!! post.mime !!}">
+                        Your browser does not support the video tag.
+                    </video>
+                    @else
+                    <img src="/mod/pending/t/{!! post.id !!}.webp" alt="Preview">
+                    @endif
+                </div>
+                <div class="approval-card-body">
+                    <div class="approval-card-info">
+                        <div><strong>ID:</strong> {!! post.id !!}</div>
+                        <div><strong>User:</strong> {!! post.username !!}</div>
+                        <div><strong>Type:</strong> {!! post.mime !!}</div>
+                    </div>
+                    <div class="approval-card-tags">
+                        @each(post.tags as tag)
+                        <span class="badge {!! tag.badge !!}">{!! tag.tag !!}</span>
+                        @endeach
+                    </div>
+                    <div class="approval-card-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <a href="/mod/approve/?id={!! post.id !!}" class="badge badge-success btn-approve-async" style="margin: 0; text-align: center;">Approve</a>
+                        <a href="/mod/deny/?id={!! post.id !!}" class="badge badge-danger btn-deny-async" style="margin: 0; text-align: center;">Deny / Delete</a>
+                        <a href="/api/v2/tags/{!! post.id !!}/toggle" class="badge btn-rating-toggle-async" style="grid-column: span 2; background: #444; color: #ccc; margin: 0; text-align: center;">Rating</a>
+                    </div>
+                </div>
+            </div>
+            @endeach
+        </div>
+        @endif
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 40px; margin-bottom: 20px;">
+            <h2 style="color: #ff6b6b; margin: 0;">Soft Deleted</h2>
+            @if(trash.length > 0 && session.admin)
+            <button id="btn-purge-trash" class="badge badge-danger" style="border: none; padding: 10px 15px; cursor: pointer; font-size: 14px;">Purge All Soft-Deleted</button>
+            @endif
+        </div>
+        <p class="text-muted">These items are in the deleted folder but not purged from DB. Approving them will restore them.</p>
+        @if(trash.length > 0)
+        <div class="approval-grid" style="opacity: 0.8;">
+            @each(trash as post)
+            <div class="approval-card">
+                <div class="approval-card-media">
+                    @if(post.mime.startsWith('video'))
+                    <video controls loop muted preload="metadata">
+                        <source src="/mod/deleted/b/{!! post.dest !!}" type="{!! post.mime !!}">
+                        Your browser does not support the video tag.
+                    </video>
+                    @else
+                    <img src="/mod/deleted/t/{!! post.id !!}.webp" style="filter: grayscale(50%);" alt="Preview">
+                    @endif
+                </div>
+                <div class="approval-card-body">
+                    <div class="approval-card-info">
+                        <div><strong>ID:</strong> {!! post.id !!}</div>
+                        <div><strong>User:</strong> {!! post.username !!}</div>
+                        <div><strong>Type:</strong> {!! post.mime !!}</div>
+                        @if(post.delete_reason)
+                        <div style="color: #ffb8b8;"><strong>Reason:</strong> {!! post.delete_reason !!}</div>
+                        @endif
+                    </div>
+                    <div class="approval-card-tags">
+                        @each(post.tags as tag)
+                        <span class="badge {!! tag.badge !!}">{!! tag.tag !!}</span>
+                        @endeach
+                    </div>
+                    <div class="approval-card-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <a href="/mod/approve/?id={!! post.id !!}" class="badge badge-warning btn-approve-async" style="margin: 0; text-align: center;">Restore</a>
+                        @if(session.admin)
+                        <a href="/mod/deny/?id={!! post.id !!}" class="badge badge-danger btn-deny-async" style="margin: 0; text-align: center;">Purge</a>
+                        @else
+                        <span></span>
+                        @endif
+                        <a href="/api/v2/tags/{!! post.id !!}/toggle" class="badge btn-rating-toggle-async" style="grid-column: span 2; background: #444; color: #ccc; margin: 0; text-align: center;">Rating</a>
+                    </div>
+                </div>
+            </div>
+            @endeach
+        </div>
+        @else
+        <p style="padding: 20px; border: 1px dashed #444; color: #888;">Trash is empty.</p>
+        @endif
+
+        @if(pending.length === 0 && trash.length === 0)
+        <div style="text-align: center; padding: 50px;">
+            <h3>No pending items.</h3>
+            <p>Go touch grass?</p>
+        </div>
+        @endif
+
+        <br>
+        @if(typeof pages !== 'undefined' && pages > 1)
+        <div class="pagination" style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+            @if(page > 1)
+            <a href="/mod/approve?page={!! page - 1 !!}" class="badge badge-secondary">&laquo; Prev</a>
+            @endif
+            <span>Page {!! page !!} of {!! pages !!}</span>
+            @if(page < pages) <a href="/mod/approve?page={!! page + 1 !!}" class="badge badge-secondary">Next &raquo;</a>@endif
+        </div>
+        <br>
+        @endif
+
+        <!-- Custom Modal -->
+        <div id="custom-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000;">
+            <div style="background: #222; color: #fff; padding: 20px; border-radius: 8px; max-width: 400px; text-align: center; border: 1px solid #444;">
+                <h3 id="modal-title" style="margin-top: 0;">Confirm Action</h3>
+                <p id="modal-text">Are you sure?</p>
+                <div id="modal-reason-container" style="display: none; margin-bottom: 15px; text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 0.9em; color: #aaa;">Reason (required):</label>
+                    <textarea id="modal-reason" style="width: 100%; background: #333; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 8px; resize: none;" rows="3" placeholder="Enter reason for denial..."></textarea>
+                </div>
+                <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+                    <button id="modal-cancel" class="badge badge-secondary" style="border: none; padding: 10px 20px; cursor: pointer;">Cancel</button>
+                    <button id="modal-confirm" class="badge badge-danger" style="border: none; padding: 10px 20px; cursor: pointer;">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            (() => {
+                const modal = document.getElementById('custom-modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalText = document.getElementById('modal-text');
+                const modalReasonContainer = document.getElementById('modal-reason-container');
+                const modalReasonInput = document.getElementById('modal-reason');
+                const btnConfirm = document.getElementById('modal-confirm');
+                const btnCancel = document.getElementById('modal-cancel');
+
+                let pendingAction = null;
+
+                const showModal = (title, text, action, showReason = false) => {
+                    modalTitle.innerText = title;
+                    modalText.innerText = text;
+                    pendingAction = action;
+
+                    if (showReason) {
+                        modalReasonContainer.style.display = 'block';
+                        modalReasonInput.value = '';
+                        modalReasonInput.focus();
+                    } else {
+                        modalReasonContainer.style.display = 'none';
+                    }
+
+                    modal.style.display = 'flex';
+
+                    btnConfirm.onclick = async () => {
+                        if (!pendingAction) return;
+                        btnConfirm.disabled = true;
+                        btnConfirm.innerText = 'Processing...';
+                        try {
+                            let reason = null;
+                            if (showReason) {
+                                reason = modalReasonInput.value.trim();
+                                if (!reason) {
+                                    modalReasonInput.style.borderColor = '#ff4444';
+                                    alert('Please provide a reason for denial');
+                                    return;
+                                }
+                                modalReasonInput.style.borderColor = '#444';
+                            }
+                            await pendingAction(reason);
+                            closeModal();
+                        } catch (e) {
+                            alert('Error: ' + e.message);
+                        } finally {
+                            btnConfirm.disabled = false;
+                            btnConfirm.innerText = 'Confirm';
+                        }
+                    };
+                };
+
+                const closeModal = () => {
+                    modal.style.display = 'none';
+                    pendingAction = null;
+                };
+
+                if (btnCancel) btnCancel.onclick = closeModal;
+
+                // Single Deny
+                document.querySelectorAll('.btn-deny-async').forEach(btn => {
+                    btn.addEventListener('click', e => {
+                        e.preventDefault();
+                        const url = btn.getAttribute('href');
+                        const card = btn.closest('.approval-card');
+                        showModal('{!! t('mod.confirm_action') !!}', '{!! t('mod.confirm_action') !!}?', async (reason) => {
+                            const res = await fetch(url + (url.indexOf('?') > -1 ? '&' : '?') + 'reason=' + encodeURIComponent(reason), { 
+                                headers: { 
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                } 
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                                if (window.flashMessage) window.flashMessage('{!! t('toast.item_deleted_success') !!}', 2000, 'success');
+                                card.style.opacity = '0';
+                                setTimeout(() => card.remove(), 300);
+                            } else {
+                                if (window.flashMessage) window.flashMessage(data.msg || '{!! t('toast.report_error') !!}', 3000, 'error');
+                                throw new Error(data.msg || 'Request failed');
+                            }
+                        }, true);
+                    });
+                });
+
+                // Single Approve / Restore
+                document.querySelectorAll('.btn-approve-async').forEach(btn => {
+                    btn.addEventListener('click', async e => {
+                        e.preventDefault();
+                        const url = btn.getAttribute('href');
+                        const card = btn.closest('.approval-card'); // Updated selector
+
+                        try {
+                            const res = await fetch(url, {
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                }
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                if (window.flashMessage) window.flashMessage('{!! t('toast.approve_success') !!}', 2000, 'success');
+                                card.style.opacity = '0';
+                                setTimeout(() => card.remove(), 300);
+                            } else {
+                                if (window.flashMessage) window.flashMessage(data.msg || '{!! t('toast.approve_error') !!}', 3000, 'error');
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            if (window.flashMessage) window.flashMessage('{!! t('toast.network_error') !!}', 3000, 'error');
+                        }
+                    });
+                });
+
+                // Rating Toggle
+                document.querySelectorAll('.btn-rating-toggle-async').forEach(btn => {
+                    btn.addEventListener('click', async e => {
+                        e.preventDefault();
+                        const url = btn.getAttribute('href');
+                        const card = btn.closest('.approval-card');
+                        const tagsContainer = card.querySelector('.approval-card-tags');
+
+                        btn.style.opacity = '0.5';
+                        btn.style.pointerEvents = 'none';
+
+                        try {
+                            const res = await fetch(url, {
+                                method: 'PUT',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                }
+                            });
+                            const data = await res.json();
+                            if (data.success && data.tags) {
+                                // Update tags UI
+                                tagsContainer.innerHTML = '';
+
+                                data.tags.forEach(tag => {
+                                    const span = document.createElement('span');
+                                    let badgeClass = 'badge-light';
+                                    if (tag.normalized === 'sfw') badgeClass = 'badge-success';
+                                    else if (tag.normalized === 'nsfw') badgeClass = 'badge-danger';
+                                    else if (tag.tag.startsWith('>')) badgeClass = 'badge-greentext badge-light';
+                                    else if (tag.normalized === 'ukraine') badgeClass = 'badge-ukraine badge-light';
+                                    else if (/[а-яё]/.test(tag.normalized) || tag.normalized === 'russia') badgeClass = 'badge-russia badge-light';
+                                    else if (tag.normalized === 'german') badgeClass = 'badge-german badge-light';
+                                    else if (tag.normalized === 'dutch') badgeClass = 'badge-dutch badge-light';
+
+                                    span.className = 'badge ' + badgeClass;
+                                    span.innerText = tag.tag;
+                                    tagsContainer.appendChild(span);
+                                });
+                            } else {
+                                alert('Error: ' + (data.msg || 'Unknown error'));
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            alert('Network error');
+                        } finally {
+                            btn.style.opacity = '1';
+                            btn.style.pointerEvents = 'auto';
+                        }
+                    });
+                });
+
+                // Purge All Trash
+                const btnPurgeTrash = document.getElementById('btn-purge-trash');
+                if (btnPurgeTrash) {
+                    btnPurgeTrash.addEventListener('click', () => {
+                        showModal('Purge Trash', 'Permanently delete ALL items in the trash? This cannot be undone.', async () => {
+                            const res = await fetch('/mod/purge-trash-all', { method: 'POST' });
+                            const data = await res.json();
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                throw new Error(data.msg || 'Purge failed');
+                            }
+                        });
+                    });
+                }
+            })();
+        </script>
+    </div>
+</div>
+</div>
+@include(snippets/footer)

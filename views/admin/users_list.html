@@ -1,0 +1,91 @@
+@for(let u of users)
+<tr id="user-row-{{ u.id || 'ghost-' + u.login }}">
+    <td data-label="User & Contact">
+        <div class="user-info-cell" style="display: flex; align-items: center; gap: 15px;">
+            @if(u.avatar_file)
+                <img src="/a/{{ u.avatar_file }}" class="user-avatar" alt="Avatar" style="width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid rgba(255,255,255,0.1);">
+            @else
+                <div class="avatar-placeholder" style="width: 45px; height: 45px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); color: var(--accent); font-weight: bold; border: 2px solid rgba(255,255,255,0.1); font-size: 1.2rem; {{ !u.id ? 'background: #333; color: #666;' : '' }}">{{ !u.id ? '?' : u.user.charAt(0).toUpperCase() }}</div>
+            @endif
+            <div>
+                <a href="/user/{{ u.login }}" target="_blank" style="color: #fff; font-weight: 800; font-size: 1.1rem; text-decoration: none; display: block; margin-bottom: 2px;">@if(u.display_name)<span style="color: var(--accent);">{!! u.display_name !!}</span> <span style="font-size: 0.75em; color: #666;">({!! u.user !!})</span>@else{!! u.user !!}@endif</a>
+                <div style="font-size: 0.8rem; color: #888; letter-spacing: 0.2px;">{{ !u.id ? 'Ghost User / Legacy' : (u.email || 'no email') }}</div>
+            </div>
+        </div>
+    </td>
+    <td data-label="Activity">
+        <div style="display: flex; align-items: center; gap: 15px; white-space: nowrap;">
+            <a href="/user/{{ u.login }}" target="_blank" class="stat-box" title="Uploads" style="text-decoration: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                <strong>{{ u.upload_count }}</strong>
+            </a>
+            <a href="/user/{{ u.login }}/comments" target="_blank" class="stat-box" title="Comments" style="text-decoration: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <strong>{{ u.comment_count }}</strong>
+            </a>
+        </div>
+    </td>
+    <td data-label="Registration">
+        <div style="font-size: 0.85rem; color: #eee; font-weight: 600; cursor: help;" tooltip="Method: {{ u.reg_method }}">{{ new Date(u.created_at).toLocaleDateString() }}</div>
+    </td>
+    <td data-label="Account Age">
+        <div style="font-size: 0.85rem; font-weight: 600; color: #aaa;">{{ Math.floor(u.age_days) }} Days</div>
+    </td>
+    <td data-label="Status" id="status-cell-{{ u.id || 'ghost-' + u.login }}">
+        @if(!u.id)
+            <span class="status-badge" style="background: rgba(255,255,255,0.05); color: #888; border: 1px dashed rgba(255,255,255,0.1);">Legacy</span>
+        @else
+            @if(u.banned)
+                <span class="status-badge status-banned">Banned</span>
+            @else
+                @if(u.activated)
+                    <span class="status-badge status-active">Active</span>
+                @else
+                    <span class="status-badge status-pending">Pending</span>
+                @endif
+            @endif
+            
+            @if(u.failed_attempts > 0)
+                @if(u.failed_attempts >= 5)
+                    <span class="status-badge" style="background: rgba(255, 0, 0, 0.1); color: #ff4d4d; border: 1px solid rgba(255, 0, 0, 0.2); font-weight: 700;">IP LOCKED</span>
+                @else
+                    <span class="status-badge" style="background: rgba(255, 255, 0, 0.1); color: #ffcc00; border: 1px solid rgba(255, 255, 0, 0.2);">{{ u.failed_attempts }} Tries</span>
+                @endif
+            @endif
+        @endif
+    </td>
+    <td data-label="Actions">
+        <div id="actions-{{ u.id || 'ghost-' + u.login }}" class="user-actions-row" style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+            @if(u.id && u.login !== 'deleted_user')
+                @if(!u.activated && !u.banned)
+                    <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="activateUser(this)" class="btn-modern btn-verify">Verify</button>
+                @endif
+                @if(u.banned)
+                    <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="unbanUser(this)" class="btn-modern btn-unban">Unban</button>
+                @else
+                    <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="banUser(this)" class="btn-modern btn-ban">Ban</button>
+                @endif
+            @endif
+
+            @if(u.id)
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="deleteUploads(this)" class="btn-modern btn-files">Del Files</button>
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="deleteComments(this)" class="btn-modern btn-comms">Del Comms</button>
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminBulkDeleteHalls(this)" class="btn-modern btn-comms" title="Delete all user halls" style="background: rgba(255, 0, 255, 0.1); color: #ff00ff; border: 1px solid rgba(255, 0, 255, 0.2);"><i class="fa fa-folder-open"></i> Del Halls</button>
+                @if(u.failed_attempts > 0)
+                    <button data-username="{{ u.login }}" onclick="adminResetLoginAttempts(this)" class="btn-modern btn-pw" title="Reset Login Attempts" style="background: rgba(255, 204, 0, 0.1); color: #ffcc00; border: 1px solid rgba(255, 204, 0, 0.2);"><i class="fa fa-unlock"></i> Reset IP</button>
+                @endif
+            @else
+                <button data-id="" data-name="{{ u.user }}" data-username="{{ u.login }}" onclick="deleteUploads(this)" class="btn-modern btn-files">Del Legacy Files</button>
+            @endif
+
+            @if(u.id && u.login !== 'deleted_user')
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" data-display="{!! u.display_name || '' !!}" onclick="adminSetDisplayName(this)" class="btn-modern btn-nick" style="background: rgba(100, 200, 100, 0.1); color: #64c864; border: 1px solid rgba(100, 200, 100, 0.2);" title="Set stylized display name">✏ Nick</button>
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminSetPassword(this)" class="btn-modern btn-pw" style="background: rgba(var(--accent-rgb, 0, 150, 255), 0.1); color: var(--accent, #0096ff); border: 1px solid rgba(var(--accent-rgb, 0, 150, 255), 0.2);">Set PW</button>
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminDeleteUser(this)" class="btn-modern btn-delete" style="background: rgba(217, 83, 79, 0.1); color: #d9534f; border: 1px solid rgba(217, 83, 79, 0.2);">Delete</button>
+            @elseif(u.login === 'deleted_user')
+                <span style="font-size: 0.8rem; color: #666; font-style: italic; padding: 5px 10px;">Protected System Account</span>
+            @endif
+        </div>
+    </td>
+</tr>
+@endfor

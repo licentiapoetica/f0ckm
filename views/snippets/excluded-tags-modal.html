@@ -1,0 +1,47 @@
+<div id="excluded-tags-overlay" style="display: none;">
+  <div id="excluded-tags-close">&times;</div>
+  <div class="search-container">
+    <div id="nav_excluded_tags_list"></div>
+    <div class="nav-exclude">
+      <input type="text" id="nav_exclude_tag_input" class="input" placeholder="{{ t('filter.tag_placeholder') }}" autocomplete="off" enterkeyhint="enter">
+      <div id="nav_exclude_suggestions" class="tag-suggestions"></div>
+    </div>
+    <!-- modes -->
+    <div class="mode-filter">
+      <button id="nav-shuffle-btn" class="shuffle-btn" title="Random Mode — shuffle all items"><span class="shuffle-icon">( - _ - )</span> {{ t('filter.random_mode') }}</button>
+      <div class="mode-selector">
+        <a href="/mode/0" class="mode-btn @if(mode==0) active @endif">SFW</a>
+        <a href="/mode/1" class="mode-btn @if(mode==1) active @endif">NSFW</a>
+        @if(enable_nsfl)
+        <a href="/mode/4" class="mode-btn @if(mode==4) active @endif">NSFL</a>
+        @endif
+        @if(session.admin || session.is_moderator)
+        <a href="/mode/2" class="mode-btn @if(mode==2) active @endif">UNT</a>
+        @endif
+        <a href="/mode/3" class="mode-btn @if(mode==3) active @endif">ALL</a>
+      </div>
+    </div>
+    <!-- mimes -->
+    @if(show_mime_picker)
+      <div class="nav-mime-filter nav-mime-menu" id="nav-mime-menu">
+        <label class="nav-mime-item"><input type="checkbox" value="video" id="mime-video">{{ t('filter.video') }}</label>
+        <label class="nav-mime-item"><input type="checkbox" value="audio" id="mime-audio">{{ t('filter.audio') }}</label>
+        <label class="nav-mime-item"><input type="checkbox" value="image" id="mime-image">{{ t('filter.image') }}</label>
+        <label class="nav-mime-item"><input type="checkbox" value="flash" id="mime-flash">{{ t('filter.flash') }}</label>
+      </div>
+    @endif
+    @if(session && enable_xd_score)
+    <!-- xD score filter -->
+    <div class="nav-xd-filter">
+      <label class="nav-xd-label">{{ t('filter.min_xd_score') }}</label>
+      <div class="nav-xd-controls">
+        <input type="range" id="nav_min_xd_score" min="0" max="100" step="1" value="{{ session.min_xd_score || 0 }}" class="xd-slider">
+        <span id="nav_xd_val" class="xd-slider-val">{{ session.min_xd_score || 0 }}</span>
+        <span id="nav_xd_tier_label" class="xd-score-badge" style="display:none; font-size: 0.75em;"></span>
+      </div>
+      <button id="nav_xd_save_btn" class="mode-btn" style="margin-top: 6px; width: 100%;">{{ t('filter.apply_filter') }}</button>
+      <div id="nav_xd_status" style="font-size: 0.8em; color: #9f0; min-height: 1em; margin-top: 3px;"></div>
+    </div>
+    @endif
+  </div>
+</div>

@@ -1,0 +1,262 @@
+@font-face {
+    font-family: 'Impact';
+    src: url('/s/impact.woff') format('woff');
+}
+
+/* Meme Creator Styles */
+
+.meme-creator-container {
+    padding: 20px;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+    z-index: 10;
+}
+
+.meme-header {
+    margin-bottom: 25px;
+    border-bottom: 1px solid var(--accent, #9f0);
+    padding-bottom: 15px;
+}
+
+.meme-title {
+    font-family: var(--nav-brand-font, 'VCR'), monospace;
+    color: var(--accent, #9f0);
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.meme-subtitle {
+    font-family: var(--font, monospace);
+    color: #888;
+    margin: 5px 0 20px 0;
+}
+
+/* Template Grid */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+}
+
+.template-item {
+    background: var(--nav-bg, #2b2b2b);
+    border: 1px solid var(--nav-border-color, rgba(255, 255, 255, .05));
+    border-radius: 4px;
+    overflow: hidden;
+    text-decoration: none;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.template-item:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent, #9f0);
+}
+
+.template-image-wrapper {
+    aspect-ratio: 1/1;
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.template-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.template-info {
+    padding: 10px;
+    text-align: center;
+}
+
+.template-name {
+    font-family: var(--font, monospace);
+    color: var(--white, #fff);
+    font-size: 0.9em;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.template-category-tag {
+    font-size: 0.7em;
+    color: var(--accent, #9f0);
+    opacity: 0.6;
+    text-transform: uppercase;
+    font-family: var(--font, monospace);
+}
+
+/* Creator Layout - Simple Flexbox */
+.meme-editor-layout {
+    display: flex;
+    flex-direction: row; /* Col 1: Meme, Col 2: Controls */
+    justify-content: center;
+    gap: 30px;
+    margin-top: 20px;
+    align-items: flex-start;
+}
+
+.canvas-wrapper {
+    flex: 1;
+    min-width: 0; /* Allow shrinking */
+    background: #000;
+    border: 2px solid var(--nav-bg, #2b2b2b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    overflow: visible;
+}
+
+canvas#memeCanvas {
+    max-width: 100%;
+    height: auto;
+    cursor: crosshair;
+    touch-action: none;
+    pointer-events: auto !important;
+    display: block;
+    position: relative;
+}
+
+.meme-controls {
+    width: 380px;
+    flex-shrink: 0;
+    background: var(--nav-bg, #2b2b2b);
+    padding: 24px;
+    border-radius: 8px;
+    border: 1px solid var(--nav-border-color, rgba(255, 255, 255, .05));
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+/* Form Styles — SCOPED to .meme-layout-wrapper to prevent global leakage */
+.meme-layout-wrapper .form-group {
+    margin-bottom: 20px;
+}
+
+.meme-layout-wrapper .form-group label {
+    display: block;
+    font-family: var(--font, monospace);
+    color: var(--accent, #9f0);
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    text-transform: uppercase;
+}
+
+.meme-layout-wrapper .form-group textarea, 
+.meme-layout-wrapper .form-group input[type="text"],
+.meme-layout-wrapper .form-group select {
+    width: 100%;
+    background: var(--black, #000);
+    border: 1px solid #444;
+    color: var(--white, #fff);
+    padding: 10px;
+    font-family: var(--font, monospace);
+    border-radius: 2px;
+    box-sizing: border-box;
+}
+
+.meme-layout-wrapper .form-group textarea:focus, 
+.meme-layout-wrapper .form-group input[type="text"]:focus {
+    border-color: var(--accent, #9f0);
+    outline: none;
+}
+
+.meme-layout-wrapper .checkbox-group {
+    display: flex;
+    gap: 15px;
+}
+
+.meme-layout-wrapper .checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--white, #fff);
+    text-transform: none;
+    cursor: pointer;
+}
+
+.meme-layout-wrapper input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent, #9f0);
+}
+
+.meme-layout-wrapper .layer-input-group {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.meme-layout-wrapper .layer-input-group:last-child {
+    border-bottom: none;
+}
+
+.meme-layout-wrapper .remove-layer:hover {
+    color: #ff0000 !important;
+    transform: scale(1.1);
+}
+
+/* .btn — SCOPED to .meme-layout-wrapper to prevent global leakage into navbar */
+.meme-layout-wrapper .btn {
+    padding: 12px;
+    font-family: var(--font, monospace);
+    font-weight: bold;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    border-radius: 2px;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+}
+
+.meme-layout-wrapper .btn-primary {
+    background: var(--accent, #9f0);
+    color: var(--black, #000);
+}
+
+.meme-layout-wrapper .btn-secondary {
+    background: #444;
+    color: var(--white, #fff);
+}
+
+/* Mobile Stacking - Simple 2-Row Layout */
+@media (max-width: 950px) {
+    .meme-editor-layout {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        grid-template-rows: 0.6fr 1fr !important;
+        gap: 20px;
+    }
+    .meme-controls {
+        width: 100% !important;
+        grid-row: 2;
+        overflow: visible !important;
+    }
+    .canvas-wrapper {
+        width: 100% !important;
+        grid-row: 1;
+        margin-bottom: 10px;
+        overflow: visible !important;
+        height: auto !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .meme-creator-container, .meme-select-container {
+        padding: 10px;
+    }
+    .template-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}

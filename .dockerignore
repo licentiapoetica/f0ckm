@@ -1,0 +1,24 @@
+# Git
+.git
+.gitignore
+.gitattributes
+.gitea
+.eslintrc.json
+
+# Dependencies (rebuilt in container)
+node_modules
+
+# Docker files
+Dockerfile
+
+# Config (mounted at runtime)
+config.json
+
+# Development
+logs/
+tmp/
+*.log
+
+# Documentation
+README.md
+LICENSE

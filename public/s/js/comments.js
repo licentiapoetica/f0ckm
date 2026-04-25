@@ -1,0 +1,2509 @@
+class CommentSystem {
+    constructor() {
+        this.container = document.getElementById('comments-container');
+        this.itemId = this.container ? this.container.dataset.itemId : null;
+        this.user = this.container ? this.container.dataset.user : null; // logged in user?
+        this.isAdmin = this.container ? this.container.dataset.isAdmin === 'true' : false;
+        this.isLocked = this.container ? this.container.dataset.isLocked === 'true' : false;
+        this.sort = (document.body.classList.contains('layout-legacy') || document.body.classList.contains('legacy-view')) ? 'old' : 'new';
+        this.customEmojis = CommentSystem.emojiCache || {};
+
+        this.icons = {
+            reply:  `<i class="fa-solid fa-reply"></i>`,
+            pin:    `<i class="fa-solid fa-thumbtack"></i>`,
+            unpin:  `<i class="fa-solid fa-thumbtack"></i>`,
+            edit:   `<i class="fa-solid fa-pen"></i>`,
+            delete: `<i class="fa-solid fa-trash"></i>`,
+            link:   `<i class="fa-solid fa-link"></i>`,
+            pinned: `<i class="fa-solid fa-thumbtack"></i>`,
+            lock:   `<i class="fa-solid fa-lock"></i>`,
+            unlock: `<i class="fa-solid fa-lock-open"></i>`
+        };
+
+        // Restore visibility state
+        if (this.container) {
+            const isHidden = localStorage.getItem('comments_hidden') === 'true';
+            // Force show if hash is present
+            if (window.location.hash && window.location.hash.startsWith('#c')) {
+                this.container.classList.remove('faded-out');
+                this.container.style.display = 'block';
+                localStorage.setItem('comments_hidden', 'false');
+            } else if (isHidden) {
+                this.container.classList.add('faded-out');
+                this.container.style.display = 'none';
+                const layout = this.container.closest('.item-layout-container');
+                if (layout) layout.classList.add('sidebar-hidden');
+            }
+        }
+
+        this.initialLoadDone = false;
+        this.pendingSubmissions = new Set();
+        this.isMainSubmitting = false;
+        this.scrollListenerAdded = false;
+
+        if (this.itemId) {
+            this.init();
+        }
+    }
+
+    async init() {
+        if (!this.container) {
+            console.warn('[CommentSystem] Container not found during init');
+            return;
+        }
+        if (this.container.dataset.commentSystemInit) {
+            console.log('[CommentSystem] Already initialized for this container');
+            return;
+        }
+        this.container.dataset.commentSystemInit = 'true';
+        console.log('[CommentSystem] Initializing for item:', this.itemId);
+
+        this.loadEmojis(); // Don't await
+        this.loadComments();
+        this.setupGlobalListeners();
+        this.setupDelegatedEvents();
+        this.startLiveTimestamps();
+        this.setupScrollListener();
+    }
+
+    setupScrollListener() {
+        if (this.scrollListenerAdded) return;
+        if (!document.body.classList.contains('layout-legacy') && !document.body.classList.contains('legacy-view')) return;
+
+        const updateBtn = () => {
+            const btn = document.querySelector('.scroll-to-bottom');
+            if (!btn) return;
+
+            const container = document.getElementById('comments-container');
+            if (!container) return;
+
+            const rect = container.getBoundingClientRect();
+            // Detect if we are at the bottom of the comments section
+            const isAtBottom = rect.bottom < window.innerHeight + 100;
+            
+            if (isAtBottom) {
+                btn.classList.add('is-at-bottom');
+                btn.setAttribute('title', 'Scroll to top');
+            } else {
+                btn.classList.remove('is-at-bottom');
+                btn.setAttribute('title', 'Scroll to bottom');
+            }
+        };
+
+        this.scrollHandler = updateBtn;
+        window.addEventListener('scroll', this.scrollHandler, { passive: true });
+        this.scrollListenerAdded = true;
+        
+        // Dynamic detection after potential renders
+        this.scrollTimer = setInterval(this.scrollHandler, 1000); 
+    }
+
+    /**
+     * Boot or reload the Danmaku engine with fresh comment data.
+     * Called after render() so the overlay is always in sync with visible comments.
+     */
+    _loadDanmaku(comments) {
+        if (typeof Danmaku === 'undefined') return;
+
+        const playerEl = document.querySelector('.v0ck') || document.getElementById('ruffle-container');
+        if (!playerEl) return;
+
+        // Ensure the container is positioned so the absolute overlay works
+        if (getComputedStyle(playerEl).position === 'static') {
+            playerEl.style.position = 'relative';
+        }
+
+        // Prefer real <video>/<audio>; fall back to SyntheticClock for Flash/Ruffle
+        let mediaEl = document.querySelector('.v0ck video, .v0ck audio');
+        let usingSynth = false;
+        if (!mediaEl) {
+            // Only create a synthetic clock if the player container exists (Flash/Ruffle etc.)
+            if (typeof SyntheticClock !== 'undefined') {
+                mediaEl = new SyntheticClock();
+                usingSynth = true;
+            } else {
+                return; // danmaku.js not loaded yet
+            }
+        }
+
+        // Stale-check: only compare player element (not mediaEl — SyntheticClock is always new)
+        if (window.danmakuInstance) {
+            const stale = window.danmakuInstance.player !== playerEl
+                       || !document.contains(window.danmakuInstance.player);
+            if (stale) {
+                window.danmakuInstance.destroy();
+                window.danmakuInstance = null;
+            } else if (usingSynth) {
+                // Reuse existing instance for Flash — just reload comments, don't recreate clock
+                mediaEl.destroy && mediaEl.destroy(); // discard the newly created clock
+                mediaEl = window.danmakuInstance.media;
+            }
+        }
+
+        if (!window.danmakuInstance) {
+            window.danmakuInstance = new Danmaku(playerEl, mediaEl);
+        }
+
+        // Cancel any previous pending loadedmetadata listener before registering a new one
+        if (this._danmakuLoadHandler) {
+            mediaEl.removeEventListener('loadedmetadata', this._danmakuLoadHandler);
+            this._danmakuLoadHandler = null;
+        }
+
+        const load = () => {
+            window.danmakuInstance.load(comments);
+            this._danmakuLoadHandler = null;
+        };
+
+        // SyntheticClock has duration=Infinity (always "ready"); real video may need to wait
+        if (usingSynth || (isFinite(mediaEl.duration) && mediaEl.duration > 0)) {
+            load();
+        } else {
+            this._danmakuLoadHandler = load;
+            mediaEl.addEventListener('loadedmetadata', load, { once: true });
+        }
+    }
+
+    destroy() {
+        if (this.scrollHandler) {
+            window.removeEventListener('scroll', this.scrollHandler);
+        }
+        if (this.scrollTimer) {
+            clearInterval(this.scrollTimer);
+        }
+        if (this.stabilizationTimer) {
+            clearTimeout(this.stabilizationTimer);
+        }
+        if (this.scrollDebounce) {
+            clearTimeout(this.scrollDebounce);
+        }
+        if (this.stabilizationObserver) {
+            this.stabilizationObserver.disconnect();
+        }
+        this.stopStabilization();
+        console.log('[CommentSystem] Instance destroyed');
+    }
+
+    async loadEmojis() {
+        if (CommentSystem.emojiCache) {
+            this.customEmojis = CommentSystem.emojiCache;
+            // Immediate dispatch if already ready
+            window.dispatchEvent(new CustomEvent('f0ck:emojis_ready', { detail: this.customEmojis }));
+            return;
+        }
+        if (CommentSystem.loadingEmojis) return;
+        CommentSystem.loadingEmojis = true;
+
+        try {
+            const res = await fetch('/api/v2/emojis');
+            const data = await res.json();
+            if (data.success) {
+                this.customEmojis = {};
+                data.emojis.forEach(e => {
+                    this.customEmojis[e.name] = e.url;
+                });
+                CommentSystem.emojiCache = this.customEmojis;
+                console.log('Loaded Emojis:', this.customEmojis);
+
+                // Preload images to prevent NS Binding Aborted errors
+                this.preloadEmojiImages();
+
+                if (this.container && this.lastData) {
+                    const state = this.saveState();
+                    // Invalidate data-raw on any comment content that contains emoji shortcodes,
+                    // so that reconcile() sees them as "changed" and re-renders with the real emoji imgs.
+                    this.container.querySelectorAll('.comment-content[data-raw]').forEach(el => {
+                        if (/:([a-z0-9_]+):/.test(el.dataset.raw)) {
+                            el.dataset.raw = '';
+                        }
+                    });
+                    // Use reconciliation instead of full render to protect playing media
+                    // even when emojis load late.
+                    this.reconcile(this.lastData, this.lastUserId, this.lastIsSubscribed);
+                    this.restoreState(state);
+                    // Only scroll to anchor if we're not in a preserve-scroll refresh
+                    if (!this.preservingScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+                        const hashId = window.location.hash.substring(2);
+                        this.scrollToComment(hashId);
+                    }
+                }
+
+                // Global signal for other components (e.g. DMs)
+                window.dispatchEvent(new CustomEvent('f0ck:emojis_ready', { detail: this.customEmojis }));
+            } else {
+                this.customEmojis = {};
+            }
+        } catch (e) {
+            console.error("Failed to load emojis", e);
+            this.customEmojis = {};
+        } finally {
+            CommentSystem.loadingEmojis = false;
+        }
+    }
+
+    preloadEmojiImages() {
+        // Preload all emoji images into browser cache
+        if (!this.customEmojis) return;
+
+        Object.values(this.customEmojis).forEach(url => {
+            const img = new Image();
+            img.src = url;
+            // No need to append to DOM, just loading into cache
+        });
+    }
+
+    // ...
+
+    renderEmoji(match, name) {
+        // console.log('Rendering Emoji:', name, this.customEmojis ? this.customEmojis[name] : 'No list');
+        if (this.customEmojis && this.customEmojis[name]) {
+            return `<img src="${this.customEmojis[name]}" style="height:60px;vertical-align:middle;" alt="${name}">`;
+        }
+        return match;
+    }
+
+    saveState() {
+        const state = {
+            mainText: '',
+            openReplies: [],
+            focused: null
+        };
+
+        if (!this.container) return state;
+
+        // 1. Save main input
+        const mainInput = this.container.querySelector('.main-input textarea');
+        if (mainInput && !this.isMainSubmitting) {
+            state.mainText = mainInput.value;
+            if (document.activeElement === mainInput) {
+                state.focused = { type: 'main', start: mainInput.selectionStart, end: mainInput.selectionEnd };
+            }
+        }
+
+        // 2. Save open replies
+        this.container.querySelectorAll('.reply-input').forEach(form => {
+            const parentId = form.dataset.parent;
+            if (!parentId || this.pendingSubmissions.has(parentId)) return;
+
+            const textarea = form.querySelector('textarea');
+            const text = textarea ? textarea.value : '';
+            if (parentId) {
+                const replyState = { parentId, text };
+                if (document.activeElement === textarea) {
+                    state.focused = { type: 'reply', parentId, start: textarea.selectionStart, end: textarea.selectionEnd };
+                }
+                state.openReplies.push(replyState);
+            }
+        });
+
+        return state;
+    }
+
+    restoreState(state) {
+        if (!this.container) return;
+
+        // 1. Restore open replies
+        state.openReplies.forEach(({ parentId, text }) => {
+            const commentBody = this.container.querySelector(`#c${parentId} > .comment-body`);
+            if (commentBody && !commentBody.querySelector('.reply-input')) {
+                const div = document.createElement('div');
+                div.innerHTML = this.renderInput(parentId);
+                commentBody.appendChild(div.firstElementChild);
+                const newForm = commentBody.querySelector('.reply-input');
+                if (newForm) {
+                    const textarea = newForm.querySelector('textarea');
+                    if (textarea) textarea.value = text;
+                    this.setupEmojiPicker(newForm);
+                }
+            }
+        });
+
+        // 2. Restore main input text
+        const mainInput = this.container.querySelector('.main-input textarea');
+        if (mainInput && state.mainText) {
+            mainInput.value = state.mainText;
+        }
+
+        // 3. Restore focus
+        if (state.focused) {
+            let targetEl = null;
+            if (state.focused.type === 'main') {
+                targetEl = this.container.querySelector('.main-input textarea');
+            } else if (state.focused.type === 'reply') {
+                targetEl = this.container.querySelector(`#c${state.focused.parentId} .reply-input textarea`);
+            }
+
+            if (targetEl) {
+                targetEl.focus();
+                // Ensure selection is restored after focus
+                if (typeof targetEl.setSelectionRange === 'function') {
+                    try {
+                        targetEl.setSelectionRange(state.focused.start, state.focused.end);
+                    } catch (e) {
+                         // Fallback to end if range is invalid
+                         const len = targetEl.value.length;
+                         targetEl.setSelectionRange(len, len);
+                    }
+                }
+            }
+        }
+    }
+
+    handleLiveComment(data) {
+        if (!this.container || !this.itemId) return;
+        // 1. Check if comment belongs to this item
+        if (parseInt(data.item_id) !== parseInt(this.itemId)) return;
+
+        // 2. Check for duplicates (if we just posted it ourselves)
+        if (document.getElementById('c' + data.id)) return;
+
+        // 3. Robustness check: If we don't have lastData, initialize it.
+        if (!this.lastData) {
+            this.lastData = [];
+        }
+
+        // However, if we ARE currently loading comments from server, skip re-render.
+        if (this.initialLoadDone === false && this.lastData.length === 0) {
+            console.log('[CommentSystem] Live comment skipped - initial comments load in progress.');
+            return;
+        }
+
+        // 4. Construct comment object compatible with render
+        const comment = {
+            id: data.id,
+            item_id: data.item_id,
+            parent_id: data.parent_id || null, 
+            content: data.body, 
+            created_at: data.created_at,
+            username: data.username,
+            user_id: data.user_id,
+            display_name: data.display_name || null,
+            avatar: data.avatar,
+            avatar_file: data.avatar_file,
+            username_color: data.username_color,
+            video_time: data.video_time ?? null,
+            is_new: true,
+            is_deleted: false,
+            is_pinned: false
+        };
+
+        // Danmaku: fire one-shot for other users' comments.
+        // Own comment is handled by the optimistic submit path (fire + addItem).
+        // The _loadDanmaku re-render will add this comment to the items rotation.
+        const currentUser = window.f0ckSession?.user;
+        if (window.danmakuInstance && data.username !== currentUser) {
+            window.danmakuInstance.fire(
+                data.body,
+                data.display_name || data.username || '?',
+                data.username_color || null
+            );
+        }
+
+        if (!this.lastData) this.lastData = [];
+
+        // 4. Save state before re-render
+        const state = this.saveState();
+
+        if (this.sort === 'new') {
+            this.lastData.unshift(comment); // Add to top
+        } else {
+            this.lastData.push(comment); // Add to bottom
+        }
+
+        // Reconciliation for live comments preserves media state
+        this.reconcile(this.lastData, this.lastUserId, this.lastIsSubscribed);
+        this.restoreState(state);
+
+        // 6. Highlight and animate
+        setTimeout(() => {
+            const el = document.getElementById('c' + comment.id);
+            if (el) {
+                el.classList.add('new-item-fade');
+            }
+        }, 100);
+    }
+
+    handleLiveEdit(data) {
+        if (data.item_id != this.itemId) return;
+
+        // Update local cache
+        if (this.lastData) {
+            const comment = this.lastData.find(c => String(c.id) === String(data.comment_id));
+            if (comment) {
+                comment.content = data.content;
+                comment.updated_at = new Date().toISOString();
+            }
+        }
+
+        const el = document.getElementById('c' + data.comment_id);
+        if (!el) return;
+
+        const contentEl = el.querySelector('.comment-content');
+        if (contentEl) {
+            contentEl.innerHTML = this.renderCommentContent(data.content);
+
+            // Flash effect to draw attention
+            el.classList.remove('new-item-fade');
+            void el.offsetWidth; // Trigger reflow
+            el.classList.add('new-item-fade');
+
+            // Update admin edit button data attribute
+            const editBtn = el.querySelector('.admin-edit-btn');
+            if (editBtn) {
+                editBtn.dataset.content = this.escapeHtml(data.content);
+            }
+        }
+    }
+
+    handleLiveDeletion(data) {
+        if (!this.container || !this.itemId) return;
+        if (parseInt(data.item_id) !== parseInt(this.itemId)) return;
+
+        // Update local cache
+        if (this.lastData) {
+            const comment = this.lastData.find(c => String(c.id) === String(data.comment_id));
+            if (comment) {
+                comment.is_deleted = true;
+                comment.content = '[deleted]';
+            }
+        }
+
+        // Surgical update of the DOM to preserve other comments' media
+        const el = this.container.querySelector('#c' + data.comment_id);
+        if (el) {
+            el.classList.add('deleted');
+            const contentEl = el.querySelector('.comment-content');
+            if (contentEl) {
+                contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
+                contentEl.dataset.raw = '[deleted]';
+            }
+            // Also remove admin buttons and reply button
+            el.querySelectorAll('.admin-pin-btn, .admin-edit-btn, .admin-delete-btn, .reply-btn').forEach(b => b.remove());
+        }
+    }
+
+    async loadComments(scrollToId = null, preserveScroll = false) {
+        if (!this.container) return;
+
+        // Preserve state before re-render
+        const state = this.saveState();
+
+        /* Guest handling is managed by the template and server-side routes.
+           If we are here and there is no user, it means hide_comments_from_public is false.
+           We should still allow loading comments for viewing. */
+        if (!this.user) {
+            // Check if we have preloaded data first
+            const dataEl = document.getElementById('initial-comments');
+            if (!dataEl) {
+                // If no preloaded data and no user, we might be in a state where we shouldn't be
+                // but let's let it proceed to fetch if container exists.
+                // Actually, let's just make sure we don't return early if it's a guest.
+            }
+        }
+
+        // Check for server-side preloaded comments
+        const dataEl = document.getElementById('initial-comments');
+        if (dataEl) {
+            try {
+                // Decode Base64 for safe template transfer
+                const raw = dataEl.textContent.trim();
+                const json = decodeURIComponent(escape(atob(raw)));
+                const comments = JSON.parse(json);
+
+                const subEl = document.getElementById('initial-subscription');
+                const isSubscribed = subEl && (subEl.textContent.trim() === 'true');
+
+                // Consume
+                dataEl.remove();
+                if (subEl) subEl.remove();
+
+                this.render(comments, this.user, isSubscribed);
+                this.initialLoadDone = true;
+                this.restoreState(state);
+                this._loadDanmaku(comments);
+
+                if (scrollToId) {
+                    this.scrollToComment(scrollToId);
+                } else if (!preserveScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+                    const hashId = window.location.hash.substring(2);
+                    this.scrollToComment(hashId);
+                }
+                return;
+            } catch (e) {
+                console.error("SSR comments parse error", e);
+            }
+        }
+
+        // Render skeleton (Result: Layout visible immediately)
+        // Skip when preserveScroll=true (tab re-focus refresh): the user already sees comments,
+        // so wiping the DOM causes the browser to lose the #c anchor element and auto-scroll to top.
+        if (!scrollToId && !preserveScroll) {
+            this.render([], this.user, false);
+            this.restoreState(state);
+        }
+
+        try {
+            const res = await fetch(`/api/comments/${this.itemId}?sort=${this.sort}`);
+            
+            // If server is restarting (502/503), res.ok will be false.
+            if (!res.ok) throw new Error(`Server returned ${res.status}`);
+            
+            const data = await res.json();
+
+            if (data.success) {
+                if (data.require_login) {
+                    this.container.innerHTML = '';
+                    this.container.style.display = 'none';
+                    return;
+                }
+
+                this.isAdmin = data.is_admin || false;
+                this.isLocked = data.is_locked || false;
+
+                // Snapshot scroll position before DOM replacement (used when preserving position)
+                const savedScrollY = preserveScroll ? window.scrollY : null;
+
+                // Signal to render() and any async media/emoji handlers to NOT scroll to anchor.
+                if (preserveScroll) {
+                    this.preservingScroll = true;
+                    this.stopStabilization();
+                }
+
+                const savedHash = (preserveScroll && window.location.hash.startsWith('#c'))
+                    ? window.location.hash
+                    : null;
+                
+                // 1. Early Bail-out: If data is bit-for-bit identical, do nothing.
+                // This is the primary defense against tab-switch reloads when nothing changed.
+                if (preserveScroll && this._isDeeplyIdentical(data.comments, data.user_id, data.is_subscribed)) {
+                    console.log('[CommentSystem] Sync: Data identical, bailing early to protect media.');
+                    this.restoreState(state);
+                    this.preservingScroll = false;
+                    return;
+                }
+
+                // 2. Reconciliation: If data changed but we want to preserve media.
+                if (preserveScroll && this.lastData && this.lastData.length > 0) {
+                    console.log('[CommentSystem] Sync: Data changed, reconciling DOM.');
+                    this.reconcile(data.comments, data.user_id, data.is_subscribed);
+                    this.initialLoadDone = true;
+                    this.restoreState(state);
+                    
+                    if (scrollToId) {
+                        this.preservingScroll = false;
+                        this.scrollToComment(scrollToId);
+                    } else if (preserveScroll && savedScrollY !== null) {
+                        requestAnimationFrame(() => {
+                            window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+                            if (savedHash) {
+                                history.replaceState(null, '', window.location.pathname + window.location.search + savedHash);
+                                const hashId = savedHash.substring(2);
+                                const el = document.getElementById(`c${hashId}`);
+                                if (el) el.classList.add('comment-highlighted');
+                            }
+                            setTimeout(() => { this.preservingScroll = false; }, 500);
+                        });
+                    } else {
+                        this.preservingScroll = false;
+                    }
+                    return;
+                }
+
+                if (savedHash) {
+                    history.replaceState(null, '', window.location.pathname + window.location.search + savedHash);
+                }
+
+                // Render real data
+                this.render(data.comments, data.user_id, data.is_subscribed);
+                this.initialLoadDone = true;
+                this.restoreState(state);
+                this._loadDanmaku(data.comments);
+
+                if (scrollToId) {
+                    this.preservingScroll = false;
+                    if (savedHash) history.replaceState(null, '', window.location.pathname + window.location.search + savedHash);
+                    this.scrollToComment(scrollToId);
+                } else if (preserveScroll && savedScrollY !== null) {
+                    // Restore scroll position without animation to avoid visible jump.
+                    // Use rAF so the browser has painted the new DOM before we override its scroll.
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+                        // Silently restore the hash — history.replaceState does NOT trigger a scroll
+                        if (savedHash) {
+                            history.replaceState(null, '', window.location.pathname + window.location.search + savedHash);
+                            // Re-apply the highlight class without scrolling
+                            const hashId = savedHash.substring(2);
+                            const el = document.getElementById(`c${hashId}`);
+                            if (el) el.classList.add('comment-highlighted');
+                        }
+                        // Keep the flag active briefly to suppress any deferred media-load scrolls
+                        setTimeout(() => { this.preservingScroll = false; }, 500);
+                    });
+                } else {
+                    this.preservingScroll = false;
+                    if (savedHash) history.replaceState(null, '', window.location.pathname + window.location.search + savedHash);
+                    // Only jump to anchor on first load — never on tab re-focus (preserveScroll).
+                    if (!preserveScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+                        const hashId = window.location.hash.substring(2);
+                        this.scrollToComment(hashId);
+                    }
+                }
+            } else {
+                console.warn('[CommentSystem] Failed to load comments:', data.message);
+                if (!this.initialLoadDone) {
+                    this.container.innerHTML = `<div class="error">Failed to load comments: ${data.message}</div>`;
+                }
+            }
+        } catch (e) {
+            console.error('[CommentSystem] Error loading comments:', e);
+            // Catch-all for network errors, 502s, JSON parse errors (e.g. server restart)
+            // If initial load already finished (SSR or first fetch), just keep existing comments on screen.
+            if (!this.initialLoadDone) {
+                this.container.innerHTML = `<div class="error">Error loading comments. Please try again later.</div>`;
+            }
+        }
+    }
+
+    // ...
+
+
+
+    scrollToComment(id, retries = 5, isStabilizing = false) {
+        if (this.isUserInteracting && isStabilizing) return;
+        // Never scroll during a tab-refocus restore — preservingScroll is set
+        // synchronously in the visibilitychange handler before the async fetch.
+        if (this.preservingScroll) return;
+
+        const attempt = () => {
+            const el = document.getElementById(`c${id}`);
+            if (el) {
+                // Remove highlight from any previously highlighted or newly-posted comment
+                document.querySelectorAll('.comment-highlighted').forEach(c => c.classList.remove('comment-highlighted'));
+                document.querySelectorAll('.comment-entering').forEach(c => c.classList.remove('comment-entering'));
+                document.querySelectorAll('.new-item-fade').forEach(c => c.classList.remove('new-item-fade'));
+                
+                // Always smooth-scroll so there's no jarring jump
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('comment-highlighted');
+
+                // If not already stabilizing, start a short-lived stabilization phase
+                if (!isStabilizing) {
+                    this.startStabilization(id);
+                }
+            } else if (retries > 0) {
+                console.log(`[CommentSystem] Scroll target #c${id} not found, retrying... (${retries} left)`);
+                setTimeout(() => this.scrollToComment(id, retries - 1), 200);
+            }
+        };
+
+        // Delay to allow for layout stabilization (e.g. images, other comments)
+        // Shorter delay for stabilization calls
+        setTimeout(attempt, isStabilizing ? 50 : 300);
+    }
+
+    startStabilization(id) {
+        this.stopStabilization(); // Clear any existing
+        this.isUserInteracting = false;
+        
+        const el = document.getElementById(`c${id}`);
+        if (!el) return;
+
+        // Interaction listeners to abort stabilization
+        this.boundStopStabilization = (e) => {
+            // Ignore small jitter, but stop on significant interaction
+            if (e.type === 'keydown') {
+                const scrollKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ', 'Home', 'End'];
+                if (!scrollKeys.includes(e.key)) return;
+            }
+            console.log(`[CommentSystem] Stabilization aborted due to ${e.type}`);
+            this.isUserInteracting = true;
+            this.stopStabilization();
+        };
+
+        ['wheel', 'touchmove', 'mousedown', 'keydown'].forEach(evt => {
+            window.addEventListener(evt, this.boundStopStabilization, { passive: true });
+        });
+
+        let lastTop = el.getBoundingClientRect().top;
+        let checks = 0;
+        const maxChecks = 20; // ~4 seconds at 200ms
+
+        const checkShift = () => {
+            if (this.isUserInteracting || this.preservingScroll) return;
+            const currentEl = document.getElementById(`c${id}`);
+            if (!currentEl) return;
+            
+            const currentTop = currentEl.getBoundingClientRect().top;
+            const diff = Math.abs(currentTop - lastTop);
+            
+            // If it shifted more than 10px (e.g. media loaded), re-scroll
+            if (diff > 10 && checks < maxChecks) {
+                console.log(`[CommentSystem] Layout shift detected (${Math.round(diff)}px), re-stabilizing scroll...`);
+                this.scrollToComment(id, 0, true);
+                lastTop = currentEl.getBoundingClientRect().top;
+            }
+            
+            checks++;
+            if (checks < maxChecks) {
+                this.stabilizationTimer = setTimeout(checkShift, 200);
+            }
+        };
+
+        this.stabilizationTimer = setTimeout(checkShift, 200);
+        
+        // Also use ResizeObserver for immediate reaction to content loading
+        if (window.ResizeObserver) {
+            this.stabilizationObserver = new ResizeObserver(() => {
+                if (this.preservingScroll) return; // Don't fight scroll-position restoration
+                if (this.scrollDebounce) clearTimeout(this.scrollDebounce);
+                this.scrollDebounce = setTimeout(() => {
+                    if (this.preservingScroll) return;
+                    const rect = el.getBoundingClientRect();
+                    // If it's no longer near the center (roughly), re-center
+                    const center = window.innerHeight / 2;
+                    if (Math.abs(rect.top + rect.height / 2 - center) > 100) {
+                        this.scrollToComment(id, 0, true);
+                    }
+                }, 100);
+            });
+            this.stabilizationObserver.observe(this.container);
+            
+            // Disconnect after 5 seconds to save resources
+            setTimeout(() => this.stopStabilization(), 5000);
+        }
+    }
+
+    stopStabilization() {
+        if (this.stabilizationTimer) clearTimeout(this.stabilizationTimer);
+        if (this.stabilizationObserver) this.stabilizationObserver.disconnect();
+        this.stabilizationTimer = null;
+        this.stabilizationObserver = null;
+
+        if (this.boundStopStabilization) {
+            ['wheel', 'touchmove', 'mousedown', 'keydown'].forEach(evt => {
+                window.removeEventListener(evt, this.boundStopStabilization);
+            });
+            this.boundStopStabilization = null;
+        }
+    }
+
+    saveMediaState() {
+        // Snapshot currently playing or paused-mid-way media elements
+        const state = [];
+        if (!this.container) return state;
+        this.container.querySelectorAll('video, audio').forEach(el => {
+            if (!el.paused || el.currentTime > 0) {
+                state.push({
+                    src: el.src || el.currentSrc,
+                    currentTime: el.currentTime,
+                    paused: el.paused,
+                    muted: el.muted,
+                    volume: el.volume
+                });
+            }
+        });
+        return state;
+    }
+
+    restoreMediaState(state) {
+        if (!state || state.length === 0 || !this.container) return;
+        state.forEach(snap => {
+            const el = this.container.querySelector(`video[src="${snap.src}"], audio[src="${snap.src}"]`);
+            if (!el) return;
+            el.currentTime = snap.currentTime;
+            el.muted = snap.muted;
+            el.volume = snap.volume;
+            if (!snap.paused) {
+                el.play().catch(() => {/* autoplay may be blocked */});
+            }
+        });
+    }
+
+    render(comments, currentUserId, isSubscribed) {
+        // Store for re-rendering when emojis load
+        this.lastData = comments;
+        this.lastUserId = currentUserId;
+        this.lastIsSubscribed = isSubscribed;
+
+        // Build two-level tree: top-level comments + all replies at one level
+        const map = new Map();
+        const roots = [];
+
+        comments.forEach(c => {
+            c.replies = [];
+            c.replyTo = null; // Username being replied to (for @mentions)
+            map.set(c.id, c);
+        });
+
+        // Find root parent for any comment
+        const findRoot = (comment) => {
+            if (!comment.parent_id) return null;
+            let current = comment;
+            while (current.parent_id && map.has(current.parent_id)) {
+                current = map.get(current.parent_id);
+            }
+            return current;
+        };
+
+        comments.forEach(c => {
+            if (!c.parent_id) {
+                // Top-level comment
+                roots.push(c);
+            } else {
+                // It's a reply - find root and attach there
+                const root = findRoot(c);
+                if (root && root !== c) {
+                    // If replying to a non-root, capture the username for @mention
+                    const directParent = map.get(c.parent_id);
+                    if (directParent && directParent.id !== root.id) {
+                        c.replyTo = directParent.username;
+                    }
+                    root.replies.push(c);
+                } else {
+                    // Orphaned reply (parent deleted?) - show as root
+                    roots.push(c);
+                }
+            }
+        });
+
+        // Sort replies by date (oldest first)
+        roots.forEach(r => {
+            if (r.replies && r.replies.length > 0) {
+                r.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            }
+        });
+
+        // Determine what to show for input
+        let inputSection = '';
+        if (this.isLocked && !this.isAdmin) {
+            inputSection = '<div class="lock-notice">🔒 Comments are disabled on this thread.</div>';
+        } else if (currentUserId) {
+            inputSection = this.renderInput();
+        } else {
+            inputSection = '<div class="login-placeholder"><a href="/login" class="login-trigger-btn">Login</a> to comment</div>';
+        }
+
+        const isLegacy = document.body.classList.contains('layout-legacy') || document.body.classList.contains('legacy-view');
+        let scrollToBottomBtn = '';
+        if (isLegacy) {
+            scrollToBottomBtn = `
+                <div class="scroll-nav-wrapper">
+                    <div class="scroll-to-bottom" title="Scroll to bottom">
+                        <i class="fa-solid fa-arrow-down icon-down"></i>
+                        <i class="fa-solid fa-arrow-up icon-up"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        let html = `
+            <div class="comments-list">
+                ${scrollToBottomBtn}
+                ${roots.map(c => this.renderComment(c, currentUserId)).join('')}
+            </div>
+            ${inputSection}
+        `;
+
+        const mediaState = this.saveMediaState();
+        this.container.innerHTML = Sanitizer.clean(html);
+        this.restoreMediaState(mediaState);
+        this.syncSubscribeButton(isSubscribed);
+
+        // Attach media load listeners to re-stabilize scroll if a hash is active.
+        // Skipped during a preserveScroll refresh (tab re-focus) to avoid fighting the
+        // position restoration and causing the visible jump-then-snap behaviour.
+        if (!this.preservingScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+            const hashId = window.location.hash.substring(2);
+            this.container.querySelectorAll('img, video, audio').forEach(media => {
+                const handler = () => {
+                    if (this.preservingScroll) return; // still in suppress window
+                    if (this.scrollDebounce) clearTimeout(this.scrollDebounce);
+                    this.scrollDebounce = setTimeout(() => this.scrollToComment(hashId, 0, true), 100);
+                    media.removeEventListener('load', handler);
+                    media.removeEventListener('loadedmetadata', handler);
+                };
+                media.addEventListener('load', handler);
+                media.addEventListener('loadedmetadata', handler);
+            });
+        }
+
+        const mainInput = this.container.querySelector('.main-input');
+        if (mainInput) this.setupEmojiPicker(mainInput);
+    }
+
+    syncSubscribeButton(isSubscribed) {
+        this.lastIsSubscribed = isSubscribed;
+        document.querySelectorAll('#subscribe-btn').forEach(btn => {
+            btn.classList.toggle('active', isSubscribed);
+            btn.setAttribute('title', isSubscribed ? 'Subscribed' : 'Subscribe');
+            
+            // Update text if it exists (legacy support)
+            const textNodes = Array.from(btn.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
+            if (textNodes.length > 0) {
+                textNodes[0].textContent = isSubscribed ? 'Subscribed' : 'Subscribe';
+            }
+
+            // FA icon: toggle fa-solid / fa-regular
+            btn.classList.toggle('fa-solid', isSubscribed);
+            btn.classList.toggle('fa-regular', !isSubscribed);
+        });
+    }
+
+    _isDeeplyIdentical(newComments, currentUserId, isSubscribed) {
+        if (!this.lastData) return false;
+        
+        // Use lax comparison for user IDs as they might flip between string/int
+        const userMatches = (this.lastUserId == currentUserId);
+        if (!userMatches) return false;
+
+        if (this.lastIsSubscribed !== isSubscribed) return false;
+        if (this.lastData.length !== newComments.length) return false;
+        
+        for (let i = 0; i < newComments.length; i++) {
+            const a = this.lastData[i];
+            const b = newComments[i];
+            
+            // Compare essential data that affects the UI
+            if (a.id !== b.id || 
+                a.content !== b.content || 
+                a.is_deleted !== b.is_deleted || 
+                a.is_pinned !== b.is_pinned ||
+                a.display_name !== b.display_name) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * DOM Reconciliation: Synchronizes current thread state with fresh data
+     * without replacing the entire container, protecting active media (YouTube).
+     */
+    reconcile(comments, currentUserId, isSubscribed) {
+        if (!this.container) return;
+        const list = this.container.querySelector('.comments-list');
+        if (!list) return this.render(comments, currentUserId, isSubscribed);
+
+        // Update metadata
+        this.syncSubscribeButton(isSubscribed);
+        this.lastData = comments;
+        this.lastUserId = currentUserId;
+        this.lastIsSubscribed = isSubscribed;
+
+        const incomingMap = new Map();
+        comments.forEach(c => incomingMap.set(String(c.id), c));
+
+        // 1. Identify missing or edited comments already in DOM
+        const existingEls = list.querySelectorAll('[id^="c"]');
+        const existingIds = new Set();
+        
+        existingEls.forEach(el => {
+            const id = el.id.substring(1);
+            existingIds.add(id);
+            const incoming = incomingMap.get(id);
+
+            if (!incoming) {
+                // Comment was deleted/removed from server
+                el.classList.add('deleted');
+                const contentEl = el.querySelector('.comment-content');
+                if (contentEl) contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
+                const actions = el.querySelector('.comment-actions');
+                if (actions) actions.style.display = 'none';
+            } else {
+                // Check for edits or state changes using robust data-attributes
+                const contentEl = el.querySelector('.comment-content');
+                if (contentEl && contentEl.dataset.raw !== incoming.content) {
+                    console.log(`[CommentSystem] Reconcile: Updating content for #c${id}`);
+                    contentEl.innerHTML = Sanitizer.clean(this.renderCommentContent(incoming.content));
+                    contentEl.dataset.raw = incoming.content;
+                }
+                
+                // Update pinned status
+                el.classList.toggle('pinned', !!incoming.is_pinned);
+                const pinIcon = el.querySelector('.pin-icon');
+                if (pinIcon) pinIcon.style.display = incoming.is_pinned ? 'block' : 'none';
+            }
+        });
+
+        // 2. Insert new comments
+        // We re-run the tree logic to determine correct order
+        const map = new Map();
+        const roots = [];
+        comments.forEach(c => {
+            c.replies = [];
+            c.replyTo = null;
+            map.set(c.id, c);
+        });
+
+        const findRoot = (comment) => {
+            if (!comment.parent_id) return null;
+            let current = comment;
+            while (current.parent_id && map.has(current.parent_id)) {
+                current = map.get(current.parent_id);
+            }
+            return current;
+        };
+
+        comments.forEach(c => {
+            if (!c.parent_id) roots.push(c);
+            else {
+                const root = findRoot(c);
+                if (root && root !== c) {
+                    const directParent = map.get(c.parent_id);
+                    if (directParent && directParent.id !== root.id) c.replyTo = directParent.username;
+                    root.replies.push(c);
+                } else roots.push(c);
+            }
+        });
+
+        roots.forEach(r => {
+            if (r.replies?.length > 0) r.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        });
+
+        // Recursively ensures a set of comments exists in a specific container
+        const syncLevel = (levelComments, container, isReply) => {
+            levelComments.forEach((c, idx) => {
+                const idStr = String(c.id);
+                let el = document.getElementById('c' + idStr);
+
+                if (!el) {
+                    console.log(`[CommentSystem] Reconcile: Injecting new comment #c${idStr}`);
+                    const html = Sanitizer.clean(this.renderComment(c, currentUserId, isReply));
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = html;
+                    const newEl = tmp.firstElementChild;
+                    
+                    // Insertion point: after previous sibling if it exists, else prepend
+                    if (idx === 0) {
+                        const nav = container.querySelector('.scroll-nav-wrapper');
+                        if (nav) nav.insertAdjacentElement('afterend', newEl);
+                        else container.prepend(newEl);
+                    } else {
+                        const prevId = String(levelComments[idx - 1].id);
+                        const prevEl = document.getElementById('c' + prevId);
+                        // If it's a root comment, we must skip the .comment-replies div of the previous sibling
+                        let insertAfter = prevEl;
+                        if (prevEl && !isReply) {
+                            const next = prevEl.nextElementSibling;
+                            if (next && next.classList.contains('comment-replies')) insertAfter = next;
+                        }
+                        if (insertAfter) insertAfter.insertAdjacentElement('afterend', newEl);
+                        else container.appendChild(newEl);
+                    }
+                    el = newEl;
+                    el.classList.add('comment-entering');
+                    el.classList.add('new-item-fade');
+                }
+
+                // Handle replies container
+                if (c.replies?.length > 0) {
+                    let repliesWrap = el.nextElementSibling;
+                    if (!repliesWrap || !repliesWrap.classList.contains('comment-replies')) {
+                        repliesWrap = document.createElement('div');
+                        repliesWrap.className = 'comment-replies';
+                        el.insertAdjacentElement('afterend', repliesWrap);
+                    }
+                    syncLevel(c.replies, repliesWrap, true);
+                }
+            });
+        };
+
+        syncLevel(roots, list, false);
+    }
+
+    renderCommentContent(content) {
+        if (!content) return '';
+        
+        // Anti-recursion / Performance safeguard for extremely long comments
+        if (content.length > 50000) {
+            console.warn('Comment too long, skipping markdown for performance');
+            // Use native escaping and <pre> to avoid all regex/marked overhead for huge strings
+            return `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 0; background: none; border: none; font-size: inherit; color: inherit;">${this.escapeHtml(content)}</pre>`;
+        }
+
+        if (typeof marked === 'undefined') {
+            console.warn('Marked.js not loaded, falling back to plain text');
+            let text = this.escapeHtml(content)
+                .replace(/\*fg\*/gi, '$&');
+            return text;
+        }
+
+        try {
+            // 1. Extract and protect code blocks (```...```) before escaping
+            const codeBlocks = [];
+            let processed = content.replace(/```([\s\S]*?)```/g, (match) => {
+                const placeholder = `BLOCKPORTALX${codeBlocks.length}X`;
+                codeBlocks.push(marked.parse(match));
+                return placeholder;
+            });
+
+            // 2. Initial escaping for the rest of the text. Preserve > for manual blockquote handling.
+            let escaped = this.escapeHtml(processed)
+                .replace(/&gt;/g, ">"); 
+
+
+            const siteOrigin = window.location.origin;
+            const renderer = new marked.Renderer();
+
+            renderer.blockquote = quote => {
+                let text = (typeof quote === 'string') ? quote : (quote.text || '');
+                text = text.replace(/<p>|<\/p>/g, '');
+                return text.split('\n').map(line => {
+                    if (!line.trim()) return '';
+                    return `<span class="greentext">&gt;${line}</span>`;
+                }).join('\n');
+            };
+
+            renderer.paragraph = text => (typeof text === 'string') ? text : (text.text || '');
+
+            renderer.link = (href, title, text) => {
+                if (typeof href === 'object' && href !== null) {
+                    title = href.title;
+                    text = href.text || text;
+                    href = href.href;
+                }
+                if (!href) return text || '';
+                const titleAttr = title ? ` title="${title}"` : '';
+                const isExternal = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
+                let isSameSite = false;
+                
+                // Marked greedy autolink fix for spoiler brackets appended to URLs
+                let extraSuffix = '';
+                const lowerHref = href.toLowerCase();
+                if (lowerHref.endsWith('%5b/spoiler%5d')) {
+                    href = href.substring(0, href.length - 14);
+                    text = text.replace(/\[\/spoiler\]/ig, '');
+                    extraSuffix = '[/spoiler]';
+                } else if (lowerHref.endsWith('[/spoiler]')) {
+                    href = href.substring(0, href.length - 10);
+                    text = text.replace(/\[\/spoiler\]/ig, '');
+                    extraSuffix = '[/spoiler]';
+                }
+
+                let uri = encodeURI(href);
+                if (href.startsWith(siteOrigin) || (href.startsWith('/') && !href.startsWith('//'))) {
+                    isSameSite = true;
+                } else {
+                    try {
+                        const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
+                        const urlObj = new URL(urlToParse, siteOrigin);
+                        isSameSite = (urlObj.hostname === window.location.hostname);
+                    } catch(e) {}
+                }
+
+                // Shorten internal links if text matches the URL
+                let displayText = text;
+                if (isSameSite && (text === href || text === href.replace(/^https?:\/\//, '') || text === href.replace(siteOrigin, ''))) {
+                    try {
+                        const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
+                        const url = new URL(urlToParse.startsWith('http') ? urlToParse : siteOrigin + (urlToParse.startsWith('/') ? '' : '/') + urlToParse);
+                        displayText = url.pathname + url.search + url.hash;
+                    } catch (e) {
+                        console.warn('[CommentSystem] Failed to parse internal URL for shortening:', href);
+                    }
+                }
+
+                const isMention = href.startsWith('/user/') && text.startsWith('@');
+                if (isExternal && !isSameSite) {
+                    return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${displayText}<i class="fa-solid fa-arrow-up-right-from-square external-link-icon"></i></a>${extraSuffix}`;
+                }
+                return `<a href="${href}"${titleAttr}${isMention ? ' class="mention"' : ''}>${displayText}</a>${extraSuffix}`;
+            };
+
+            // Pre-compile regexes used in the loop
+            const escapedSiteHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const allowedHosts = [escapedSiteHost];
+            if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
+                window.f0ckAllowedImages.forEach(h => {
+                    const escapedHost = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    allowedHosts.push(`(?:[a-z0-9-]+\\.)*${escapedHost}`);
+                });
+            }
+            const hostsRegexPart = allowedHosts.join('|');
+            const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?<!\\S)(?=\\/[a-zA-Z0-9_\\-]))`;
+            
+            // "Safe non-whitespace" — matches any \S except the start of an https?:// boundary.
+            // Prevents concatenated URLs (url1.webpurl2.webp) being consumed as one giant src.
+            const safeS = `(?:(?!https?:\\/\\/)\\S)`;
+            const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
+            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
+            const rawAudioRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
+
+            // Line-by-line processing: handles quotes, mentions, images, and basic markdown safely
+            const renderedLines = escaped.split('\n').map(line => {
+                const trimmed = line.trimStart();
+                
+                // 1. Manual Greentext/Quote handling (avoids recursive blockquote parsing)
+                if (trimmed.startsWith('>')) {
+                    const quoteContent = line.substring(line.indexOf('>') + 1);
+                    const quoteEmojis = window.f0ckSession?.quote_emojis === true;
+                    const renderedContent = quoteEmojis
+                        ? quoteContent.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n))
+                        : quoteContent;
+                    return `<span class="greentext">&gt;${renderedContent}</span>`;
+                }
+                
+                // 2. Per-line limit to prevent marked.parse recursion on single giant lines
+                if (line.length > 10000) return line;
+
+                if (!line.trim()) return '&nbsp;';
+
+                // 3. Perform replacements on the single line (prevents regex stack overflow on huge strings)
+                let processedLine = line;
+                
+                // Handle Mentions
+                processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
+                    const user = g1 || g2;
+                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                });
+                
+                // Handle Image Embeds
+                processedLine = processedLine.replace(imageRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) {
+                        fullUrl = '//' + url;
+                    }
+                    return `![image](${fullUrl})`;
+                });
+                
+                // Handle Raw Video/Audio links so Marked converts them to <a>
+                processedLine = processedLine.replace(rawVideoRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
+                    return `[video](${fullUrl})`;
+                });
+                
+                processedLine = processedLine.replace(rawAudioRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
+                    return `[audio](${fullUrl})`;
+                });
+
+                // 3. Render Markdown for the line
+                const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
+                let rendered = marked.parseInline 
+                    ? marked.parseInline(escapedAsterisks, { renderer: renderer }) 
+                    : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+                
+                // 4. Emojis
+                rendered = rendered.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n));
+                
+                return rendered;
+            });
+
+            let md = renderedLines.join('\n');
+
+            // YouTube embed: replace anchor links pointing to YouTube with an embedded player
+            // Respects per-user preference (session) when logged in; falls back to global config flag for guests.
+            const embedYoutube = window.f0ckSession
+                ? window.f0ckSession.embed_youtube_in_comments !== false
+                : window.f0ckEmbedYoutubeInComments !== false;
+            if (embedYoutube) {
+                md = md.replace(
+                    /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?(?:[^"]*&(?:amp;)?)?v=|youtu\.be\/)([a-zA-Z0-9_\-]{11})[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
+                    (match, videoId) => {
+                        return `<span class="yt-embed-wrap"><iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></span>`;
+                    }
+                );
+            }
+
+            // Build regex for allowed media hosters (video/audio)
+            const mediaHosts = [escapedSiteHost];
+            if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
+                window.f0ckAllowedImages.forEach(h => {
+                    const escaped = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    mediaHosts.push(`(?:[a-z0-9-]+\\.)*${escaped}`);
+                });
+            }
+            const mediaHostsPart = mediaHosts.join('|');
+            const mediaDomainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${mediaHostsPart})|(?=\\/[a-zA-Z0-9_\\-]))`;
+
+            // Video embed: replace anchor links pointing to video files from allowed hosters with a video player
+            const videoEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
+            md = md.replace(videoEmbedRegex, (match, url) => {
+                return `<span class="video-embed-wrap"><video src="${url}" controls loop muted playsinline preload="metadata"></video></span>`;
+            });
+
+            // Audio embed: replace anchor links pointing to audio files from allowed hosters with an audio player
+            const audioEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
+            md = md.replace(audioEmbedRegex, (match, url) => {
+                return `<span class="audio-embed-wrap"><audio src="${url}" controls preload="metadata"></audio></span>`;
+            });
+
+            // Handle spoilers [spoiler]text[/spoiler] (supports nesting)
+            let prevMd;
+            let iterations = 0;
+            const spoilerRegex = /\[spoiler\]((?:(?!\[spoiler\])[\s\S])*?)\[\/spoiler\]/gi;
+            do {
+                prevMd = md;
+                md = md.replace(spoilerRegex, (match, content) => {
+                    return `<span class="spoiler">${content}</span>`;
+                });
+                iterations++;
+            } while (md !== prevMd && iterations < 10);
+
+            // Handle blur [blur]text[/blur] (supports nesting)
+            const blurRegex = /\[blur\]((?:(?!\[blur\])[\s\S])*?)\[\/blur\]/gi;
+            iterations = 0;
+            do {
+                prevMd = md;
+                md = md.replace(blurRegex, (match, content) => {
+                    return `<span class="blur-text">${content}</span>`;
+                });
+                iterations++;
+            } while (md !== prevMd && iterations < 10);
+            
+            // Restore protected code blocks
+            md = md.replace(/BLOCKPORTALX(\d+)X/g, (match, index) => {
+                return codeBlocks[index] || '';
+            });
+
+            return md;
+        } catch (e) {
+            console.error('Markdown error:', e);
+            return this.escapeHtml(content);
+        }
+    }
+
+    renderEmoji(match, name) {
+        if (this.customEmojis && this.customEmojis[name]) {
+            return `<img src="${this.customEmojis[name]}" class="emoji" alt="${match}" title="${match}">`;
+        }
+        return match;
+    }
+
+    startLiveTimestamps() {
+        // Update timestamps every 30 seconds
+        setInterval(() => {
+            const timestamps = this.container.querySelectorAll('.comment-time.timeago');
+            timestamps.forEach(el => {
+                const dateStr = el.getAttribute('tooltip');
+                if (dateStr) {
+                    el.textContent = this.timeAgo(dateStr);
+                }
+            });
+        }, 30000);
+    }
+
+    renderComment(comment, currentUserId, isReply = false) {
+        const isDeleted = comment.is_deleted;
+        const isPinned = comment.is_pinned;
+
+        // Add @mention prefix if this is a reply to a reply
+        const content = isDeleted ? '<span class="deleted-msg">[deleted]</span>' : this.renderCommentContent(comment.content);
+        const date = new Date(comment.created_at).toLocaleString();
+
+        // Admin buttons
+        let adminButtons = '';
+        if (this.isAdmin && !isDeleted) {
+            const pinIcon = isPinned ? this.icons.unpin : this.icons.pin;
+            adminButtons = `<button class="admin-pin-btn ${isPinned ? 'active' : ''}" data-id="${comment.id}" title="${isPinned ? 'Unpin' : 'Pin'}">${pinIcon}</button><button class="admin-edit-btn" data-id="${comment.id}" data-content="${this.escapeHtml(comment.content)}">${this.icons.edit}</button><button class="admin-delete-btn" data-id="${comment.id}">${this.icons.delete}</button>`;
+        }
+
+        const pinnedBadge = isPinned ? `<span class="pinned-badge" title="Pinned">${this.icons.pinned}</span>` : '';
+        const commentClass = isReply ? 'comment reply' : 'comment';
+
+        // Build replies HTML (only for root comments, max 1 level deep)
+        let repliesHtml = '';
+        if (!isReply && comment.replies && comment.replies.length > 0) {
+            repliesHtml = `<div class="comment-replies">${comment.replies.map(r => this.renderComment(r, currentUserId, true)).join('')}</div>`;
+        }
+
+        const timeAgo = this.timeAgo(comment.created_at);
+        const fullDate = new Date(comment.created_at).toISOString();
+
+        return `
+            <div class="${commentClass} ${isDeleted ? 'deleted' : ''} ${isPinned ? 'pinned' : ''}" id="c${comment.id}">
+                <div class="comment-avatar">
+                    ${comment.username ? `<a href="/user/${comment.username}">` : ''}
+                    <img src="${comment.avatar_file ? `/a/${comment.avatar_file}` : (comment.avatar ? `/t/${comment.avatar}.webp` : '/a/default.png')}" alt="av">
+                    ${comment.username ? `</a>` : ''}
+                </div>
+                <div class="comment-body">
+                    <div class="comment-header">
+                        <div class="comment-header-left">
+                            ${pinnedBadge}${comment.username ? `<a href="/user/${comment.username}" class="comment-author" tooltip="ID: ${comment.user_id}" ${comment.username_color ? `style="color: ${comment.username_color}"` : ''}>${this.escapeHtml(comment.display_name || comment.username)}</a>` : '<span class="comment-author">System</span>'}
+                        </div>
+                        <a href="#c${comment.id}" class="comment-time timeago" title="${fullDate}">${timeAgo}</a>
+                    </div>
+                    <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
+                    <div class="comment-footer">
+                        <div class="comment-footer-right">
+                            <div class="comment-actions">
+                                ${!isDeleted && currentUserId ? `<button class="reply-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}"><i class="fa-solid fa-reply"></i></button><button class="report-comment-btn" data-id="${comment.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}
+                                ${adminButtons}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <a href="#c${comment.id}" class="comment-permalink" title="Permalink">#${comment.id}</a>
+            </div>
+            ${repliesHtml}
+        `;
+    }
+
+    timeAgo(date) {
+        if (window.f0ckTimeAgo) return window.f0ckTimeAgo(date);
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        if (seconds < 5) return 'just now';
+        const intervals = [
+            { label: 'year', seconds: 31536000 },
+            { label: 'month', seconds: 2592000 },
+            { label: 'day', seconds: 86400 },
+            { label: 'hour', seconds: 3600 },
+            { label: 'minute', seconds: 60 },
+            { label: 'second', seconds: 1 }
+        ];
+        for (const interval of intervals) {
+            const count = Math.floor(seconds / interval.seconds);
+            if (count >= 1) {
+                return `${count} ${interval.label}${count !== 1 ? 's' : ''} ago`;
+            }
+        }
+        return 'just now';
+    }
+
+    escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        const div = document.createElement('div');
+        div.textContent = unsafe;
+        return div.innerHTML;
+    }
+
+
+    renderInput(parentId = null) {
+        const i18n = window.f0ckI18n || {};
+        const placeholder = i18n.write_comment || 'Write a comment...';
+        const postLabel   = i18n.post           || 'Post';
+        const cancelLabel = i18n.cancel         || 'Cancel';
+        return `
+            <div class="comment-input ${parentId ? 'reply-input' : 'main-input'}" ${parentId ? `data-parent="${parentId}"` : ''}>
+                <textarea placeholder="${placeholder}"></textarea>
+                <div class="input-actions">
+                    ${parentId ? `<button class="cancel-reply">${cancelLabel}</button>` : ''}
+                    <button class="submit-comment">${postLabel}</button>
+                </div>
+            </div>
+        `;
+    }
+
+    setupDelegatedEvents() {
+        console.log('[DEBUG] Setting up delegated events for container:', this.container);
+        if (!this.container) return;
+
+        // Ctrl+Enter to submit comment
+        this.container.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                const textarea = e.target.closest('textarea');
+                if (!textarea) return;
+                const wrap = textarea.closest('.comment-input');
+                if (!wrap) return;
+                const submitBtn = wrap.querySelector('.submit-comment');
+                if (submitBtn) submitBtn.click();
+            } else if (e.key === 'Escape') {
+                const textarea = e.target.closest('textarea');
+                if (textarea) textarea.blur();
+            }
+        });
+
+        // Single Change Listener for Sort
+        this.container.addEventListener('change', (e) => {
+            if (e.target.id === 'comment-sort') {
+                this.sort = e.target.value;
+                this.loadComments();
+            }
+        });
+
+        // Single Click Listener for Everything
+        this.container.addEventListener('click', async (e) => {
+            console.log('[DEBUG] Click on container:', e.target);
+            const target = e.target;
+
+            // Handle legacy layout focus scroll
+            if (target.matches('textarea') && (document.body.classList.contains('legacy-view') || document.body.classList.contains('layout-legacy'))) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Toggling Scroll Action
+            const scrollBtn = target.closest('.scroll-to-bottom');
+            if (scrollBtn) {
+                if (scrollBtn.classList.contains('is-at-bottom')) {
+                    // Scroll to Top of the page
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                } else {
+                    // Scroll to Bottom of comments
+                    const bottomElement = this.container.querySelector('.main-input') || this.container.querySelector('.lock-notice') || this.container.querySelector('.login-placeholder');
+                    if (bottomElement) {
+                        bottomElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        this.container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                }
+                return;
+            }
+
+            // Submit Comment
+            if (target.matches('.submit-comment')) {
+                this.handleSubmit(e);
+                return;
+            }
+
+            // Cancel Reply
+            if (target.matches('.cancel-reply')) {
+                const form = target.closest('.reply-input');
+                if (form) form.remove();
+                return;
+            }
+
+            // User Delete
+            const delBtn = target.closest('.delete-btn');
+            if (delBtn) {
+                if (delBtn.dataset.confirming !== 'true') {
+                    delBtn.dataset.confirming = 'true';
+                    const originalText = delBtn.innerHTML;
+                    delBtn.innerHTML = 'Sure?';
+                    delBtn.classList.add('btn-danger'); // Optional styling
+                    setTimeout(() => {
+                        delBtn.dataset.confirming = 'false';
+                        delBtn.innerHTML = originalText;
+                        delBtn.classList.remove('btn-danger');
+                    }, 3000);
+                    return;
+                }
+
+                const id = delBtn.dataset.id;
+                const res = await fetch(`/api/comments/${id}/delete`, { 
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const json = await res.json();
+                if (json.success) this.loadComments();
+                else alert('Failed to delete: ' + (json.message || 'Error'));
+                return;
+            }
+
+            // Admin Delete
+            const adminDelBtn = target.closest('.admin-delete-btn');
+            if (adminDelBtn) {
+                if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded. Are you a moderator?');
+
+                const id = adminDelBtn.dataset.id;
+                ModAction.confirm('Delete Comment', `Are you sure you want to delete comment <strong>${id}</strong>?`, async (reason) => {
+                    const params = new URLSearchParams();
+                    if (reason) params.append('reason', reason);
+
+                    const res = await fetch(`/api/comments/${id}/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        this.loadComments();
+                    } else {
+                        throw new Error(json.message || 'Failed to delete');
+                    }
+                }, { allowEmpty: window.f0ckSession?.is_admin });
+                return;
+            }
+
+            // Admin Pin
+            const adminPinBtn = target.closest('.admin-pin-btn');
+            if (adminPinBtn) {
+                const id = adminPinBtn.dataset.id;
+                const res = await fetch(`/api/comments/${id}/pin`, { 
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const json = await res.json();
+                if (json.success) this.loadComments(id);
+                else alert('Failed to pin: ' + (json.message || 'Error'));
+                return;
+            }
+
+            // Admin Edit
+            const adminEditBtn = target.closest('.admin-edit-btn');
+            if (adminEditBtn) {
+                const id = adminEditBtn.dataset.id;
+                const currentContent = adminEditBtn.dataset.content;
+                const commentEl = document.getElementById('c' + id);
+                const contentEl = commentEl.querySelector('.comment-content');
+
+                const originalHtml = contentEl.innerHTML;
+                contentEl.innerHTML = `
+                    <textarea class="edit-textarea">${currentContent}</textarea>
+                    <div class="input-actions">
+                        <button class="cancel-edit-btn">Cancel</button>
+                        <button class="save-edit-btn">Save</button>
+                    </div>
+                `;
+
+                this.setupEmojiPicker(contentEl);
+
+                // We don't need to bind events here because delegation handles the new buttons too!
+                // But we need to store originalHtml somewhere or handle Cancel specifically?
+                // Actually, for Cancel of edit, we need state? 
+                // We can store original HTML in a dataset of the container or just re-render/reload?
+                // Re-loading is safer for now, or we can use a closure if we attached listener here.
+                // Since this is Delegation, "Cancel" needs to know what to restore.
+                // Let's attach a "once" listener on the cancel button immediately here? 
+                // NO, mixing strategies is confusing.
+                // Let's put original HTML in dataset encoded? No, potentially large.
+                // Simpler: On Cancel, just reload the comment (fetch or just re-render whole list).
+                // Or: Attach a specialized listener strictly for this temporary element.
+
+                const cancelBtn = contentEl.querySelector('.cancel-edit-btn');
+                cancelBtn.onclick = () => { contentEl.innerHTML = originalHtml; };
+
+                const saveBtn = contentEl.querySelector('.save-edit-btn');
+                saveBtn.onclick = async () => {
+                    const newContent = contentEl.querySelector('.edit-textarea').value;
+                    if (!newContent.trim()) return alert('Cannot be empty');
+                    const params = new URLSearchParams();
+                    params.append('content', newContent);
+                    const res = await fetch(`/api/comments/${id}/edit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params
+                    });
+                    const json = await res.json();
+                    if (json.success) this.loadComments(id);
+                    else alert('Failed to edit: ' + (json.message || 'Error'));
+                };
+                return;
+            }
+
+            // Reply
+            const replyBtn = target.closest('.reply-btn');
+            if (replyBtn) {
+                const id = replyBtn.dataset.id;
+                const body = replyBtn.closest('.comment-body');
+
+                if (body.querySelector('.reply-input')) return;
+
+                const div = document.createElement('div');
+                div.innerHTML = this.renderInput(id);
+                body.appendChild(div.firstElementChild);
+                const newForm = body.querySelector('.reply-input');
+                this.setupEmojiPicker(newForm);
+                
+                // Add quote content — use data-raw to get the original unrendered text,
+                // which always has :emojicode:, [spoiler] tags, etc. intact.
+                const author = replyBtn.dataset.display || replyBtn.dataset.username || 'System';
+                const contentEl = body.querySelector('.comment-content');
+                const textarea = newForm.querySelector('textarea');
+                if (contentEl && textarea) {
+                    const rawText = (contentEl.dataset.raw || '').trim();
+                    const lines = rawText.split('\n');
+                    const quote = `>${author}\n${lines.map(line => `>${line}`).join('\n')}\n`;
+                    textarea.value = quote;
+                    
+                    // Focus and move cursor to end
+                    textarea.focus();
+                    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                }
+
+                // Smoothly scroll the reply form into view
+                newForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                // Buttons in newForm are handled by delegation (.submit-comment, .cancel-reply)
+                return;
+            }
+
+            // Subscribe
+            const subBtn = target.closest('#subscribe-btn');
+            if (subBtn) {
+                const isSubscribed = subBtn.textContent === 'Subscribed';
+                subBtn.textContent = 'Wait...';
+                try {
+                    const res = await fetch(`/api/subscribe/${this.itemId}`, { 
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        this.syncSubscribeButton(json.subscribed);
+                        window.flashMessage((window.f0ckI18n && (json.subscribed ? window.f0ckI18n.subscribed_thread : window.f0ckI18n.unsubscribed_thread)) || (json.subscribed ? 'SUBSCRIBED TO THREAD' : 'UNSUBSCRIBED FROM THREAD'));
+                    } else {
+                        subBtn.textContent = isSubscribed ? 'Subscribed' : 'Subscribe';
+                        alert('Failed to toggle subscription');
+                    }
+                } catch (e) {
+                    subBtn.textContent = isSubscribed ? 'Subscribed' : 'Subscribe';
+                }
+                return;
+            }
+
+            // Lock
+            const lockBtn = target.closest('#lock-thread-btn');
+            if (lockBtn) {
+                const action = this.isLocked ? 'unlock' : 'lock';
+                lockBtn.disabled = true;
+                const res = await fetch(`/api/comments/${this.itemId}/lock`, { 
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const json = await res.json();
+                lockBtn.disabled = false;
+                if (json.success) {
+                    this.isLocked = json.is_locked;
+                    lockBtn.title = this.isLocked ? 'Unlock Thread' : 'Lock Thread';
+                    window.flashMessage(this.isLocked ? 'THREAD LOCKED' : 'THREAD UNLOCKED');
+                    this.loadComments();
+                } else {
+                    window.flashMessage(json.msg || 'Failed to lock/unlock', 3000, 'error');
+                }
+                return;
+            }
+
+            // Permalinks
+            if (target.classList.contains('comment-permalink')) {
+                const href = target.getAttribute('href');
+                if (href && href.startsWith('#c')) {
+                    e.preventDefault();
+                    const id = href.substring(2);
+                    history.pushState(null, null, href);
+                    this.scrollToComment(id);
+                }
+                return;
+            }
+
+            // Timestamp click → open reply
+            if (target.closest('.comment-time')) {
+                e.preventDefault();
+                const commentEl = target.closest('[id^="c"]');
+                if (commentEl) {
+                    const replyBtn = commentEl.querySelector(':scope > .comment-body .reply-btn');
+                    if (replyBtn) replyBtn.click();
+                }
+                return;
+            }
+        });
+    }
+
+    async handleSubmit(e) {
+        const wrap = e.target.closest('.comment-input');
+        const submitBtn = wrap.querySelector('.submit-comment');
+        const textarea = wrap.querySelector('textarea');
+        const text = textarea.value.trim();
+        const parentId = wrap.dataset.parent || null;
+
+        if (!text.trim()) return;
+        if (submitBtn.classList.contains('loading')) return;
+
+        // Start loading state
+        submitBtn.classList.add('loading');
+        const originalBtnHtml = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        // Mark as pending to prevent state restoration while in flight
+        if (parentId) {
+            this.pendingSubmissions.add(parentId);
+        } else {
+            this.isMainSubmitting = true;
+        }
+
+        let retryCount = 0;
+        const maxRetries = 20; // Allow several minutes of retrying during restart
+
+        const attemptSubmit = async () => {
+            try {
+                // Capture video timecode at the moment of submission
+                const videoEl = document.querySelector('.v0ck video, .v0ck audio');
+                const videoTime = (videoEl && isFinite(videoEl.duration) && videoEl.currentTime > 0)
+                    ? videoEl.currentTime
+                    : null;
+
+                const params = new URLSearchParams();
+                params.append('item_id', this.itemId);
+                if (parentId) params.append('parent_id', parentId);
+                params.append('content', text);
+                if (videoTime !== null) params.append('video_time', videoTime.toFixed(3));
+
+                const res = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+
+                if (!res.ok) {
+                    if (res.status >= 500) {
+                        throw new Error(`Server returned ${res.status}`);
+                    }
+                    // For 4xx errors, we stop and show the error to user (likely validation or auth)
+                    const json = await res.json().catch(() => ({}));
+                    alert('Error: ' + (json.message || `Status ${res.status}`));
+                    this._finishSubmit(submitBtn, originalBtnHtml, parentId);
+                    return;
+                }
+
+                const json = await res.json();
+                if (json.success) {
+                    // Success cleanup
+                    if (parentId) {
+                        const formRow = wrap.closest('.reply-input');
+                        if (formRow) formRow.remove();
+                    } else {
+                        if (textarea) textarea.value = '';
+                    }
+
+                    // Notify the right sidebar that a new comment was posted (silent refresh)
+                    document.dispatchEvent(new CustomEvent('f0ck:commentPosted', {
+                        detail: { item_id: this.itemId, comment_id: json.comment?.id, content: text }
+                    }));
+
+                    // ── Optimistic DOM inject ──────────────────────────────────────────
+                    // Build a minimal comment object from known session + server data so we
+                    // can insert the comment directly without replacing the entire container.
+                    const session = window.f0ckSession || {};
+                    const currentUsername = session.user || this.user;
+                    let resolvedAvatar = null;
+                    let resolvedAvatarFile = null;
+
+                    if (session.avatar_file) resolvedAvatarFile = session.avatar_file;
+                    else if (session.avatar) resolvedAvatar = session.avatar;
+
+                    if (!resolvedAvatar && !resolvedAvatarFile && this.lastData && currentUsername) {
+                        const existingByMe = this.lastData.find(c =>
+                            c.username && c.username.toLowerCase() === currentUsername.toLowerCase()
+                        );
+                        if (existingByMe) {
+                            resolvedAvatar = existingByMe.avatar || null;
+                            resolvedAvatarFile = existingByMe.avatar_file || null;
+                        }
+                    }
+
+                    if (!resolvedAvatar && !resolvedAvatarFile && currentUsername) {
+                        const existingCommentEl = this.container.querySelector(`.comment-author[href="/user/${currentUsername}"]`);
+                        if (existingCommentEl) {
+                            const avatarImg = existingCommentEl.closest('.comment-body')?.previousElementSibling?.querySelector('img');
+                            if (avatarImg) {
+                                const src = avatarImg.getAttribute('src') || '';
+                                if (src.startsWith('/a/')) resolvedAvatarFile = src.slice(3);
+                                else if (src.startsWith('/t/') && src.endsWith('.webp')) resolvedAvatar = src.slice(3, -5);
+                            }
+                        }
+                    }
+
+                    const newComment = {
+                        id: json.comment.id,
+                        item_id: this.itemId,
+                        parent_id: parentId ? parseInt(parentId, 10) : null,
+                        content: text,
+                        created_at: json.comment.created_at || new Date().toISOString(),
+                        username: currentUsername,
+                        user_id: session.id || null,
+                        display_name: session.display_name || null,
+                        avatar: resolvedAvatar,
+                        avatar_file: resolvedAvatarFile,
+                        username_color: session.username_color || null,
+                        is_deleted: false,
+                        is_pinned: false,
+                        video_time: json.comment.video_time ?? null,
+                        replies: [],
+                        replyTo: null
+                    };
+
+                    // Danmaku: fire immediately (one-shot) + add to future rotation
+                    if (window.danmakuInstance) {
+                        window.danmakuInstance.fire(
+                            text,
+                            session.display_name || currentUsername || '?',
+                            session.username_color || null
+                        );
+                        window.danmakuInstance.addItem({
+                            content: text,
+                            video_time: newComment.video_time ?? null,
+                            display_name: session.display_name || currentUsername || '?',
+                            username_color: session.username_color || null
+                        });
+                    }
+
+                    if (!this.lastData) this.lastData = [];
+                    if (this.sort === 'new') this.lastData.unshift(newComment);
+                    else this.lastData.push(newComment);
+
+                    if (parentId) {
+                        const existingReply = document.getElementById('c' + newComment.id);
+                        if (existingReply) {
+                            requestAnimationFrame(() => {
+                                existingReply.classList.add('comment-entering', 'new-item-fade');
+                                existingReply.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            });
+                        } else {
+                            const parentEl = document.getElementById('c' + parentId);
+                            if (parentEl) {
+                                let repliesEl = parentEl.nextElementSibling;
+                                if (!repliesEl || !repliesEl.classList.contains('comment-replies')) {
+                                    repliesEl = document.createElement('div');
+                                    repliesEl.className = 'comment-replies';
+                                    parentEl.insertAdjacentElement('afterend', repliesEl);
+                                }
+                                const commentHtml = Sanitizer.clean(this.renderComment(newComment, this.lastUserId, true));
+                                const tmp = document.createElement('div');
+                                tmp.innerHTML = commentHtml;
+                                const commentEl = tmp.firstElementChild;
+                                if (commentEl) {
+                                    repliesEl.appendChild(commentEl);
+                                    requestAnimationFrame(() => {
+                                        commentEl.classList.add('comment-entering', 'new-item-fade');
+                                        commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                    });
+                                }
+                            }
+                        }
+                    } else {
+                        const existingTop = document.getElementById('c' + newComment.id);
+                        if (existingTop) {
+                            requestAnimationFrame(() => {
+                                existingTop.classList.add('comment-entering', 'new-item-fade');
+                                existingTop.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            });
+                        } else {
+                            const list = this.container.querySelector('.comments-list');
+                            if (list) {
+                                const commentHtml = Sanitizer.clean(this.renderComment(newComment, this.lastUserId, false));
+                                const tmp = document.createElement('div');
+                                tmp.innerHTML = commentHtml;
+                                const commentEl = tmp.firstElementChild;
+                                if (commentEl) {
+                                    if (this.sort === 'new') {
+                                        const scrollNav = list.querySelector('.scroll-nav-wrapper');
+                                        if (scrollNav) scrollNav.insertAdjacentElement('afterend', commentEl);
+                                        else list.prepend(commentEl);
+                                    } else {
+                                        list.appendChild(commentEl);
+                                    }
+                                    requestAnimationFrame(() => {
+                                        commentEl.classList.add('comment-entering', 'new-item-fade');
+                                        commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    if (json.is_new_subscription) {
+                        if (window.flashMessage) window.flashMessage((window.f0ckI18n && window.f0ckI18n.subscribed_thread) || 'SUBSCRIBED TO THREAD');
+                        this.syncSubscribeButton(true);
+                    }
+
+                    this._silentSync();
+                    this._finishSubmit(submitBtn, originalBtnHtml, parentId);
+                } else {
+                    alert('Error: ' + json.message);
+                    this._finishSubmit(submitBtn, originalBtnHtml, parentId);
+                }
+            } catch (err) {
+                console.warn(`[CommentSystem] Submit attempt ${retryCount + 1} failed:`, err);
+                if (retryCount < maxRetries) {
+                    retryCount++;
+                    // Randomized exponential backoff
+                    const delay = Math.min(1000 * Math.pow(1.5, retryCount) + (Math.random() * 1000), 10000);
+                    console.log(`[CommentSystem] Retrying in ${Math.round(delay)}ms...`);
+                    setTimeout(attemptSubmit, delay);
+                } else {
+                    alert('Failed to send comment after multiple attempts. Please check your connection.');
+                    this._finishSubmit(submitBtn, originalBtnHtml, parentId);
+                }
+            }
+        };
+
+        attemptSubmit();
+    }
+
+    _finishSubmit(btn, originalHtml, parentId) {
+        if (btn) {
+            btn.classList.remove('loading');
+            btn.innerHTML = originalHtml;
+        }
+        if (parentId) {
+            this.pendingSubmissions.delete(parentId);
+        } else {
+            this.isMainSubmitting = false;
+        }
+    }
+
+    // Silently fetch fresh comment data from the server and update lastData
+    // without touching the DOM — used after optimistic inserts to stay in sync.
+    async _silentSync() {
+        if (!this.itemId) return;
+        try {
+            const res = await fetch(`/api/comments/${this.itemId}?sort=${this.sort}`);
+            const data = await res.json();
+            if (data.success) {
+                this.lastData = data.comments;
+                this.lastUserId = data.user_id;
+                this.lastIsSubscribed = data.is_subscribed;
+                if (data.is_admin !== undefined) this.isAdmin = data.is_admin;
+                if (data.is_locked !== undefined) this.isLocked = data.is_locked;
+            }
+        } catch (e) {
+            // Non-critical: local cache may be slightly stale until next full refresh
+            console.warn('[CommentSystem] Silent sync failed:', e);
+        }
+    }
+
+    setupGlobalListeners() {
+        if (CommentSystem.globalListenersAttached) return;
+        CommentSystem.globalListenersAttached = true;
+
+        // Refresh comments when the tab becomes visible again (e.g. switching back from another tab).
+        // This handles cases where SSE events were missed while the tab was backgrounded,
+        // and covers guests where NotificationSystem (which also does this) is absent.
+        // Guard: ensure the current commentSystem's container is still in the live DOM
+        // (avoids writing to detached nodes left behind by PJAX navigation).
+        // Skip if the user is actively typing to avoid clobbering their draft.
+        // Note: The visibility listener was moved to f0ckm.js NotificationSystem to centralize
+        // tab-activation polling and avoid redundant network requests.
+
+        window.addEventListener('hashchange', () => {
+            if (window.commentSystem && location.hash && location.hash.startsWith('#c')) {
+                const id = location.hash.substring(2);
+                window.commentSystem.scrollToComment(id);
+            }
+        });
+        
+        window.addEventListener('f0ck:emojis_updated', () => {
+            const cs = window.commentSystem;
+            if (!cs) return;
+            CommentSystem.emojiCache = null;
+            CommentSystem.loadingEmojis = false;
+            cs.loadEmojis();
+        });
+
+        // Shortcut 'c' to toggle comments
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+            const tag = e.target.tagName.toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+
+            if (e.key.toLowerCase() === 'c') {
+                if (window.commentSystem) window.commentSystem.toggleComments();
+            }
+        });
+
+        // Ctrl+. — focus the comment input
+        document.addEventListener('keydown', (e) => {
+            if (!e.ctrlKey || e.altKey || e.metaKey) return;
+            if (e.key !== '.') return;
+
+            const cs = window.commentSystem;
+            if (!cs || !cs.container) return;
+
+            e.preventDefault();
+
+            // If comments are hidden, show them first
+            const isHidden = cs.container.classList.contains('faded-out') || cs.container.style.display === 'none';
+            if (isHidden) cs.toggleComments();
+
+            // Legacy layout: comments are in the normal page flow under .item-main-content
+            // Modern layout: comments are in a fixed-height sidebar column
+            const isLegacyLayout = !!cs.container.closest('.item-main-content');
+
+            // Wait a tick so the container is visible before trying to focus
+            setTimeout(() => {
+                const textarea = cs.container.querySelector('.main-input textarea');
+                if (textarea) {
+                    // In legacy layout, scroll page to bottom first so the box is fully visible
+                    if (isLegacyLayout) {
+                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }
+                    textarea.focus();
+                    if (!isLegacyLayout) {
+                        textarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }, isHidden ? 320 : 0); // 320ms matches the CSS fade-in transition
+        });
+
+        // Global subscribe button listener
+        document.addEventListener('click', async (e) => {
+            const subBtn = e.target.closest('#subscribe-btn');
+            if (subBtn) {
+                e.preventDefault();
+                if (subBtn.style.opacity === '0.5') return;
+                
+                const itemId = subBtn.dataset.itemId || (window.commentSystem ? window.commentSystem.itemId : null);
+                if (!itemId) return;
+
+                subBtn.style.opacity = '0.5';
+                try {
+                    const res = await fetch(`/api/subscribe/${itemId}`, { 
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                    });
+                    const json = await res.json();
+                    if (json.success && window.commentSystem) {
+                        window.commentSystem.syncSubscribeButton(json.subscribed);
+                        window.flashMessage((window.f0ckI18n && (json.subscribed ? window.f0ckI18n.subscribed_thread : window.f0ckI18n.unsubscribed_thread)) || (json.subscribed ? 'SUBSCRIBED TO THREAD' : 'UNSUBSCRIBED FROM THREAD'));
+                    } else if (!json.success) {
+                        alert('Failed to toggle subscription');
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    subBtn.style.opacity = '1';
+                }
+            }
+        });
+    }
+
+    toggleComments() {
+        if (!this.container) return;
+
+        const layout = this.container.closest('.item-layout-container');
+
+        // Check if currently hidden (or fading out)
+        const isHidden = this.container.classList.contains('faded-out') || this.container.style.display === 'none';
+
+        if (isHidden) {
+            // SHOW
+            this.container.style.display = 'block';
+            if (layout) layout.classList.remove('sidebar-hidden');
+            localStorage.setItem('comments_hidden', 'false');
+            // Force reflow to enable transition
+            void this.container.offsetWidth;
+            this.container.classList.remove('faded-out');
+        } else {
+            // HIDE
+            localStorage.setItem('comments_hidden', 'true');
+            this.container.classList.add('faded-out');
+            if (layout) layout.classList.add('sidebar-hidden');
+            // Wait for transition, then set display none
+            setTimeout(() => {
+                if (this.container.classList.contains('faded-out')) {
+                    this.container.style.display = 'none';
+                }
+            }, 300);
+        }
+    }
+
+
+
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+
+    setupEmojiPicker(container) {
+        const textarea = container.querySelector('textarea');
+        if (container.querySelector('.emoji-trigger')) return;
+
+        // Attach mentions
+        if (window.MentionAutocomplete) window.MentionAutocomplete.attach(textarea);
+
+        // ── Inline emoji autocomplete ─────────────────────────────────────────
+        // Portaled to <body> so it escapes parent stacking contexts (overflow,
+        // z-index scopes) and always renders on top of tags/badges.
+        const autocomplete = document.createElement('div');
+        autocomplete.className = 'emoji-autocomplete';
+        autocomplete.style.display = 'none';
+        autocomplete.style.overscrollBehavior = 'contain';
+        document.body.appendChild(autocomplete);
+
+        let acActiveIdx = -1;
+        let acMatches = [];
+        let acDisplayedCount = 0;
+        const BATCH_SIZE = 20;
+
+        const positionAC = () => {
+            const rect = textarea.getBoundingClientRect();
+            autocomplete.style.position = 'fixed';
+            autocomplete.style.left = rect.left + 'px';
+            autocomplete.style.width = rect.width + 'px';
+            // layout-modern: input is near the top of the sidebar → open downward
+            if (document.body.classList.contains('layout-modern')) {
+                autocomplete.style.top = rect.bottom + 'px';
+                autocomplete.style.bottom = 'auto';
+            } else {
+                autocomplete.style.bottom = (window.innerHeight - rect.top) + 'px';
+                autocomplete.style.top = 'auto';
+            }
+        };
+
+        const hideAC = () => {
+            autocomplete.style.display = 'none';
+            autocomplete.innerHTML = '';
+            acActiveIdx = -1;
+            acMatches = [];
+            acDisplayedCount = 0;
+        };
+
+        const getColon = () => {
+            const pos = textarea.selectionStart;
+            const text = textarea.value.slice(0, pos);
+            const match = text.match(/:([a-z0-9_]{0,})$/i);
+            if (!match) return null;
+            return { query: match[1].toLowerCase(), colonPos: pos - match[0].length };
+        };
+
+        const appendMoreItems = () => {
+            if (acDisplayedCount >= acMatches.length) return;
+            const nextBatch = acMatches.slice(acDisplayedCount, acDisplayedCount + BATCH_SIZE);
+            nextBatch.forEach((name, i) => {
+                const idx = acDisplayedCount + i;
+                const item = document.createElement('div');
+                item.className = 'emoji-ac-item';
+                item.dataset.idx = idx;
+                const img = document.createElement('img');
+                img.src = this.customEmojis[name];
+                img.alt = name;
+                img.loading = 'lazy';
+                const label = document.createElement('span');
+                label.textContent = `:${name}:`;
+                item.appendChild(img);
+                item.appendChild(label);
+                item.addEventListener('mousedown', ev => {
+                    ev.preventDefault(); // don't blur textarea
+                    insertEmoji(name);
+                });
+                autocomplete.appendChild(item);
+            });
+            acDisplayedCount += nextBatch.length;
+        };
+
+        const renderAC = () => {
+            const hit = getColon();
+            if (!hit || !this.customEmojis) return hideAC();
+            const { query } = hit;
+            acMatches = Object.keys(this.customEmojis).filter(n => n.includes(query));
+            if (!acMatches.length) return hideAC();
+
+            autocomplete.innerHTML = '';
+            acActiveIdx = -1;
+            acDisplayedCount = 0;
+            appendMoreItems(); // Initial batch
+            
+            positionAC();
+            autocomplete.style.display = 'flex';
+        };
+
+        const setActive = (idx) => {
+            const items = autocomplete.querySelectorAll('.emoji-ac-item');
+            items.forEach(el => el.classList.remove('active'));
+            if (idx >= 0 && idx < items.length) {
+                items[idx].classList.add('active');
+                items[idx].scrollIntoView({ block: 'nearest' });
+            }
+            acActiveIdx = idx;
+        };
+
+        const insertEmoji = (name) => {
+            const hit = getColon();
+            if (!hit) return;
+            const before = textarea.value.slice(0, hit.colonPos);
+            const after = textarea.value.slice(textarea.selectionStart);
+            const insert = `:${name}:`;
+            textarea.value = before + insert + after;
+            const newPos = hit.colonPos + insert.length;
+            textarea.setSelectionRange(newPos, newPos);
+            textarea.focus();
+            hideAC();
+        };
+
+        textarea.addEventListener('input', () => renderAC());
+        textarea.addEventListener('keydown', (e) => {
+            if (autocomplete.style.display === 'none') return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                // Load more if we are at the end of current displayed items
+                if (acActiveIdx === acDisplayedCount - 1 && acDisplayedCount < acMatches.length) {
+                    appendMoreItems();
+                }
+                const nextIdx = (acActiveIdx + 1) % acMatches.length;
+                setActive(nextIdx);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const nextIdx = (acActiveIdx <= 0) ? acMatches.length - 1 : acActiveIdx - 1;
+                // If jumping to the end, we must load everything (or enough)
+                if (nextIdx > acDisplayedCount - 1) {
+                    while (acDisplayedCount < acMatches.length) appendMoreItems();
+                }
+                setActive(nextIdx);
+            } else if ((e.key === 'Enter' || e.key === 'Tab') && acActiveIdx >= 0) {
+                e.preventDefault();
+                insertEmoji(acMatches[acActiveIdx]);
+            } else if (e.key === 'Escape') {
+                hideAC();
+            }
+        });
+
+        // Lazy load on scroll
+        autocomplete.addEventListener('scroll', () => {
+            const threshold = 50; 
+            if (autocomplete.scrollHeight - autocomplete.scrollTop - autocomplete.clientHeight < threshold) {
+                appendMoreItems();
+            }
+        });
+
+        // Delay so mousedown on an item fires before blur removes the dropdown
+        textarea.addEventListener('blur', () => setTimeout(hideAC, 150));
+        textarea.addEventListener('click', () => { if (getColon()) renderAC(); });
+
+        // Reposition when textarea is resized (user drags handle) or window resizes
+        const ro = new ResizeObserver(() => {
+            if (autocomplete.style.display !== 'none') positionAC();
+        });
+        ro.observe(textarea);
+        const onWinResize = () => { if (autocomplete.style.display !== 'none') positionAC(); };
+        window.addEventListener('resize', onWinResize);
+
+        // Clean up portal element when this comment system is destroyed
+        const _origDestroy = this.destroy?.bind(this);
+        this.destroy = () => {
+            if (typeof _origDestroy === 'function') _origDestroy();
+            if (autocomplete && autocomplete.parentNode) autocomplete.parentNode.removeChild(autocomplete);
+            window.removeEventListener('resize', onWinResize);
+            ro.disconnect();
+        };
+
+        const trigger = document.createElement('button');
+        trigger.innerText = '☺';
+        trigger.className = 'emoji-trigger';
+
+        const actions = container.querySelector('.input-actions');
+        if (actions) {
+            // Add spoiler button
+            const spoilerBtn = document.createElement('button');
+            spoilerBtn.innerText = '[spoiler]';
+            spoilerBtn.className = 'spoiler-trigger';
+            spoilerBtn.title = 'Insert spoiler tag';
+            spoilerBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const val = textarea.value;
+                const selected = val.substring(start, end);
+                
+                if (selected) {
+                    const tagStart = '[spoiler]';
+                    const tagEnd = '[/spoiler]';
+                    textarea.value = val.substring(0, start) + tagStart + selected + tagEnd + val.substring(end);
+                    const newPos = start + tagStart.length + selected.length + tagEnd.length;
+                    textarea.setSelectionRange(newPos, newPos);
+                } else {
+                    const tagStart = '[spoiler]';
+                    textarea.value = val.substring(0, start) + '[spoiler][/spoiler]' + val.substring(start);
+                    const newPos = start + tagStart.length;
+                    textarea.setSelectionRange(newPos, newPos);
+                }
+                textarea.focus();
+            });
+            actions.prepend(trigger);
+            actions.prepend(spoilerBtn);
+            if (this.isAdmin) {
+                const lockBtn = document.createElement('button');
+                lockBtn.id = 'lock-thread-btn';
+                lockBtn.title = this.isLocked ? 'Unlock Thread' : 'Lock Thread';
+                lockBtn.innerHTML = this.isLocked ? this.icons.lock : this.icons.unlock;
+                lockBtn.className = 'admin-lock-btn';
+                actions.prepend(lockBtn);
+            }
+
+            // Create picker once and cache it
+            let picker = null;
+            let closeHandler = null;
+
+            trigger.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // If picker already exists, toggle visibility
+                if (picker) {
+                    const isVisible = picker.style.display !== 'none';
+                    if (isVisible) {
+                        picker.style.display = 'none';
+                        if (closeHandler) {
+                            document.removeEventListener('click', closeHandler);
+                            closeHandler = null;
+                        }
+                    } else {
+                        picker.style.display = ''; // Reset to CSS default (flex)
+                        requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                        closeHandler = (ev) => {
+                            if (!picker.contains(ev.target) && ev.target !== trigger) {
+                                picker.style.display = 'none';
+                                document.removeEventListener('click', closeHandler);
+                                closeHandler = null;
+                            }
+                        };
+                        setTimeout(() => document.addEventListener('click', closeHandler), 0);
+                    }
+                    return;
+                }
+
+                // Create picker only once
+                picker = document.createElement('div');
+                picker.className = 'emoji-picker';
+
+                if (this.customEmojis && Object.keys(this.customEmojis).length > 0) {
+                    Object.keys(this.customEmojis).forEach(name => {
+                        const url = this.customEmojis[name];
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.title = `:${name}:`;
+                        img.loading = 'lazy'; // Use native lazy loading
+
+                        // Add error handling for failed loads
+                        img.onerror = () => {
+                            console.warn(`Failed to load emoji: ${name}`);
+                            img.style.display = 'none';
+                        };
+
+                        img.onclick = (ev) => {
+                            ev.stopPropagation();
+                            const pos = textarea.selectionStart ?? textarea.value.length;
+                            const val = textarea.value;
+                            textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                            textarea.focus();
+                            // Move cursor after the inserted emoji
+                            const newPos = pos + name.length + 2;
+                            textarea.setSelectionRange(newPos, newPos);
+                        };
+                        picker.appendChild(img);
+                    });
+                } else {
+                    picker.innerHTML = '<div style="padding:5px;color:white;font-size:0.8em;">No emojis found</div>';
+                }
+
+                container.appendChild(picker);
+                requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+
+                // Set up close handler
+                // Set up close handler
+                closeHandler = (ev) => {
+                    if (!picker.contains(ev.target) && ev.target !== trigger) {
+                        picker.style.display = 'none';
+                        document.removeEventListener('click', closeHandler);
+                        closeHandler = null;
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeHandler), 0);
+            });
+        }
+    }
+}
+
+// Initial load
+window.commentSystem = new CommentSystem();
+
+// Re-init on navigation
+document.addEventListener('f0ck:contentLoaded', () => {
+    if (window.commentSystem && typeof window.commentSystem.destroy === 'function') {
+        window.commentSystem.destroy();
+    }
+    window.commentSystem = new CommentSystem();
+});
+
+// If f0ck.js uses custom navigation without valid events, we might need MutationObserver or hook into `getContent`
+// Looking at f0ck.js, it seems to just replace innerHTML.

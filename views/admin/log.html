@@ -1,0 +1,20 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  @if(log)
+  <h1>last {{ log.length }} entries:</h1>
+  <div class="logwrap">
+  @each(log as line)
+    <p>{{ line }}</p>
+  @endeach
+  </div>
+  <script>
+    (() => {
+      const d = document.querySelector("div.logwrap");
+      d.scrollTop = d.scrollHeight;
+    })();
+  </script>
+  @endif
+</div>
+</div>
+@include(snippets/footer)

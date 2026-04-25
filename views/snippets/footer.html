@@ -1,0 +1,549 @@
+@if(session && (session.admin || session.is_moderator))
+<div id="mod-action-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3 id="mod-action-title">{{ t('mod.confirm_action') }}</h3>
+    <div id="mod-action-content"></div>
+    <textarea id="mod-reason" class="mod-reason" placeholder="{{ t('mod.reason_placeholder') }}"></textarea>
+    <div id="mod-action-error" class="error-msg"></div>
+    <div class="modal-actions">
+      <button id="mod-action-confirm" class="btn-danger">{{ t('mod.confirm') }}</button>
+      <button id="mod-action-cancel" class="btn-secondary">{{ t('common.cancel') }}</button>
+    </div>
+  </div>
+</div>
+@endif
+
+@if(session)
+<div id="halls-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>{{ t('hall.modal_title') }}</h3>
+    @if(session.admin || session.is_moderator)
+    <div class="form-group" style="margin-bottom: 8px;">
+      <label for="hall-select" style="display: block; margin-bottom: 5px; font-size:0.83em; color:#888;">{{ t('hall.site_hall_label') }}</label>
+      <select id="hall-select" class="form-control" style="width: 100%; background: #333; color: #fff; border: 1px solid #444; padding: 5px;">
+        <option value="">{{ t('hall.choose_hall') }}</option>
+      </select>
+    </div>
+    <div id="halls-modal-error" class="error-msg" style="display:none; color: #ff5555; margin-bottom: 8px;"></div>
+    <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom:14px;">
+      <button id="halls-modal-confirm" class="btn-primary" style="padding: 6px 14px;">{{ t('hall.add_btn') }}</button>
+      <button id="halls-modal-remove" class="btn-danger" style="padding: 6px 14px; display:none;">{{ t('hall.remove_btn') }}</button>
+    </div>
+    <hr style="border-color:rgba(255,255,255,0.1);margin:0 0 12px 0;">
+    @endif
+    <div id="my-halls-section">
+      <label style="display: block; margin-bottom: 5px; font-size:0.83em; color:#888;">{{ t('hall.my_hall_label') }}</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="my-hall-select" class="form-control" style="flex:1;min-width:120px;background: #333; color: #fff; border: 1px solid #444; padding: 5px;">
+          <option value="">{{ t('hall.my_hall_placeholder') }}</option>
+        </select>
+        <button id="my-halls-modal-confirm" class="btn-primary" style="padding: 6px 14px; white-space:nowrap;">{{ t('common.add') }}</button>
+        <button id="my-halls-modal-remove" class="btn-secondary" style="padding: 6px 14px; white-space:nowrap; display:none;">{{ t('common.remove') }}</button>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+        <span style="font-size:0.78em;color:#888;">{{ t('hall.create_new') }}</span>
+        <input type="text" id="my-hall-new-name" placeholder="{{ t('hall.new_name_placeholder') }}" style="flex:1;background:#2a2a2a;border:1px solid rgba(255,255,255,0.12);color:#fff;padding:3px 8px;border-radius:3px;font-family:var(--font);font-size:0.85em;height:26px;box-sizing:border-box;">
+      </div>
+      <div id="my-halls-modal-error" class="error-msg" style="display:none; color: #ff5555; margin-top: 6px; font-size:0.83em;"></div>
+    </div>
+
+    <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top:14px;">
+      <button id="halls-modal-cancel" class="btn-secondary" style="padding: 6px 14px;">{{ t('common.cancel') }}</button>
+    </div>
+  </div>
+</div>
+@endif
+
+@if(show_content_warning)
+<div id="content-warning-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content content-warning-content">
+    <h3>{{ t('content_warning.title') }}</h3>
+    <p>{{ t('content_warning.text') }}</p>
+    <div class="modal-actions">
+      <button id="cw-accept" class="btn-danger">{{ t('content_warning.proceed') }}</button>
+      <button id="cw-decline" class="btn-secondary">{{ t('content_warning.decline') }}</button>
+    </div>
+  </div>
+</div>
+@endif
+@if(!private_society || session)
+<div id="report-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+    <h3>{{ t('report.title') }}</h3>
+    <input type="hidden" id="report-item-id">
+    <input type="hidden" id="report-comment-id">
+    <input type="hidden" id="report-user-id">
+    <textarea id="report-reason" class="mod-reason" placeholder="{{ t('report.placeholder') }}"></textarea>
+    <div id="report-error" class="error-msg"></div>
+    <div class="modal-actions">
+      <button id="report-submit" class="btn-danger">{{ t('report.submit') }}</button>
+      <button id="report-cancel" class="btn-secondary">{{ t('common.cancel') }}</button>
+    </div>
+  </div>
+</div>
+
+<div id="warning-modal" class="modal-overlay" style="display:none; z-index: 10000;">
+  <div class="modal-content content-warning-content">
+    <h3 style="color: var(--danger);">{{ t('account_warning.title') }}</h3>
+    <p>{{ t('account_warning.text') }}</p>
+    <blockquote id="warning-reason" style="border-left: 4px solid var(--danger); padding-left: 10px; margin: 10px 0; font-style: italic;"></blockquote>
+    <input type="hidden" id="warning-id">
+    <div class="modal-actions">
+      <button id="warning-acknowledge" class="btn-danger">{{ t('account_warning.acknowledge') }}</button>
+    </div>
+  </div>
+</div>
+<div id="image-modal" class="modal-overlay image-modal-overlay">
+  <div class="image-modal-container">
+    <img id="image-modal-img" src="" alt="Expanded View">
+  </div>
+</div>
+@endif
+@if(session)
+@include(snippets/metadata-modal)
+@endif
+@if(!private_society || session)
+<div class="global-sidebar-right">
+  <div class="sidebar-activity">
+    <div id="sidebar-activity-container" class="sidebar-comments-list">
+      <div class="loading">{{ t('sidebar.loading_activity') }}</div>
+    </div>
+  </div>
+  <div class="global-sidebar-right-footer">
+    <a href="/ranking">{{ t('footer.ranking') }}</a>
+    <a href="/rules">{{ t('footer.rules') }}</a>
+    <a href="/about">{{ t('footer.about') }}</a>
+    <div id="help-button" style="color: var(--accent); font-weight: bold; opacity: 0.7;" title="Keyboard Shortcuts">?</div>
+  </div>
+</div>
+@endif
+
+@if(!private_society || session)
+<script src="/s/js/sanitizer.js?v={{ ts }}"></script>
+<script async src="/s/js/theme.js?v={{ ts }}"></script>
+@endif
+@if(private_society && !session)
+<script>
+  window.f0ckSession = { logged_in: false, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif };
+  (() => {
+    const loginModal = document.getElementById('login-modal');
+    const registerModal = document.getElementById('register-modal');
+    const close = (m) => { if (m) m.style.display = 'none'; };
+    const open = (m) => { if (m) m.style.display = 'flex'; };
+
+    // View switching for login/forgot/reset within the login modal
+    const switchModalView = (view) => {
+      if (!loginModal) return;
+      ['login', 'forgot', 'reset'].forEach(v => {
+        const el = document.getElementById('modal-' + v + '-view');
+        if (el) el.style.display = (v === view) ? 'block' : 'none';
+      });
+    };
+
+    if (loginModal) {
+      const loginClose = document.getElementById('login-modal-close');
+      if (loginClose) loginClose.addEventListener('click', () => close(loginModal));
+      loginModal.addEventListener('click', (e) => { if (e.target === loginModal) close(loginModal); });
+
+      // Forgot Password link
+      const modalForgotBtn = document.getElementById('modal-forgot-btn');
+      if (modalForgotBtn) {
+        modalForgotBtn.addEventListener('click', (e) => { e.preventDefault(); switchModalView('forgot'); });
+      }
+      const forgotToLogin = document.getElementById('forgot-to-login');
+      if (forgotToLogin) {
+        forgotToLogin.addEventListener('click', (e) => { e.preventDefault(); switchModalView('login'); });
+      }
+
+      // Check for reset token or login flag in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const resetToken = urlParams.get('token');
+      if (resetToken) {
+        const tokenInput = document.getElementById('reset-token');
+        if (tokenInput) {
+          tokenInput.value = resetToken;
+          switchModalView('reset');
+          loginModal.style.display = 'flex';
+          const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]token=[^&]+/, '').replace(/[?&]$/, '') + window.location.hash;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      } else if (urlParams.get('login') === '1') {
+        switchModalView('login');
+        loginModal.style.display = 'flex';
+        const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]login=1/, '').replace(/[?&]$/, '') + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+
+      // Login form AJAX
+      const loginForm = loginModal.querySelector('.login-form');
+      if (loginForm && loginForm.id !== 'forgot-password-form' && loginForm.id !== 'reset-password-form') {
+        loginForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(loginForm);
+          if (formData.get('password') && formData.get('password').length < 20) {
+            let errDiv = loginForm.querySelector('.flash-error');
+            if (!errDiv) { errDiv = document.createElement('div'); errDiv.className = 'flash-error'; loginForm.insertBefore(errDiv, loginForm.firstChild); }
+            errDiv.textContent = 'Invalid username or password.';
+            return;
+          }
+          try {
+            const res = await fetch('/login', {
+              method: 'POST',
+              headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams(new FormData(loginForm))
+            });
+            if (res.redirected) { window.location.href = res.url; return; }
+            const json = await res.json();
+            if (json && json.success === false) {
+              let errDiv = loginForm.querySelector('.flash-error');
+              if (!errDiv) { errDiv = document.createElement('div'); errDiv.className = 'flash-error'; loginForm.insertBefore(errDiv, loginForm.firstChild); }
+              errDiv.textContent = json.msg;
+            }
+          } catch (err) { console.error('Login error:', err); }
+        });
+      }
+
+      // Forgot Password form AJAX
+      const forgotForm = document.getElementById('forgot-password-form');
+      if (forgotForm) {
+        forgotForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = document.getElementById('forgot-email').value;
+          const status = document.getElementById('forgot-status');
+          const btn = forgotForm.querySelector('button');
+          btn.disabled = true; btn.textContent = 'Sending...';
+          if (status) { status.textContent = ''; status.className = ''; }
+          try {
+            const res = await fetch('/forgot-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+              body: new URLSearchParams({ email })
+            });
+            const data = await res.json();
+            if (data.success) {
+              if (status) { status.textContent = data.msg || 'Success! Check your email.'; status.className = 'flash-success'; }
+              forgotForm.reset();
+            } else {
+              if (status) { status.textContent = data.msg || 'Error sending link.'; status.className = 'flash-error'; }
+            }
+          } catch (err) {
+            if (status) { status.textContent = 'Network error.'; status.className = 'flash-error'; }
+          } finally { btn.disabled = false; btn.textContent = 'Send Reset Link'; }
+        });
+      }
+
+      // Reset Password form AJAX
+      const resetForm = document.getElementById('reset-password-form');
+      if (resetForm) {
+        const resetToLogin = document.getElementById('reset-to-login');
+        resetForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const token = document.getElementById('reset-token').value;
+          const password = document.getElementById('reset-password').value;
+          const password_confirm = document.getElementById('reset-password-confirm').value;
+          const status = document.getElementById('reset-status');
+          const btn = resetForm.querySelector('button');
+          if (password !== password_confirm) {
+            if (status) { status.textContent = 'Passwords do not match.'; status.className = 'flash-error'; }
+            return;
+          }
+          if (password.length < 20) {
+            if (status) { status.textContent = 'Password is too short (minimum 20 characters).'; status.className = 'flash-error'; }
+            return;
+          }
+          btn.disabled = true; btn.textContent = 'Updating...';
+          if (status) { status.textContent = ''; status.className = ''; }
+          try {
+            const res = await fetch('/reset-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+              body: new URLSearchParams({ token, password, password_confirm })
+            });
+            const data = await res.json();
+            if (data.success) {
+              if (status) { status.textContent = data.msg || 'Password updated successfully!'; status.className = 'flash-success'; }
+              resetForm.reset();
+              btn.style.display = 'none';
+              if (resetToLogin) resetToLogin.style.display = 'inline-block';
+            } else {
+              if (status) { status.textContent = data.msg || 'Error resetting password.'; status.className = 'flash-error'; }
+            }
+          } catch (err) {
+            if (status) { status.textContent = 'Network error.'; status.className = 'flash-error'; }
+          } finally { btn.disabled = false; btn.textContent = 'Update Password'; }
+        });
+        if (resetToLogin) {
+          resetToLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchModalView('login');
+            resetToLogin.style.display = 'none';
+            resetForm.querySelector('button').style.display = 'inline-block';
+          });
+        }
+      }
+    }
+
+    if (registerModal) {
+      const regClose = document.getElementById('register-modal-close');
+      if (regClose) regClose.addEventListener('click', () => close(registerModal));
+      registerModal.addEventListener('click', (e) => { if (e.target === registerModal) close(registerModal); });
+    }
+
+    // ESC key closes modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { close(loginModal); close(registerModal); }
+    });
+
+    // Auto-open login modal if URL has #login hash
+    if (window.location.hash === '#login' && loginModal) {
+      switchModalView('login');
+      loginModal.style.display = 'flex';
+    }
+
+    const toRegister = document.getElementById('login-to-register');
+    if (toRegister) toRegister.addEventListener('click', (e) => { e.preventDefault(); close(loginModal); open(registerModal); });
+    const toLogin = document.getElementById('register-to-login');
+    if (toLogin) toLogin.addEventListener('click', (e) => { e.preventDefault(); close(registerModal); open(loginModal); });
+
+    // Registration form AJAX
+    const regForm = document.getElementById('modal-register-form');
+    if (regForm) {
+      regForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('register-status');
+        const formData = new FormData(regForm);
+        const btn = regForm.querySelector('button[type="submit"]');
+        const password = formData.get('password');
+        const password_confirm = formData.get('password_confirm');
+
+        if (password && password.length < 20) {
+          if (status) {
+            status.textContent = 'Password is too short (minimum 20 characters).';
+            status.className = 'flash-error';
+          }
+          return;
+        }
+
+        if (password !== password_confirm) {
+          if (status) {
+            status.textContent = 'Passwords do not match.';
+            status.className = 'flash-error';
+          }
+          return;
+        }
+
+        btn.disabled = true; btn.textContent = 'Creating...';
+        try {
+          const resp = await fetch('/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams(new FormData(regForm)),
+            credentials: 'include'
+          });
+          const json = await resp.json();
+          if (status) { status.textContent = json.msg || ''; status.className = json.success ? 'flash-success' : 'flash-error'; }
+          if (json.success) setTimeout(() => { close(registerModal); open(loginModal); }, 2000);
+        } catch (err) {
+          if (status) { status.textContent = 'Network error.'; status.className = 'flash-error'; }
+        } finally { btn.disabled = false; btn.textContent = 'Create Account'; }
+      });
+    }
+  })();
+</script>
+@else
+<script src="/s/js/v0ck.js?v={{ ts }}"></script>
+<script src="/s/js/danmaku.js?v={{ ts }}"></script>
+@if(enable_swf && typeof item !== "undefined" && item.mime === 'application/x-shockwave-flash')
+{{-- Ruffle: self-hosted. Place ruffle.js + wasm bundle in public/s/ruffle/ --}}
+<script src="/s/ruffle/ruffle.js"></script>
+@elseif(enable_swf && typeof item !== "undefined" && item.mime === 'application/vnd.adobe.flash.movie')
+<script src="/s/ruffle/ruffle.js"></script>
+@endif
+<script>
+  window.f0ckSession = {
+    strict_mode: @if(session && session.strict_mode) true @else false @endif,
+    logged_in: @if(session) true @else false @endif,
+    use_new_layout: @if(session)@if(session.use_new_layout) true @else false @endif@else @if(default_layout === 'legacy')false @else true @endif@endif,
+    csrf_token: "{{ csrf_token }}",
+    default_theme: "{{ default_theme }}",
+    private_society: @if(private_society) true @else false @endif,
+    show_content_warning: @if(show_content_warning) true @else false @endif,
+    disable_autoplay: @if(session && session.disable_autoplay) true @else false @endif,
+    disable_swiping: @if(session && session.disable_swiping) true @else false @endif,
+    show_background: @if(session)@if(session.show_background !== false) true @else false @endif@else @if(show_background_cfg) true @else false @endif@endif,
+    nsfl_tag_id: {{ nsfl_tag_id }},
+    user: @if(session) "{{ session.user }}" @else null @endif,
+    display_name: @if(session && session.display_name) "{!! session.display_name !!}" @else null @endif,
+    is_admin: @if(session && session.admin) true @else false @endif,
+    is_moderator: @if(session && session.is_moderator) true @else false @endif,
+    enable_swf: @if(enable_swf) true @else false @endif,
+    enable_danmaku: @if(enable_danmaku) true @else false @endif,
+    enable_global_chat: @if(enable_global_chat) true @else false @endif,
+    ruffle_volume: @if(session && session.ruffle_volume !== undefined && session.ruffle_volume !== null) {{ session.ruffle_volume }} @else 0.5 @endif,
+    ruffle_background: @if(session && session.ruffle_background !== false) true @else false @endif,
+    quote_emojis: @if(session && session.quote_emojis !== false) true @else false @endif,
+    embed_youtube_in_comments: @if(session && session.embed_youtube_in_comments !== false) true @else false @endif,
+    avatar: @if(session && session.avatar) {{ session.avatar }} @else null @endif,
+    avatar_file: @if(session && session.avatar_file) "{{ session.avatar_file }}" @else null @endif
+  };
+  window.f0ckI18n = {
+    write_comment: "{{ t('comments.write_comment') }}",
+    post: "{{ t('comments.post') }}",
+    cancel: "{{ t('comments.cancel') }}",
+    sidebar_view: "{{ t('sidebar.view') }}",
+    sidebar_read_more: "{{ t('sidebar.read_more') }}",
+    sidebar_see_less: "{{ t('sidebar.see_less') }}",
+    select_file: "{{ t('upload_btn.select_file') }}",
+    enter_url: "{{ t('upload_btn.enter_url') }}",
+    tags_required: "{{ t('upload_btn.tags_required') }}",
+    select_rating: "{{ t('upload_btn.select_rating') }}",
+    embed_youtube: "{{ t('upload_btn.embed_youtube') }}",
+    upload_from_url: "{{ t('upload_btn.upload_from_url') }}",
+    upload: "{{ t('upload_btn.upload') }}",
+    uploading: "{{ t('upload.uploading') }}",
+    processing: "{{ t('toast.processing') }}",
+    upload_await_approval: "{{ t('upload.pending_approval_patient') }}",
+    // timeago
+    timeago_just_now: "{{ t('timeago.just_now') }}",
+    timeago_year: "{{ t('timeago.year') }}",
+    timeago_years: "{{ t('timeago.years') }}",
+    timeago_month: "{{ t('timeago.month') }}",
+    timeago_months: "{{ t('timeago.months') }}",
+    timeago_day: "{{ t('timeago.day') }}",
+    timeago_days: "{{ t('timeago.days') }}",
+    timeago_hour: "{{ t('timeago.hour') }}",
+    timeago_hours: "{{ t('timeago.hours') }}",
+    timeago_minute: "{{ t('timeago.minute') }}",
+    timeago_minutes: "{{ t('timeago.minutes') }}",
+    timeago_second: "{{ t('timeago.second') }}",
+    timeago_seconds: "{{ t('timeago.seconds') }}",
+    timeago_ago: "{{ t('timeago.ago') }}",
+    lang: "{{ lang }}",
+    // search overlay
+    search_placeholder: "{{ t('search_overlay.placeholder') }}",
+    search_strict_mode: "{{ t('search_overlay.strict_mode') }}",
+    // toasts
+    report_success: "{{ t('toast.report_success') }}",
+    report_error: "{{ t('toast.report_error') }}",
+    network_error: "{{ t('toast.network_error') }}",
+    network_error_short: "{{ t('toast.network_error_short') }}",
+    reason_required: "{{ t('toast.reason_required') }}",
+    reason_optional: "{{ t('toast.reason_optional') }}",
+    reason_required_label: "{{ t('toast.reason_required_label') }}",
+    confirm_yes: "{{ t('toast.yes') }}",
+    confirm_no: "{{ t('toast.no') }}",
+    confirm_btn: "{{ t('toast.confirm') }}",
+    cancel_btn: "{{ t('toast.cancel') }}",
+    add_tag: "{{ t('toast.add_tag') }}",
+    item_pinned: "{{ t('toast.item_pinned') }}",
+    item_unpinned: "{{ t('toast.item_unpinned') }}",
+    error_adding_tag: "{{ t('toast.error_adding_tag') }}",
+    error_saving: "{{ t('toast.error_saving') }}",
+    zomg_on: "{{ t('toast.zomg_on') }}",
+    zomg_off: "{{ t('toast.zomg_off') }}",
+    copied: "{{ t('toast.copied') }}",
+    // actions
+    fav_added: "{{ t('toast.fav_added') }}",
+    fav_removed: "{{ t('toast.fav_removed') }}",
+    subscribed_thread: "{{ t('toast.subscribed_thread') }}",
+    unsubscribed_thread: "{{ t('toast.unsubscribed_thread') }}",
+    oc_marked: "{{ t('toast.oc_marked') }}",
+    oc_removed: "{{ t('toast.oc_removed') }}",
+    no_tags_excluded: "{{ t('toast.no_tags_excluded') }}",
+    tag_delete_title: "{{ t('toast.tag_delete_title') }}",
+    tag_delete_confirm: "{{ t('toast.tag_delete_confirm') }}",
+    // halls
+    hall_added: "{{ t('toast.hall_added') }}",
+    hall_removed: "{{ t('toast.hall_removed') }}",
+    hall_my_placeholder: "{{ t('hall.my_hall_placeholder') }}",
+    hall_no_halls: "{{ t('hall.no_halls') }}",
+    hall_select_a_hall: "{{ t('hall.select_a_hall') }}",
+    hall_choose_or_create: "{{ t('hall.choose_or_create') }}",
+    hall_creating: "{{ t('hall.creating') }}",
+    hall_adding: "{{ t('hall.adding') }}",
+    hall_removing: "{{ t('hall.removing') }}",
+    hall_saving: "{{ t('hall.saving') }}",
+    hall_deleting: "{{ t('hall.deleting') }}",
+    hall_saved: "{{ t('hall.saved') }}",
+    hall_created: "{{ t('hall.created') }}",
+    hall_add_btn: "{{ t('hall.add_btn') }}",
+    hall_remove_btn: "{{ t('hall.remove_btn') }}",
+    hall_name_empty: "{{ t('hall.enter_name_error') }}",
+    hall_enter_name_error: "{{ t('hall.enter_name_error') }}",
+    hall_slug_empty_error: "{{ t('hall.slug_empty_error') }}",
+    hall_image_uploaded: "{{ t('hall.image_uploaded') }}",
+    hall_image_removed: "{{ t('hall.image_removed') }}",
+    hall_click_upload_hint: "{{ t('hall.click_upload_hint') }}",
+    // notifications
+    notif_upload_approved: "{{ t('notifications.upload_approved_short') }}",
+    notif_upload_pending: "{{ t('notifications.upload_pending_short') }}",
+    notif_new_report: "{{ t('notifications.new_report_short') }}",
+    notif_upload_denied: "{{ t('notifications.upload_denied_short') }}",
+    notif_upload_deleted: "{{ t('notifications.upload_deleted_short') }}",
+    notif_click_reason: "{{ t('notifications.click_reason') }}",
+    notif_no_reason: "{{ t('notifications.no_reason') }}",
+    notif_reason_label: "{{ t('notifications.reason_label') }}",
+    notif_replied: "{{ t('notifications.replied_short') }}",
+    notif_subscribed: "{{ t('notifications.subscribed_short') }}",
+    notif_mentioned: "{{ t('notifications.mentioned_short') }}",
+    notif_commented: "{{ t('notifications.commented') }}",
+    notif_system: "{{ t('notifications.system') }}",
+    notif_admin: "{{ t('notifications.admin') }}",
+    notif_moderation: "{{ t('notifications.moderation') }}",
+    no_notifications: "{{ t('nav.no_notifications') }}",
+    // meme creator
+    meme: {
+      text_layer: "{{ t('meme.text_layer') }}",
+      enter_text: "{{ t('meme.enter_text') }}",
+      size_label: "{{ t('meme.size_label') }}",
+      upload_btn: "{{ t('meme.upload_btn') }}"
+    },
+    // global chat
+    chat_title: "{{ t('chat.title') }}",
+    chat_placeholder: "{{ t('chat.placeholder') }}",
+    chat_minimize: "{{ t('chat.minimize') }}",
+    chat_expand: "{{ t('chat.expand') }}",
+    chat_slow_down: "{{ t('chat.slow_down') }}",
+    chat_error_send: "{{ t('chat.error_send') }}",
+    chat_network_error: "{{ t('chat.network_error') }}"
+  };
+</script>
+<script src="/s/js/f0ckm.js?v={{ ts }}"></script>
+<script src="/s/js/sidebar-activity.js?v={{ ts }}"></script>
+<script src="/s/js/flash_yank.js?v={{ ts }}"></script>
+@if(show_koepfe && !(session && session.hide_koepfe))
+<script>window.f0ckKoepfe = {{ koepfe_json }};</script>
+<script src="/s/js/koepfe.js?v={{ ts }}"></script>
+@endif
+
+@if(session)
+<script src="/s/js/upload.js?v={{ ts }}"></script>
+<script src="/s/js/tag_autocomplete.js?v={{ ts }}"></script>
+<script src="/s/js/mention_autocomplete.js?v={{ ts }}"></script>
+<script src="/s/js/user.js?v={{ ts }}"></script>
+@endif
+@if(enable_global_chat && session)
+<script src="/s/js/globalchat.js?v={{ ts }}"></script>
+@endif
+@if(session && private_messages)
+<script src="/s/js/wordlist.js?v={{ ts }}"></script>
+<script src="/s/js/messages.js?v={{ ts }}"></script>
+@endif
+@if(session && (session.admin || session.is_moderator))
+<script src="/s/js/admin.js?v={{ ts }}"></script>
+@endif
+@endif
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      }, (err) => {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+    });
+  }
+</script>
+</body>
+
+</html>

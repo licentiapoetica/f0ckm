@@ -1,0 +1,101 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+        <div class="admin-header-flex">
+            <h2>Invite Tokens</h2>
+            <button id="generate-token" class="btn-upload" style="width: auto; padding: 10px 20px;">Generate New Token</button>
+        </div>
+
+        <div class="upload-form">
+            <table class="responsive-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Used By</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="token-list">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+
+    <script>
+        const loadTokens = async () => {
+            try {
+                console.log('Loading tokens...');
+                const res = await fetch('/api/v2/admin/tokens');
+                const data = await res.json();
+                console.log('Tokens data:', data);
+                if (data.success) {
+                    const tbody = document.getElementById('token-list');
+                    if (!tbody) return;
+                    tbody.innerHTML = data.tokens.map(t =>
+                        '<tr>' +
+                        '<td data-label="Token" style="font-family: monospace; font-size: 1.1em; color: var(--accent);">' + t.token + '</td>' +
+                        '<td data-label="Status">' +
+                        (t.is_used ? '<span style="color: #ff6b6b">Used</span>' : '<span style="color: #51cf66">Available</span>') +
+                        '</td>' +
+                        '<td data-label="Source">' +
+                        (t.created_by_matrix ? '<span style="color: #0DBD8B">[Matrix] ' + t.created_by_matrix + '</span>' :
+                         (t.created_by_discord ? '<span style="color: #5865F2"><i class="fab fa-discord"></i> ' + t.created_by_discord + '</span>' : 
+                          (t.created_by_name ? 'Web/Admin (' + t.created_by_name + ')' : 'Web/Admin'))) +
+                        '</td>' +
+                        '<td data-label="Used By">' + (t.used_by_name || '-') + '</td>' +
+                        '<td data-label="Created">' + (t.created_at ? new Date(parseInt(t.created_at) * 1000).toLocaleString() : '-') + '</td>' +
+                        '<td data-label="Actions">' +
+                        (!t.is_used ? '<button onclick="deleteToken(' + t.id + ')" class="btn-remove" style="padding: 5px 10px; font-size: 0.8em;">Delete</button>' : '') +
+                        '</td>' +
+                        '</tr>'
+                    ).join('');
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        const generateToken = async () => {
+            console.log('Generating...');
+            try {
+                const res = await fetch('/api/v2/admin/tokens/create', { 
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const data = await res.json();
+                console.log('Gen result:', data);
+                if (data.success) {
+                    loadTokens();
+                } else {
+                    alert('Failed: ' + data.msg);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error: ' + e.message);
+            }
+        };
+
+        const deleteToken = async (id) => {
+            if (!confirm('Delete this token?')) return;
+            const res = await fetch('/api/v2/admin/tokens/delete', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': window.f0ckSession?.csrf_token
+                },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                loadTokens();
+            }
+        };
+
+        const btnGenToken = document.getElementById('generate-token');
+        if (btnGenToken) btnGenToken.addEventListener('click', generateToken);
+        loadTokens();
+    </script>
+</div>
+</div>
+@include(snippets/footer)

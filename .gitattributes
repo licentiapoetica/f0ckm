@@ -1,0 +1,2 @@
+*.mjs gitlab-language=javascript
+*.hbs gitlab-language=handlebars

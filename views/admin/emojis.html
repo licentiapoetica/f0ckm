@@ -1,0 +1,135 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+    <div class="container">
+        <h2>Custom Emojis</h2>
+
+        <div class="admin-form-container"
+            style="margin-bottom: 20px; text-align: left; background: var(--dropdown-bg); padding: 15px; border: 1px solid var(--nav-border-color);">
+            <h4>Add New Emoji</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                <div>
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 5px; opacity: 0.7;">Name</label>
+                    <input type="text" id="emoji-name" placeholder="" style="background: var(--bg); border: 1px solid var(--black); padding: 5px; color: var(--white);">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 5px; opacity: 0.7;">Image File</label>
+                    <input type="file" id="emoji-file" style="background: var(--bg); border: 1px solid var(--black); padding: 4px; color: var(--white);">
+                </div>
+                <div style="flex-grow: 1;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 5px; opacity: 0.7;">OR Image URL</label>
+                    <input type="text" id="emoji-url" placeholder="" style="background: var(--bg); border: 1px solid var(--black); padding: 5px; color: var(--white); width: 100%;">
+                </div>
+                <button id="add-emoji" class="btn-upload" style="width: auto; padding: 7px 20px; border: 1px solid var(--nav-border-color); background: var(--bg); color: var(--white); cursor: pointer;">Add</button>
+            </div>
+        </div>
+
+
+        <div id="emoji-list" class="emoji-grid">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            var i18n = window.f0ckI18n || {};
+            const esc = (s) => (s || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            const loadEmojis = async () => {
+                try {
+                    const res = await fetch('/api/v2/emojis');
+                    const data = await res.json();
+                    if (data.success) {
+                        const grid = document.getElementById('emoji-list');
+                        if (!grid) return;
+                        grid.innerHTML = data.emojis.reverse().map(e =>
+                            '<div class="emoji-card">' +
+                            '<button class="emoji-delete" onclick="window.emojiAdmin.deleteEmoji(' + e.id + ')" title="Delete">✕</button>' +
+                            '<img class="emoji-preview" src="' + e.url + '" alt=":' + esc(e.name) + ':">' +
+                            '<span class="emoji-label">:' + esc(e.name) + ':</span>' +
+                            '<span class="emoji-url">' + esc(e.url) + '</span>' +
+                            '</div>'
+                        ).join('');
+                    }
+                } catch (err) { console.error('[EMOJI_ADMIN] Load Error:', err); }
+            };
+
+            const addEmoji = async (e) => {
+                if (e) e.preventDefault();
+                const name = document.getElementById('emoji-name').value;
+                const url = document.getElementById('emoji-url').value;
+                const fileInput = document.getElementById('emoji-file');
+                
+                if (!name || (!url && !fileInput.files[0])) return alert('Fill Name and either URL or File');
+
+                const btn = document.getElementById('add-emoji');
+                const oldText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = i18n.uploading || 'Uploading...';
+
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('url', url);
+                if (fileInput.files[0]) {
+                    formData.append('file', fileInput.files[0]);
+                }
+
+                try {
+                    const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+                    const csrf = '{{ csrf_token }}';
+                    if (csrf) headers['X-CSRF-Token'] = csrf;
+
+                    const res = await fetch('/api/v2/admin/emojis', {
+                        method: 'POST',
+                        headers: headers,
+                        body: formData
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        document.getElementById('emoji-name').value = '';
+                        document.getElementById('emoji-url').value = '';
+                        document.getElementById('emoji-file').value = '';
+                        loadEmojis();
+                    } else {
+                        alert('Failed: ' + (data.message || data.msg || 'Unknown error'));
+                    }
+                } catch (e) {
+                    console.error('[EMOJI_ADMIN] Add Error:', e);
+                    alert('Error: ' + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = oldText;
+                }
+            };
+
+            const deleteEmoji = async (id) => {
+                if (!confirm('Delete this emoji?')) return;
+                try {
+                    const res = await fetch('/api/v2/admin/emojis/' + id + '/delete', { 
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': '{{ csrf_token }}' }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        loadEmojis();
+                    } else {
+                        alert('Delete failed');
+                    }
+                } catch (e) { console.error(e); }
+            };
+
+            // Global scope for onclick
+            window.emojiAdmin = { deleteEmoji };
+
+            const btnAddEmoji = document.getElementById('add-emoji');
+            if (btnAddEmoji) btnAddEmoji.addEventListener('click', addEmoji);
+            
+            // Live Update Listener (SSE dispatched via f0ckm.js)
+            document.addEventListener('f0ck:emojis_updated', loadEmojis);
+            
+            loadEmojis();
+        })();
+    </script>
+</div>
+</div>
+@include(snippets/footer)

@@ -1,0 +1,2568 @@
+/**
+ * scroller.js — Doomscroll controller
+ *
+ * Fixes in this version:
+ *  1. Infinite scroll never stops — random order always retries, fallback
+ *     scroll listener if IntersectionObserver misses the sentinel.
+ *  2. Volume slider with localStorage persistence.
+ *  3. Comment input: emoji bar + @mention autocomplete.
+ *  4. Double-tap / double-click to toggle favourite (POST /api/v2/togglefav).
+ *  5. URL hash sync + sessionStorage back-navigation restore.
+ */
+(function () {
+  'use strict';
+
+  // ── PJAX guard ─────────────────────────────────────────────────────────────
+  // When navigated to via PJAX, scroller.js re-executes. Prevent the stale
+  // closure from the previous instance from acting on the NEW feed element
+  // by tagging each feed element on first bind.
+  const initFeed = document.getElementById('scroller-feed');
+  if (!initFeed) return; // safety: no feed = wrong page
+  if (initFeed.__scrollerBound) return; // already bound to THIS feed element
+  initFeed.__scrollerBound = true;
+
+  // ── DOM ─────────────────────────────────────────────────────────────────
+  const feed             = initFeed;
+  const sentinel         = document.getElementById('scroller-sentinel');
+  const emptyEl          = document.getElementById('scroller-empty');
+  const muteBtn          = document.getElementById('scroller-mute-btn');
+  const volumePopup      = document.getElementById('volume-popup');
+  const volumeSlider     = document.getElementById('volume-slider');
+  const volumePct        = document.getElementById('volume-pct');
+  const loader           = document.getElementById('scroller-loader');
+  const filterOpenBtn    = document.getElementById('filter-open-btn');
+  const filterPanel      = document.getElementById('filter-panel');
+  const filterBackdrop   = document.getElementById('filter-backdrop');
+  const filterResetBtn   = document.getElementById('filter-reset-btn');
+  const filterApplyBtn   = document.getElementById('filter-apply-btn');
+  const filterSummary    = document.getElementById('filter-active-summary');
+  const tagInput         = document.getElementById('filter-tag-input');
+  const tagClear         = document.getElementById('filter-tag-clear');
+  const tagSuggestEl     = document.getElementById('tag-suggestions');
+  const activeTagsEl     = document.getElementById('filter-active-tags');
+  const commentsPanel    = document.getElementById('comments-panel');
+  const commentsBackdrop = document.getElementById('comments-backdrop');
+  const commentsList     = document.getElementById('comments-list');
+  const commentsCount    = document.getElementById('comments-count');
+  const commentsOpenLink = document.getElementById('comments-open-link');
+  const commentsLoading  = document.getElementById('comments-loading');
+  const commentsEmpty    = document.getElementById('comments-empty');
+  const commentInput     = document.getElementById('comment-input');
+  const commentSendBtn   = document.getElementById('comment-send-btn');
+  const mentionDropdown  = document.getElementById('mention-dropdown');
+  const settingsOpenBtn  = document.getElementById('settings-open-btn');
+  const settingsPanel    = document.getElementById('settings-panel');
+  const settingsBackdrop = document.getElementById('settings-backdrop');
+  const stHideUi         = document.getElementById('st-hide-ui');
+  const stStartUnmuted   = document.getElementById('st-start-unmuted');
+  const stCanvasBg       = document.getElementById('st-canvas-bg');
+  const stAutoNext       = document.getElementById('st-auto-next');
+  const autoNextLoopsInp = document.getElementById('st-auto-next-loops');
+  const settingsSaveBtn  = document.getElementById('settings-save-preset-btn');
+  const settingsPresetsList = document.getElementById('settings-presets-list');
+
+  // ── State ────────────────────────────────────────────────────────────────
+  const defaultMode = window.scrollerMode ?? 0;
+  const CACHE_KEY   = 'scroller_state';
+  const CACHE_MAX   = 200;
+  const CACHE_TTL   = 30 * 60 * 1000;
+  const VOL_KEY     = 'scroller_volume';
+  const PREFS_KEY   = 'scroller_prefs';
+  const PRESETS_KEY = 'scroller_presets';
+
+  // ── User Preferences ──────────────────────────────────────────────────────
+  function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch { return {}; }
+  }
+  function savePrefs(p) { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); }
+  const prefs = loadPrefs();
+  // canvasBg: true by default (animated background enabled)
+  let canvasBgEnabled = prefs.canvasBg !== false;
+  // hideUI: false by default
+  let hideUIEnabled   = prefs.hideUI === true;
+  // autoNext: false by default
+  let autoNextEnabled = prefs.autoNext === true;
+  let autoNextLoops   = Math.max(0, parseInt(prefs.autoNextLoops ?? 1, 10));
+
+  let applied   = { mode: defaultMode, mime: '', order: 'random', tags: [] };
+  let pending   = { ...applied, tags: [] };
+
+  // Volume / mute
+  let isMuted   = prefs.startUnmuted !== true; // default muted unless user opted for sound
+  let volume    = parseFloat(localStorage.getItem(VOL_KEY) ?? '1');
+  if (isNaN(volume) || volume < 0 || volume > 1) volume = 1;
+
+  let isFetching     = false;
+  let hasMore        = true;
+  let consecutiveEmpty = 0;     // how many empty fetches in a row (caps random infinite scroll)
+  let lastCursor     = null;
+  let seenIds        = new Set(); // tracks all seen item IDs to prevent random-mode repeats
+  let currentSlide   = null;
+  let currentMedia   = null;
+
+  // Comments
+  let commentsItemId  = null;
+  let tagBarItemId    = null;
+  let commentsPosting = false;
+
+  // Mention autocomplete
+  let mentionQuery     = '';
+  let mentionTimer     = null;
+  let mentionResults   = [];
+  let mentionIndex     = -1;
+
+  // Tag autocomplete
+  let tagTimer   = null;
+  let tagCache   = {};
+  let lastSugg   = [];
+  let tagSuggIdx = -1;  // keyboard nav index for filter-panel tag suggestions
+
+  // Volume popup
+  let volPopupTimer = null;
+
+  // Emoji autocomplete
+  let emojiMode    = false;   // true when showing emoji suggestions, false for mentions
+  let emojiResults = [];      // current emoji suggestion list [[code, char], ...]
+  let acIndex      = -1;      // shared keyboard nav index
+
+  // Emoji shortcode map (Discord-style :shortcode:)
+  const EMOJI = {
+    // Faces
+    smile:'😊', grin:'😁', happy:'😄', joy:'😂', rofl:'🤣', lol:'😆', wink:'😉',
+    sweat:'😅', cry:'😢', sob:'😭', angry:'😡', rage:'🤬', fear:'😨', scream:'😱',
+    wow:'😮', huh:'😕', thinking:'🤔', nerd:'🤓', cool:'😎', tongue:'😛', kissing:'😘',
+    heart_eyes:'😍', sunglasses:'😎', skull:'💀', dead:'😵', clown:'🤡', ghost:'👻',
+    alien:'👽', robot:'🤖', devil:'😈', shrug:'🤷', facepalm:'🤦', monocle:'🧐',
+    blush:'😊', sleepy:'😴', smirk:'😏', unamused:'😒', expressionless:'😑',
+    // Hands / gestures
+    thumbsup:  '👍', thumbsdown:'👎', clap:'👏', ok:'👌', ok_hand:'👌', wave:'👋',
+    muscle:'💪', point_up:'☝️', point_right:'👉', pray:'🙏', raised_hands:'🙌',
+    fist:'✊', peace:'✌️', vulcan:'🖖',
+    // Hearts / love
+    heart:'❤️', hearts:'💕', orange_heart:'🧡', yellow_heart:'💛', green_heart:'💚',
+    blue_heart:'💙', purple_heart:'💜', black_heart:'🖤', broken_heart:'💔',
+    sparkling_heart:'💖', heartpulse:'💗', revolving_hearts:'💞',
+    // Symbols / objects
+    fire:'🔥', star:'⭐', sparkles:'✨', boom:'💥', zzz:'💤', 100:'💯',
+    money:'💰', gem:'💎', trophy:'🏆', crown:'👑', rocket:'🚀', rainbow:'🌈',
+    poop:'💩', tada:'🎉', party:'🥳', confetti:'🎊', eyes:'👀', evil_eye:'🧿',
+    warning:'⚠️', check:'✅', x:'❌', no_entry:'⛔', question:'❓', exclamation:'❗',
+    // Food / drink
+    pizza:'🍕', beer:'🍺', coffee:'☕', cake:'🎂', taco:'🌮', sushi:'🍣',
+    // Animals
+    cat:'🐱', dog:'🐶', frog:'🐸', panda:'🐼', fox:'🦊', wolf:'🐺',
+    // Nature
+    sun:'☀️', moon:'🌙', cloud:'☁️', snow:'❄️', lightning:'⚡', ocean:'🌊',
+  };
+
+  // Session cache helpers ──────────────────────────────────────────────
+  function readCache() {
+    try {
+      const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
+      if (!c || !c.ts || Date.now() - c.ts > CACHE_TTL) { clearCache(); return null; }
+      return c;
+    } catch { return null; }
+  }
+  function clearCache() { try { sessionStorage.removeItem(CACHE_KEY); } catch {} }
+  function appendToCache(items) {
+    try {
+      const existing = readCache();
+      const existingItems = existing?.items || [];
+      const ids = new Set(existingItems.map(i => i.id));
+      const merged = [...existingItems, ...items.filter(i => !ids.has(i.id))].slice(-CACHE_MAX);
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+        ts: Date.now(), filters: { ...applied }, items: merged,
+        activeId: currentSlide ? currentSlide.dataset.id : (merged[0]?.id ?? null)
+      }));
+    } catch { clearCache(); }
+  }
+  function updateCacheActiveId(id) {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (!raw) return;
+      const c = JSON.parse(raw); c.activeId = String(id); c.ts = Date.now();
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(c));
+    } catch {}
+  }
+
+  function tryRestoreFromCache() {
+    const cache = readCache();
+    if (!cache?.items?.length) return false;
+
+    // If there's a hash ID (e.g. /abyss#1234 shared via DM), check whether
+    // that item is actually in the cache. If it isn't, skip the cache restore
+    // entirely so that fetchItems() runs with ?anchor=<id> and the correct
+    // item is guaranteed to be included in the fresh batch.
+    const hid = hashId();
+    if (hid && !cache.items.some(item => String(item.id) === hid)) return false;
+
+    if (cache.filters) {
+      applied = { mode: defaultMode, mime: '', order: 'random', tags: [], ...cache.filters };
+      applied.tags = Array.isArray(cache.filters.tags) ? [...cache.filters.tags] : [];
+      pending = { ...applied, tags: [...applied.tags] };
+    }
+    cache.items.forEach(item => feed.insertBefore(createSlide(item), sentinel));
+    const targetId = hid || cache.activeId;
+    const target = targetId ? feed.querySelector(`.scroll-slide[data-id="${targetId}"]`) : null;
+    const toActivate = target || feed.querySelector('.scroll-slide');
+    if (toActivate) setTimeout(() => { toActivate.scrollIntoView({ behavior: 'instant', block: 'start' }); activateSlide(toActivate); hideLoader(); updateFilterSummary(); syncPanelUI(); }, 50);
+    return true;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function timeAgo(iso) {
+    const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+  function hashId() {
+    // Strip the leading '#' and restrict to numeric IDs only — prevents CSS
+    // selector injection when the value is interpolated into querySelector.
+    const raw = location.hash.replace(/^#/, '').trim();
+    return /^\d+$/.test(raw) ? raw : '';
+  }
+  function pushHash(id) {
+    if (!id) return;
+    const newHash = '#' + id;
+    if (location.hash !== newHash) history.replaceState({ scrollerId: id }, '', '/abyss' + newHash);
+    updateCacheActiveId(id);
+  }
+
+  // ── Volume / Mute ────────────────────────────────────────────────────────
+  function syncVolumeUI() {
+    const icon = muteBtn.querySelector('i');
+    if (isMuted || volume === 0) {
+      icon.className = 'fa-solid fa-volume-xmark';
+    } else if (volume < 0.4) {
+      icon.className = 'fa-solid fa-volume-low';
+    } else {
+      icon.className = 'fa-solid fa-volume-high';
+    }
+    volumeSlider.value = isMuted ? 0 : volume;
+    volumePct.textContent = isMuted ? '0%' : Math.round(volume * 100) + '%';
+  }
+  function applyVolumeToAll() {
+    feed.querySelectorAll('video, audio').forEach(el => {
+      el.muted = isMuted;
+      el.volume = volume;
+    });
+    feed.querySelectorAll('.ruffle-container').forEach(el => {
+      if (el._rufflePlayer) {
+        el._rufflePlayer.volume = isMuted ? 0 : volume;
+      }
+    });
+  }
+  function saveVolume() { localStorage.setItem(VOL_KEY, String(volume)); }
+
+  // Toggle mute on click; show popup; long-hold => just popup
+  muteBtn.addEventListener('click', () => {
+    if (isMuted) {
+      isMuted = false;
+      if (volume === 0) volume = 0.5;
+    } else {
+      isMuted = true;
+    }
+    syncVolumeUI(); applyVolumeToAll(); saveVolume();
+    // Persist mute state so it's restored on next visit
+    prefs.startUnmuted = !isMuted; savePrefs(prefs);
+    applyStartUnmuted(!isMuted);
+    showVolumePopup();
+  });
+
+  function showVolumePopup() {
+    volumePopup.classList.add('open');
+    clearTimeout(volPopupTimer);
+    volPopupTimer = setTimeout(() => volumePopup.classList.remove('open'), 3000);
+  }
+
+  volumeSlider.addEventListener('input', () => {
+    volume = parseFloat(volumeSlider.value);
+    isMuted = volume === 0;
+    syncVolumeUI(); applyVolumeToAll(); saveVolume();
+    // Persist mute state
+    prefs.startUnmuted = !isMuted; savePrefs(prefs);
+    applyStartUnmuted(!isMuted);
+    clearTimeout(volPopupTimer);
+    volPopupTimer = setTimeout(() => volumePopup.classList.remove('open'), 2500);
+  });
+
+  // Open popup on hover (mouseenter); close on mouseleave with a short grace period
+  // so the cursor can migrate from the button to the popup without it snapping shut.
+  let volHoverTimer = null;
+  const openVolPopupHover = () => {
+    clearTimeout(volHoverTimer);
+    clearTimeout(volPopupTimer);
+    volumePopup.classList.add('open');
+  };
+  const closeVolPopupHover = () => {
+    clearTimeout(volHoverTimer);
+    volHoverTimer = setTimeout(() => volumePopup.classList.remove('open'), 200);
+  };
+  muteBtn.addEventListener('mouseenter', openVolPopupHover);
+  muteBtn.addEventListener('mouseleave', closeVolPopupHover);
+  volumePopup.addEventListener('mouseenter', () => clearTimeout(volHoverTimer));
+  volumePopup.addEventListener('mouseleave', closeVolPopupHover);
+
+  // Close popup if click outside
+  document.addEventListener('click', e => {
+    if (!volumePopup.contains(e.target) && e.target !== muteBtn && !muteBtn.contains(e.target)) {
+      volumePopup.classList.remove('open');
+    }
+  }, true);
+
+  // ── Panels ───────────────────────────────────────────────────────────────
+  let panelOpen = false; // true while any sheet panel is open
+
+  function openPanel(panel, backdrop) {
+    closeAllPanels();
+    panel.classList.add('open'); backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    panelOpen = true;
+  }
+  function closePanel(panel, backdrop) {
+    panel.classList.remove('open'); backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    panelOpen = !!(filterPanel.classList.contains('open') || commentsPanel.classList.contains('open') || settingsPanel.classList.contains('open'));
+    // Blur any focused input so keyboard shortcuts (arrows etc.) are immediately restored
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+    // Capture currentSlide NOW — reloadFeed() (called from filterApply) will null it
+    const snapTarget = currentSlide;
+    if (snapTarget) {
+      setTimeout(() => {
+        snapTarget.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }, 250);
+    }
+  }
+  function closeAllPanels() {
+    closePanel(filterPanel, filterBackdrop);
+    closePanel(commentsPanel, commentsBackdrop);
+    closePanel(settingsPanel, settingsBackdrop);
+  }
+  function addSwipeClose(panel, backdrop) {
+    let startY = 0;
+    panel.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+    panel.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - startY > 60) closePanel(panel, backdrop); }, { passive: true });
+  }
+  addSwipeClose(filterPanel, filterBackdrop);
+  addSwipeClose(commentsPanel, commentsBackdrop);
+  addSwipeClose(settingsPanel, settingsBackdrop);
+  filterBackdrop.addEventListener('click', () => closePanel(filterPanel, filterBackdrop));
+  commentsBackdrop.addEventListener('click', () => closePanel(commentsPanel, commentsBackdrop));
+  settingsBackdrop.addEventListener('click', () => closePanel(settingsPanel, settingsBackdrop));
+
+  // ── Settings panel logic ──────────────────────────────────────────────────
+  function applyHideUI(val) {
+    hideUIEnabled = val;
+    document.body.classList.toggle('ui-hidden', val);
+    if (stHideUi) stHideUi.classList.toggle('on', val);
+  }
+  function applyStartUnmuted(val) {
+    if (stStartUnmuted) stStartUnmuted.classList.toggle('on', val);
+  }
+  function applyCanvasBg(val) {
+    canvasBgEnabled = val;
+    if (stCanvasBg) stCanvasBg.classList.toggle('on', val);
+    // If turning off on a currently active slide, cancel the rAF loop and show thumbnail
+    if (!val && currentSlide) {
+      if (currentSlide._bgRaf) { cancelAnimationFrame(currentSlide._bgRaf); currentSlide._bgRaf = null; }
+      const canvas = currentSlide.querySelector('canvas.scroll-bg-blur');
+      const video  = currentSlide.querySelector('video');
+      if (canvas && !video && currentSlide._thumbnail) {
+        const img = new Image(); img.onload = () => {
+          const ctx = canvas.getContext('2d');
+          if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }; img.src = currentSlide._thumbnail;
+      }
+    }
+  }
+  // Apply prefs on load
+  applyHideUI(hideUIEnabled);
+  applyStartUnmuted(prefs.startUnmuted === true);
+  applyCanvasBg(canvasBgEnabled);
+
+  // Toggle clicks
+  if (stHideUi) stHideUi.addEventListener('click', () => {
+    const next = !hideUIEnabled;
+    prefs.hideUI = next; savePrefs(prefs);
+    applyHideUI(next);
+  });
+  if (stStartUnmuted) stStartUnmuted.addEventListener('click', () => {
+    const next = !(prefs.startUnmuted === true);
+    prefs.startUnmuted = next; savePrefs(prefs);
+    // Also apply to current session immediately
+    isMuted = !next;
+    if (!isMuted && volume === 0) volume = 0.5;
+    syncVolumeUI(); applyVolumeToAll(); saveVolume();
+    applyStartUnmuted(next);
+  });
+  if (stCanvasBg) stCanvasBg.addEventListener('click', () => {
+    const next = !canvasBgEnabled;
+    prefs.canvasBg = next; savePrefs(prefs);
+    applyCanvasBg(next);
+  });
+  // Auto-next toggle
+  function applyAutoNext(val) {
+    autoNextEnabled = val;
+    if (stAutoNext) stAutoNext.classList.toggle('on', val);
+    if (autoNextLoopsInp) autoNextLoopsInp.disabled = !val;
+  }
+  applyAutoNext(autoNextEnabled);
+  if (autoNextLoopsInp) {
+    autoNextLoopsInp.value = autoNextLoops;
+    autoNextLoopsInp.addEventListener('change', () => {
+      const v = Math.max(0, Math.min(99, parseInt(autoNextLoopsInp.value, 10)));
+      autoNextLoops = isNaN(v) ? 1 : v; autoNextLoopsInp.value = autoNextLoops;
+      prefs.autoNextLoops = v; savePrefs(prefs);
+    });
+  }
+  if (stAutoNext) stAutoNext.addEventListener('click', () => {
+    const next = !autoNextEnabled;
+    prefs.autoNext = next; savePrefs(prefs);
+    applyAutoNext(next);
+  });
+  // Helper: advance to next slide
+  let autoNextCooldown = false;
+  function hideLoader() {
+    loader.classList.add('hidden');
+    // After the 0.3s CSS opacity transition, pull it fully out of the touch layer
+    // (iOS Safari can still swallow scroll events through a pointer-events:none fixed overlay)
+    setTimeout(() => { loader.style.display = 'none'; }, 350);
+  }
+  function goNextSlide() {
+    if (!currentSlide || autoNextCooldown) return;
+    autoNextCooldown = true;
+    // 1.5s grace: prevents chaining on very short videos; user can swipe back during this window.
+    setTimeout(() => { autoNextCooldown = false; }, 1500);
+    const slides = [...feed.querySelectorAll('.scroll-slide')];
+    const idx = slides.indexOf(currentSlide);
+    if (idx < 0 || idx + 1 >= slides.length) return;
+    // Use index-based scroll position: each slide is exactly feed.clientHeight tall.
+    // Avoids the offsetTop-vs-scroll-container mismatch that can land between snap points.
+    const targetScrollTop = (idx + 1) * feed.clientHeight;
+    setTimeout(() => { feed.scrollTop = targetScrollTop; }, 50);
+  }
+
+  // ── Filter Presets CRUD ───────────────────────────────────────────────────
+  const PRESETS_LABELS = { mode: { 0: 'SFW', 1: 'NSFW', 2: 'Untagged', 3: 'All', 4: 'NSFL' } };
+  function getPresets() { try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || '[]'); } catch { return []; } }
+  function savePresets(arr) { localStorage.setItem(PRESETS_KEY, JSON.stringify(arr)); }
+
+  function renderPresets() {
+    if (!settingsPresetsList) return;
+    const list = getPresets();
+    settingsPresetsList.innerHTML = '';
+    if (!list.length) {
+      settingsPresetsList.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:.79rem;padding:4px 0;">No saved presets yet.</div>';
+      return;
+    }
+    const buildMeta = (p) => [
+      PRESETS_LABELS.mode[p.mode] ?? `Mode ${p.mode}`,
+      p.mime || 'All types',
+      p.order,
+      ...(p.tags.length ? [`Tags: ${p.tags.slice(0, 3).join(', ')}${p.tags.length > 3 ? '\u2026' : ''}`] : [])
+    ].join(' \u00b7 ');
+
+    list.forEach((preset, i) => {
+      const row = document.createElement('div');
+      row.className = 'preset-row';
+
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;min-width:0;';
+      topRow.innerHTML =
+        '<div class="preset-row-info" style="flex:1;min-width:0;cursor:pointer;">' +
+          '<div class="preset-row-name">' + esc(preset.name) + '</div>' +
+          '<div class="preset-row-meta">' + esc(buildMeta(preset)) + '</div>' +
+        '</div>' +
+        '<button class="preset-row-edit" title="Edit tags"><i class="fa-solid fa-pen"></i></button>' +
+        '<button class="preset-row-del" title="Delete preset"><i class="fa-solid fa-trash"></i></button>';
+      row.appendChild(topRow);
+
+      topRow.querySelector('.preset-row-info').addEventListener('click', () => {
+        pending.mode  = preset.mode;
+        pending.order = preset.order;
+        pending.mime  = preset.mime;
+        pending.tags  = [...preset.tags];
+        closePanel(filterPanel, filterBackdrop);
+        applied = { ...pending, tags: [...pending.tags] };
+        reloadFeed(); updateFilterUI(); updateFilterSummary();
+      });
+
+      topRow.querySelector('.preset-row-del').addEventListener('click', e => {
+        e.stopPropagation();
+        savePresets(getPresets().filter((_, j) => j !== i));
+        renderPresets();
+      });
+
+      const editor = document.createElement('div');
+      editor.className = 'preset-editor';
+      let editTags = [...preset.tags];
+
+      const tagList = document.createElement('div');
+      tagList.className = 'preset-editor-tags';
+
+      // Helper: persist current editTags to storage and refresh the row meta immediately.
+      // Uses preset.name as stable key (index i can drift if other presets are deleted).
+      const persistTags = () => {
+        const presets = getPresets();
+        const idx = presets.findIndex(p => p.name === preset.name);
+        if (idx === -1) { console.error('[presets] persistTags: preset not found:', preset.name); return; }
+        presets[idx].tags = [...editTags];
+        savePresets(presets);
+        topRow.querySelector('.preset-row-meta').textContent = buildMeta(presets[idx]);
+      };
+
+      const renderEditorTags = () => {
+        tagList.innerHTML = editTags.length
+          ? editTags.map((t, ti) =>
+              '<span class="preset-editor-tag">' + esc(t) +
+              '<button class="preset-editor-tag-del" data-ti="' + ti + '" title="Remove">&times;</button></span>'
+            ).join('')
+          : '<span style="font-size:.72rem;color:rgba(255,255,255,.3)">No tags</span>';
+        tagList.querySelectorAll('.preset-editor-tag-del').forEach(btn => {
+          btn.addEventListener('click', ev => {
+            ev.stopPropagation();
+            editTags.splice(+btn.dataset.ti, 1);
+            renderEditorTags();
+            persistTags(); // auto-save on remove
+          });
+        });
+      };
+
+      const addWrap = document.createElement('div');
+      addWrap.className = 'preset-editor-add';
+      const tagInp = document.createElement('input');
+      tagInp.type = 'text'; tagInp.placeholder = 'Add tag\u2026'; tagInp.autocomplete = 'off'; tagInp.spellcheck = false;
+      const addBtnEl = document.createElement('button');
+      addBtnEl.textContent = 'Add';
+      addWrap.appendChild(tagInp); addWrap.appendChild(addBtnEl);
+      const doAdd = () => {
+        const v = tagInp.value.trim().toLowerCase().replace(/\s+/g, '_');
+        if (v && !editTags.includes(v)) {
+          editTags.push(v);
+          renderEditorTags();
+          persistTags(); // auto-save on add
+        }
+        tagInp.value = ''; tagInp.focus();
+      };
+      addBtnEl.addEventListener('click', ev => { ev.stopPropagation(); doAdd(); });
+      tagInp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); doAdd(); } });
+
+      const actions = document.createElement('div');
+      actions.className = 'preset-editor-actions';
+
+      const overwriteBtn = document.createElement('button');
+      overwriteBtn.className = 'preset-editor-overwrite';
+      overwriteBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate" style="margin-right:6px"></i>Update &amp; apply preset <span style="display:block;font-size:.68rem;opacity:.6;margin-top:2px">Save changes and reload feed now</span>';
+      overwriteBtn.addEventListener('click', ev => {
+        ev.stopPropagation();
+        const presets = getPresets();
+        const idx = presets.findIndex(p => p.name === preset.name);
+        if (idx === -1) return;
+        // Save: keep editTags, sync mode/order/mime from active filters
+        presets[idx] = { ...presets[idx], mode: applied.mode, order: applied.order, mime: applied.mime, tags: [...editTags] };
+        savePresets(presets);
+        const saved = presets[idx];
+        // Apply immediately — same as clicking the preset name
+        applied = { mode: saved.mode, order: saved.order, mime: saved.mime, tags: [...saved.tags] };
+        pending = { ...applied, tags: [...applied.tags] };
+        closePanel(filterPanel, filterBackdrop);
+        reloadFeed();
+        updateFilterUI();
+        updateFilterSummary();
+        showShareToast('Preset updated & applied');
+      });
+
+      actions.appendChild(overwriteBtn);
+      editor.appendChild(tagList); editor.appendChild(addWrap); editor.appendChild(actions);
+      row.appendChild(editor);
+
+
+      topRow.querySelector('.preset-row-edit').addEventListener('click', ev => {
+        ev.stopPropagation();
+        const opening = !editor.classList.contains('open');
+        settingsPresetsList.querySelectorAll('.preset-editor.open').forEach(el => {
+          el.classList.remove('open'); el.closest('.preset-row')?.classList.remove('editing');
+        });
+        if (opening) {
+          const fresh = getPresets().find(p => p.name === preset.name);
+          editTags = [...(fresh?.tags ?? preset.tags)];
+          renderEditorTags(); editor.classList.add('open'); row.classList.add('editing');
+          setTimeout(() => tagInp.focus(), 50);
+        }
+      });
+
+      settingsPresetsList.appendChild(row);
+    });
+  }
+
+  if (settingsSaveBtn) {
+    settingsSaveBtn.addEventListener('click', () => {
+      const name = prompt('Preset name:', `${PRESETS_LABELS.mode[applied.mode] ?? 'Mode'} / ${applied.order}`);
+      if (!name || !name.trim()) return;
+      const list = getPresets();
+      list.push({ name: name.trim(), mode: applied.mode, order: applied.order, mime: applied.mime, tags: [...applied.tags] });
+      savePresets(list);
+      renderPresets();
+      showShareToast('Preset saved');
+    });
+  }
+
+  if (filterOpenBtn) {
+    filterOpenBtn.addEventListener('click', () => {
+      pending = { ...applied, tags: [...applied.tags] };
+      syncPanelUI();
+      renderPresets();
+      openPanel(filterPanel, filterBackdrop);
+    });
+  }
+
+  if (settingsOpenBtn) {
+    settingsOpenBtn.addEventListener('click', () => {
+      openPanel(settingsPanel, settingsBackdrop);
+    });
+  }
+
+  // Spoiler/blur reveal — delegated click on the comments list
+  commentsList.addEventListener('click', e => {
+    const sp = e.target.closest('.scroller-spoiler, .scroller-blur');
+    if (sp) sp.classList.toggle('revealed');
+  });
+
+  // ── Slide activation ──────────────────────────────────────────────────────
+  function activateSlide(slide) {
+    if (!slide || slide === currentSlide) return;
+    if (currentSlide) deactivateSlide(currentSlide);
+    currentSlide = slide;
+    slide.classList.add('active');
+    pushHash(slide.dataset.id);
+
+    const video = slide.querySelector('video');
+    const audio = slide.querySelector('audio');
+    const cover = slide.querySelector('.audio-cover');
+    const fill  = slide.querySelector('.scroll-progress-fill');
+    const thumb = slide.querySelector('.scroll-progress-thumb');
+
+    if (video) {
+      currentMedia = video;
+      // Restore src if we aborted loading when deactivating
+      if (video._savedSrc && !video.src) {
+        video.src = video._savedSrc;
+        video.currentTime = video._savedTime || 0;
+      } else {
+        video.currentTime = 0;
+      }
+      video.muted = isMuted; video.volume = volume;
+      // Re-register .ready listener on every activation
+      video.addEventListener('playing', () => video.classList.add('ready'), { once: true });
+      video.play().catch(err => {
+        if (err && err.name === 'NotAllowedError') { video.muted = true; video.play().catch(() => {}); }
+      });
+      wireProgress(slide, video, fill, thumb);
+      // Start live canvas background loop (only if pref enabled)
+      const bgC = slide.querySelector('canvas.scroll-bg-blur');
+      if (bgC && canvasBgEnabled) {
+        const bgX = bgC.getContext('2d');
+        const rafLoop = () => {
+          if (!video || video.paused || video.ended) { slide._bgRaf = null; return; }
+          try { bgX.drawImage(video, 0, 0, bgC.width, bgC.height); } catch {}
+          slide._bgRaf = requestAnimationFrame(rafLoop);
+        };
+        video.addEventListener('playing', () => {
+          if (slide._bgRaf) cancelAnimationFrame(slide._bgRaf);
+          rafLoop();
+        });
+      }
+      // Auto-next: count loops and advance after N plays
+      if (autoNextEnabled) {
+        video.loop = false;
+        slide._playCount = 0; // reset each time this slide is activated
+        const onVideoEnded = () => {
+          if (!autoNextEnabled || currentSlide !== slide) return;
+          slide._playCount++;
+          if (slide._playCount <= autoNextLoops) { video.currentTime = 0; video.play().catch(() => {}); }
+          else { goNextSlide(); }
+        };
+        slide._autoNextMedia = video;
+        slide._autoNextHandler = onVideoEnded;
+        video.addEventListener('ended', onVideoEnded);
+      } else {
+        video.loop = true;
+      }
+    } else if (audio) {
+      currentMedia = audio;
+      if (audio._savedSrc && !audio.src) {
+        audio.src = audio._savedSrc;
+        audio.currentTime = audio._savedTime || 0;
+      } else {
+        audio.currentTime = 0;
+      }
+      audio.muted = isMuted; audio.volume = volume;
+      audio.play().catch(err => {
+        if (err && err.name === 'NotAllowedError') { audio.muted = true; audio.play().catch(() => {}); }
+      });
+      if (cover) cover.classList.add('playing');
+      wireProgress(slide, audio, fill, thumb);
+      // Always ensure the canvas bg shows the thumbnail (onload may have raced ahead of activation)
+      const audioBgC = slide.querySelector('canvas.scroll-bg-blur');
+      if (audioBgC && slide._thumbnail) {
+        const audioBgX = audioBgC.getContext('2d');
+        if (audioBgX) {
+          const t = new Image();
+          t.onload = () => { try { audioBgX.drawImage(t, 0, 0, audioBgC.width, audioBgC.height); } catch {} };
+          t.src = slide._thumbnail;
+        }
+      }
+      // Auto-next for audio
+      if (autoNextEnabled) {
+        audio.loop = false;
+        slide._playCount = 0; // reset each time this slide is activated
+        const onAudioEnded = () => {
+          if (!autoNextEnabled || currentSlide !== slide) return;
+          slide._playCount++;
+          if (slide._playCount <= autoNextLoops) { audio.currentTime = 0; audio.play().catch(() => {}); }
+          else { goNextSlide(); }
+        };
+        slide._autoNextMedia = audio;
+        slide._autoNextHandler = onAudioEnded;
+        audio.addEventListener('ended', onAudioEnded);
+      } else {
+        audio.loop = true;
+      }
+    } else {
+      // YouTube: inject src now so only the active slide autoplays
+      const ytContainer = slide.querySelector('.yt-container');
+      if (ytContainer) {
+        const ytId = ytContainer.dataset.ytId;
+        const iframe = ytContainer.querySelector('iframe');
+        if (iframe && ytId && !iframe.src) {
+          iframe.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}`;
+        }
+      }
+      // Check for Ruffle SWF container — poll until RufflePlayer WASM is ready
+      const ruffleEl = slide.querySelector('.ruffle-container');
+      if (ruffleEl && window.scrollerEnableSwf) {
+        if (ruffleEl._rufflePlayer) {
+          // Already initialised — just resume
+          try { ruffleEl._rufflePlayer.play(); } catch {}
+          currentMedia = ruffleEl._rufflePlayer;
+        } else {
+          // Try to init Ruffle — returns true when player is created, false to keep retrying
+          const tryInitRuffle = () => {
+            if (!ruffleEl.isConnected) return true; // slide removed — stop polling
+            if (!window.RufflePlayer || typeof window.RufflePlayer.newest !== 'function') return false;
+            try {
+              const ruffle = window.RufflePlayer.newest();
+              if (!ruffle) return false; // WASM not ready yet
+              const player = ruffle.createPlayer();
+              player.style.cssText = 'width:100%;height:100%;display:block;';
+              const ph = ruffleEl.querySelector('.ruffle-placeholder');
+              if (ph) ph.style.display = 'none';
+              ruffleEl.appendChild(player);
+              player.load({ 
+                url: ruffleEl.dataset.swf,
+                config: { volume: isMuted ? 0 : volume }
+              });
+              player.volume = isMuted ? 0 : volume;
+              // Failsafe: some Ruffle versions reset volume after WASM init
+              setTimeout(() => { if (player.isConnected) player.volume = isMuted ? 0 : volume; }, 100);
+              ruffleEl._rufflePlayer = player;
+              if (currentSlide === slide) currentMedia = player;
+              return true;
+            } catch (e) { console.warn('[Ruffle] init error', e); return false; }
+          };
+          // Ensure ruffle.js is in the DOM (handles PJAX context with ?v= query string)
+          const ensureRuffle = (cb) => {
+            if (window.RufflePlayer) { cb(); return; }
+            if (document.querySelector('script[src*="/s/ruffle/ruffle.js"]')) { cb(); return; }
+            const s = document.createElement('script');
+            s.src = '/s/ruffle/ruffle.js';
+            s.onload = cb;
+            document.head.appendChild(s);
+          };
+          ensureRuffle(() => {
+            if (currentSlide !== slide) return; // Don't init if user scrolled away
+            if (tryInitRuffle()) return;
+            let attempts = 0;
+            const poll = setInterval(() => {
+              attempts++;
+              if (currentSlide !== slide || tryInitRuffle() || attempts >= 100) {
+                clearInterval(poll);
+                if (attempts >= 100 && currentSlide === slide) console.warn('[Ruffle] timed out waiting for WASM');
+              }
+            }, 100);
+          });
+        }
+      }
+      // Only set currentMedia to null if we didn't find a ruffle player
+      if (!ruffleEl || !ruffleEl._rufflePlayer) {
+        currentMedia = null;
+      } else {
+        currentMedia = ruffleEl._rufflePlayer;
+      }
+    }
+    preloadNeighbors(slide);
+    // Schedule a live meta refresh for this slide (debounced batch)
+    scheduleMetaRefresh(slide);
+  }
+
+  // ── Live meta refresh ────────────────────────────────────────────────────
+  // Batches slide IDs that need refreshing and fires a single API call
+  const metaRefreshPending = new Set();
+  let metaRefreshTimer = null;
+
+  function scheduleMetaRefresh(slide) {
+    if (!slide || slide._metaRefreshed) return; // only refresh once per slide
+    metaRefreshPending.add(slide.dataset.id);
+    clearTimeout(metaRefreshTimer);
+    metaRefreshTimer = setTimeout(flushMetaRefresh, 150);
+  }
+
+  async function flushMetaRefresh() {
+    if (!metaRefreshPending.size) return;
+    const ids = [...metaRefreshPending];
+    metaRefreshPending.clear();
+    try {
+      const resp = await fetch(`/api/v2/scroller/meta?ids=${ids.join(',')}`);
+      if (!resp.ok) return;
+      const meta = await resp.json();
+      for (const [id, data] of Object.entries(meta)) {
+        const slide = feed.querySelector(`.scroll-slide[data-id="${id}"]`);
+        if (!slide) continue;
+        slide._metaRefreshed = true;
+        applySlideMetaUpdate(slide, data);
+      }
+    } catch {}
+  }
+
+  function applySlideMetaUpdate(slide, data) {
+    // Update fav count + faved state
+    const favBtn = slide.querySelector('.js-fav-btn');
+    if (favBtn) {
+      const countEl = favBtn.querySelector('.scroll-btn-count');
+      if (countEl) countEl.textContent = data.fav_count ?? countEl.textContent;
+      if (data.is_faved != null) {
+        favBtn.classList.toggle('faved', data.is_faved);
+        const icon = favBtn.querySelector('i');
+        if (icon) icon.className = (data.is_faved ? 'fa-solid' : 'fa-regular') + ' fa-heart';
+      }
+    }
+    // Update comment count
+    const commBtn = slide.querySelector('.js-comments-btn');
+    if (commBtn) {
+      const countEl = commBtn.querySelector('.scroll-btn-count');
+      if (countEl && data.comment_count != null) countEl.textContent = data.comment_count;
+    }
+    // Update tags
+    if (data.tags != null) applyFreshTags(slide, data.tags);
+  }
+
+  function applyFreshTags(slide, tagString) {
+    const metaInner = slide.querySelector('.scroll-meta-inner');
+    if (!metaInner) return;
+    let tagsDiv = slide.querySelector('.scroll-tags');
+    if (!tagString) {
+      if (tagsDiv) tagsDiv.remove();
+      return;
+    }
+    if (!tagsDiv) {
+      tagsDiv = document.createElement('div'); tagsDiv.className = 'scroll-tags';
+      const idLink = metaInner.querySelector('.scroll-id-link');
+      if (idLink) metaInner.insertBefore(tagsDiv, idLink); else metaInner.appendChild(tagsDiv);
+    }
+    const newTags = tagString.split(', ').map(t => t.trim()).filter(Boolean);
+    const existingTags = new Set([...tagsDiv.querySelectorAll('.scroll-tag-pill')].map(p => p.dataset.tag));
+    for (const tag of newTags) {
+      if (!existingTags.has(tag)) {
+        const pill = document.createElement('span');
+        pill.className = 'scroll-tag-pill'; pill.dataset.tag = tag;
+        pill.innerHTML = `${esc(tag)}`;
+        if (window.scrollerIsMod) {
+          const del = document.createElement('button');
+          del.className = 'scroll-tag-pill-del'; del.title = `Remove tag '${tag}'`;
+          del.innerHTML = '&times;';
+          del.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const itemId = slide.dataset.id;
+            try {
+              const resp = await fetch(`/api/v2/tags/${itemId}/${encodeURIComponent(tag)}`, {
+                method: 'DELETE',
+                headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+              });
+              const data = await resp.json();
+              if (data.success) pill.remove();
+              else console.warn('[scroller] tag delete failed', data.msg);
+            } catch (err) { console.error('[scroller] tag delete error', err); }
+          });
+          pill.appendChild(del);
+        }
+        // Filter on tag text click (not delete button)
+        pill.addEventListener('click', e => {
+          if (e.target.closest('.scroll-tag-pill-del')) return;
+          e.stopPropagation(); filterByTag(tag);
+        });
+        tagsDiv.appendChild(pill);
+      }
+    }
+  }
+
+  function deactivateSlide(slide) {
+    if (!slide) return;
+    slide.classList.remove('active');
+    const v = slide.querySelector('video');
+    const a = slide.querySelector('audio');
+    const c = slide.querySelector('.audio-cover');
+
+    if (v) {
+      v.pause();
+      // Stop canvas bg loop
+      if (slide._bgRaf) { cancelAnimationFrame(slide._bgRaf); slide._bgRaf = null; }
+      // Strip .ready so the blurry bg shows again before the video re-buffers
+      v.classList.remove('ready');
+      // Clean up auto-next handler
+      if (slide._autoNextHandler) { v.removeEventListener('ended', slide._autoNextHandler); slide._autoNextHandler = null; }
+      // Save position, then abort all network loading immediately.
+      // If the video already ended, save 0 so re-activation restarts from the beginning.
+      v._savedSrc  = v._savedSrc  || v.src  || v.currentSrc;
+      v._savedTime = v.ended ? 0 : v.currentTime;
+      v.removeAttribute('src');
+      // Remove any <source> children too
+      v.querySelectorAll('source').forEach(s => s.removeAttribute('src'));
+      v.load(); // aborts buffering
+    }
+    if (a) {
+      a.pause();
+      a._savedSrc  = a._savedSrc  || a.src  || a.currentSrc;
+      a._savedTime = a.ended ? 0 : a.currentTime;
+      a.removeAttribute('src');
+      a.load();
+      if (c) c.classList.remove('playing');
+    }
+    // Stop YouTube iframe by clearing src
+    const ytContainer = slide.querySelector('.yt-container');
+    if (ytContainer) {
+      const iframe = ytContainer.querySelector('iframe');
+      if (iframe) iframe.removeAttribute('src');
+    }
+    // Stop Ruffle player by removing it (destroys WASM instance)
+    const ruffleEl = slide.querySelector('.ruffle-container');
+    if (ruffleEl && ruffleEl._rufflePlayer) {
+      try {
+        ruffleEl._rufflePlayer.remove();
+        ruffleEl._rufflePlayer = null;
+        const ph = ruffleEl.querySelector('.ruffle-placeholder');
+        if (ph) ph.style.display = 'block';
+      } catch {}
+    }
+  }
+
+  // No‑op: preloading neighbours eats bandwidth on real connections.
+  // The browser will buffer naturally once the video src is set on activate.
+  function preloadNeighbors() {}
+
+  // ── Seekable progress bar ─────────────────────────────────────────────────
+  function wireProgress(slide, media, fill, thumb) {
+    if (!fill) return;
+    const bar = fill.parentElement;
+    const onTime = () => {
+      if (!slide.classList.contains('active')) { media.removeEventListener('timeupdate', onTime); return; }
+      const pct = media.duration ? (media.currentTime / media.duration) * 100 : 0;
+      fill.style.width = pct + '%';
+      if (thumb) thumb.style.right = (100 - pct) + '%';
+    };
+    media.addEventListener('timeupdate', onTime);
+    const seek = (cx) => {
+      if (!media.duration) return;
+      const rect = bar.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (cx - rect.left) / rect.width));
+      media.currentTime = pct * media.duration;
+      fill.style.width = (pct * 100) + '%';
+      if (thumb) thumb.style.right = ((1 - pct) * 100) + '%';
+    };
+    let dragging = false;
+    const onMove = e => { if (!dragging) return; bar.classList.add('dragging'); seek(e.touches ? e.touches[0].clientX : e.clientX); };
+    const onEnd = () => { dragging = false; bar.classList.remove('dragging'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onEnd); document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd); };
+    bar.addEventListener('click', e => seek(e.clientX));
+    bar.addEventListener('mousedown', e => { dragging = true; seek(e.clientX); document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onEnd); });
+    bar.addEventListener('touchstart', e => { dragging = true; seek(e.touches[0].clientX); document.addEventListener('touchmove', onMove, { passive: true }); document.addEventListener('touchend', onEnd); }, { passive: true });
+  }
+
+  // ── Double-tap / double-click → favourite ────────────────────────────────
+  let lastTapTime    = 0;
+  let lastTapSlide   = null;
+  const DOUBLE_DELAY = 320;
+
+  // ── Floating heart animation ──────────────────────────────────────────────
+  const HEART_EMOJIS = ['❤️', '💕', '💖', '💗', '💓', '💞', '💝'];
+  let heartEmojIdx = 0;
+
+  function spawnHeart(slide, clientX, clientY) {
+    const rect = slide.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const emoji = HEART_EMOJIS[heartEmojIdx % HEART_EMOJIS.length];
+    heartEmojIdx++;
+    const el = document.createElement('div');
+    el.className = 'tap-heart';
+    el.textContent = emoji;
+    // Random horizontal drift ±30px, random size 52–76px
+    const drift = (Math.random() - 0.5) * 60;
+    const size  = 52 + Math.random() * 24;
+    el.style.cssText = `left:${x}px;top:${y}px;font-size:${size}px;--drift:${drift}px`;
+    slide.appendChild(el);
+    // Remove after animation completes
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
+  function flashFav(slide) {
+    const el = slide.querySelector('.fav-flash');
+    if (!el) return;
+    el.classList.remove('show', 'hide'); void el.offsetWidth;
+    el.classList.add('show');
+    setTimeout(() => { el.classList.remove('show'); el.classList.add('hide'); }, 800);
+  }
+
+  async function toggleFav(slide) {
+    if (!window.scrollerLoggedIn) return;
+    const id = slide.dataset.id;
+    const favBtn = slide.querySelector('.js-fav-btn');
+    // Optimistic: immediately flip the button state before the server responds
+    const wasFaved = favBtn ? favBtn.classList.contains('faved') : false;
+    if (favBtn) {
+      const nowFaved = !wasFaved;
+      favBtn.classList.toggle('faved', nowFaved);
+      const icon = favBtn.querySelector('i');
+      if (icon) icon.className = (nowFaved ? 'fa-solid' : 'fa-regular') + ' fa-heart';
+      const countEl = favBtn.querySelector('.scroll-btn-count');
+      if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent || '0', 10)) + (nowFaved ? 1 : -1));
+      if (nowFaved) flashFav(slide);
+    }
+    try {
+      const resp = await fetch('/api/v2/togglefav', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `postid=${id}`
+      });
+      const data = await resp.json();
+      // Sync count to server truth (handles race conditions)
+      if (data.success && favBtn && data.favs) {
+        const countEl = favBtn.querySelector('.scroll-btn-count');
+        if (countEl) countEl.textContent = data.favs.length;
+      }
+    } catch {
+      // Rollback optimistic update on error
+      if (favBtn) {
+        favBtn.classList.toggle('faved', wasFaved);
+        const icon = favBtn.querySelector('i');
+        if (icon) icon.className = (wasFaved ? 'fa-solid' : 'fa-regular') + ' fa-heart';
+      }
+    }
+  }
+
+  // ── Tap overlay + double-tap ──────────────────────────────────────────────
+  function setupTapOverlay(slide) {
+    const tapEl = slide.querySelector('.tap-overlay');
+    const icon  = slide.querySelector('.tap-pause-icon');
+    if (!tapEl) return;
+    let singleTimer = null;
+
+    const FAV_BURST_WINDOW = 2500; // ms — while in burst, extra taps just show hearts
+    let lastDoubleTapAt = 0;
+
+    const handleTap = (e) => {
+      const now = Date.now();
+      if (lastTapSlide === slide && now - lastTapTime < DOUBLE_DELAY) {
+        // Double tap
+        clearTimeout(singleTimer);
+        lastTapTime = 0; lastTapSlide = null;
+        spawnHeart(slide, e.clientX, e.clientY);
+        const favBtn = slide.querySelector('.js-fav-btn');
+        const isFaved = favBtn && favBtn.classList.contains('faved');
+        if (!isFaved) {
+          // Not faved → fav it
+          toggleFav(slide);
+          lastDoubleTapAt = now;
+        } else if (now - lastDoubleTapAt > FAV_BURST_WINDOW) {
+          // Already faved, but been a while → unfav
+          toggleFav(slide);
+          lastDoubleTapAt = 0;
+        } else {
+          // In burst window → just hearts, keep faved
+          lastDoubleTapAt = now;
+        }
+        return;
+      }
+      lastTapTime = now; lastTapSlide = slide;
+      // Delay single-tap action so we can detect double-tap
+      clearTimeout(singleTimer);
+      singleTimer = setTimeout(() => {
+        const media = slide.querySelector('video') || slide.querySelector('audio');
+        if (!media) return;
+        if (media.paused) { media.play().catch(() => {}); icon.innerHTML = '<i class="fa-solid fa-play"></i>'; }
+        else { media.pause(); icon.innerHTML = '<i class="fa-solid fa-pause"></i>'; }
+        icon.classList.remove('show', 'hide'); void icon.offsetWidth; icon.classList.add('show');
+        setTimeout(() => { icon.classList.remove('show'); icon.classList.add('hide'); }, 850);
+      }, DOUBLE_DELAY);
+    };
+
+    tapEl.addEventListener('click', handleTap);
+    tapEl.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Long-press: hold to peek (hide UI + pause media), release to restore
+    let holdTimer = null;
+    let peekPaused = false; // tracks if WE paused the media
+    const startHold = () => {
+      holdTimer = setTimeout(() => {
+        slide.classList.add('ui-peek');
+        const media = slide.querySelector('video') || slide.querySelector('audio');
+        if (media && !media.paused) { media.pause(); peekPaused = true; }
+      }, 300);
+    };
+    const endHold = () => {
+      clearTimeout(holdTimer); holdTimer = null;
+      slide.classList.remove('ui-peek');
+      if (peekPaused) {
+        const media = slide.querySelector('video') || slide.querySelector('audio');
+        if (media) media.play().catch(() => {});
+        peekPaused = false;
+      }
+    };
+    tapEl.addEventListener('touchstart', startHold,  { passive: true });
+    tapEl.addEventListener('touchend',   endHold,    { passive: true });
+    tapEl.addEventListener('touchcancel',endHold,    { passive: true });
+    // Only cancel the timer on move (prevent swipe mis-activation);
+    // if peek is already showing, moving the finger keeps it active.
+    tapEl.addEventListener('touchmove', () => { clearTimeout(holdTimer); holdTimer = null; }, { passive: true });
+  }
+
+  // ── Create slide ──────────────────────────────────────────────────────────
+  function createSlide(item) {
+    const slide = document.createElement('div');
+    slide.className = 'scroll-slide';
+    slide.dataset.id = item.id;
+    slide._thumbnail = item.thumbnail; // stored for canvas redraw + applyCanvasBg fallback
+
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.className = 'scroll-bg-blur';
+    // Low resolution — blurred so heavily that full res is wasted
+    bgCanvas.width = 64; bgCanvas.height = 36;
+    // Draw thumbnail immediately for a static bg before video starts
+    const bgCtx = bgCanvas.getContext('2d');
+    const bgThumb = new Image();
+    bgThumb.onload = () => { try { bgCtx.drawImage(bgThumb, 0, 0, 64, 36); } catch {} };
+    bgThumb.src = item.thumbnail;
+    slide.appendChild(bgCanvas);
+
+    const mediaEl = document.createElement('div');
+    mediaEl.className = 'scroll-media';
+    if (item.is_video) {
+      const v = document.createElement('video');
+      v.src = item.dest; v.loop = true; v.playsInline = true;
+      v.muted = isMuted; v.volume = volume; v.preload = 'none';
+      // .ready class is registered fresh in activateSlide each time
+      mediaEl.appendChild(v);
+    } else if (item.is_youtube) {
+      const ytId = (item.dest || '').replace('yt:', '');
+      const d = document.createElement('div'); d.className = 'yt-container';
+      // NOTE: iframe src is injected in activateSlide to prevent all slides autoplaying at once
+      d.dataset.ytId = ytId;
+      d.innerHTML = `<iframe allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      mediaEl.appendChild(d);
+    } else if (item.is_audio) {
+      // Audio: blurry bg acts as album art — vinyl disc shows cover art
+      const cover = document.createElement('div');
+      cover.className = 'audio-cover';
+      if (item.thumbnail) {
+        // Quote and escape the URL so a ')' or '"' in the path can't break the
+        // CSS url() value or inject arbitrary styles.
+        cover.style.backgroundImage = `url("${item.thumbnail.replace(/["\\]/g, '')}")` ;
+        cover.style.backgroundSize = 'cover';
+        cover.style.backgroundPosition = 'center';
+      }
+      mediaEl.appendChild(cover);
+      const au = document.createElement('audio');
+      au.src = item.dest; au.loop = true; au.muted = isMuted; au.volume = volume; au.preload = 'none';
+      mediaEl.appendChild(au);
+    } else if (item.is_swf && window.scrollerEnableSwf) {
+      // SWF via Ruffle — container is populated lazily in activateSlide
+      const ruffleContainer = document.createElement('div');
+      ruffleContainer.className = 'ruffle-container';
+      ruffleContainer.dataset.swf = item.dest;
+      ruffleContainer.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000;';
+      // Thumbnail placeholder until activated
+      const placeholder = document.createElement('img');
+      placeholder.src = item.thumbnail; placeholder.alt = ''; placeholder.className = 'ruffle-placeholder';
+      placeholder.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;';
+      ruffleContainer.style.position = 'relative';
+      ruffleContainer.appendChild(placeholder);
+      mediaEl.appendChild(ruffleContainer);
+    } else {
+      const img = document.createElement('img');
+      img.src = item.dest; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+      mediaEl.appendChild(img);
+    }
+    slide.appendChild(mediaEl);
+
+    slide.appendChild(Object.assign(document.createElement('div'), { className: 'scroll-overlay' }));
+
+    const tap = document.createElement('div'); tap.className = 'tap-overlay';
+    const tapIcon = document.createElement('div'); tapIcon.className = 'tap-pause-icon';
+    // YouTube and Flash need direct interaction
+    if (item.is_youtube || item.is_swf) tap.style.pointerEvents = 'none';
+    tap.appendChild(tapIcon); slide.appendChild(tap);
+
+    // Fav flash element
+    const favFlash = document.createElement('div');
+    favFlash.className = 'fav-flash'; favFlash.innerHTML = '❤️'; slide.appendChild(favFlash);
+
+    // Meta (z:10)
+    const meta = document.createElement('div'); meta.className = 'scroll-meta';
+    // esc() the color value: a raw '"' in username_color would break out of the
+    // style attribute and allow arbitrary HTML injection (XSS).
+    const colorStyle = item.username_color ? `color:${esc(item.username_color)}` : '';
+    const ratingHtml = `<span class="scroll-rating ${esc(item.rating_class)}" data-item-id="${item.id}" data-rating="${esc(item.rating_class)}">${esc(item.rating_label)}</span>`;
+    const ocHtml = item.is_oc ? `<span class="scroll-oc"><i class="fa-solid fa-star" style="font-size:.6rem"></i> OC</span>` : '';
+    const badgesHtml = `<div class="scroll-badges">${ratingHtml}${ocHtml}</div>`;
+    // Build clickable tag pills
+    const tagsHtml = item.tags
+      ? `<div class="scroll-tags"><i class="fa-solid fa-tag" style="font-size:.6rem;margin-right:4px;opacity:.5"></i>${
+          item.tags.split(', ').map(t => `<span class="scroll-tag-pill" data-tag="${esc(t.trim())}">${esc(t.trim())}</span>`).join('')
+        }</div>`
+      : '';
+    meta.innerHTML = `
+      <div class="scroll-meta-inner">
+        ${badgesHtml}
+        <div class="scroll-meta-top">
+          <a href="/user/${esc(item.username)}" class="scroll-user-link">
+            <img class="scroll-avatar" src="${esc(item.avatar)}" alt="" loading="lazy" onerror="this.src='/a/default.png'">
+          </a>
+          <div>
+            <a href="/user/${esc(item.username)}" class="scroll-user-link">
+              <div class="scroll-username" style="${colorStyle}">${esc(item.display_name || item.username)}</div>
+            </a>
+            <div class="scroll-timeago">${esc(item.timeago)}</div>
+          </div>
+        </div>
+        ${tagsHtml}
+        <a class="scroll-id-link" href="/${item.id}" target="_blank">#${item.id}</a>
+      </div>`;
+    slide.appendChild(meta);
+
+    // Actions (z:10) — no Filter button here, it lives in the topbar
+    const actions = document.createElement('div'); actions.className = 'scroll-actions';
+    actions.innerHTML = `
+      ${window.scrollerLoggedIn ? `
+      <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="Favourite (double-tap)">
+        <div class="scroll-btn-icon"><i class="${item.is_faved ? 'fa-solid' : 'fa-regular'} fa-heart"></i></div>
+        <span class="scroll-btn-label"></span>
+        <span class="scroll-btn-count">${item.fav_count ?? 0}</span>
+      </button>` : ''}
+      <button class="scroll-btn js-comments-btn" data-id="${item.id}" title="Comments (C)">
+        <div class="scroll-btn-icon"><i class="fa-regular fa-comment"></i></div>
+        <span class="scroll-btn-label"></span>
+        <span class="scroll-btn-count">${item.comment_count ?? 0}</span>
+      </button>
+      ${window.scrollerLoggedIn ? `
+      <button class="scroll-btn js-tag-btn" data-id="${item.id}" title="Add tag">
+        <div class="scroll-btn-icon"><i class="fa-solid fa-tag"></i></div>
+        <span class="scroll-btn-label"></span>
+      </button>` : ''}
+      <button class="scroll-btn js-share-btn" data-id="${item.id}" title="Share">
+        <div class="scroll-btn-icon"><i class="fa-solid fa-share-nodes"></i></div>
+        <span class="scroll-btn-label">Share</span>
+      </button>
+      <a class="scroll-btn" href="/${item.id}" target="_blank" title="Open post">
+        <div class="scroll-btn-icon"><i class="fa-solid fa-up-right-from-square"></i></div>
+        <span class="scroll-btn-label">Open</span>
+      </a>`;
+    slide.appendChild(actions);
+
+    // Progress bar (z:10)
+    const pBar = document.createElement('div'); pBar.className = 'scroll-progress-bar';
+    pBar.innerHTML = '<div class="scroll-progress-fill"></div><div class="scroll-progress-thumb"></div>';
+    slide.appendChild(pBar);
+
+    setupTapOverlay(slide);
+
+    const favBtn = actions.querySelector('.js-fav-btn');
+    if (favBtn) {
+      let favLastClick = 0;
+      favBtn.addEventListener('click', () => {
+        const now = Date.now();
+        if (now - favLastClick < DOUBLE_DELAY) return; // ignore rapid double-click
+        favLastClick = now;
+        toggleFav(slide);
+      });
+    }
+    actions.querySelector('.js-comments-btn').addEventListener('click', () => openComments(item.id));
+    const tagBtn = actions.querySelector('.js-tag-btn');
+    if (tagBtn) tagBtn.addEventListener('click', () => openTagBar(item.id));
+    const shareBtn = actions.querySelector('.js-share-btn');
+    if (shareBtn) shareBtn.addEventListener('click', () => {
+      const id = shareBtn.dataset.id;
+      const abyssUrl = `${location.origin}/abyss#${id}`;
+      openSharePanel(abyssUrl);
+    });
+
+    // Rating cycle — always wire the click; server enforces mod auth via 403
+    const ratingBadge = slide.querySelector('.scroll-rating[data-item-id]');
+    if (ratingBadge) {
+      if (window.scrollerIsMod) ratingBadge.classList.add('can-cycle');
+      ratingBadge.addEventListener('click', async e => {
+        e.stopPropagation();
+        const id = ratingBadge.dataset.itemId;
+        try {
+          const resp = await fetch(`/api/v2/tags/${id}/cycle-rating`, {
+            method: 'PUT',
+            headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+          });
+          const data = await resp.json();
+          if (data.success) {
+            ratingBadge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
+            ratingBadge.textContent = data.rating_label;
+            ratingBadge.dataset.rating = data.rating_class;
+          }
+        } catch {}
+      });
+    }
+
+    // Wire clickable tag pills (pointer-events:all override comes from CSS)
+    meta.querySelectorAll('.scroll-tag-pill').forEach(pill => {
+      const t = pill.dataset.tag;
+      pill.addEventListener('click', e => {
+        if (e.target.closest('.scroll-tag-pill-del')) return;
+        e.stopPropagation(); filterByTag(t);
+      });
+      if (window.scrollerIsMod) {
+        const del = document.createElement('button');
+        del.className = 'scroll-tag-pill-del'; del.title = `Remove tag '${t}'`;
+        del.innerHTML = '&times;';
+        del.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const itemId = slide.dataset.id;
+          try {
+            const resp = await fetch(`/api/v2/tags/${itemId}/${encodeURIComponent(t)}`, {
+              method: 'DELETE',
+              headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+            });
+            const data = await resp.json();
+            if (data.success) pill.remove();
+            else console.warn('[scroller] tag delete failed', data.msg);
+          } catch (err) { console.error('[scroller] tag delete error', err); }
+        });
+        pill.appendChild(del);
+      }
+    });
+
+    return slide;
+  }
+
+  // ── Feed fetch ────────────────────────────────────────────────────────────
+  async function fetchItems() {
+    if (isFetching) return;
+    // For random mode: allow up to 5 consecutive empty results before giving up
+    if (!hasMore && applied.order !== 'random') return;
+    if (applied.order === 'random' && consecutiveEmpty >= 5) {
+      if (feed.querySelectorAll('.scroll-slide').length === 0) emptyEl.classList.add('show');
+      return;
+    }
+
+    isFetching = true;
+    const params = new URLSearchParams({ limit: 12, mode: applied.mode, orderby: applied.order });
+    if (applied.mime) params.set('mime', applied.mime);
+    if (applied.tags.length > 0) params.set('tag', applied.tags.join(','));
+    if (applied.order !== 'random') {
+      // Ordered modes: use cursor-based pagination
+      if (lastCursor) params.set('after', lastCursor);
+    } else if (seenIds.size > 0) {
+      // Random mode: send the most-recently-seen IDs (tail of the set) so the server avoids them;
+      // recent items are most likely to collide with the next RANDOM() batch.
+      const allSeen = [...seenIds];
+      const recentSeen = allSeen.slice(-200); // last 200 seen
+      params.set('exclude', recentSeen.join(','));
+    }
+    // On the very first fetch, anchor to the hash ID so it's always in the batch
+    const hid = hashId();
+    if (hid && seenIds.size === 0 && !lastCursor) params.set('anchor', hid);
+
+    try {
+      const resp = await fetch(`/api/v2/scroller/feed?${params}`);
+      const data = await resp.json();
+
+      if (!data.success || !data.items || data.items.length === 0) {
+        consecutiveEmpty++;
+        const noSlides = feed.querySelectorAll('.scroll-slide').length === 0;
+        if (applied.order !== 'random') {
+          hasMore = false;
+        }
+        if (noSlides) {
+          // Anchor was requested but blocked (NSFW/NSFL for guest).
+          // Insert a real scroll-slide with the lock message so the user can
+          // read it and then SWIPE DOWN manually to reach the normal content.
+          // No timers, no auto-advance — user is fully in control.
+          const lockSlide = document.createElement('div');
+          lockSlide.className = 'scroll-slide';
+          lockSlide.dataset.lock = '1';
+          lockSlide.style.cssText = 'background:#000;';
+          lockSlide.innerHTML = [
+            '<div style="position:absolute;inset:0;display:flex;flex-direction:column;',
+            'align-items:center;justify-content:center;gap:18px;z-index:2;">',
+            '<i class="fa-solid fa-lock" style="font-size:3rem;color:rgba(255,255,255,.35);"></i>',
+            '<p style="color:rgba(255,255,255,.55);font-size:1rem;font-weight:600;margin:0;',
+            'text-align:center;line-height:1.5;">This post is currently unavailable</p>',
+            '</div>',
+          ].join('');
+          feed.insertBefore(lockSlide, sentinel);
+          // Clear hash so next fetch has no anchor, then immediately fetch real items.
+          // They will be appended before the sentinel so the user can swipe to them.
+          history.replaceState(null, '', '/abyss');
+          consecutiveEmpty = 0;
+          hasMore = true;
+          hideLoader();
+          setTimeout(() => fetchItems(), 0);
+        } else {
+          emptyEl.classList.add('show');
+          hideLoader();
+        }
+
+        return; // exit — no items to process
+      }
+
+      consecutiveEmpty = 0;
+      let newCount = 0;
+      data.items.forEach(item => {
+        if (seenIds.has(item.id)) return; // client-side dedup — skip already-seen items
+        seenIds.add(item.id);
+        feed.insertBefore(createSlide(item), sentinel);
+        newCount++;
+      });
+      // If every item in the batch was a duplicate, treat it like an empty result
+      if (newCount === 0) { consecutiveEmpty++; }
+      if (data.nextCursor) lastCursor = data.nextCursor;
+      appendToCache(data.items);
+
+      if (!currentSlide) {
+        const hid = hashId();
+        const target = hid ? feed.querySelector(`.scroll-slide[data-id="${hid}"]`) : null;
+        // Skip lock slides (data-lock) when looking for the first real item to activate
+        const first = feed.querySelector('.scroll-slide:not([data-lock])');
+        const toActivate = target || first;
+        if (toActivate) setTimeout(() => { activateSlide(toActivate); hideLoader(); }, 200);
+      } else {
+        hideLoader();
+      }
+    } catch (e) {
+      console.error('[scroller] fetch error', e);
+      consecutiveEmpty++;
+    } finally {
+      isFetching = false;
+    }
+  }
+
+  function reloadFeed() {
+    clearCache();
+    // Pause previous
+    if (currentMedia) {
+      try {
+        currentMedia.pause();
+        // If it's a Ruffle player, destroy it immediately for clean transition
+        if (currentMedia.tagName === 'RUFFLE-PLAYER') {
+          const container = currentMedia.parentElement;
+          currentMedia.remove();
+          if (container && container._rufflePlayer === currentMedia) {
+            container._rufflePlayer = null;
+            const ph = container.querySelector('.ruffle-placeholder');
+            if (ph) ph.style.display = 'block';
+          }
+        }
+      } catch {}
+    }
+    currentSlide = null; currentMedia = null;
+    feed.querySelectorAll('.scroll-slide').forEach(s => { slideObserver.unobserve(s); s.remove(); });
+    emptyEl.classList.remove('show');
+    emptyEl.innerHTML = '<i class="fa-solid fa-binoculars"></i><p>Nothing found with current filters</p><button onclick="document.getElementById(\'filter-open-btn\').click()" style="margin-top:8px;padding:8px 20px;border-radius:50px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:.8rem;">Adjust filters</button>';
+
+    hasMore = true; isFetching = false; lastCursor = null; consecutiveEmpty = 0; seenIds = new Set();
+    feed.scrollTop = 0;
+    // Re-show loader for the next fetch cycle
+    loader.style.display = '';
+    loader.classList.remove('hidden');
+    history.replaceState(null, '', '/abyss');
+    fetchItems(); updateFilterSummary();
+  }
+
+  /** Instantly filter feed by a single tag (called from tag pill click). */
+  function filterByTag(tagDisplay) {
+    const normalized = tagDisplay.toLowerCase().replace(/[^a-z0-9]/g, '');
+    applied = { ...applied, tags: [normalized] };
+    pending = { ...applied, tags: [normalized] };
+    reloadFeed();
+    syncPanelUI();
+  }
+
+  // ── Observers ─────────────────────────────────────────────────────────────
+  const slideObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      // Ignore intersection changes caused by viewport resize when the
+      // keyboard hides after panel close — would activate the wrong slide
+      if (panelOpen) return;
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) activateSlide(e.target);
+    });
+  }, { root: feed, threshold: 0.6 });
+
+  // Primary: sentinel intersection
+  const sentinelObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) fetchItems();
+  }, { root: feed, threshold: 0.1 });
+  sentinelObserver.observe(sentinel);
+
+  // Fallback: scroll event to catch cases where sentinel observer fires but
+  // isFetching was true at that moment and the observer won't re-fire.
+  let scrollFallbackTimer = null;
+  feed.addEventListener('scroll', () => {
+    clearTimeout(scrollFallbackTimer);
+    scrollFallbackTimer = setTimeout(() => {
+      if (panelOpen) return; // don't trigger fetch while a panel is open
+      const { scrollTop, scrollHeight, clientHeight } = feed;
+      if (scrollHeight - scrollTop - clientHeight < clientHeight * 1.5) {
+        fetchItems();
+      }
+    }, 120);
+  }, { passive: true });
+
+  const mutObs = new MutationObserver(mutations => {
+    mutations.forEach(m => m.addedNodes.forEach(node => {
+      if (node.classList && node.classList.contains('scroll-slide')) slideObserver.observe(node);
+    }));
+  });
+  mutObs.observe(feed, { childList: true });
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+  async function openComments(itemId) {
+    commentsItemId = itemId;
+    commentsOpenLink.href = `/${itemId}`;
+    commentsLoading.style.display = 'block'; commentsEmpty.style.display = 'none'; commentsCount.textContent = '';
+    commentsList.querySelectorAll('.comment-item').forEach(el => el.remove());
+    openPanel(commentsPanel, commentsBackdrop);
+    // Desktop only: focus input immediately (skip on touch to avoid surprise keyboard)
+    if (commentInput && !window.matchMedia('(pointer: coarse)').matches) {
+      setTimeout(() => commentInput.focus(), 120);
+    }
+    try {
+      const resp = await fetch(`/api/comments/${itemId}?sort=new`);
+      const data = await resp.json();
+      commentsLoading.style.display = 'none';
+      const visible = data.comments ? data.comments.filter(c => !c.is_deleted) : [];
+      commentsCount.textContent = `(${visible.length})`;
+      // Sync the slide action button with the real count from the server
+      const slide = feed.querySelector(`.scroll-slide[data-id="${itemId}"]`);
+      if (slide) {
+        const btn = slide.querySelector('.js-comments-btn .scroll-btn-count');
+        if (btn) btn.textContent = visible.length;
+      }
+      if (!visible.length) { commentsEmpty.style.display = 'block'; return; }
+      visible.forEach(c => {
+        const el = document.createElement('div'); el.className = 'comment-item';
+        const av = c.avatar_file ? `/a/${c.avatar_file}` : (c.avatar ? `/t/${c.avatar}.webp` : '/a/default.png');
+        // esc() the color value to prevent attribute-breaking XSS via username_color.
+        const nc = c.username_color ? `color:${esc(c.username_color)}` : '';
+        el.innerHTML = `
+          <img class="comment-avatar" src="${esc(av)}" alt="" loading="lazy" onerror="this.src='/a/default.png'">
+          <div class="comment-body">
+            <div class="comment-username" style="${nc}">${esc(c.display_name || c.username || 'anon')}</div>
+            <div class="comment-content">${renderCommentContent(c.content || '')}</div>
+            <div class="comment-time">${c.created_at ? timeAgo(c.created_at) : ''}</div>
+          </div>`;
+        commentsList.appendChild(el);
+      });
+    } catch {
+      commentsLoading.style.display = 'none'; commentsEmpty.style.display = 'block';
+      commentsEmpty.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><br>Failed to load';
+    }
+  }
+
+  // ── Tag bar ───────────────────────────────────────────────────────────────
+  const tagBar      = document.getElementById('tag-bar');
+  const tagBarClose = document.getElementById('tag-bar-close-btn');
+
+  function openTagBar(itemId) {
+    tagBarItemId = itemId;
+    if (!tagBar) return;
+    tagBar.classList.add('open');
+    // Focus the input after transition
+    const inp = document.getElementById('scroll-tag-input');
+    if (inp) setTimeout(() => inp.focus(), 240);
+  }
+  function closeTagBar() {
+    if (!tagBar) return;
+    tagBar.classList.remove('open');
+    closeSugg();
+    tagBarItemId = null;
+    const inp = document.getElementById('scroll-tag-input');
+    if (inp) inp.value = '';
+  }
+  if (tagBarClose) tagBarClose.addEventListener('click', closeTagBar);
+  // Close on Escape key
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && tagBar?.classList.contains('open')) closeTagBar(); });
+
+  // ── Share panel ────────────────────────────────────────────────────────────
+  const sharePanel    = document.getElementById('share-panel');
+  const shareBackdrop = document.getElementById('share-backdrop');
+  const shareCopyRow  = document.getElementById('share-copy-row');
+  const shareCopySub  = document.getElementById('share-copy-sub');
+  const shareDmRow    = document.getElementById('share-dm-row');
+  const shareDmSearch = document.getElementById('share-dm-search');
+  const shareUserInput  = document.getElementById('share-user-input');
+  const shareUserResults = document.getElementById('share-user-results');
+  let sharePanelUrl   = '';
+  let shareUserTimer  = null;
+  const SHARE_RECENTS_KEY = 'scroller_share_recents';
+
+  function getShareRecents() {
+    try { return JSON.parse(localStorage.getItem(SHARE_RECENTS_KEY) || '[]'); } catch { return []; }
+  }
+  function saveShareRecent(u) {
+    const list = getShareRecents().filter(r => r.user !== u.user);
+    list.unshift({ user: u.user, display_name: u.display_name || '', avatar: u.avatar || '', avatar_file: u.avatar_file || '' });
+    localStorage.setItem(SHARE_RECENTS_KEY, JSON.stringify(list.slice(0, 5)));
+  }
+
+  function renderShareRow(u, container, label) {
+    const row = document.createElement('div');
+    row.className = 'share-user-row';
+    const av = u.avatar_file ? `/a/${u.avatar_file}` : (u.avatar ? `/t/${u.avatar}.webp` : '/a/default.png');
+    row.innerHTML = `<img src="${esc(av)}" onerror="this.src='/a/default.png'" alt=""><span class="share-user-row-name">${esc(u.display_name || u.user)}</span>`;
+    if (label) {
+      const lbl = document.createElement('span');
+      lbl.className = 'share-user-row-label'; lbl.textContent = label;
+      row.appendChild(lbl);
+    }
+    row.addEventListener('click', async () => {
+      row.style.opacity = '0.5'; row.style.pointerEvents = 'none';
+      try {
+        await sendDmSilent(u.user, sharePanelUrl);
+        saveShareRecent(u);
+        closeSharePanel();
+        showShareToast(`✓ Sent to ${u.display_name || u.user}`);
+      } catch (err) {
+        row.style.opacity = ''; row.style.pointerEvents = '';
+        showShareToast(err.message, true);
+      }
+    });
+    container.appendChild(row);
+    return row;
+  }
+
+  function showShareRecents() {
+    if (!shareUserResults) return;
+    const recents = getShareRecents();
+    shareUserResults.innerHTML = '';
+    if (!recents.length) { shareUserResults.classList.remove('show'); return; }
+    const hdr = document.createElement('div');
+    hdr.className = 'share-recents-label';
+    hdr.textContent = 'Recent';
+    shareUserResults.appendChild(hdr);
+    recents.forEach(u => renderShareRow(u, shareUserResults));
+    shareUserResults.classList.add('show');
+  }
+
+  function openSharePanel(url) {
+    sharePanelUrl = url || '';
+    // Reset state
+    if (shareCopySub) shareCopySub.textContent = 'Copy to clipboard';
+    if (shareDmSearch) shareDmSearch.classList.remove('show');
+    if (shareUserInput) shareUserInput.value = '';
+    if (shareUserResults) { shareUserResults.innerHTML = ''; shareUserResults.classList.remove('show'); }
+    if (sharePanel) sharePanel.classList.add('open');
+    if (shareBackdrop) shareBackdrop.classList.add('show');
+  }
+
+  function closeSharePanel() {
+    if (sharePanel) sharePanel.classList.remove('open');
+    if (shareBackdrop) shareBackdrop.classList.remove('show');
+    if (shareDmSearch) shareDmSearch.classList.remove('show');
+    if (shareUserResults) { shareUserResults.innerHTML = ''; shareUserResults.classList.remove('show'); }
+    if (shareUserInput) shareUserInput.value = '';
+  }
+
+  if (shareBackdrop) shareBackdrop.addEventListener('click', closeSharePanel);
+
+  // Copy link row
+  if (shareCopyRow) {
+    shareCopyRow.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(sharePanelUrl);
+        if (shareCopySub) {
+          shareCopySub.textContent = 'Copied ✓';
+          setTimeout(() => { if (shareCopySub) shareCopySub.textContent = 'Copy to clipboard'; }, 1800);
+        }
+      } catch {
+        window.prompt('Copy link:', sharePanelUrl);
+      }
+    });
+  }
+
+  // Send via DM row — toggle user search
+  if (shareDmRow) {
+    shareDmRow.addEventListener('click', () => {
+      if (!shareDmSearch) return;
+      const showing = shareDmSearch.classList.toggle('show');
+      if (showing) {
+        showShareRecents(); // show recent recipients immediately
+        if (shareUserInput) shareUserInput.focus();
+      }
+    });
+  }
+
+  // User search for DM
+  // ── Silent DM send with Web Crypto (E2E, same scheme as messages.js) ────────
+  const DM_KEY_NAME = 'f0ck_dm_privkey';
+
+  function b64u(buf) {
+    const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let s = ''; for (const b of u8) s += String.fromCharCode(b);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function sendDmSilent(recipientUsername, text) {
+    const subtle = crypto.subtle;
+    // 1. Resolve user → user_id
+    const resolveResp = await fetch(`/api/dm/resolve/${encodeURIComponent(recipientUsername)}`);
+    const resolveData = await resolveResp.json();
+    if (!resolveData.success) throw new Error(resolveData.msg || 'User not found');
+    const recipientId = resolveData.user_id;
+    // 2. Load own private key
+    const privJwk = localStorage.getItem(DM_KEY_NAME);
+    if (!privJwk) throw new Error('No encryption key — open Messages to set one up first');
+    // 3. Fetch recipient public key
+    const pubResp = await fetch(`/api/dm/pubkey/${recipientId}`);
+    const pubData = await pubResp.json();
+    if (!pubData.success) throw new Error("Recipient hasn't set up their encryption key yet");
+    // 4. ECDH derive shared key
+    const privKey = await subtle.importKey('jwk', JSON.parse(privJwk), { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
+    const pubKey  = await subtle.importKey('jwk', JSON.parse(pubData.pubkey), { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+    const sharedKey = await subtle.deriveKey({ name: 'ECDH', public: pubKey }, privKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+    // 5. Encrypt
+    const iv  = crypto.getRandomValues(new Uint8Array(12));
+    const enc = await subtle.encrypt({ name: 'AES-GCM', iv }, sharedKey, new TextEncoder().encode(text));
+    // 6. Send
+    const csrf = window.f0ckSession?.csrf_token || '';
+    const sendResp = await fetch(`/api/dm/send/${recipientId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf },
+      body: new URLSearchParams({ ciphertext: b64u(enc), iv: b64u(iv) }).toString()
+    });
+    const sendData = await sendResp.json();
+    if (!sendData.success) throw new Error(sendData.msg || 'Failed to send');
+  }
+
+  function showShareToast(msg, isError = false) {
+    let toast = document.getElementById('share-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'share-toast';
+      toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);'
+        + 'background:rgba(20,20,28,.95);color:#fff;padding:10px 18px;border-radius:22px;'
+        + 'font-size:.82rem;font-weight:600;z-index:2000;pointer-events:none;'
+        + 'box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:opacity .18s,transform .18s;';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.background = isError ? 'rgba(200,40,40,.95)' : 'rgba(20,20,28,.95)';
+    toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(20px)'; }, 2400);
+  }
+
+  async function fetchShareUsers(q) {
+    try {
+      const r = await fetch(`/api/v2/users/suggest?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if (!shareUserResults) return;
+      const users = data.suggestions || [];
+      shareUserResults.innerHTML = '';
+      if (!users.length) { shareUserResults.classList.remove('show'); return; }
+      users.forEach(u => renderShareRow(u, shareUserResults));
+      shareUserResults.classList.add('show');
+    } catch {}
+  }
+
+  if (shareUserInput) {
+    shareUserInput.addEventListener('input', () => {
+      const q = shareUserInput.value.trim();
+      clearTimeout(shareUserTimer);
+      if (!q) { showShareRecents(); return; }
+      shareUserTimer = setTimeout(() => fetchShareUsers(q), 230);
+    });
+  }
+
+  // ── Sitewide emoji picker ─────────────────────────────────────────────────
+  // Loads custom emojis from /api/v2/emojis (same source as comments.js).
+  // Wires the ☺ trigger button to show an image picker grid,
+  // AND updates the :shortcode: inline autocomplete to prefer custom emojis.
+  let customEmojis = {};  // { name: url }
+  let emojiPickerEl = null;
+  let emojiPickerCloseHandler = null;
+
+  async function loadCustomEmojis() {
+    // Reuse cache from comments.js if already loaded
+    if (window.CommentSystem?.emojiCache) {
+      customEmojis = window.CommentSystem.emojiCache;
+      return;
+    }
+    try {
+      const res = await fetch('/api/v2/emojis');
+      const data = await res.json();
+      if (data.emojis) data.emojis.forEach(e => { customEmojis[e.name] = e.url; });
+    } catch {}
+  }
+
+  /**
+   * Render comment text: escapes HTML then replaces :emoji_name: with <img> tags
+   * for any custom (site) emoji that's loaded. Unknown shortcodes stay as text.
+   */
+  function renderCommentContent(text) {
+    if (!text) return '';
+
+    // Build allowed-image host regex (same origin + f0ckAllowedImages list)
+    const escH = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const siteHost = escH(window.location.host);
+    const allowedHosts = [siteHost];
+    if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
+      window.f0ckAllowedImages.forEach(h => allowedHosts.push(`(?:[a-z0-9-]+\\.)*${escH(h)}`));
+    }
+    const hostsPart = allowedHosts.join('|');
+    const safeS = '(?:(?!https?:\\/\\/)\\S)';
+    const domainOrRel = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsPart})|(?=\\/[a-zA-Z0-9_\\-]))`;
+    const imageRe = new RegExp(
+      `(?<![\\(\\[\\"])(${domainOrRel}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`,
+      'gi'
+    );
+
+    // Escape HTML first, then process line by line
+    const escaped = esc(text);
+    const lines = escaped.split('\n').map(line => {
+      const trimmed = line.trimStart();
+      // Greentext / quote: lines starting with >
+      if (trimmed.startsWith('&gt;')) {
+        const after = line.substring(line.indexOf('&gt;') + 4);
+        const withEmoji = after.replace(/:([a-z0-9_]+):/g, (m, name) => {
+          const url = customEmojis[name];
+          return url ? `<img src="${esc(url)}" alt=":${esc(name)}:" title=":${esc(name)}:" style="height:1.6em;vertical-align:middle;display:inline-block;margin:0 1px">` : m;
+        });
+        return `<span class="scroller-greentext">&gt;${withEmoji}</span>`;
+      }
+      // Blank lines → small spacer
+      if (!trimmed) return '<span style="display:block;height:.3em"></span>';
+      // 1. Replace image URLs from allowed hosts FIRST (before emoji, so we never
+      //    accidentally re-match the .png inside an already-inserted <img> src)
+      let out = line.replace(imageRe, (_, url) => {
+        const fullUrl = url.startsWith('http') || url.startsWith('//') || url.startsWith('/') ? url : '//' + url;
+        return `<img src="${fullUrl}" alt="" style="max-width:100%;max-height:320px;border-radius:6px;display:block;margin:4px 0" loading="lazy">`;
+      });
+      // 2. Replace custom emoji shortcodes with images (runs on raw text so it
+      //    won't see the <img> tags inserted above)
+      out = out.replace(/:([a-z0-9_]+):/g, (m, name) => {
+        const url = customEmojis[name];
+        return url ? `<img src="${esc(url)}" alt=":${esc(name)}:" title=":${esc(name)}:" style="height:1.8em;vertical-align:middle;display:inline-block;margin:0 2px">` : m;
+      });
+      return out;
+    });
+    let html = lines.join('<br>');
+    // [spoiler]…[/spoiler] — iterative to handle nesting
+    const spoilerRe = /\[spoiler\]((?:(?!\[spoiler\])[\s\S])*?)\[\/spoiler\]/gi;
+    let prev, n = 0;
+    do { prev = html; html = html.replace(spoilerRe, (_, c) => `<span class="scroller-spoiler">${c}</span>`); } while (html !== prev && ++n < 10);
+    // [blur]…[/blur] — iterative
+    const blurRe = /\[blur\]((?:(?!\[blur\])[\s\S])*?)\[\/blur\]/gi;
+    n = 0;
+    do { prev = html; html = html.replace(blurRe, (_, c) => `<span class="scroller-blur">${c}</span>`); } while (html !== prev && ++n < 10);
+    return html;
+  }
+
+  // Track insert position across emoji clicks (without needing input focused)
+  let emojiInsertPos = null;
+
+  function buildEmojiPickerEl() {
+    const picker = document.createElement('div');
+    picker.className = 'emoji-picker'; // reuse comments.css class if present
+    picker.style.cssText = [
+      'position:fixed','z-index:9999','bottom:80px','left:12px','right:12px',
+      'max-height:220px','overflow-y:auto',
+      'background:rgba(10,10,14,.97)','border:1px solid rgba(255,255,255,.12)',
+      'border-radius:14px','padding:10px','display:flex','flex-wrap:wrap','gap:6px',
+      'box-shadow:0 8px 40px rgba(0,0,0,.7)'
+    ].join(';');
+    Object.keys(customEmojis).forEach(name => {
+      const img = document.createElement('img');
+      img.src = customEmojis[name]; img.title = ':' + name + ':';
+      img.alt = name; img.loading = 'lazy';
+      img.style.cssText = 'width:40px;height:40px;object-fit:contain;cursor:pointer;border-radius:6px;transition:transform .1s';
+      img.addEventListener('mouseenter', () => { img.style.transform = 'scale(1.2)'; });
+      img.addEventListener('mouseleave', () => { img.style.transform = 'scale(1)'; });
+      img.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        if (!commentInput) return;
+        const val = commentInput.value;
+        const code = ':' + name + ':';
+        // Use tracked position; fall back to end
+        const pos = (emojiInsertPos !== null && emojiInsertPos <= val.length)
+          ? emojiInsertPos : val.length;
+        commentInput.value = val.slice(0, pos) + code + val.slice(pos);
+        emojiInsertPos = pos + code.length; // advance for next insert
+        // Update send button state — no focus(), picker stays open
+        if (commentSendBtn) commentSendBtn.disabled = !commentInput.value.trim();
+      });
+      picker.appendChild(img);
+    });
+    if (!Object.keys(customEmojis).length) {
+      picker.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.8rem;padding:8px">No custom emojis</div>';
+    }
+    return picker;
+  }
+
+  function hideEmojiPicker() {
+    if (emojiPickerEl?.parentNode) emojiPickerEl.parentNode.removeChild(emojiPickerEl);
+    emojiPickerEl = null;
+    if (emojiPickerCloseHandler) { document.removeEventListener('click', emojiPickerCloseHandler); emojiPickerCloseHandler = null; }
+  }
+
+  const emojiTriggerBtn = document.getElementById('comment-emoji-trigger');
+  if (emojiTriggerBtn) {
+    // Load emojis once (don't wait)
+    loadCustomEmojis();
+    emojiTriggerBtn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (emojiPickerEl) { hideEmojiPicker(); return; }
+      emojiPickerEl = buildEmojiPickerEl();
+      document.body.appendChild(emojiPickerEl);
+      emojiPickerEl.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+      emojiPickerCloseHandler = ev => {
+        if (!emojiPickerEl?.contains(ev.target) && ev.target !== emojiTriggerBtn) hideEmojiPicker();
+      };
+      setTimeout(() => document.addEventListener('click', emojiPickerCloseHandler), 0);
+    });
+  }
+
+  // ── Comment input: @mention autocomplete ─────────────────────────────────
+  function insertMention(username) {
+    if (!commentInput) return;
+    const val   = commentInput.value;
+    const atIdx = val.lastIndexOf('@', commentInput.selectionStart - 1);
+    if (atIdx === -1) return;
+    const before = val.slice(0, atIdx);
+    const after  = val.slice(commentInput.selectionStart);
+    commentInput.value = before + '@' + username + ' ' + after;
+    const pos = before.length + username.length + 2;
+    commentInput.setSelectionRange(pos, pos);
+    commentInput.focus();
+    closeMentionDropdown();
+    commentInput.dispatchEvent(new Event('input'));
+  }
+
+  function closeMentionDropdown() {
+    if (mentionDropdown) { mentionDropdown.classList.remove('show'); mentionDropdown.innerHTML = ''; }
+    mentionResults = []; mentionIndex = -1;
+  }
+
+  function renderMentionDropdown(users) {
+    mentionResults = users;
+    mentionIndex = -1;
+    if (!mentionDropdown) return;
+    if (!users.length) { closeMentionDropdown(); return; }
+    mentionDropdown.innerHTML = '';
+    users.forEach((u, i) => {
+      const item = document.createElement('div'); item.className = 'mention-item'; item.dataset.idx = i;
+      const av = u.avatar_file ? `/a/${u.avatar_file}` : (u.avatar ? `/t/${u.avatar}.webp` : '/a/default.png');
+      item.innerHTML = `<img class="mention-avatar" src="${esc(av)}" onerror="this.src='/a/default.png'">${esc(u.display_name || u.user)}`;
+      item.addEventListener('mousedown', e => { e.preventDefault(); insertMention(u.user); });
+      mentionDropdown.appendChild(item);
+    });
+    mentionDropdown.classList.add('show');
+  }
+
+  async function fetchMentions(q) {
+    try {
+      const r = await fetch(`/api/v2/users/suggest?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if (data.success) renderMentionDropdown(data.suggestions || []);
+    } catch {}
+  }
+
+  // ── Emoji autocomplete (:shortcode:) ─────────────────────────────────────
+  function closeAcDropdown() {
+    if (mentionDropdown) { mentionDropdown.classList.remove('show'); mentionDropdown.innerHTML = ''; }
+    emojiMode = false; emojiResults = []; mentionResults = []; acIndex = -1;
+    mentionIndex = -1; // keep compat
+  }
+
+  function renderEmojiDropdown(matches) {
+    emojiMode = true; emojiResults = matches; acIndex = -1;
+    if (!mentionDropdown || !matches.length) { closeAcDropdown(); return; }
+    mentionDropdown.innerHTML = '';
+    matches.forEach(([code, char], i) => {
+      const item = document.createElement('div'); item.className = 'mention-item'; item.dataset.idx = i;
+      item.innerHTML = `<span style="font-size:1.2rem;line-height:1">${char}</span><span style="font-size:.8rem;color:rgba(255,255,255,.65)">:${code}:</span>`;
+      item.addEventListener('mousedown', e => { e.preventDefault(); insertEmoji(char, code); });
+      mentionDropdown.appendChild(item);
+    });
+    mentionDropdown.classList.add('show');
+  }
+
+  // Render custom (site) emoji suggestions: show img + name
+  function renderCustomEmojiAC(matches) {
+    emojiMode = true; emojiResults = matches; acIndex = -1;
+    if (!mentionDropdown || !matches.length) { closeAcDropdown(); return; }
+    mentionDropdown.innerHTML = '';
+    matches.forEach(([, name, url], i) => {
+      const item = document.createElement('div'); item.className = 'mention-item'; item.dataset.idx = i;
+      item.innerHTML = `<img src="${esc(url)}" style="width:24px;height:24px;object-fit:contain;border-radius:4px" alt="${esc(name)}"><span style="font-size:.8rem;color:rgba(255,255,255,.65)">:${esc(name)}:</span>`;
+      item.addEventListener('mousedown', e => { e.preventDefault(); insertCustomEmoji(name); });
+      mentionDropdown.appendChild(item);
+    });
+    mentionDropdown.classList.add('show');
+  }
+
+  function insertCustomEmoji(name) {
+    if (!commentInput) return;
+    const val = commentInput.value;
+    const cursor = commentInput.selectionStart;
+    const textBefore = val.slice(0, cursor);
+    const colonIdx = textBefore.lastIndexOf(':');
+    if (colonIdx === -1) return;
+    const code = ':' + name + ':';
+    const before = val.slice(0, colonIdx);
+    const after  = val.slice(cursor);
+    commentInput.value = before + code + after;
+    const pos = colonIdx + code.length;
+    commentInput.setSelectionRange(pos, pos);
+    commentInput.focus(); closeAcDropdown();
+    commentInput.dispatchEvent(new Event('input'));
+  }
+
+  function insertEmoji(char, code) {
+    if (!commentInput) return;
+    const val = commentInput.value;
+    const cursor = commentInput.selectionStart;
+    const textBefore = val.slice(0, cursor);
+    // Find the opening colon
+    const colonIdx = textBefore.lastIndexOf(':');
+    if (colonIdx === -1) return;
+    const before = val.slice(0, colonIdx);
+    const after  = val.slice(cursor);
+    commentInput.value = before + char + after;
+    const pos = colonIdx + char.length;
+    commentInput.setSelectionRange(pos, pos);
+    commentInput.focus();
+    closeAcDropdown();
+    commentInput.dispatchEvent(new Event('input'));
+  }
+
+  if (commentInput) {
+    // Keep emojiInsertPos in sync with the real cursor whenever the user
+    // types or moves the caret themselves (tap/click into the input, arrow keys, etc.)
+    const syncInsertPos = () => { emojiInsertPos = commentInput.selectionStart; };
+    commentInput.addEventListener('click', syncInsertPos);
+    commentInput.addEventListener('keyup', syncInsertPos);
+
+    commentInput.addEventListener('input', () => {
+      // Sync position after typing
+      emojiInsertPos = commentInput.selectionStart;
+      // Resize
+      commentInput.style.height = 'auto';
+      commentInput.style.height = Math.min(commentInput.scrollHeight, 100) + 'px';
+      if (commentSendBtn) commentSendBtn.disabled = !commentInput.value.trim();
+
+      const cursor = commentInput.selectionStart;
+      const textBefore = commentInput.value.slice(0, cursor);
+
+      // 1. :emoji: shortcode detection — custom emojis first, then static EMOJI map
+      const emojiMatch = textBefore.match(/:([a-z0-9_]{1,})$/);
+      if (emojiMatch) {
+        const q = emojiMatch[1];
+        // Prefer custom (site) emojis if loaded
+        const customHits = Object.keys(customEmojis)
+          .filter(n => n.startsWith(q)).slice(0, 12)
+          .map(n => ['__custom__', n, customEmojis[n]]);
+        if (customHits.length) {
+          renderCustomEmojiAC(customHits);
+          return;
+        }
+        // Fallback to static emoji map
+        const hits = Object.entries(EMOJI).filter(([code]) => code.startsWith(q)).slice(0, 12);
+        if (hits.length) { renderEmojiDropdown(hits); return; }
+        else { closeAcDropdown(); return; }
+      }
+
+      // 2. @mention detection
+      const mentionMatch = textBefore.match(/@([a-zA-Z0-9_.\-]*)$/);
+      if (mentionMatch) {
+        mentionQuery = mentionMatch[1];
+        emojiMode = false;
+        clearTimeout(mentionTimer);
+        if (mentionQuery.length >= 1) {
+          mentionTimer = setTimeout(() => fetchMentions(mentionQuery), 250);
+        } else {
+          closeAcDropdown();
+        }
+      } else {
+        closeAcDropdown();
+      }
+    });
+
+    commentInput.addEventListener('keydown', e => {
+      // Ctrl+Enter → submit comment (ignore if autocomplete is open with selection)
+      if (e.key === 'Enter' && e.ctrlKey && !(mentionDropdown?.classList.contains('show') && acIndex >= 0)) {
+        e.preventDefault();
+        if (commentSendBtn && !commentSendBtn.disabled) commentSendBtn.click();
+        return;
+      }
+      if (!mentionDropdown?.classList.contains('show')) return;
+      const listLen = emojiMode ? emojiResults.length : mentionResults.length;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault(); acIndex = Math.min(acIndex + 1, listLen - 1); mentionIndex = acIndex;
+        mentionDropdown.querySelectorAll('.mention-item').forEach((el, i) => el.classList.toggle('selected', i === acIndex));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault(); acIndex = Math.max(acIndex - 1, 0); mentionIndex = acIndex;
+        mentionDropdown.querySelectorAll('.mention-item').forEach((el, i) => el.classList.toggle('selected', i === acIndex));
+      } else if ((e.key === 'Enter' || e.key === 'Tab') && acIndex >= 0) {
+        e.preventDefault();
+        if (emojiMode) {
+          if (emojiResults[acIndex][0] === '__custom__') {
+            const [,name,] = emojiResults[acIndex]; insertCustomEmoji(name);
+          } else {
+            const [code, char] = emojiResults[acIndex]; insertEmoji(char, code);
+          }
+        }
+        else insertMention(mentionResults[acIndex].user);
+      } else if (e.key === 'Escape') {
+        closeAcDropdown();
+      }
+    });
+
+    commentInput.addEventListener('blur', () => { setTimeout(closeAcDropdown, 200); });
+  }
+
+  // ── Post comment ──────────────────────────────────────────────────────────
+  if (commentSendBtn) {
+    commentSendBtn.addEventListener('click', async () => {
+      const content = commentInput ? commentInput.value.trim() : '';
+      if (!content || !commentsItemId || commentsPosting) return;
+      commentsPosting = true; commentSendBtn.disabled = true;
+      try {
+        const resp = await fetch('/api/comments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `item_id=${commentsItemId}&content=${encodeURIComponent(content)}`
+        });
+        const data = await resp.json();
+        if (data.success) {
+          if (commentInput) { commentInput.value = ''; commentInput.style.height = 'auto'; }
+          commentSendBtn.disabled = true; commentsEmpty.style.display = 'none';
+          const el = document.createElement('div'); el.className = 'comment-item';
+          const displayName = window.scrollerDisplayName || window.scrollerUsername || 'you';
+          el.innerHTML = `
+            <img class="comment-avatar" src="${esc(window.scrollerUserAvatar || '/a/default.png')}" alt="" loading="lazy">
+            <div class="comment-body">
+              <div class="comment-username">${esc(displayName)}</div>
+              <div class="comment-content">${renderCommentContent(content)}</div>
+              <div class="comment-time">just now</div>
+            </div>`;
+          commentsList.appendChild(el);
+          commentsList.scrollTop = commentsList.scrollHeight;
+          // Update panel header count
+          const cur = parseInt(commentsCount.textContent.replace(/\D/g, '') || '0');
+          commentsCount.textContent = `(${cur + 1})`;
+          // Update the slide action button count
+          const slide = feed.querySelector(`.scroll-slide[data-id="${commentsItemId}"]`);
+          if (slide) {
+            const btn = slide.querySelector('.js-comments-btn .scroll-btn-count');
+            if (btn) btn.textContent = cur + 1;
+          }
+        }
+      } catch {} finally { commentsPosting = false; }
+    });
+  }
+
+  // ── Tag input ──────────────────────────────────────────────────────────────
+  const addTagInput   = document.getElementById('scroll-tag-input');
+  const addTagSendBtn = document.getElementById('scroll-tag-send-btn');
+  const addTagSuggBox = document.getElementById('scroll-tag-suggestions');
+  let tagAddSuggIdx   = -1;
+  let tagAddSuggItems = [];
+  let tagAddSuggTimer = null;
+  let tagPosting      = false;
+
+  function closeSugg() {
+    if (addTagSuggBox) { addTagSuggBox.classList.remove('show'); addTagSuggBox.innerHTML = ''; }
+    tagAddSuggItems = []; tagAddSuggIdx = -1;
+  }
+
+  function renderTagSugg(rows) {
+    if (!addTagSuggBox || !rows.length) { closeSugg(); return; }
+    addTagSuggBox.innerHTML = '';
+    tagAddSuggItems = rows;
+    tagAddSuggIdx = -1;
+    rows.forEach((r, i) => {
+      const el = document.createElement('div');
+      el.className = 'scroll-tag-sugg-item'; el.dataset.idx = i;
+      el.innerHTML = `<i class="fa-solid fa-tag" style="font-size:.65rem;color:rgba(255,255,255,.3)"></i>${esc(r.tag)}<span class="scroll-tag-sugg-count">${r.uses ?? ''}</span>`;
+      el.addEventListener('mousedown', e => { e.preventDefault(); addTagInput.value = r.tag; closeSugg(); });
+      addTagSuggBox.appendChild(el);
+    });
+    addTagSuggBox.classList.add('show');
+  }
+
+  async function fetchTagSugg(q) {
+    try {
+      const r = await fetch(`/api/v2/scroller/tags?q=${encodeURIComponent(q)}`);
+      renderTagSugg(await r.json());
+    } catch {}
+  }
+
+  async function submitTag() {
+    if (!addTagInput || tagPosting) return;
+    // Always tag the currently active slide, regardless of which slide opened the bar
+    const targetId = currentSlide?.dataset?.id || tagBarItemId;
+    if (!targetId) return;
+    const tag = addTagInput.value.trim();
+    if (!tag) return;
+    tagPosting = true;
+    if (addTagSendBtn) addTagSendBtn.disabled = true;
+    closeSugg();
+    try {
+      const resp = await fetch(`/api/v2/tags/${targetId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `tagname=${encodeURIComponent(tag)}`
+      });
+      const data = await resp.json();
+      if (data.success) {
+        addTagInput.value = '';
+        addTagInput.focus(); // stay focused for next tag
+        // Apply full fresh tag list from response
+        const targetSlide = feed.querySelector(`.scroll-slide[data-id="${targetId}"]`);
+        if (targetSlide) applyFreshTags(targetSlide, (data.tags || []).filter(t => t.id > 2).map(t => t.tag).join(', '));
+        // ✓ flash on send button
+        if (addTagSendBtn) {
+          addTagSendBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+          setTimeout(() => { addTagSendBtn.innerHTML = '<i class="fa-solid fa-plus"></i>'; }, 900);
+        }
+      } else {
+        addTagInput.placeholder = data.msg || 'Error adding tag';
+        addTagInput.value = '';
+        addTagInput.focus();
+        setTimeout(() => { addTagInput.placeholder = 'Add a tag to this item…'; }, 2500);
+      }
+    } catch (err) {
+      addTagInput.placeholder = 'Network error — try again';
+      setTimeout(() => { addTagInput.placeholder = 'Add a tag to this item…'; }, 2500);
+    } finally { tagPosting = false; if (addTagSendBtn) addTagSendBtn.disabled = false; }
+  }
+
+  if (addTagInput) {
+    addTagInput.addEventListener('input', () => {
+      const q = addTagInput.value.trim();
+      clearTimeout(tagAddSuggTimer);
+      if (q.length >= 2) tagAddSuggTimer = setTimeout(() => fetchTagSugg(q), 220);
+      else closeSugg();
+    });
+    addTagInput.addEventListener('keydown', e => {
+      if (addTagSuggBox?.classList.contains('show') && tagAddSuggItems.length) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault(); tagAddSuggIdx = Math.min(tagAddSuggIdx + 1, tagAddSuggItems.length - 1);
+          addTagSuggBox.querySelectorAll('.scroll-tag-sugg-item').forEach((el, i) => el.classList.toggle('selected', i === tagAddSuggIdx));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault(); tagAddSuggIdx = Math.max(tagAddSuggIdx - 1, 0);
+          addTagSuggBox.querySelectorAll('.scroll-tag-sugg-item').forEach((el, i) => el.classList.toggle('selected', i === tagAddSuggIdx));
+        } else if ((e.key === 'Enter' || e.key === 'Tab') && tagAddSuggIdx >= 0) {
+          e.preventDefault(); addTagInput.value = tagAddSuggItems[tagAddSuggIdx].tag; closeSugg(); return;
+        } else if (e.key === 'Escape') { closeSugg(); return; }
+      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitTag(); }
+    });
+    addTagInput.addEventListener('blur', () => setTimeout(closeSugg, 200));
+  }
+  if (addTagSendBtn) addTagSendBtn.addEventListener('click', submitTag);
+
+  // ── Filter panel ──────────────────────────────────────────────────────────
+  const modeLabels = { 0: 'SFW', 1: 'NSFW', 2: 'Untagged', 3: 'All', 4: 'NSFL' };
+
+  filterOpenBtn.addEventListener('click', () => {
+    pending = { ...applied, tags: [...applied.tags] }; syncPanelUI();
+    tagInput.value = ''; tagClear.classList.remove('show'); tagSuggestEl.innerHTML = ''; renderActiveTags();
+    openPanel(filterPanel, filterBackdrop);
+  });
+
+  function syncPanelUI() {
+    document.querySelectorAll('#mode-pills .filter-pill').forEach(p => p.classList.toggle('active', +p.dataset.mode === pending.mode));
+    document.querySelectorAll('#mime-pills .filter-pill').forEach(p => p.classList.toggle('active', p.dataset.mime === pending.mime));
+    document.querySelectorAll('#order-pills .filter-pill').forEach(p => p.classList.toggle('active', p.dataset.order === pending.order));
+    renderActiveTags();
+  }
+
+  function makePillListener(groupId, key, transform) {
+    document.getElementById(groupId).querySelectorAll('.filter-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.getElementById(groupId).querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active'); pending[key] = transform ? transform(pill.dataset[key]) : pill.dataset[key];
+      });
+    });
+  }
+  makePillListener('mode-pills', 'mode', v => +v);
+  makePillListener('mime-pills', 'mime', v => v);
+  makePillListener('order-pills', 'order', v => v);
+
+  filterApplyBtn.addEventListener('click', () => { applied = { ...pending, tags: [...pending.tags] }; closePanel(filterPanel, filterBackdrop); reloadFeed(); });
+  filterResetBtn.addEventListener('click', () => { pending = { mode: defaultMode, mime: '', order: 'random', tags: [] }; syncPanelUI(); tagInput.value = ''; tagClear.classList.remove('show'); tagSuggestEl.innerHTML = ''; lastSugg = []; renderActiveTags(); });
+
+  function updateFilterSummary() {
+    const isDef = applied.mode === defaultMode && applied.mime === '' && applied.order === 'random' && applied.tags.length === 0;
+    filterOpenBtn.classList.toggle('has-filter', !isDef); filterSummary.classList.toggle('show', !isDef);
+    if (!isDef) {
+      // Check if current filters exactly match a saved preset
+      const tagsKey = t => [...t].map(s => s.toLowerCase()).sort().join(',');
+      const matchedPreset = getPresets().find(p =>
+        p.mode === applied.mode &&
+        (p.mime || '') === applied.mime &&
+        p.order === applied.order &&
+        tagsKey(p.tags) === tagsKey(applied.tags)
+      );
+      if (matchedPreset) {
+        filterSummary.textContent = matchedPreset.name;
+      } else {
+        const parts = [];
+        if (applied.mode !== defaultMode) parts.push(modeLabels[applied.mode]);
+        if (applied.mime) parts.push(applied.mime);
+        if (applied.order !== 'random') parts.push(applied.order);
+        parts.push(...applied.tags);
+        filterSummary.textContent = parts.join(' · ');
+      }
+    }
+  }
+
+  function renderActiveTags() {
+    activeTagsEl.innerHTML = '';
+    pending.tags.forEach(tag => {
+      const p = document.createElement('span'); p.className = 'active-tag-pill';
+      p.innerHTML = `${esc(tag)}<i class="fa-solid fa-xmark"></i>`;
+      p.addEventListener('click', () => { pending.tags = pending.tags.filter(t => t !== tag); renderActiveTags(); renderSugg(lastSugg); });
+      activeTagsEl.appendChild(p);
+    });
+  }
+  function renderSugg(sug) {
+    lastSugg = sug; tagSuggestEl.innerHTML = '';
+    sug.forEach(s => {
+      const el = document.createElement('span'); el.className = 'tag-suggestion' + (pending.tags.includes(s.normalized) ? ' active' : '');
+      el.innerHTML = `${esc(s.tag)}<span class="uses">${s.uses}</span>`;
+      el.addEventListener('click', () => { if (pending.tags.includes(s.normalized)) pending.tags = pending.tags.filter(t => t !== s.normalized); else pending.tags.push(s.normalized); renderActiveTags(); renderSugg(lastSugg); });
+      tagSuggestEl.appendChild(el);
+    });
+  }
+  async function fetchTagSugg(q) {
+    if (tagCache[q]) { renderSugg(tagCache[q]); return; }
+    try { const r = await fetch(`/api/v2/scroller/tags?q=${encodeURIComponent(q)}`); tagCache[q] = await r.json(); renderSugg(tagCache[q]); } catch {}
+  }
+  tagInput.addEventListener('input', () => {
+    const v = tagInput.value.trim();
+    tagClear.classList.toggle('show', !!v);
+    clearTimeout(tagTimer);
+    tagSuggIdx = -1; // reset keyboard nav on new input
+    if (!v) { tagSuggestEl.innerHTML = ''; return; }
+    tagTimer = setTimeout(() => fetchTagSugg(v), 260);
+  });
+  tagClear.addEventListener('click', () => { tagInput.value = ''; tagClear.classList.remove('show'); tagSuggestEl.innerHTML = ''; tagSuggIdx = -1; tagInput.focus(); });
+
+  function setSuggFocus(idx) {
+    const items = tagSuggestEl.querySelectorAll('.tag-suggestion');
+    items.forEach((el, i) => el.classList.toggle('keyboard-focus', i === idx));
+    if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+  }
+
+  tagInput.addEventListener('keydown', e => {
+    const items = tagSuggestEl.querySelectorAll('.tag-suggestion');
+    if (!items.length) return;
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      tagSuggIdx = (tagSuggIdx + 1) % items.length;
+      setSuggFocus(tagSuggIdx);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      tagSuggIdx = (tagSuggIdx <= 0 ? items.length : tagSuggIdx) - 1;
+      setSuggFocus(tagSuggIdx);
+    } else if (e.key === 'Enter' && tagSuggIdx >= 0) {
+      e.preventDefault();
+      items[tagSuggIdx]?.click(); // toggle the highlighted suggestion
+      tagSuggIdx = -1;
+    } else if (e.key === 'Escape') {
+      tagSuggIdx = -1;
+      setSuggFocus(-1);
+      tagSuggestEl.innerHTML = '';
+    }
+  });
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    const active = document.activeElement;
+    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+
+    // 'c' toggles comments — only when NOT typing (so it never fires inside the comment input)
+    if ((e.key === 'c' || e.key === 'C') && !isTyping && !tagBar?.classList.contains('open')) {
+      if (commentsPanel.classList.contains('open')) closeAllPanels();
+      else if (currentSlide) openComments(currentSlide.dataset.id);
+      return;
+    }
+
+    // Tag bar open or typing: only Escape passes through
+    if (tagBar?.classList.contains('open') || isTyping) {
+      if (e.key === 'Escape') {
+        if (tagBar?.classList.contains('open')) { closeTagBar(); e.preventDefault(); }
+        else closeAllPanels();
+      }
+      return;
+    }
+
+    // Filter or comments panel open: only Escape passes through
+    if (filterPanel.classList.contains('open') || commentsPanel.classList.contains('open')) {
+      if (e.key === 'Escape') closeAllPanels(); return;
+    }
+
+    const slides = Array.from(feed.querySelectorAll('.scroll-slide'));
+    const idx = currentSlide ? slides.indexOf(currentSlide) : 0;
+    if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); const n = slides[idx + 1]; if (n) n.scrollIntoView({ behavior: 'smooth' }); }
+    else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); const p = slides[idx - 1]; if (p) p.scrollIntoView({ behavior: 'smooth' }); }
+    else if (e.key === 'm') { isMuted = !isMuted; if (!isMuted && volume === 0) volume = 0.5; syncVolumeUI(); applyVolumeToAll(); saveVolume(); prefs.startUnmuted = !isMuted; savePrefs(prefs); applyStartUnmuted(!isMuted); showVolumePopup(); }
+    else if (e.key === ' ') { e.preventDefault(); if (currentMedia) currentMedia.paused ? currentMedia.play().catch(() => {}) : currentMedia.pause(); }
+    else if (e.key === 'f' || e.key === 'F') { pending = { ...applied, tags: [...applied.tags] }; syncPanelUI(); renderPresets(); openPanel(filterPanel, filterBackdrop); }
+    else if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault();
+      e.stopImmediatePropagation(); // prevent f0ckm.js global 'r' random shortcut from firing
+      // Jump to a random already-loaded slide
+      const slides = Array.from(feed.querySelectorAll('.scroll-slide'));
+      if (slides.length > 1) {
+        let target;
+        do { target = slides[Math.floor(Math.random() * slides.length)]; } while (target === currentSlide);
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    else if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault();
+      if (!currentSlide || !window.scrollerLoggedIn) return;
+      const itemId = currentSlide.dataset.id;
+      if (!itemId) return;
+      fetch(`/api/v2/tags/${itemId}/cycle-rating`, {
+        method: 'PUT',
+        headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.success) return;
+          // Update the badge on the slide immediately
+          const badge = currentSlide.querySelector('.scroll-rating[data-item-id]');
+          if (badge) {
+            badge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
+            badge.textContent = data.rating_label;
+            badge.dataset.rating = data.rating_class;
+          }
+          const labels = { sfw: '🛡 SFW', nsfw: '🔥 NSFW', nsfl: '💀 NSFL' };
+          showShareToast(labels[data.rating_class] ?? data.rating_label);
+        })
+        .catch(() => {});
+    }
+    else if (e.key === 'l' || e.key === 'L') { if (currentSlide) toggleFav(currentSlide); }
+    else if (e.key === 'i' || e.key === 'I') { e.preventDefault(); if (currentSlide) openTagBar(currentSlide.dataset.id); }
+    else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); e.stopImmediatePropagation(); } // suppress upload modal shortcut in abyss
+    else if (e.key === 'Escape') { window.location.href = '/'; }
+  }, true); // capture phase — fires before f0ckm.js bubble listeners
+
+  // ── Touch: let native CSS scroll-snap handle everything on mobile ─────────
+  // (Removing custom touchstart/touchend handlers that caused jank by fighting
+  //  the browser's native momentum scrolling and snap behaviour.)
+  // The IntersectionObserver + fallback scroll listener are sufficient.
+
+  // ── Notification badge in topbar ──────────────────────────────────────────
+  const notifBadge = document.getElementById('scroller-notif-badge');
+  if (notifBadge && window.scrollerLoggedIn) {
+    const updateScrollerNotifBadge = (count) => {
+      if (count > 0) {
+        notifBadge.textContent = count > 99 ? '99+' : count;
+        notifBadge.style.display = 'block';
+      } else {
+        notifBadge.style.display = 'none';
+      }
+    };
+
+    // Fetch unread count from the API
+    const pollNotifCount = async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        const data = await res.json();
+        if (data.success) {
+          updateScrollerNotifBadge((data.notifications || []).filter(n => !n.is_read).length);
+        }
+      } catch {}
+    };
+
+    // ── Lightweight SSE for instant badge updates ──────────────────
+    const tabId = Math.random().toString(36).slice(2);
+    let sseEs = null;
+    let sseRetryCount = 0;
+    const SSE_MAX_RETRIES = 8;
+
+    const initScrollerSSE = () => {
+      if (sseEs) sseEs.close();
+      sseEs = new EventSource(`/api/notifications/stream?tabId=${tabId}`);
+      sseEs.onopen = () => { sseRetryCount = 0; };
+      sseEs.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'notify') {
+            pollNotifCount(); // instant re-fetch on SSE push
+            if (navigator.vibrate) navigator.vibrate([200, 80, 200]);
+          }
+        } catch {}
+      };
+      sseEs.onerror = () => {
+        sseEs?.close(); sseEs = null;
+        if (document.hidden || sseRetryCount >= SSE_MAX_RETRIES) return;
+        setTimeout(initScrollerSSE, Math.min(Math.pow(2, sseRetryCount++) * 1000, 30000));
+      };
+    };
+
+    // Signal server we're active (keeps SSE routing correct)
+    fetch(`/api/notifications/active?tabId=${tabId}`).catch(() => {});
+    initScrollerSSE();
+
+    // Fallback poll every 60s in case SSE drops
+    const notifPollTimer = setInterval(pollNotifCount, 60000);
+    pollNotifCount(); // initial count on load
+
+    // Also honor live hook from f0ckm.js if navigated via PJAX
+    window._scrollerNotifHook = updateScrollerNotifBadge;
+
+    // Cleanup on PJAX navigation away
+    document.addEventListener('pjax:send', () => {
+      clearInterval(notifPollTimer);
+      sseEs?.close(); sseEs = null;
+    }, { once: true });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  // Bridge theme.js 't' key toast → scroller toast
+  window._scrollerThemeToast = (themeName) => showShareToast(`🎨 ${themeName}`);
+
+  volumeSlider.value = volume;
+  syncVolumeUI();
+  updateFilterSummary();
+
+  const restored = tryRestoreFromCache();
+  if (!restored) fetchItems();
+
+})();
