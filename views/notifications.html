@@ -6,7 +6,11 @@
             <h2>{{ t('notifications.page_title') }}</h2>
             <button id="mark-all-read-page" class="btn-small">{{ t('notifications.mark_all_read') }}</button>
         </div>
-        <div id="notifications-container" class="posts notifications-list-full" data-page="{{ pagination.page }}">
+        <div class="notif-page-tabs">
+            <button class="notif-page-tab active" data-tab="user">{{ t('nav.notif_tab_user') }}</button>
+            <button class="notif-page-tab" data-tab="system">{{ t('nav.notif_tab_system') }}</button>
+        </div>
+        <div id="notifications-container" class="posts notifications-list-full" data-page="{{ pagination.page }}" data-tab="user">
             @include(snippets/notifications-list)
         </div>
         @if(pagination.next)
@@ -15,8 +19,38 @@
         </div>
         @endif
         <script>
-            // Initialize mark all read for the page
+            // Tab switching for notification history page
             (function () {
+                const USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
+                const tabs = document.querySelectorAll('.notif-page-tab');
+                const container = document.getElementById('notifications-container');
+
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', async () => {
+                        tabs.forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        const tabName = tab.dataset.tab;
+                        container.dataset.tab = tabName;
+                        container.dataset.page = '1';
+
+                        // Load first page for this tab
+                        try {
+                            const res = await fetch(`/ajax/notifications?page=1&tab=${tabName}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                container.innerHTML = data.html || `<div class="notif-empty">${window.f0ckI18n?.no_notifications || 'No new notifications'}</div>`;
+                                const footbar = document.getElementById('footbar');
+                                if (footbar) {
+                                    footbar.style.display = data.hasMore ? '' : 'none';
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to load notifications tab', e);
+                        }
+                    });
+                });
+
+                // Mark all read
                 const btn = document.getElementById('mark-all-read-page');
                 if (btn) {
                     btn.onclick = async () => {

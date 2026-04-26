@@ -139,6 +139,7 @@ export default (router, tpl) => {
       timeago: lib.timeAgo(userData.created_at),
       timefull: userData.created_at
     };
+    userData.age_days = Math.floor((Date.now() - new Date(userData.created_at).getTime()) / 86400000);
 
     if (userData.banned) {
       if (!userData.ban_expires) {

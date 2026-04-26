@@ -444,5 +444,33 @@
     }
   };
 
+  window.adminReassignUploads = async (btn) => {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+    const username = btn.dataset.username;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Reassign Uploads',
+      'Enter the <strong>target username</strong> to transfer all uploads from <strong style="color:var(--accent)">' + escHTML(name) + '</strong> to:',
+      async (targetUsername) => {
+        const payload = { target_username: targetUsername };
+        if (id) {
+          payload.source_user_id = id;
+        } else {
+          payload.source_username = username;
+        }
+        const res = await post('/api/v2/admin/users/reassign-uploads', payload);
+        if (res.success) {
+          showFlash(res.msg, 'success');
+        } else {
+          throw new Error(res.msg || 'Reassignment failed');
+        }
+      },
+      { hideReason: false, confirmText: 'Reassign', placeholder: 'target username' }
+    );
+  };
+
 })();
 

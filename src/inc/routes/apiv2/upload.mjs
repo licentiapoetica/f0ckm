@@ -294,6 +294,43 @@ export default router => {
 
                     // Background processing block
                     (async () => {
+                        const sanitizeError = (err) => {
+                            if (!err) return `Failed to process ${url}`;
+                            
+                            // Priority 1: meaningful error from stderr (yt-dlp/curl/etc)
+                            if (err.stderr) {
+                                const stderr = String(err.stderr).trim();
+                                
+                                // yt-dlp specific patterns
+                                const errorMatch = stderr.match(/ERROR:\s*(.+)$/m);
+                                if (errorMatch) return errorMatch[1].trim();
+
+                                // curl specific patterns
+                                if (stderr.startsWith('curl: ')) return stderr;
+
+                                // Fallback to last meaningful line of stderr
+                                const lines = stderr.split('\n').map(l => l.trim()).filter(l => l && !l.includes('WARNING:'));
+                                if (lines.length > 0) return lines[lines.length - 1];
+                            }
+                            
+                            const msg = String(err.message || '');
+                            
+                            // Priority 2: Extract HTTP codes
+                            const httpCode = msg.match(/HTTP Error (\d+)/i)?.[1]
+                                          || msg.match(/\b(4\d{2}|5\d{2})\b/)?.[1]
+                                          || null;
+                            if (httpCode) return `Download/Process failed (HTTP ${httpCode})`;
+
+                            // Priority 3: Sanitize raw queue.spawn errors
+                            if (msg.startsWith('Command \'')) {
+                                const match = msg.match(/failed with code (\d+)/);
+                                const code = match ? match[1] : '1';
+                                return `Process failed (code ${code})`;
+                            }
+
+                            return msg || `Failed to process ${url}`;
+                        };
+
                         try {
                             const proxyArgs = (cfg.main.socks && cfg.main.socks !== 'undefined') ? ['--proxy', cfg.main.socks] : [];
                             const ytdlpArgs = ['--js-runtimes', 'node', '--geo-bypass', '--extractor-args', 'youtube:player-client=ios,web'];
@@ -303,16 +340,7 @@ export default router => {
                             const uuid = await queue.genuuid();
                             const isInstagram = /instagram\.com/i.test(url);
 
-                            const dlError = (err) => {
-                                if (!err) return `Failed to download from ${url}`;
-                                const errStr = String(err.stderr || err.message || '');
-                                const httpCode = errStr.match(/HTTP Error (\d+)/i)?.[1]
-                                              || errStr.match(/\b(4\d{2}|5\d{2})\b/)?.[1]
-                                              || null;
-                                if (httpCode) return `Failed to download from ${url} (HTTP ${httpCode})`;
-                                if (err.code != null) return `Failed to download from ${url} (code ${err.code})`;
-                                return `Failed to download from ${url}`;
-                            };
+                            const dlError = (err) => sanitizeError(err);
 
                             let source;
                             console.log(`[UPLOAD-URL-ASYNC] Starting Stage 1 (constrained) download for ${url} (user: ${session.user})`);
@@ -330,7 +358,7 @@ export default router => {
                                 ])).stdout.trim();
                             } catch (err) {
                                 console.warn(`[UPLOAD-URL-ASYNC] Stage 1 failed: ${err.message}`);
-                                if (isInstagram) throw err;
+                                if (isInstagram) throw new Error(sanitizeError(err));
                                 
                                 try {
                                     source = (await queue.spawn('yt-dlp', [
@@ -365,7 +393,11 @@ export default router => {
                                         const proxyHost = cfg.main.socks.includes('://') ? cfg.main.socks.split('://')[1] : cfg.main.socks;
                                         curlArgs.push('--socks5-hostname', proxyHost);
                                     }
-                                    await queue.spawn('curl', curlArgs);
+                                    try {
+                                        await queue.spawn('curl', curlArgs);
+                                    } catch (err) {
+                                        throw new Error(sanitizeError(err));
+                                    }
 
                                     const fallbackMime = (await queue.spawn('file', ['--mime-type', '-b', fallbackTmp])).stdout.trim();
                                     const extension = cfg.mimes[fallbackMime];
@@ -549,7 +581,7 @@ export default router => {
                         } catch (err) {
                             console.error('[UPLOAD-URL-ASYNC] Final Error:', err);
                             // Error notification
-                            await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${null}, ${db.json({ url, msg: err.message })})`;
+                            await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${null}, ${db.json({ url, msg: sanitizeError(err) })})`;
                         }
                     })();
                 }

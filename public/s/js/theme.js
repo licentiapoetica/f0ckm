@@ -1,20 +1,20 @@
-const Cookie = {
-  get: name => {
-    const c = document.cookie.match(`(?:(?:^|.*; *)${name} *= *([^;]*).*$)|^.*$`)[1];
-    if (c) return decodeURIComponent(c);
-  },
-  set: (name, value, opts = {}) => {
-    if (opts.days) {
-      opts['max-age'] = opts.days * 60 * 60 * 24;
-      delete opts.days;
-    }
-    opts.SameSite = 'Strict';
-    opts = Object.entries(opts).reduce((accumulatedStr, [k, v]) => `${accumulatedStr}; ${k}=${v}`, '');
-    document.cookie = name + '=' + encodeURIComponent(value) + opts;
-  }
-};
-
 (() => {
+  const Cookie = {
+    get: name => {
+      const c = document.cookie.match(`(?:(?:^|.*; *)${name} *= *([^;]*).*$)|^.*$`)[1];
+      if (c) return decodeURIComponent(c);
+    },
+    set: (name, value, opts = {}) => {
+      if (opts.days) {
+        opts['max-age'] = opts.days * 60 * 60 * 24;
+        delete opts.days;
+      }
+      opts.SameSite = 'Strict';
+      opts = Object.entries(opts).reduce((accumulatedStr, [k, v]) => `${accumulatedStr}; ${k}=${v}`, '');
+      document.cookie = name + '=' + encodeURIComponent(value) + opts;
+    }
+  };
+
   const themes = window.f0ckThemes || ['amoled', 'atmos', 'f0ck', 'f0ck95d', 'iced', 'orange', 'p1nk', '4d'];
   const defaultTheme = window.f0ckDefaultTheme || (window.f0ckSession && window.f0ckSession.default_theme) || themes[0] || 'amoled';
 
@@ -43,8 +43,8 @@ const Cookie = {
       e.preventDefault();
       cycleTheme();
       const newTheme = document.documentElement.getAttribute('theme') || defaultTheme;
-      // Use scroller toast if available, otherwise site-wide flashMessage
-      if (typeof window._scrollerThemeToast === 'function') {
+      // Use scroller toast only when scroller is actually active
+      if (document.body.classList.contains('scroller-active') && typeof window._scrollerThemeToast === 'function') {
         window._scrollerThemeToast(newTheme);
       } else if (typeof window.flashMessage === 'function') {
         window.flashMessage(`Theme: ${newTheme}`, 2000);

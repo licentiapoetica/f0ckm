@@ -56,10 +56,22 @@
   const stHideUi         = document.getElementById('st-hide-ui');
   const stStartUnmuted   = document.getElementById('st-start-unmuted');
   const stCanvasBg       = document.getElementById('st-canvas-bg');
+  const stLeftHand       = document.getElementById('st-left-hand');
   const stAutoNext       = document.getElementById('st-auto-next');
   const autoNextLoopsInp = document.getElementById('st-auto-next-loops');
   const settingsSaveBtn  = document.getElementById('settings-save-preset-btn');
   const settingsPresetsList = document.getElementById('settings-presets-list');
+  const externalUrlInput = document.getElementById('external-url-input');
+  const externalUrlBtn   = document.getElementById('external-url-btn');
+  const chanOpenBtn      = document.getElementById('chan-open-btn');
+  const chanPanel        = document.getElementById('chan-panel');
+  const chanBackdrop     = document.getElementById('chan-backdrop');
+  const chanUrlInput     = document.getElementById('chan-url-input');
+  const chanUrlLoadBtn   = document.getElementById('chan-url-load-btn');
+  const chanGrid         = document.getElementById('chan-catalog-grid');
+  const chanLoading      = document.getElementById('chan-catalog-loading');
+  const chanGalleryBtn   = document.getElementById('chan-gallery-btn');
+  const chanGallerySidebar = document.getElementById('chan-gallery-sidebar');
 
   // ── State ────────────────────────────────────────────────────────────────
   const defaultMode = window.scrollerMode ?? 0;
@@ -83,8 +95,9 @@
   // autoNext: false by default
   let autoNextEnabled = prefs.autoNext === true;
   let autoNextLoops   = Math.max(0, parseInt(prefs.autoNextLoops ?? 1, 10));
+  let leftHandEnabled = prefs.leftHand === true;
 
-  let applied   = { mode: defaultMode, mime: '', order: 'random', tags: [] };
+  let applied   = { mode: defaultMode, mime: '', order: 'random', tags: [], externalUrl: null };
   let pending   = { ...applied, tags: [] };
 
   // Volume / mute
@@ -125,35 +138,6 @@
   let emojiResults = [];      // current emoji suggestion list [[code, char], ...]
   let acIndex      = -1;      // shared keyboard nav index
 
-  // Emoji shortcode map (Discord-style :shortcode:)
-  const EMOJI = {
-    // Faces
-    smile:'😊', grin:'😁', happy:'😄', joy:'😂', rofl:'🤣', lol:'😆', wink:'😉',
-    sweat:'😅', cry:'😢', sob:'😭', angry:'😡', rage:'🤬', fear:'😨', scream:'😱',
-    wow:'😮', huh:'😕', thinking:'🤔', nerd:'🤓', cool:'😎', tongue:'😛', kissing:'😘',
-    heart_eyes:'😍', sunglasses:'😎', skull:'💀', dead:'😵', clown:'🤡', ghost:'👻',
-    alien:'👽', robot:'🤖', devil:'😈', shrug:'🤷', facepalm:'🤦', monocle:'🧐',
-    blush:'😊', sleepy:'😴', smirk:'😏', unamused:'😒', expressionless:'😑',
-    // Hands / gestures
-    thumbsup:  '👍', thumbsdown:'👎', clap:'👏', ok:'👌', ok_hand:'👌', wave:'👋',
-    muscle:'💪', point_up:'☝️', point_right:'👉', pray:'🙏', raised_hands:'🙌',
-    fist:'✊', peace:'✌️', vulcan:'🖖',
-    // Hearts / love
-    heart:'❤️', hearts:'💕', orange_heart:'🧡', yellow_heart:'💛', green_heart:'💚',
-    blue_heart:'💙', purple_heart:'💜', black_heart:'🖤', broken_heart:'💔',
-    sparkling_heart:'💖', heartpulse:'💗', revolving_hearts:'💞',
-    // Symbols / objects
-    fire:'🔥', star:'⭐', sparkles:'✨', boom:'💥', zzz:'💤', 100:'💯',
-    money:'💰', gem:'💎', trophy:'🏆', crown:'👑', rocket:'🚀', rainbow:'🌈',
-    poop:'💩', tada:'🎉', party:'🥳', confetti:'🎊', eyes:'👀', evil_eye:'🧿',
-    warning:'⚠️', check:'✅', x:'❌', no_entry:'⛔', question:'❓', exclamation:'❗',
-    // Food / drink
-    pizza:'🍕', beer:'🍺', coffee:'☕', cake:'🎂', taco:'🌮', sushi:'🍣',
-    // Animals
-    cat:'🐱', dog:'🐶', frog:'🐸', panda:'🐼', fox:'🦊', wolf:'🐺',
-    // Nature
-    sun:'☀️', moon:'🌙', cloud:'☁️', snow:'❄️', lightning:'⚡', ocean:'🌊',
-  };
 
   // Session cache helpers ──────────────────────────────────────────────
   function readCache() {
@@ -194,6 +178,17 @@
     // entirely so that fetchItems() runs with ?anchor=<id> and the correct
     // item is guaranteed to be included in the fresh batch.
     const hid = hashId();
+
+    // If hash is board/postid (e.g. wsg/6132740), auto-load that 4chan thread
+    const chanHash = hid.match(/^([a-z0-9]+)\/\d+$/);
+    if (chanHash) {
+      const board = chanHash[1];
+      // We need to find the thread ID from the post. Use the board catalog or
+      // just load a search — but simplest: set externalUrl and skip cache restore.
+      // The thread ID is unknown from just the post ID, so we skip cache and
+      // let the init block below handle it.
+      return false;
+    }
     if (hid && !cache.items.some(item => String(item.id) === hid)) return false;
 
     if (cache.filters) {
@@ -216,23 +211,52 @@
   }
   function timeAgo(iso) {
     const s = Math.floor((Date.now() - new Date(iso)) / 1000);
-    if (s < 60) return 'just now';
-    if (s < 3600) return Math.floor(s / 60) + 'm ago';
-    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-    return Math.floor(s / 86400) + 'd ago';
+    const i = window.f0ckI18n || {};
+    const fmt = (tpl, n) => (tpl || '{n}').replace('{n}', n);
+    const ago = (t) => (i.ta_ago || '{t} ago').replace('{t}', t);
+    if (s < 60) return i.ta_just_now || i.just_now || 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60) return ago(fmt(m === 1 ? i.ta_minute : i.ta_minutes, m));
+    const h = Math.floor(s / 3600);
+    if (h < 24) return ago(fmt(h === 1 ? i.ta_hour : i.ta_hours, h));
+    const d = Math.floor(s / 86400);
+    if (d < 7) return ago(fmt(d === 1 ? i.ta_day : i.ta_days, d));
+    const w = Math.floor(d / 7);
+    if (d < 30) return ago(fmt(w === 1 ? i.ta_week : i.ta_weeks, w));
+    const mo = Math.floor(d / 30);
+    if (d < 365) return ago(fmt(mo === 1 ? i.ta_month : i.ta_months, mo));
+    const y = Math.floor(d / 365);
+    return ago(fmt(y === 1 ? i.ta_year : i.ta_years, y));
   }
   function hashId() {
-    // Strip the leading '#' and restrict to numeric IDs only — prevents CSS
-    // selector injection when the value is interpolated into querySelector.
+    // Strip the leading '#' and allow numeric IDs or board/postid format
     const raw = location.hash.replace(/^#/, '').trim();
-    return /^\d+$/.test(raw) ? raw : '';
+    if (/^\d+$/.test(raw)) return raw;
+    if (/^[a-z0-9]+\/\d+$/.test(raw)) return raw;
+    return '';
   }
+  let lastPushedHash = location.hash;
   function pushHash(id) {
     if (!id) return;
     const newHash = '#' + id;
-    if (location.hash !== newHash) history.replaceState({ scrollerId: id }, '', '/abyss' + newHash);
+    if (newHash === lastPushedHash) return;
+    lastPushedHash = newHash;
+    history.pushState({ scrollerId: id }, '', '/abyss' + newHash);
     updateCacheActiveId(id);
   }
+
+  // Handle back/forward within abyss — scroll to the target slide
+  window.addEventListener('popstate', (e) => {
+    if (!document.body.classList.contains('scroller-active')) return;
+    const id = e.state?.scrollerId || location.hash.replace('#', '');
+    if (!id) return;
+    lastPushedHash = '#' + id;
+    const slide = feed.querySelector(`.scroll-slide[data-id="${id}"], .scroll-slide[data-local-id="${id}"]`);
+    if (slide) {
+      slide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
 
   // ── Volume / Mute ────────────────────────────────────────────────────────
   function syncVolumeUI() {
@@ -388,6 +412,37 @@
   applyStartUnmuted(prefs.startUnmuted === true);
   applyCanvasBg(canvasBgEnabled);
 
+  // Left-hand mode
+  function applyLeftHand(val) {
+    leftHandEnabled = val;
+    document.body.classList.toggle('left-hand-mode', val);
+    if (stLeftHand) stLeftHand.classList.toggle('on', val);
+    // Inject / remove 4chan action buttons in every slide's scroll-actions
+    document.querySelectorAll('.scroll-actions .chan-action-btn').forEach(el => el.remove());
+    if (val) {
+      document.querySelectorAll('.scroll-actions').forEach(actions => {
+        // Only add if 4chan buttons are visible (a 4chan feed is active)
+        if (chanOpenBtn && chanOpenBtn.style.display !== 'none') {
+          const openBtn = document.createElement('button');
+          openBtn.className = 'chan-action-btn';
+          openBtn.title = chanOpenBtn.title;
+          openBtn.innerHTML = `<div class="scroll-btn-icon"><i class="fa-solid fa-clover" style="color:#789922"></i></div>`;
+          openBtn.addEventListener('click', () => chanOpenBtn.click());
+          actions.appendChild(openBtn);
+        }
+        if (chanGalleryBtn && chanGalleryBtn.style.display !== 'none') {
+          const galBtn = document.createElement('button');
+          galBtn.className = 'chan-action-btn';
+          galBtn.title = chanGalleryBtn.title;
+          galBtn.innerHTML = `<div class="scroll-btn-icon"><i class="fa-solid fa-grip"></i></div>`;
+          galBtn.addEventListener('click', () => chanGalleryBtn.click());
+          actions.appendChild(galBtn);
+        }
+      });
+    }
+  }
+  applyLeftHand(leftHandEnabled);
+
   // Toggle clicks
   if (stHideUi) stHideUi.addEventListener('click', () => {
     const next = !hideUIEnabled;
@@ -407,6 +462,11 @@
     const next = !canvasBgEnabled;
     prefs.canvasBg = next; savePrefs(prefs);
     applyCanvasBg(next);
+  });
+  if (stLeftHand) stLeftHand.addEventListener('click', () => {
+    const next = !leftHandEnabled;
+    prefs.leftHand = next; savePrefs(prefs);
+    applyLeftHand(next);
   });
   // Auto-next toggle
   function applyAutoNext(val) {
@@ -460,7 +520,7 @@
     const list = getPresets();
     settingsPresetsList.innerHTML = '';
     if (!list.length) {
-      settingsPresetsList.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:.79rem;padding:4px 0;">No saved presets yet.</div>';
+      settingsPresetsList.innerHTML = `<div style="color:rgba(255,255,255,.35);font-size:.79rem;padding:4px 0;">${(window.f0ckI18n && window.f0ckI18n.no_presets) || 'No saved presets yet.'}</div>`;
       return;
     }
     const buildMeta = (p) => [
@@ -541,7 +601,7 @@
       const tagInp = document.createElement('input');
       tagInp.type = 'text'; tagInp.placeholder = 'Add tag\u2026'; tagInp.autocomplete = 'off'; tagInp.spellcheck = false;
       const addBtnEl = document.createElement('button');
-      addBtnEl.textContent = 'Add';
+      addBtnEl.textContent = (window.f0ckI18n && window.f0ckI18n.add) || 'Add';
       addWrap.appendChild(tagInp); addWrap.appendChild(addBtnEl);
       const doAdd = () => {
         const v = tagInp.value.trim().toLowerCase().replace(/\s+/g, '_');
@@ -560,7 +620,7 @@
 
       const overwriteBtn = document.createElement('button');
       overwriteBtn.className = 'preset-editor-overwrite';
-      overwriteBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate" style="margin-right:6px"></i>Update &amp; apply preset <span style="display:block;font-size:.68rem;opacity:.6;margin-top:2px">Save changes and reload feed now</span>';
+      overwriteBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate" style="margin-right:6px"></i>${(window.f0ckI18n && window.f0ckI18n.update_preset) || 'Update & apply preset'} <span style="display:block;font-size:.68rem;opacity:.6;margin-top:2px">${(window.f0ckI18n && window.f0ckI18n.update_preset_sub) || 'Save changes and reload feed now'}</span>`;
       overwriteBtn.addEventListener('click', ev => {
         ev.stopPropagation();
         const presets = getPresets();
@@ -641,8 +701,10 @@
     if (!slide || slide === currentSlide) return;
     if (currentSlide) deactivateSlide(currentSlide);
     currentSlide = slide;
+    slide._deactivated = false;
     slide.classList.add('active');
     pushHash(slide.dataset.id);
+    updateGalleryActive(slide.dataset.id);
 
     const video = slide.querySelector('video');
     const audio = slide.querySelector('audio');
@@ -660,10 +722,16 @@
         video.currentTime = 0;
       }
       video.muted = isMuted; video.volume = volume;
-      // Re-register .ready listener on every activation
-      video.addEventListener('playing', () => video.classList.add('ready'), { once: true });
+      video.classList.add('ready');
+      // Force load if video hasn't started loading (preload=none for external)
+      if (video.readyState === 0) {
+        video.preload = 'auto';
+        video.load();
+      } else {
+        video.currentTime = 0;
+      }
       video.play().catch(err => {
-        if (err && err.name === 'NotAllowedError') { video.muted = true; video.play().catch(() => {}); }
+        if (err && err.name === 'NotAllowedError') { video.muted = true; isMuted = true; syncVolumeUI(); video.play().catch(() => {}); }
       });
       wireProgress(slide, video, fill, thumb);
       // Start live canvas background loop (only if pref enabled)
@@ -706,7 +774,7 @@
       }
       audio.muted = isMuted; audio.volume = volume;
       audio.play().catch(err => {
-        if (err && err.name === 'NotAllowedError') { audio.muted = true; audio.play().catch(() => {}); }
+        if (err && err.name === 'NotAllowedError') { audio.muted = true; isMuted = true; syncVolumeUI(); audio.play().catch(() => {}); }
       });
       if (cover) cover.classList.add('playing');
       wireProgress(slide, audio, fill, thumb);
@@ -774,6 +842,14 @@
               // Failsafe: some Ruffle versions reset volume after WASM init
               setTimeout(() => { if (player.isConnected) player.volume = isMuted ? 0 : volume; }, 100);
               ruffleEl._rufflePlayer = player;
+              // If slide was deactivated while we were loading, destroy immediately
+              if (slide._deactivated) {
+                try { player.pause(); player.remove(); } catch {}
+                ruffleEl._rufflePlayer = null;
+                const ph2 = ruffleEl.querySelector('.ruffle-placeholder');
+                if (ph2) ph2.style.display = 'block';
+                return true;
+              }
               if (currentSlide === slide) currentMedia = player;
               return true;
             } catch (e) { console.warn('[Ruffle] init error', e); return false; }
@@ -952,9 +1028,11 @@
       if (iframe) iframe.removeAttribute('src');
     }
     // Stop Ruffle player by removing it (destroys WASM instance)
+    slide._deactivated = true;
     const ruffleEl = slide.querySelector('.ruffle-container');
     if (ruffleEl && ruffleEl._rufflePlayer) {
       try {
+        ruffleEl._rufflePlayer.pause();
         ruffleEl._rufflePlayer.remove();
         ruffleEl._rufflePlayer = null;
         const ph = ruffleEl.querySelector('.ruffle-placeholder');
@@ -1031,7 +1109,9 @@
 
   async function toggleFav(slide) {
     if (!window.scrollerLoggedIn) return;
-    const id = slide.dataset.id;
+    const id = slide.dataset.localId || slide.dataset.id;
+    // External items have non-numeric IDs (e.g. "gif/123") — can't fav until rehosted
+    if (!/^\d+$/.test(id)) { showShareToast('Can\u2019t fav external items'); return; }
     const favBtn = slide.querySelector('.js-fav-btn');
     // Optimistic: immediately flip the button state before the server responds
     const wasFaved = favBtn ? favBtn.classList.contains('faved') : false;
@@ -1147,6 +1227,7 @@
     const slide = document.createElement('div');
     slide.className = 'scroll-slide';
     slide.dataset.id = item.id;
+    if (item.local_id) slide.dataset.localId = item.local_id;
     slide._thumbnail = item.thumbnail; // stored for canvas redraw + applyCanvasBg fallback
 
     const bgCanvas = document.createElement('canvas');
@@ -1247,42 +1328,79 @@
             <a href="/user/${esc(item.username)}" class="scroll-user-link">
               <div class="scroll-username" style="${colorStyle}">${esc(item.display_name || item.username)}</div>
             </a>
-            <div class="scroll-timeago">${esc(item.timeago)}</div>
+            <div class="scroll-timeago">${esc(item.stamp ? timeAgo(item.stamp * 1000) : (item.timeago || ''))}</div>
           </div>
         </div>
         ${tagsHtml}
-        <a class="scroll-id-link" href="/${item.id}" target="_blank">#${item.id}</a>
+        ${item.is_external && item.external_board && item.external_tid
+          ? `<a class="scroll-id-link" href="https://boards.4chan.org/${item.external_board}/thread/${item.external_tid}#p${item.external_id}" target="_blank">/${item.external_board}/thread/${item.external_tid}</a>`
+          : (item.local_id
+            ? `<a class="scroll-id-link" href="/${item.local_id}" target="_blank">#${item.local_id}</a>`
+            : `<a class="scroll-id-link" href="/abyss#${item.id}">#${item.id}</a>`)}
       </div>`;
     slide.appendChild(meta);
 
     // Actions (z:10) — no Filter button here, it lives in the topbar
     const actions = document.createElement('div'); actions.className = 'scroll-actions';
+    const _i = window.f0ckI18n || {};
     actions.innerHTML = `
       ${window.scrollerLoggedIn ? `
-      <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="Favourite (double-tap)">
+      <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="${_i.favourite || 'Favourite'} (double-tap)">
         <div class="scroll-btn-icon"><i class="${item.is_faved ? 'fa-solid' : 'fa-regular'} fa-heart"></i></div>
         <span class="scroll-btn-label"></span>
         <span class="scroll-btn-count">${item.fav_count ?? 0}</span>
       </button>` : ''}
-      <button class="scroll-btn js-comments-btn" data-id="${item.id}" title="Comments (C)">
+      <button class="scroll-btn js-comments-btn" data-id="${item.id}" title="${_i.comments_label || 'Comments'} (C)">
         <div class="scroll-btn-icon"><i class="fa-regular fa-comment"></i></div>
         <span class="scroll-btn-label"></span>
         <span class="scroll-btn-count">${item.comment_count ?? 0}</span>
       </button>
       ${window.scrollerLoggedIn ? `
-      <button class="scroll-btn js-tag-btn" data-id="${item.id}" title="Add tag">
+      <button class="scroll-btn js-tag-btn" data-id="${item.id}" title="${_i.add_tag || 'Add tag'}">
         <div class="scroll-btn-icon"><i class="fa-solid fa-tag"></i></div>
         <span class="scroll-btn-label"></span>
       </button>` : ''}
-      <button class="scroll-btn js-share-btn" data-id="${item.id}" title="Share">
+      <button class="scroll-btn js-share-btn" data-id="${item.id}" title="${_i.share_label || 'Share'}">
         <div class="scroll-btn-icon"><i class="fa-solid fa-share-nodes"></i></div>
-        <span class="scroll-btn-label">Share</span>
+        <span class="scroll-btn-label">${_i.share_label || 'Share'}</span>
       </button>
-      <a class="scroll-btn" href="/${item.id}" target="_blank" title="Open post">
+      ${item.is_external ? (
+        item.local_id
+          ? `<a class="scroll-btn success" href="/${item.local_id}" target="_blank" title="${_i.already_added || 'Already added'}">
+               <div class="scroll-btn-icon"><i class="fa-solid fa-check"></i></div>
+               <span class="scroll-btn-label">${_i.view_label || 'View'}</span>
+             </a>`
+          : `<button class="scroll-btn rehost-btn" data-id="${item.id}" title="${_i.add_to_site || 'Add to site'}">
+               <div class="scroll-btn-icon"><i class="fa-solid fa-plus"></i></div>
+               <span class="scroll-btn-label">${_i.add_label || 'Add'}</span>
+             </button>`
+      ) : `
+      <a class="scroll-btn" href="/${item.id}" target="_blank" title="${_i.open_post || 'Open post'}">
         <div class="scroll-btn-icon"><i class="fa-solid fa-up-right-from-square"></i></div>
-        <span class="scroll-btn-label">Open</span>
-      </a>`;
+        <span class="scroll-btn-label">${_i.open_label || 'Open'}</span>
+      </a>`}
+    `;
     slide.appendChild(actions);
+
+    // In left-hand mode, inject 4chan action buttons into this slide's actions
+    if (leftHandEnabled) {
+      if (chanOpenBtn && chanOpenBtn.style.display !== 'none') {
+        const ob = document.createElement('button');
+        ob.className = 'chan-action-btn';
+        ob.title = chanOpenBtn.title;
+        ob.innerHTML = `<div class="scroll-btn-icon"><i class="fa-solid fa-clover" style="color:#789922"></i></div>`;
+        ob.addEventListener('click', () => chanOpenBtn.click());
+        actions.appendChild(ob);
+      }
+      if (chanGalleryBtn && chanGalleryBtn.style.display !== 'none') {
+        const gb = document.createElement('button');
+        gb.className = 'chan-action-btn';
+        gb.title = chanGalleryBtn.title;
+        gb.innerHTML = `<div class="scroll-btn-icon"><i class="fa-solid fa-grip"></i></div>`;
+        gb.addEventListener('click', () => chanGalleryBtn.click());
+        actions.appendChild(gb);
+      }
+    }
 
     // Progress bar (z:10)
     const pBar = document.createElement('div'); pBar.className = 'scroll-progress-bar';
@@ -1301,23 +1419,40 @@
         toggleFav(slide);
       });
     }
-    actions.querySelector('.js-comments-btn').addEventListener('click', () => openComments(item.id));
+    actions.querySelector('.js-comments-btn').addEventListener('click', () => {
+      const slide = actions.closest('.scroll-slide');
+      const id = slide?.dataset.localId || item.id;
+      openComments(id);
+    });
     const tagBtn = actions.querySelector('.js-tag-btn');
-    if (tagBtn) tagBtn.addEventListener('click', () => openTagBar(item.id));
+    if (tagBtn) tagBtn.addEventListener('click', () => {
+      const slide = tagBtn.closest('.scroll-slide');
+      const id = slide?.dataset.localId || item.id;
+      if (!/^\d+$/.test(id)) { showShareToast((window.f0ckI18n && window.f0ckI18n.add_to_site_first) || 'Add to site first to tag'); return; }
+      openTagBar(id);
+    });
     const shareBtn = actions.querySelector('.js-share-btn');
     if (shareBtn) shareBtn.addEventListener('click', () => {
-      const id = shareBtn.dataset.id;
-      const abyssUrl = `${location.origin}/abyss#${id}`;
+      const slide = shareBtn.closest('.scroll-slide');
+      const localId = slide?.dataset.localId;
+      const id = localId || shareBtn.dataset.id;
+      const abyssUrl = localId
+        ? `${location.origin}/abyss#${localId}`
+        : `${location.origin}/abyss#${id}`;
       openSharePanel(abyssUrl);
     });
+    const rehostBtn = actions.querySelector('.rehost-btn');
+    if (rehostBtn) rehostBtn.addEventListener('click', () => rehostItem(item, rehostBtn));
 
     // Rating cycle — always wire the click; server enforces mod auth via 403
     const ratingBadge = slide.querySelector('.scroll-rating[data-item-id]');
     if (ratingBadge) {
-      if (window.scrollerIsMod) ratingBadge.classList.add('can-cycle');
+      if (window.scrollerIsMod || item.local_id) ratingBadge.classList.add('can-cycle');
       ratingBadge.addEventListener('click', async e => {
         e.stopPropagation();
-        const id = ratingBadge.dataset.itemId;
+        const slideEl = ratingBadge.closest('.scroll-slide');
+        const id = slideEl?.dataset.localId || ratingBadge.dataset.itemId;
+        if (!id || isNaN(id)) { showShareToast('Rehost first to change rating'); return; }
         try {
           const resp = await fetch(`/api/v2/tags/${id}/cycle-rating`, {
             method: 'PUT',
@@ -1393,20 +1528,152 @@
     if (hid && seenIds.size === 0 && !lastCursor) params.set('anchor', hid);
 
     try {
-      const resp = await fetch(`/api/v2/scroller/feed?${params}`);
+      let endpoint = `/api/v2/scroller/feed?${params}`;
+      if (applied.externalUrl) {
+         const match = applied.externalUrl.match(/(?:boards\.)?4chan\.org\/([a-z0-9]+)\/thread\/(\d+)/);
+         if (match) {
+            endpoint = `/api/v2/scroller/external/4chan/${match[1]}/${match[2]}`;
+         }
+      }
+      const resp = await fetch(endpoint);
       const data = await resp.json();
 
-      if (!data.success || !data.items || data.items.length === 0) {
+      let items = data.items || [];
+      if (applied.externalUrl && data.posts) {
+        if (chanGalleryBtn) chanGalleryBtn.style.display = '';
+        // Load persisted rehosts from localStorage for this thread
+        const threadKey = `rehosted_4chan_${data.board}_${data.tid}`;
+        let cachedRehosts = {};
+        try { cachedRehosts = JSON.parse(localStorage.getItem(threadKey) || '{}'); } catch(_) {}
+        // Merge server-side rehosts with local cache (server is authoritative, cache fills gaps)
+        const allRehosts = Object.assign({}, cachedRehosts, data.rehosts || {});
+        // Persist merged map back
+        try { localStorage.setItem(threadKey, JSON.stringify(allRehosts)); } catch(_) {}
+
+        items = data.posts
+          .filter(p => p.tim && p.ext)
+          .map(p => {
+            const ext = (p.ext || "").toLowerCase();
+            const isVideo = ['.webm', '.mp4'].includes(ext);
+            const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+            const isWsg = data.board === 'wsg';
+            const isGif = data.board === 'gif';
+
+            // Respect instance-level allowed mime categories
+            const mimeCats = window.scrollerMimeCats || ['video', 'image', 'audio'];
+            if (isVideo && !mimeCats.includes('video')) return null;
+            if (isImage && !mimeCats.includes('image')) return null;
+            if (!isVideo && !isImage) return null;
+
+            // Respect user-selected mime filter
+            if (applied.mime === 'video' && !isVideo) return null;
+            if (applied.mime === 'image' && !isImage) return null;
+
+            const external_media_url = `https://i.4cdn.org/${data.board}/${p.tim}${ext}`;
+            const local_id = allRehosts[external_media_url] || null;
+
+            return {
+              id: `${data.board}/${p.no}`,
+              external_id: p.no,
+              external_tid: data.tid,
+              external_board: data.board,
+              external_source: '4chan',
+              is_external: true,
+              local_id,
+              external_media_url,
+              mime: isVideo ? 'video/unknown' : (isImage ? 'image/unknown' : 'application/octet-stream'),
+              dest: `/api/v2/scroller/external/4chan/${data.board}/media/${p.tim}${ext}`,
+              thumbnail: `/api/v2/scroller/external/4chan/${data.board}/media/${p.tim}s.jpg`,
+              username: 'Anonymous',
+              display_name: 'Anonymous',
+              avatar: '/a/default.png',
+              stamp: p.time,
+              timeago: timeAgo(p.time * 1000),
+              tags: `4chan, /${data.board}/`,
+              is_video: isVideo,
+              is_image: isImage,
+              is_audio: false,
+              rating_label: isWsg ? 'SFW' : (isGif ? 'NSFW' : 'External'),
+              rating_class: isWsg ? 'sfw' : (isGif ? 'nsfw' : 'untagged')
+            };
+          })
+          .filter(Boolean);
+
+        // Fetch metadata for rehosted items (username, avatar, timestamp)
+        const rehostItemIds = items.filter(i => i.local_id).map(i => i.local_id);
+        if (rehostItemIds.length > 0) {
+          try {
+            const metaResp = await fetch('/api/v2/scroller/external/rehost-meta', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: `ids=${rehostItemIds.join(',')}`
+            });
+
+            const metaMap = await metaResp.json();
+
+            items.forEach(item => {
+              if (item.local_id && metaMap[item.local_id]) {
+                const m = metaMap[item.local_id];
+
+                item.username = m.username;
+                item.display_name = m.display_name;
+                item.avatar = m.avatar;
+                if (m.rating_class) { item.rating_class = m.rating_class; item.rating_label = m.rating_label; }
+
+              }
+            });
+
+          } catch (e) { console.warn('[CHAN] rehost-meta fetch failed:', e); }
+        }
+
+        // Apply order filter client-side (API returns thread order)
+        if (applied.order === 'random') {
+          for (let i = items.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [items[i], items[j]] = [items[j], items[i]];
+          }
+        } else if (applied.order === 'newest') {
+          items.sort((a, b) => b.stamp - a.stamp);
+        } else if (applied.order === 'oldest') {
+          items.sort((a, b) => a.stamp - b.stamp);
+        }
+
+        // If loading with a specific hash target, ensure it's first
+        const hid = hashId();
+        if (hid && !currentSlide) {
+          const idx = items.findIndex(it => it.id === hid);
+          if (idx > 0) {
+            const [target] = items.splice(idx, 1);
+            items.unshift(target);
+          }
+        }
+
+        // Store post→thread mapping so #board/postno can resolve back to the thread URL
+        try {
+          const postMap = JSON.parse(localStorage.getItem('4chan_post_threads') || '{}');
+          items.forEach(it => { postMap[it.id] = data.tid; });
+          localStorage.setItem('4chan_post_threads', JSON.stringify(postMap));
+        } catch(_) {}
+      }
+
+      if (!data.success || items.length === 0) {
         consecutiveEmpty++;
         const noSlides = feed.querySelectorAll('.scroll-slide').length === 0;
         if (applied.order !== 'random') {
           hasMore = false;
         }
         if (noSlides) {
+          if (applied.externalUrl) {
+            alert((window.f0ckI18n && window.f0ckI18n.chan_load_failed) || 'Could not load 4chan thread. It might be archived or have no compatible media.');
+            applied.externalUrl = null;
+            pending.externalUrl = null;
+            if (galleryOpen) toggleGallery();
+            if (externalUrlInput) externalUrlInput.value = '';
+            reloadFeed();
+            return;
+          }
+
           // Anchor was requested but blocked (NSFW/NSFL for guest).
-          // Insert a real scroll-slide with the lock message so the user can
-          // read it and then SWIPE DOWN manually to reach the normal content.
-          // No timers, no auto-advance — user is fully in control.
           const lockSlide = document.createElement('div');
           lockSlide.className = 'scroll-slide';
           lockSlide.dataset.lock = '1';
@@ -1420,8 +1687,6 @@
             '</div>',
           ].join('');
           feed.insertBefore(lockSlide, sentinel);
-          // Clear hash so next fetch has no anchor, then immediately fetch real items.
-          // They will be appended before the sentinel so the user can swipe to them.
           history.replaceState(null, '', '/abyss');
           consecutiveEmpty = 0;
           hasMore = true;
@@ -1432,39 +1697,133 @@
           hideLoader();
         }
 
+        if (!data.success) alert(((window.f0ckI18n && window.f0ckI18n.fetch_failed) || 'Fetch failed: {msg}').replace('{msg}', data.msg || 'Unknown error'));
         return; // exit — no items to process
       }
 
       consecutiveEmpty = 0;
       let newCount = 0;
-      data.items.forEach(item => {
-        if (seenIds.has(item.id)) return; // client-side dedup — skip already-seen items
+
+      items.forEach(item => {
+        if (seenIds.has(item.id)) return;
         seenIds.add(item.id);
+
         feed.insertBefore(createSlide(item), sentinel);
         newCount++;
       });
+
       // If every item in the batch was a duplicate, treat it like an empty result
       if (newCount === 0) { consecutiveEmpty++; }
+      // External threads load all items at once — no pagination
+      if (applied.externalUrl) { hasMore = false; }
       if (data.nextCursor) lastCursor = data.nextCursor;
-      appendToCache(data.items);
+      appendToCache(items);
 
       if (!currentSlide) {
         const hid = hashId();
         const target = hid ? feed.querySelector(`.scroll-slide[data-id="${hid}"]`) : null;
-        // Skip lock slides (data-lock) when looking for the first real item to activate
         const first = feed.querySelector('.scroll-slide:not([data-lock])');
         const toActivate = target || first;
         if (toActivate) setTimeout(() => { activateSlide(toActivate); hideLoader(); }, 200);
-      } else {
-        hideLoader();
       }
-    } catch (e) {
-      console.error('[scroller] fetch error', e);
-      consecutiveEmpty++;
+    } catch (err) {
+      console.error('[SCROLLER] Fetch error:', err);
     } finally {
       isFetching = false;
+      hideLoader();
     }
   }
+
+  async function rehostItem(item, btn) {
+    if (btn.classList.contains('loading') || btn.classList.contains('success')) return;
+    if (!window.scrollerLoggedIn) { alert((window.f0ckI18n && window.f0ckI18n.login_required) || 'You must be logged in to add items.'); return; }
+
+    btn.classList.add('loading');
+    const icon = btn.querySelector('i');
+    const origClass = icon.className;
+    icon.className = 'fa-solid fa-spinner';
+
+    let rating = applied.mode === 0 ? 'sfw' : (applied.mode === 1 ? 'nsfw' : (applied.mode === 4 ? 'nsfl' : 'sfw'));
+    if (item.external_board === 'wsg') rating = 'sfw';
+    else if (item.external_board === 'gif') rating = 'nsfw';
+
+    try {
+      const resp = await fetch('/api/v2/scroller/rehost', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'x-csrf-token': window.scrollerCsrf || ''
+        },
+        body: new URLSearchParams({
+          url: item.external_media_url || item.dest,
+          rating: rating,
+          tags: '4chan',
+          comment: `Rehosted from 4chan thread: ${applied.externalUrl || 'unknown'}`
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        // Persist to localStorage so it survives thread reloads
+        if (item.external_board && item.external_media_url) {
+          const threadKey = `rehosted_4chan_${item.external_board}_${applied.externalUrl?.match(/(\d+)\/?$/)?.[1] || ''}` ;
+          try {
+            const cached = JSON.parse(localStorage.getItem(threadKey) || '{}');
+            cached[item.external_media_url] = data.item_id;
+            localStorage.setItem(threadKey, JSON.stringify(cached));
+          } catch(_) {}
+        }
+
+        btn.classList.remove('loading');
+        btn.classList.add('success');
+        icon.className = data.repost ? 'fa-solid fa-link' : 'fa-solid fa-check';
+        if (data.repost) showShareToast('Already on site — linked to existing item');
+        // Update slide's local ID so fav/comments work immediately
+        const slide = btn.closest('.scroll-slide');
+        if (slide) slide.dataset.localId = data.item_id;
+
+        // Update button to link to the new site-internal post
+        setTimeout(() => {
+          btn.outerHTML = `
+            <a href="/${data.item_id}" target="_blank" class="scroll-btn success" style="text-decoration:none;">
+              <div class="scroll-btn-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+              <span class="scroll-btn-label">View</span>
+            </a>
+          `;
+        }, 800);
+
+        // Update scroll-id-link to show local ID
+        if (slide) {
+          const idLink = slide.querySelector('.scroll-id-link');
+          if (idLink) {
+            idLink.href = `/${data.item_id}`;
+            idLink.textContent = `#${data.item_id}`;
+          }
+          // Reflect rehoster's username and local timestamp
+          if (window.scrollerUsername) {
+            slide.querySelectorAll('.scroll-user-link').forEach(link => {
+              link.href = `/user/${window.scrollerUsername}`;
+            });
+            const nameEl = slide.querySelector('.scroll-username');
+            if (nameEl) nameEl.textContent = window.scrollerDisplayName || window.scrollerUsername;
+            const avatarEl = slide.querySelector('.scroll-avatar');
+            if (avatarEl) avatarEl.src = window.scrollerUserAvatar || '/a/default.png';
+          }
+          const timeEl = slide.querySelector('.scroll-timeago');
+          if (timeEl) timeEl.textContent = (window.f0ckI18n && window.f0ckI18n.just_now) || 'just now';
+          // Enable rating cycle now that item has a local_id
+          const rBadge = slide.querySelector('.scroll-rating[data-item-id]');
+          if (rBadge) rBadge.classList.add('can-cycle');
+        }
+      } else {
+        throw new Error(data.msg);
+      }
+    } catch (e) {
+      btn.classList.remove('loading');
+      icon.className = origClass;
+      alert(((window.f0ckI18n && window.f0ckI18n.rehost_failed) || 'Rehost failed: {msg}').replace('{msg}', e.message));
+    }
+  }
+
 
   function reloadFeed() {
     clearCache();
@@ -1485,9 +1844,12 @@
       } catch {}
     }
     currentSlide = null; currentMedia = null;
+    // Close gallery sidebar if open and hide button
+    if (galleryOpen) toggleGallery();
+    if (chanGalleryBtn) chanGalleryBtn.style.display = 'none';
     feed.querySelectorAll('.scroll-slide').forEach(s => { slideObserver.unobserve(s); s.remove(); });
     emptyEl.classList.remove('show');
-    emptyEl.innerHTML = '<i class="fa-solid fa-binoculars"></i><p>Nothing found with current filters</p><button onclick="document.getElementById(\'filter-open-btn\').click()" style="margin-top:8px;padding:8px 20px;border-radius:50px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:.8rem;">Adjust filters</button>';
+    emptyEl.innerHTML = `<i class="fa-solid fa-binoculars"></i><p>${(window.f0ckI18n && window.f0ckI18n.nothing_found) || 'Nothing found with current filters'}</p><button onclick="document.getElementById('filter-open-btn').click()" style="margin-top:8px;padding:8px 20px;border-radius:50px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:.8rem;">${(window.f0ckI18n && window.f0ckI18n.adjust_filters) || 'Adjust filters'}</button>`;
 
     hasMore = true; isFetching = false; lastCursor = null; consecutiveEmpty = 0; seenIds = new Set();
     feed.scrollTop = 0;
@@ -1508,11 +1870,20 @@
   }
 
   // ── Observers ─────────────────────────────────────────────────────────────
+  let scrollingToRandom = null; // slide element we're scrolling to, suppresses intermediate activations
   const slideObserver = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       // Ignore intersection changes caused by viewport resize when the
       // keyboard hides after panel close — would activate the wrong slide
       if (panelOpen) return;
+      // During random-scroll, only activate the target slide
+      if (scrollingToRandom) {
+        if (e.isIntersecting && e.intersectionRatio >= 0.6 && e.target === scrollingToRandom) {
+          scrollingToRandom = null;
+          activateSlide(e.target);
+        }
+        return;
+      }
       if (e.isIntersecting && e.intersectionRatio >= 0.6) activateSlide(e.target);
     });
   }, { root: feed, threshold: 0.6 });
@@ -1545,8 +1916,65 @@
   mutObs.observe(feed, { childList: true });
 
   // ── Comments ──────────────────────────────────────────────────────────────
+  // ── Reply state ──────────────────────────────────────────────────────────
+  let replyToCommentId = null;
+  let replyToUsername = null;
+
+  function setReplyTo(commentId, username) {
+    replyToCommentId = commentId;
+    replyToUsername = username;
+    const _i = window.f0ckI18n || {};
+    const indicator = document.getElementById('reply-indicator');
+    if (indicator) {
+      indicator.querySelector('.reply-indicator-text').textContent =
+        (_i.replying_to || 'Replying to {user}').replace('{user}', '@' + username);
+      indicator.style.display = 'flex';
+    }
+    if (commentInput) {
+      commentInput.focus();
+    }
+  }
+
+  function clearReply() {
+    replyToCommentId = null;
+    replyToUsername = null;
+    const indicator = document.getElementById('reply-indicator');
+    if (indicator) indicator.style.display = 'none';
+  }
+
+  const replyCancelBtn = document.getElementById('reply-cancel-btn');
+  if (replyCancelBtn) replyCancelBtn.addEventListener('click', clearReply);
+
+  function renderCommentEl(c, canReply) {
+    const el = document.createElement('div'); el.className = 'comment-item';
+    el.dataset.commentId = c.id || '';
+    const av = c.avatar_file ? `/a/${c.avatar_file}` : (c.avatar ? `/t/${c.avatar}.webp` : '/a/default.png');
+    const nc = c.username_color ? `color:${esc(c.username_color)}` : '';
+    const _i = window.f0ckI18n || {};
+    const uname = c.display_name || c.username || 'anon';
+    el.innerHTML = `
+      <img class="comment-avatar" src="${esc(av)}" alt="" loading="lazy" onerror="this.src='/a/default.png'">
+      <div class="comment-body">
+        <div class="comment-username" style="${nc}">${esc(uname)}</div>
+        <div class="comment-content">${renderCommentContent(c.content || '')}</div>
+        <div class="comment-meta">
+          <span class="comment-time">${c.created_at ? timeAgo(c.created_at) : (_i.ta_just_now || _i.just_now || 'just now')}</span>
+          ${canReply ? `<button class="comment-reply-btn" data-id="${c.id}" data-user="${esc(c.username || uname)}">${_i.reply || 'Reply'}</button>` : ''}
+        </div>
+      </div>`;
+    // Wire reply button
+    const replyBtn = el.querySelector('.comment-reply-btn');
+    if (replyBtn) {
+      replyBtn.addEventListener('click', () => {
+        setReplyTo(replyBtn.dataset.id, replyBtn.dataset.user);
+      });
+    }
+    return el;
+  }
+
   async function openComments(itemId) {
     commentsItemId = itemId;
+    clearReply();
     commentsOpenLink.href = `/${itemId}`;
     commentsLoading.style.display = 'block'; commentsEmpty.style.display = 'none'; commentsCount.textContent = '';
     commentsList.querySelectorAll('.comment-item').forEach(el => el.remove());
@@ -1568,23 +1996,11 @@
         if (btn) btn.textContent = visible.length;
       }
       if (!visible.length) { commentsEmpty.style.display = 'block'; return; }
-      visible.forEach(c => {
-        const el = document.createElement('div'); el.className = 'comment-item';
-        const av = c.avatar_file ? `/a/${c.avatar_file}` : (c.avatar ? `/t/${c.avatar}.webp` : '/a/default.png');
-        // esc() the color value to prevent attribute-breaking XSS via username_color.
-        const nc = c.username_color ? `color:${esc(c.username_color)}` : '';
-        el.innerHTML = `
-          <img class="comment-avatar" src="${esc(av)}" alt="" loading="lazy" onerror="this.src='/a/default.png'">
-          <div class="comment-body">
-            <div class="comment-username" style="${nc}">${esc(c.display_name || c.username || 'anon')}</div>
-            <div class="comment-content">${renderCommentContent(c.content || '')}</div>
-            <div class="comment-time">${c.created_at ? timeAgo(c.created_at) : ''}</div>
-          </div>`;
-        commentsList.appendChild(el);
-      });
+      const canReply = !!window.scrollerLoggedIn;
+      visible.forEach(c => commentsList.appendChild(renderCommentEl(c, canReply)));
     } catch {
       commentsLoading.style.display = 'none'; commentsEmpty.style.display = 'block';
-      commentsEmpty.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><br>Failed to load';
+      commentsEmpty.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><br>${(window.f0ckI18n && window.f0ckI18n.failed_load_comments) || 'Failed to load'}`;
     }
   }
 
@@ -1667,7 +2083,7 @@
     if (!recents.length) { shareUserResults.classList.remove('show'); return; }
     const hdr = document.createElement('div');
     hdr.className = 'share-recents-label';
-    hdr.textContent = 'Recent';
+    hdr.textContent = (window.f0ckI18n && window.f0ckI18n.recent) || 'Recent';
     shareUserResults.appendChild(hdr);
     recents.forEach(u => renderShareRow(u, shareUserResults));
     shareUserResults.classList.add('show');
@@ -1676,7 +2092,7 @@
   function openSharePanel(url) {
     sharePanelUrl = url || '';
     // Reset state
-    if (shareCopySub) shareCopySub.textContent = 'Copy to clipboard';
+    if (shareCopySub) shareCopySub.textContent = (window.f0ckI18n && window.f0ckI18n.copy_clipboard) || 'Copy to clipboard';
     if (shareDmSearch) shareDmSearch.classList.remove('show');
     if (shareUserInput) shareUserInput.value = '';
     if (shareUserResults) { shareUserResults.innerHTML = ''; shareUserResults.classList.remove('show'); }
@@ -1700,8 +2116,8 @@
       try {
         await navigator.clipboard.writeText(sharePanelUrl);
         if (shareCopySub) {
-          shareCopySub.textContent = 'Copied ✓';
-          setTimeout(() => { if (shareCopySub) shareCopySub.textContent = 'Copy to clipboard'; }, 1800);
+          shareCopySub.textContent = (window.f0ckI18n && window.f0ckI18n.copied) || 'Copied ✓';
+          setTimeout(() => { if (shareCopySub) shareCopySub.textContent = (window.f0ckI18n && window.f0ckI18n.copy_clipboard) || 'Copy to clipboard'; }, 1800);
         }
       } catch {
         window.prompt('Copy link:', sharePanelUrl);
@@ -1923,7 +2339,7 @@
       picker.appendChild(img);
     });
     if (!Object.keys(customEmojis).length) {
-      picker.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.8rem;padding:8px">No custom emojis</div>';
+      picker.innerHTML = `<div style="color:rgba(255,255,255,.4);font-size:.8rem;padding:8px">${(window.f0ckI18n && window.f0ckI18n.no_custom_emojis) || 'No custom emojis'}</div>`;
     }
     return picker;
   }
@@ -2083,11 +2499,10 @@
       const cursor = commentInput.selectionStart;
       const textBefore = commentInput.value.slice(0, cursor);
 
-      // 1. :emoji: shortcode detection — custom emojis first, then static EMOJI map
+      // 1. :emoji: shortcode detection — custom site emojis only
       const emojiMatch = textBefore.match(/:([a-z0-9_]{1,})$/);
       if (emojiMatch) {
         const q = emojiMatch[1];
-        // Prefer custom (site) emojis if loaded
         const customHits = Object.keys(customEmojis)
           .filter(n => n.startsWith(q)).slice(0, 12)
           .map(n => ['__custom__', n, customEmojis[n]]);
@@ -2095,10 +2510,7 @@
           renderCustomEmojiAC(customHits);
           return;
         }
-        // Fallback to static emoji map
-        const hits = Object.entries(EMOJI).filter(([code]) => code.startsWith(q)).slice(0, 12);
-        if (hits.length) { renderEmojiDropdown(hits); return; }
-        else { closeAcDropdown(); return; }
+        closeAcDropdown(); return;
       }
 
       // 2. @mention detection
@@ -2157,26 +2569,33 @@
       if (!content || !commentsItemId || commentsPosting) return;
       commentsPosting = true; commentSendBtn.disabled = true;
       try {
+        let postBody = `item_id=${commentsItemId}&content=${encodeURIComponent(content)}`;
+        if (replyToCommentId) postBody += `&parent_id=${replyToCommentId}`;
         const resp = await fetch('/api/comments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `item_id=${commentsItemId}&content=${encodeURIComponent(content)}`
+          body: postBody
         });
         const data = await resp.json();
         if (data.success) {
           if (commentInput) { commentInput.value = ''; commentInput.style.height = 'auto'; }
           commentSendBtn.disabled = true; commentsEmpty.style.display = 'none';
-          const el = document.createElement('div'); el.className = 'comment-item';
           const displayName = window.scrollerDisplayName || window.scrollerUsername || 'you';
-          el.innerHTML = `
-            <img class="comment-avatar" src="${esc(window.scrollerUserAvatar || '/a/default.png')}" alt="" loading="lazy">
-            <div class="comment-body">
-              <div class="comment-username">${esc(displayName)}</div>
-              <div class="comment-content">${renderCommentContent(content)}</div>
-              <div class="comment-time">just now</div>
-            </div>`;
+          const el = renderCommentEl({
+            id: data.comment?.id,
+            avatar_file: null,
+            avatar: null,
+            username: window.scrollerUsername,
+            display_name: displayName,
+            content: content,
+            created_at: null
+          }, !!window.scrollerLoggedIn);
+          // Set avatar from global
+          const avImg = el.querySelector('.comment-avatar');
+          if (avImg) avImg.src = window.scrollerUserAvatar || '/a/default.png';
           commentsList.appendChild(el);
           commentsList.scrollTop = commentsList.scrollHeight;
+          clearReply();
           // Update panel header count
           const cur = parseInt(commentsCount.textContent.replace(/\D/g, '') || '0');
           commentsCount.textContent = `(${cur + 1})`;
@@ -2230,8 +2649,8 @@
   async function submitTag() {
     if (!addTagInput || tagPosting) return;
     // Always tag the currently active slide, regardless of which slide opened the bar
-    const targetId = currentSlide?.dataset?.id || tagBarItemId;
-    if (!targetId) return;
+    const targetId = currentSlide?.dataset?.localId || currentSlide?.dataset?.id || tagBarItemId;
+    if (!targetId || !/^\d+$/.test(targetId)) { showShareToast('Add to site first to tag'); return; }
     const tag = addTagInput.value.trim();
     if (!tag) return;
     tagPosting = true;
@@ -2248,7 +2667,7 @@
         addTagInput.value = '';
         addTagInput.focus(); // stay focused for next tag
         // Apply full fresh tag list from response
-        const targetSlide = feed.querySelector(`.scroll-slide[data-id="${targetId}"]`);
+        const targetSlide = currentSlide || feed.querySelector(`.scroll-slide[data-id="${targetId}"]`);
         if (targetSlide) applyFreshTags(targetSlide, (data.tags || []).filter(t => t.id > 2).map(t => t.tag).join(', '));
         // ✓ flash on send button
         if (addTagSendBtn) {
@@ -2305,6 +2724,7 @@
     document.querySelectorAll('#mode-pills .filter-pill').forEach(p => p.classList.toggle('active', +p.dataset.mode === pending.mode));
     document.querySelectorAll('#mime-pills .filter-pill').forEach(p => p.classList.toggle('active', p.dataset.mime === pending.mime));
     document.querySelectorAll('#order-pills .filter-pill').forEach(p => p.classList.toggle('active', p.dataset.order === pending.order));
+    if (externalUrlInput) externalUrlInput.value = pending.externalUrl || '';
     renderActiveTags();
   }
 
@@ -2321,10 +2741,66 @@
   makePillListener('order-pills', 'order', v => v);
 
   filterApplyBtn.addEventListener('click', () => { applied = { ...pending, tags: [...pending.tags] }; closePanel(filterPanel, filterBackdrop); reloadFeed(); });
+
+  if (externalUrlBtn) {
+    externalUrlBtn.addEventListener('click', () => {
+      const val = externalUrlInput.value.trim();
+      if (!val) {
+        applied.externalUrl = null;
+      } else {
+        if (!val.includes('boards.4chan.org')) {
+           alert((window.f0ckI18n && window.f0ckI18n.invalid_chan_url) || 'Please enter a valid 4chan thread URL');
+           return;
+        }
+        applied.externalUrl = val;
+        applied.order = 'oldest';
+      }
+      closePanel(filterPanel, filterBackdrop);
+      reloadFeed();
+    });
+  }
+
+  // ── Auto-load 4chan thread from hash (e.g. #wsg/6132740) ────────────────
+  let chanHashPending = null; // async promise if we need server lookup
+  {
+    const hid = hashId();
+    const chanMatch = hid.match(/^([a-z0-9]+)\/(\d+)$/);
+    if (chanMatch && !applied.externalUrl) {
+      const board = chanMatch[1];
+      const postno = chanMatch[2];
+      // Look up thread ID from the post→thread mapping
+      let tid = null;
+      try {
+        const postMap = JSON.parse(localStorage.getItem('4chan_post_threads') || '{}');
+        tid = postMap[hid]; // hid is "board/postno"
+      } catch(_) {}
+      if (tid) {
+        applied.externalUrl = `https://boards.4chan.org/${board}/thread/${tid}`;
+        applied.order = 'oldest';
+        unlock4chan();
+      } else {
+        // No local mapping — ask the server to find the thread
+        chanHashPending = fetch(`/api/v2/scroller/external/4chan/${board}/find/${postno}`)
+          .then(r => r.json())
+          .then(data => {
+            console.log('[CHAN] Find result:', data);
+            if (data.success && data.tid) {
+              applied.externalUrl = `https://boards.4chan.org/${board}/thread/${data.tid}`;
+              applied.order = 'oldest';
+              unlock4chan();
+              console.log('[CHAN] Set externalUrl:', applied.externalUrl);
+            }
+          })
+          .catch(err => { console.error('[CHAN] Find error:', err); });
+      }
+    }
+  }
+
   filterResetBtn.addEventListener('click', () => { pending = { mode: defaultMode, mime: '', order: 'random', tags: [] }; syncPanelUI(); tagInput.value = ''; tagClear.classList.remove('show'); tagSuggestEl.innerHTML = ''; lastSugg = []; renderActiveTags(); });
 
   function updateFilterSummary() {
-    const isDef = applied.mode === defaultMode && applied.mime === '' && applied.order === 'random' && applied.tags.length === 0;
+    const is4chan = !!applied.externalUrl;
+    const isDef = applied.mode === defaultMode && applied.mime === '' && applied.order === 'random' && applied.tags.length === 0 && !is4chan;
     filterOpenBtn.classList.toggle('has-filter', !isDef); filterSummary.classList.toggle('show', !isDef);
     if (!isDef) {
       // Check if current filters exactly match a saved preset
@@ -2335,10 +2811,11 @@
         p.order === applied.order &&
         tagsKey(p.tags) === tagsKey(applied.tags)
       );
-      if (matchedPreset) {
+      if (matchedPreset && !is4chan) {
         filterSummary.textContent = matchedPreset.name;
       } else {
         const parts = [];
+        if (is4chan) parts.push('4chan');
         if (applied.mode !== defaultMode) parts.push(modeLabels[applied.mode]);
         if (applied.mime) parts.push(applied.mime);
         if (applied.order !== 'random') parts.push(applied.order);
@@ -2416,7 +2893,7 @@
     // 'c' toggles comments — only when NOT typing (so it never fires inside the comment input)
     if ((e.key === 'c' || e.key === 'C') && !isTyping && !tagBar?.classList.contains('open')) {
       if (commentsPanel.classList.contains('open')) closeAllPanels();
-      else if (currentSlide) openComments(currentSlide.dataset.id);
+      else if (currentSlide) openComments(currentSlide.dataset.localId || currentSlide.dataset.id);
       return;
     }
 
@@ -2441,16 +2918,45 @@
     else if (e.key === 'm') { isMuted = !isMuted; if (!isMuted && volume === 0) volume = 0.5; syncVolumeUI(); applyVolumeToAll(); saveVolume(); prefs.startUnmuted = !isMuted; savePrefs(prefs); applyStartUnmuted(!isMuted); showVolumePopup(); }
     else if (e.key === ' ') { e.preventDefault(); if (currentMedia) currentMedia.paused ? currentMedia.play().catch(() => {}) : currentMedia.pause(); }
     else if (e.key === 'f' || e.key === 'F') { pending = { ...applied, tags: [...applied.tags] }; syncPanelUI(); renderPresets(); openPanel(filterPanel, filterBackdrop); }
+    else if (e.key === 'g' || e.key === 'G') { if (applied.externalUrl && chanGalleryBtn) toggleGallery(); }
     else if (e.key === 'r' || e.key === 'R') {
       e.preventDefault();
       e.stopImmediatePropagation(); // prevent f0ckm.js global 'r' random shortcut from firing
-      // Jump to a random already-loaded slide
-      const slides = Array.from(feed.querySelectorAll('.scroll-slide'));
-      if (slides.length > 1) {
-        let target;
-        do { target = slides[Math.floor(Math.random() * slides.length)]; } while (target === currentSlide);
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      // Fetch a truly random item from the server with current filters
+      (async () => {
+        try {
+          const params = new URLSearchParams({ limit: 1, mode: applied.mode, orderby: 'random' });
+          if (applied.mime) params.set('mime', applied.mime);
+          if (applied.tags.length > 0) params.set('tag', applied.tags.join(','));
+          if (seenIds.size > 0) {
+            const recent = [...seenIds].slice(-200);
+            params.set('exclude', recent.join(','));
+          }
+          const resp = await fetch(`/api/v2/scroller/feed?${params}`);
+          const data = await resp.json();
+          if (data.items && data.items.length > 0) {
+            const item = data.items[0];
+            seenIds.add(item.id);
+            const slide = createSlide(item);
+            // Insert right after current slide — smooth scroll only travels 1 slide
+            if (currentSlide && currentSlide.nextSibling) {
+              feed.insertBefore(slide, currentSlide.nextSibling);
+            } else {
+              feed.appendChild(slide);
+            }
+            if (currentSlide) deactivateSlide(currentSlide);
+            scrollingToRandom = slide;
+            slide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Safety: activate after 1.5s if observer didn't fire
+            setTimeout(() => {
+              if (scrollingToRandom === slide) {
+                scrollingToRandom = null;
+                activateSlide(slide);
+              }
+            }, 1500);
+          }
+        } catch (err) { console.warn('[scroller] random fetch failed', err); }
+      })();
     }
     else if (e.key === 'p' || e.key === 'P') {
       e.preventDefault();
@@ -2481,6 +2987,210 @@
     else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); e.stopImmediatePropagation(); } // suppress upload modal shortcut in abyss
     else if (e.key === 'Escape') { window.location.href = '/'; }
   }, true); // capture phase — fires before f0ckm.js bubble listeners
+
+  // ── 4chan thread loading: auto-show for mods, secret '4444' for everyone else
+  function unlock4chan() {
+    const section = document.getElementById('external-source-section');
+    if (section) section.style.display = '';
+    if (chanOpenBtn) chanOpenBtn.style.display = '';
+  }
+  if (window.scrollerIsMod) {
+    unlock4chan();
+  } else {
+    let fourCount = 0;
+    let fourTimer = null;
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === '4') {
+        fourCount++;
+        clearTimeout(fourTimer);
+        fourTimer = setTimeout(() => { fourCount = 0; }, 1000);
+        if (fourCount >= 4) {
+          fourCount = 0;
+          unlock4chan();
+          showShareToast('4chan mode unlocked 🔓');
+        }
+      } else {
+        fourCount = 0;
+      }
+    });
+  }
+
+  // ── 4chan Panel ──────────────────────────────────────────────────────────
+  let chanCurrentBoard = 'wsg';
+  let chanCatalogCache = {};
+
+  if (chanOpenBtn && chanPanel && chanBackdrop) {
+    chanOpenBtn.addEventListener('click', () => {
+      openPanel(chanPanel, chanBackdrop);
+      if (!chanCatalogCache[chanCurrentBoard]) loadCatalog(chanCurrentBoard);
+    });
+    chanBackdrop.addEventListener('click', () => closePanel(chanPanel, chanBackdrop));
+
+    // Board pills
+    document.querySelectorAll('#chan-board-pills .filter-pill').forEach(p => {
+      p.addEventListener('click', () => {
+        document.querySelectorAll('#chan-board-pills .filter-pill').forEach(b => b.classList.remove('active'));
+        p.classList.add('active');
+        chanCurrentBoard = p.dataset.board;
+        if (chanCatalogCache[chanCurrentBoard]) {
+          renderCatalog(chanCurrentBoard, chanCatalogCache[chanCurrentBoard]);
+        } else {
+          loadCatalog(chanCurrentBoard);
+        }
+      });
+    });
+
+    // Custom board input
+    const chanCustomBoard = document.getElementById('chan-custom-board');
+    const chanCustomBoardBtn = document.getElementById('chan-custom-board-btn');
+    function loadCustomBoard() {
+      const code = chanCustomBoard?.value.trim().toLowerCase().replace(/\//g, '');
+      if (!code || !/^[a-z0-9]{1,6}$/.test(code)) { showShareToast('Invalid board code'); return; }
+      document.querySelectorAll('#chan-board-pills .filter-pill').forEach(b => b.classList.remove('active'));
+      chanCustomBoardBtn.classList.add('active');
+      chanCurrentBoard = code;
+      if (chanCatalogCache[code]) {
+        renderCatalog(code, chanCatalogCache[code]);
+      } else {
+        loadCatalog(code);
+      }
+    }
+    if (chanCustomBoardBtn) chanCustomBoardBtn.addEventListener('click', loadCustomBoard);
+    if (chanCustomBoard) chanCustomBoard.addEventListener('keydown', e => { if (e.key === 'Enter') loadCustomBoard(); });
+
+    // URL load button
+    if (chanUrlLoadBtn && chanUrlInput) {
+      chanUrlLoadBtn.addEventListener('click', () => {
+        const val = chanUrlInput.value.trim();
+        if (!val || !val.includes('boards.4chan.org')) {
+          showShareToast('Invalid 4chan URL');
+          return;
+        }
+        applied.externalUrl = val;
+        closePanel(chanPanel, chanBackdrop);
+        reloadFeed();
+      });
+      chanUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') chanUrlLoadBtn.click(); });
+    }
+  }
+
+  async function loadCatalog(board) {
+    if (chanLoading) chanLoading.style.display = '';
+    if (chanGrid) chanGrid.innerHTML = '';
+    try {
+      const resp = await fetch(`/api/v2/scroller/external/4chan/${board}/catalog`);
+      const data = await resp.json();
+      if (data.success && data.threads) {
+        chanCatalogCache[board] = data.threads;
+        renderCatalog(board, data.threads);
+      }
+    } catch (err) {
+      console.error('[CHAN] Catalog error:', err);
+      if (chanGrid) chanGrid.innerHTML = `<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4)">${(window.f0ckI18n && window.f0ckI18n.chan_catalog_failed) || 'Failed to load catalog'}</div>`;
+    } finally {
+      if (chanLoading) chanLoading.style.display = 'none';
+    }
+  }
+
+  function renderCatalog(board, threads) {
+    if (!chanGrid) return;
+    chanGrid.innerHTML = '';
+    const searchInput = document.getElementById('chan-catalog-search');
+    if (searchInput) searchInput.value = '';
+
+    threads.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'chan-thread-card' + (t.sticky ? ' sticky' : '');
+      card.dataset.search = `${(t.sub || '')} ${(t.com || '')}`.toLowerCase();
+      const thumbUrl = t.tim ? `/api/v2/scroller/external/4chan/${board}/media/${t.tim}s.jpg` : '';
+      card.innerHTML = `
+        ${thumbUrl ? `<img class="chan-thread-thumb" src="${thumbUrl}" loading="lazy" alt="" onerror="this.style.display='none'">` : '<div class="chan-thread-thumb" style="background:rgba(255,255,255,.06)"></div>'}
+        <div class="chan-thread-info">
+          <div class="chan-thread-sub">${esc(t.sub || t.com || 'No subject')}</div>
+          ${t.com && t.sub ? `<div class="chan-thread-com">${esc(t.com)}</div>` : ''}
+          <div class="chan-thread-stats">
+            <span><i class="fa-solid fa-comment"></i>${t.replies}</span>
+            <span><i class="fa-solid fa-image"></i>${t.images}</span>
+            ${t.sticky ? '<span><i class="fa-solid fa-thumbtack"></i>Pinned</span>' : ''}
+          </div>
+        </div>`;
+      card.addEventListener('click', () => {
+        applied.externalUrl = `https://boards.4chan.org/${board}/thread/${t.no}`;
+        applied.order = 'oldest';
+        closePanel(chanPanel, chanBackdrop);
+        reloadFeed();
+      });
+      chanGrid.appendChild(card);
+    });
+  }
+
+  // Catalog search filter
+  const chanCatalogSearch = document.getElementById('chan-catalog-search');
+  if (chanCatalogSearch) {
+    chanCatalogSearch.addEventListener('input', () => {
+      const q = chanCatalogSearch.value.toLowerCase().trim();
+      if (!chanGrid) return;
+      chanGrid.querySelectorAll('.chan-thread-card').forEach(card => {
+        card.style.display = !q || card.dataset.search.includes(q) ? '' : 'none';
+      });
+    });
+  }
+
+  // ── Thread Gallery Sidebar ──────────────────────────────────────────────
+  let galleryOpen = false;
+
+  function toggleGallery() {
+    galleryOpen = !galleryOpen;
+    if (chanGallerySidebar) chanGallerySidebar.classList.toggle('open', galleryOpen);
+    if (chanGalleryBtn) chanGalleryBtn.classList.toggle('active', galleryOpen);
+    document.body.classList.toggle('gallery-open', galleryOpen);
+    if (galleryOpen) populateGallery();
+  }
+
+  function populateGallery() {
+    if (!chanGallerySidebar) return;
+    chanGallerySidebar.innerHTML = '';
+    const slides = feed.querySelectorAll('.scroll-slide');
+    slides.forEach((slide, i) => {
+      const thumbSrc = slide._thumbnail || '';
+      if (!thumbSrc) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'gallery-thumb-wrap';
+      const img = document.createElement('img');
+      img.className = 'gallery-thumb';
+      img.src = thumbSrc;
+      img.loading = 'lazy';
+      img.alt = '';
+      if (slide === currentSlide) img.classList.add('active');
+      img.dataset.slideId = slide.dataset.id || '';
+      img.addEventListener('click', () => {
+        slide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      const idx = document.createElement('span');
+      idx.className = 'gallery-thumb-idx';
+      idx.textContent = i + 1;
+      wrap.appendChild(img);
+      wrap.appendChild(idx);
+      chanGallerySidebar.appendChild(wrap);
+    });
+    // Sync sidebar scroll to active thumbnail
+    const activeTh = chanGallerySidebar.querySelector('.gallery-thumb.active');
+    if (activeTh) activeTh.scrollIntoView({ block: 'center' });
+  }
+
+  function updateGalleryActive(slideId) {
+    if (!chanGallerySidebar || !galleryOpen) return;
+    chanGallerySidebar.querySelectorAll('.gallery-thumb').forEach(th => {
+      const isActive = th.dataset.slideId === slideId;
+      th.classList.toggle('active', isActive);
+      if (isActive) th.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+
+  if (chanGalleryBtn) {
+    chanGalleryBtn.addEventListener('click', toggleGallery);
+  }
 
   // ── Touch: let native CSS scroll-snap handle everything on mobile ─────────
   // (Removing custom touchstart/touchend handlers that caused jank by fighting
@@ -2547,6 +3257,198 @@
     // Also honor live hook from f0ckm.js if navigated via PJAX
     window._scrollerNotifHook = updateScrollerNotifBadge;
 
+    // ── Scroller Notification Dropdown ──────────────────────────────────
+    const sNotifBtn = document.getElementById('scroller-notif-btn');
+    const sNotifDropdown = document.getElementById('scroller-notif-dropdown');
+    const sNotifList = document.getElementById('scroller-notif-list');
+    const sMarkAll = document.getElementById('scroller-mark-all-read');
+
+    // Tab type arrays
+    const SCROLLER_USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
+    const SCROLLER_SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report'];
+    let sActiveTab = 'user';
+    let sCachedNotifs = [];
+
+    if (sNotifBtn && sNotifDropdown) {
+      let sNotifOpen = false;
+
+      function positionDropdown() {
+        const rect = sNotifBtn.getBoundingClientRect();
+        const dw = sNotifDropdown.offsetWidth || 340;
+        let left = rect.left + rect.width / 2 - dw / 2;
+        // Clamp to viewport
+        if (left + dw > window.innerWidth - 8) left = window.innerWidth - dw - 8;
+        if (left < 8) left = 8;
+        sNotifDropdown.style.top = (rect.bottom + 6) + 'px';
+        sNotifDropdown.style.left = left + 'px';
+        sNotifDropdown.style.right = 'auto';
+      }
+
+      function toggleScrollerNotifDropdown() {
+        sNotifOpen = !sNotifOpen;
+        if (sNotifOpen) {
+          sNotifDropdown.style.display = '';
+          positionDropdown();
+          sNotifDropdown.classList.add('visible');
+          fetchScrollerNotifs();
+        } else {
+          sNotifDropdown.classList.remove('visible');
+          sNotifDropdown.style.display = 'none';
+        }
+      }
+
+      // Reposition on resize / layout shift
+      const ro = new ResizeObserver(() => { if (sNotifOpen) positionDropdown(); });
+      ro.observe(document.getElementById('topbar') || document.body);
+      window.addEventListener('resize', () => { if (sNotifOpen) positionDropdown(); });
+
+      function isUserType(type) { return SCROLLER_USER_TYPES.includes(type); }
+      function isSystemType(type) { return SCROLLER_SYSTEM_TYPES.includes(type); }
+
+      function filterByTab(notifs, tab) {
+        if (tab === 'user') return notifs.filter(n => isUserType(n.type));
+        if (tab === 'system') return notifs.filter(n => isSystemType(n.type));
+        return notifs;
+      }
+
+      function updateScrollerTabBadges(notifs) {
+        const userUnread = notifs.filter(n => isUserType(n.type) && !n.is_read).length;
+        const sysUnread = notifs.filter(n => isSystemType(n.type) && !n.is_read).length;
+        const userBadge = document.getElementById('scroller-notif-tab-badge-user');
+        const sysBadge = document.getElementById('scroller-notif-tab-badge-system');
+        if (userBadge) {
+          userBadge.textContent = userUnread;
+          userBadge.style.display = userUnread > 0 ? '' : 'none';
+        }
+        if (sysBadge) {
+          sysBadge.textContent = sysUnread;
+          sysBadge.style.display = sysUnread > 0 ? '' : 'none';
+        }
+      }
+
+      async function fetchScrollerNotifs() {
+        try {
+          const res = await fetch('/api/notifications');
+          const data = await res.json();
+          if (data.success) {
+            sCachedNotifs = data.notifications || [];
+            updateScrollerTabBadges(sCachedNotifs);
+            renderScrollerNotifs(filterByTab(sCachedNotifs, sActiveTab));
+          }
+        } catch (e) { console.warn('[SCROLLER] Notif fetch failed:', e); }
+      }
+
+      function renderScrollerNotifs(notifs) {
+        if (!sNotifList) return;
+        if (!notifs.length) {
+          const emptyMsg = (window.f0ckI18n && window.f0ckI18n.no_notifications) || 'No new notifications';
+          sNotifList.innerHTML = `<div class="notif-empty">${emptyMsg}</div>`;
+          return;
+        }
+        const i18n = window.f0ckI18n || {};
+        sNotifList.innerHTML = notifs.map(n => {
+          let link = `/${n.item_id}`, msg = '', user = n.from_display_name || n.from_user || 'System';
+          if (n.type === 'approve') {
+            msg = i18n.notif_upload_approved || 'Your Upload has been approved';
+            user = i18n.notif_system || 'System';
+          } else if (n.type === 'upload_success') {
+            msg = i18n.notif_upload_success || 'Background upload finished';
+            user = i18n.notif_system || 'System';
+          } else if (n.type === 'upload_error') {
+            msg = i18n.notif_upload_error || 'Background upload failed';
+            user = i18n.notif_system || 'System';
+            link = n.item_id ? `/${n.item_id}` : '#';
+          } else if (n.type === 'deny' || n.type === 'item_deleted') {
+            msg = n.type === 'item_deleted'
+              ? (i18n.notif_upload_deleted || `Upload #${n.item_id} deleted`)
+              : (i18n.notif_upload_denied || `Upload #${n.item_id} denied`);
+            user = i18n.notif_moderation || 'Moderation';
+          } else if (n.type === 'admin_pending') {
+            link = '/mod/approve'; user = i18n.notif_admin || 'Admin';
+            msg = i18n.notif_upload_pending || 'New upload needs approval';
+          } else if (n.type === 'report') {
+            link = '/mod/reports'; user = i18n.notif_moderation || 'Moderator';
+            msg = i18n.notif_new_report || 'New user report';
+          } else {
+            link = `/${n.item_id}#c${n.reference_id}`;
+            if (n.type === 'comment_reply') msg = i18n.notif_replied || 'replied to you';
+            else if (n.type === 'subscription') msg = i18n.notif_subscribed || 'commented in a thread you follow';
+            else if (n.type === 'mention') msg = i18n.notif_mentioned || 'highlighted you';
+            else msg = i18n.notif_commented || 'commented';
+          }
+          const thumbSrc = n.type === 'admin_pending' ? `/mod/pending/t/${n.item_id}.webp` : `/t/${n.item_id}.webp`;
+          const thumb = n.item_id ? `<div class="notif-thumb"><img src="${thumbSrc}" alt="" onerror="this.style.display='none'"></div>` : '';
+          return `<a href="${link}" target="_blank" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
+            ${thumb}
+            <div class="notif-content">
+              <div class="notif-user"><strong ${n.username_color ? `style="color:${n.username_color}"` : ''}>${user}</strong></div>
+              <div class="notif-msg">${msg}</div>
+              <small class="notif-time">${new Date(n.created_at).toLocaleString()}</small>
+            </div>
+          </a>`;
+        }).join('');
+      }
+
+      // Tab switching
+      sNotifDropdown.querySelectorAll('.notif-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          sActiveTab = tab.dataset.tab;
+          sNotifDropdown.querySelectorAll('.notif-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === sActiveTab));
+          if (sNotifList) sNotifList.dataset.activeTab = sActiveTab;
+          renderScrollerNotifs(filterByTab(sCachedNotifs, sActiveTab));
+        });
+      });
+
+      sNotifBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleScrollerNotifDropdown();
+      });
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (sNotifOpen && !sNotifDropdown.contains(e.target) && !sNotifBtn.contains(e.target)) {
+          sNotifOpen = false;
+          sNotifDropdown.classList.remove('visible');
+          sNotifDropdown.style.display = 'none';
+        }
+      });
+
+      // Mark all read
+      if (sMarkAll) {
+        sMarkAll.addEventListener('click', async () => {
+          try {
+            await fetch('/api/notifications/read', { method: 'POST' });
+            updateScrollerNotifBadge(0);
+            sCachedNotifs = sCachedNotifs.map(n => ({ ...n, is_read: true }));
+            updateScrollerTabBadges(sCachedNotifs);
+            renderScrollerNotifs(filterByTab(sCachedNotifs, sActiveTab));
+          } catch (e) {}
+        });
+      }
+
+      // Single notif click → mark read
+      sNotifDropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.notif-item');
+        if (!item) return;
+        const nid = item.dataset.id;
+        if (nid && item.classList.contains('unread')) {
+          fetch(`/api/notifications/${nid}/read`, { method: 'POST', keepalive: true }).catch(() => {});
+          item.classList.remove('unread');
+          // Update cache
+          const cached = sCachedNotifs.find(n => String(n.id) === String(nid));
+          if (cached) cached.is_read = true;
+          updateScrollerTabBadges(sCachedNotifs);
+          const badge = document.getElementById('scroller-notif-badge');
+          if (badge) {
+            let c = parseInt(badge.textContent) || 0;
+            if (c > 0) { badge.textContent = --c; if (c === 0) badge.style.display = 'none'; }
+          }
+        }
+      });
+    }
+
+
     // Cleanup on PJAX navigation away
     document.addEventListener('pjax:send', () => {
       clearInterval(notifPollTimer);
@@ -2563,6 +3465,12 @@
   updateFilterSummary();
 
   const restored = tryRestoreFromCache();
-  if (!restored) fetchItems();
+  if (!restored) {
+    if (chanHashPending) {
+      chanHashPending.then(() => fetchItems());
+    } else {
+      fetchItems();
+    }
+  }
 
 })();

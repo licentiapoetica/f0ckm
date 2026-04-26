@@ -6,6 +6,27 @@ import { setMotd } from "../motd.mjs";
 export const clients = new Set();
 const activeTabs = new Map(); // sessionId -> tabId
 
+// Broadcast the deduplicated online-user list to all connected clients
+function broadcastChatPresence() {
+    const seen = new Set();
+    const users = [];
+    for (const client of clients) {
+        if (client.userId && !seen.has(client.userId)) {
+            seen.add(client.userId);
+            users.push({
+                username:       client.username,
+                display_name:   client.display_name,
+                avatar_file:    client.avatar_file,
+                avatar:         client.avatar,
+                username_color: client.username_color
+            });
+        }
+    }
+    for (const client of clients) {
+        client.send({ type: 'global_chat_presence', data: { users } });
+    }
+}
+
 function pruneInactiveClients(sessionId, currentTabId) {
     for (const client of clients) {
         if (client.sessionId === sessionId && client.tabId !== currentTabId) {
@@ -286,26 +307,50 @@ db.listen('global_chat_topic', (payload) => {
 
 export default (router, tpl) => {
 
-    async function getNotificationHistory(userId, page = 1, limit = 50) {
+    const USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
+    const SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report'];
+
+    async function getNotificationHistory(userId, page = 1, limit = 50, tab = null) {
         const offset = (page - 1) * limit;
-        const notifications = await db`
-            SELECT n.id, n.type, n.item_id, n.reference_id, n.created_at, n.is_read, n.data,
-                   COALESCE(u.user, 'System') as from_user,
-                   COALESCE(uo.display_name, '') as from_display_name,
-                   COALESCE(u.id, 0) as from_user_id,
-                   uo.username_color,
-                   i.dest, i.mime
-            FROM notifications n
-            LEFT JOIN comments c ON n.reference_id = c.id
-            LEFT JOIN "user" u ON c.user_id = u.id
-            LEFT JOIN user_options uo ON u.id = uo.user_id
-            LEFT JOIN items i ON n.item_id = i.id
-            WHERE n.user_id = ${userId}
-            AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
-            ORDER BY n.created_at DESC
-            LIMIT ${limit + 1}
-            OFFSET ${offset}
-        `;
+        const typeFilter = tab === 'system' ? SYSTEM_TYPES : (tab === 'user' ? USER_TYPES : null);
+        const notifications = typeFilter
+            ? await db`
+                SELECT n.id, n.type, n.item_id, n.reference_id, n.created_at, n.is_read, n.data,
+                       COALESCE(u.user, 'System') as from_user,
+                       COALESCE(uo.display_name, '') as from_display_name,
+                       COALESCE(u.id, 0) as from_user_id,
+                       uo.username_color,
+                       i.dest, i.mime
+                FROM notifications n
+                LEFT JOIN comments c ON n.reference_id = c.id
+                LEFT JOIN "user" u ON c.user_id = u.id
+                LEFT JOIN user_options uo ON u.id = uo.user_id
+                LEFT JOIN items i ON n.item_id = i.id
+                WHERE n.user_id = ${userId}
+                AND n.type = ANY(${typeFilter})
+                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
+                ORDER BY n.created_at DESC
+                LIMIT ${limit + 1}
+                OFFSET ${offset}
+            `
+            : await db`
+                SELECT n.id, n.type, n.item_id, n.reference_id, n.created_at, n.is_read, n.data,
+                       COALESCE(u.user, 'System') as from_user,
+                       COALESCE(uo.display_name, '') as from_display_name,
+                       COALESCE(u.id, 0) as from_user_id,
+                       uo.username_color,
+                       i.dest, i.mime
+                FROM notifications n
+                LEFT JOIN comments c ON n.reference_id = c.id
+                LEFT JOIN "user" u ON c.user_id = u.id
+                LEFT JOIN user_options uo ON u.id = uo.user_id
+                LEFT JOIN items i ON n.item_id = i.id
+                WHERE n.user_id = ${userId}
+                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
+                ORDER BY n.created_at DESC
+                LIMIT ${limit + 1}
+                OFFSET ${offset}
+            `;
 
         const hasMore = notifications.length > limit;
         if (hasMore) notifications.pop();
@@ -348,7 +393,7 @@ export default (router, tpl) => {
                 WHERE n.user_id = ${req.session.id} AND n.is_read = false
                 AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
                 ORDER BY n.created_at DESC
-                LIMIT 20
+                LIMIT 1000
             `;
 
             const processed = notifications.map(n => {
@@ -437,17 +482,14 @@ export default (router, tpl) => {
         // For guests, we use tabId to avoid IP-based pruning collisions (CGNAT).
         const sessionId = sessionCookie || `guest-${tabId}`;
 
-        // Pruning/Active logic only for logged-in users
+        // sessionId used for presence deduplication only — all tabs from same session connect freely
+        // Soft cap: max 10 SSE connections per session (prevents runaway tab abuse)
+        const MAX_TABS_PER_SESSION = 10;
         if (!isGuest) {
-            const currentActive = activeTabs.get(sessionId);
-            if (currentActive && currentActive !== tabId) {
-                // Check if the current active tab is actually still connected
-                const activeClient = Array.from(clients).find(c => c.sessionId === sessionId && c.tabId === currentActive);
-                if (activeClient) {
-                    // console.log(`[SSE] Denying connection for inactive tab ${tabId} (Active: ${currentActive})`);
-                    res.writeHead(204); // No Content
-                    return res.end();
-                }
+            const sessionClients = Array.from(clients).filter(c => c.sessionId === sessionId);
+            if (sessionClients.length >= MAX_TABS_PER_SESSION) {
+                // Close the oldest connection (FIFO) to free the slot
+                sessionClients[0].close();
             }
         }
 
@@ -463,6 +505,11 @@ export default (router, tpl) => {
 
         const client = {
             userId: (req.session && typeof req.session === 'object') ? req.session.id : null,
+            username:       req.session?.user            || null,
+            display_name:   req.session?.display_name   || null,
+            avatar_file:    req.session?.avatar_file    || null,
+            avatar:         req.session?.avatar          || null,
+            username_color: req.session?.username_color || null,
             sessionId,
             tabId,
             send: (data) => {
@@ -500,13 +547,11 @@ export default (router, tpl) => {
         }
 
 
-        // Set as active tab and prune others (only for logged-in users)
-        if (!isGuest) {
-            activeTabs.set(sessionId, tabId);
-            pruneInactiveClients(sessionId, tabId);
-        }
+        // Track active tab (no pruning — all tabs are allowed to coexist)
+        if (!isGuest) activeTabs.set(sessionId, tabId);
 
         clients.add(client);
+        broadcastChatPresence(); // notify everyone of new user
 
         // Keep-alive ping
         const pingInterval = setInterval(() => {
@@ -520,6 +565,7 @@ export default (router, tpl) => {
         res.on('close', () => {
             clearInterval(pingInterval);
             clients.delete(client);
+            broadcastChatPresence(); // notify everyone user left
             if (activeTabs.get(sessionId) === tabId) {
                 // activeTabs.delete(sessionId); // Keep it set so we know who was last active
             }
@@ -531,11 +577,9 @@ export default (router, tpl) => {
         const tabId = req.url.qs?.tabId;
         const sessionId = req.cookies?.session;
 
-        // Only track active tabs for logged-in users
+        // Track which tab is focused (informational only, no pruning)
         if (tabId && sessionId) {
-            console.log(`[SSE] Tab ${tabId} became active for session ${sessionId}`);
             activeTabs.set(sessionId, tabId);
-            pruneInactiveClients(sessionId, tabId);
             return res.reply({ body: JSON.stringify({ success: true }) });
         }
         
@@ -546,7 +590,8 @@ export default (router, tpl) => {
     // Notification History Page
     router.get('/notifications', async (req, res) => {
         if (!req.session) return res.redirect('/login');
-        const data = await getNotificationHistory(req.session.id, 1);
+        const tab = req.url.qs?.tab || 'user';
+        const data = await getNotificationHistory(req.session.id, 1, 50, tab);
         data.session = req.session;
         data.hidePagination = true;
         data.pagination = {
@@ -564,7 +609,8 @@ export default (router, tpl) => {
             success: false
         }, 401);
         const page = parseInt(req.url.qs.page) || 1;
-        const data = await getNotificationHistory(req.session.id, page);
+        const tab = req.url.qs.tab || null;
+        const data = await getNotificationHistory(req.session.id, page, 50, tab);
 
         const html = tpl.render('snippets/notifications-list', data, req);
 

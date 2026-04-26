@@ -71,11 +71,13 @@
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="deleteUploads(this)" class="btn-modern btn-files">Del Files</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="deleteComments(this)" class="btn-modern btn-comms">Del Comms</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminBulkDeleteHalls(this)" class="btn-modern btn-comms" title="Delete all user halls" style="background: rgba(255, 0, 255, 0.1); color: #ff00ff; border: 1px solid rgba(255, 0, 255, 0.2);"><i class="fa fa-folder-open"></i> Del Halls</button>
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminReassignUploads(this)" class="btn-modern" title="Reassign uploads to another user" style="background: rgba(0, 200, 180, 0.1); color: #00c8b4; border: 1px solid rgba(0, 200, 180, 0.2);"><i class="fa fa-right-left"></i> Reassign</button>
                 @if(u.failed_attempts > 0)
                     <button data-username="{{ u.login }}" onclick="adminResetLoginAttempts(this)" class="btn-modern btn-pw" title="Reset Login Attempts" style="background: rgba(255, 204, 0, 0.1); color: #ffcc00; border: 1px solid rgba(255, 204, 0, 0.2);"><i class="fa fa-unlock"></i> Reset IP</button>
                 @endif
             @else
                 <button data-id="" data-name="{{ u.user }}" data-username="{{ u.login }}" onclick="deleteUploads(this)" class="btn-modern btn-files">Del Legacy Files</button>
+                <button data-id="" data-name="{{ u.user }}" data-username="{{ u.login }}" onclick="adminReassignUploads(this)" class="btn-modern" title="Reassign uploads to another user" style="background: rgba(0, 200, 180, 0.1); color: #00c8b4; border: 1px solid rgba(0, 200, 180, 0.2);"><i class="fa fa-right-left"></i> Reassign</button>
             @endif
 
             @if(u.id && u.login !== 'deleted_user')

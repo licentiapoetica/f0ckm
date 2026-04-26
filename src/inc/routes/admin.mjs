@@ -857,6 +857,60 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
     }
   });
 
+  router.post(/^\/api\/v2\/admin\/users\/reassign-uploads\/?$/, lib.auth, async (req, res) => {
+    try {
+      const { source_user_id, source_username, target_username } = req.post;
+      if (!source_user_id && !source_username) throw new Error('Missing source_user_id or source_username');
+      if (!target_username || !target_username.trim()) throw new Error('Missing target_username');
+
+      // Resolve source user (registered or ghost)
+      let sourceLogin, sourceUser;
+      if (source_user_id) {
+        const source = await db`SELECT id, login, "user" FROM "user" WHERE id = ${+source_user_id} LIMIT 1`;
+        if (!source.length) throw new Error('Source user not found');
+        if (source[0].login === 'deleted_user') throw new Error('Cannot reassign uploads from the protected deleted_user account.');
+        sourceLogin = source[0].login;
+        sourceUser = source[0].user;
+      } else {
+        // Ghost/legacy user — just use the username directly
+        sourceLogin = source_username.trim();
+        sourceUser = source_username.trim();
+      }
+
+      // Resolve target user
+      const target = await db`SELECT id, login, "user" FROM "user" WHERE login ILIKE ${target_username.trim()} LIMIT 1`;
+      if (!target.length) throw new Error('Target user "' + target_username.trim() + '" not found');
+
+      const targetLogin = target[0].login;
+      const targetId = target[0].id;
+
+      if (source_user_id && +source_user_id === targetId) throw new Error('Source and target user are the same.');
+
+      // Reassign all items
+      const result = await db`
+        UPDATE items
+        SET username = ${targetLogin}
+        WHERE username ILIKE ${sourceLogin} OR username ILIKE ${sourceUser}
+      `;
+
+      // Log in audit
+      await audit.log(req.session.id, 'admin_reassign_uploads', 'user', source_user_id ? +source_user_id : null, {
+        source_login: sourceLogin,
+        target_login: targetLogin,
+        target_id: targetId,
+        count: result.count
+      });
+
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        success: true,
+        count: result.count,
+        msg: `Successfully reassigned ${result.count} uploads from ${sourceLogin} to ${targetLogin}.`
+      }));
+    } catch (err) {
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
+    }
+  });
+
   router.post(/^\/api\/v2\/admin\/users\/bulk-delete-items\/?$/, lib.auth, async (req, res) => {
     try {
       const { user_id, username } = req.post;

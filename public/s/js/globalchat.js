@@ -24,13 +24,26 @@
     const ytOembedCache = new Map(); // videoId → {title, author_name}
 
     function updateBadge() {
-        const badge = document.getElementById('gchat-badge');
-        if (!badge) return;
+        const badge  = document.getElementById('gchat-badge');
+        const bubble = document.getElementById('gchat-reopen-bubble');
         if (unreadCount > 0) {
-            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-            badge.style.display = 'inline-flex';
+            const label = unreadCount > 99 ? '99+' : String(unreadCount);
+            if (badge) { badge.textContent = label; badge.style.display = 'inline-flex'; }
+            // Bubble badge — create it lazily if it doesn't exist yet
+            if (bubble) {
+                let bb = bubble.querySelector('.gchat-bubble-badge');
+                if (!bb) {
+                    bb = document.createElement('span');
+                    bb.className = 'gchat-bubble-badge';
+                    bubble.appendChild(bb);
+                }
+                bb.textContent = label;
+                bb.style.display = '';
+            }
         } else {
-            badge.style.display = 'none';
+            if (badge) badge.style.display = 'none';
+            const bb = document.getElementById('gchat-reopen-bubble')?.querySelector('.gchat-bubble-badge');
+            if (bb) bb.style.display = 'none';
         }
     }
 
@@ -70,6 +83,7 @@
                     </div>
                 </div>
                 <div id="gchat-topic" style="display:none"></div>
+                <div id="gchat-online"></div>
                 <div id="gchat-messages"></div>
                 <div id="gchat-input-area">
                     <div id="gchat-toolbar">
@@ -211,10 +225,50 @@
             `</a>`;
         });
 
-        // 6e. Remaining plain https URLs (not already wrapped in a tag) → clickable link
+        // 6d.5  Same-site item page links → post preview card (resolved async)
+        //       Only catches /digits paths — direct media file URLs are handled by 6a-6c & 6e.
+        const siteHostEsc = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const siteItemRx  = new RegExp(
+            `https?:\/\/${siteHostEsc}\/(\\d+)(?=[\\s<"']|$)`,
+            'gi'
+        );
+        html = html.replace(siteItemRx, (match, itemId) =>
+            `<span class="gchat-item-embed gchat-post-card gchat-post-card--loading" data-item-id="${itemId}">` +
+                `<span class="gchat-post-card__thumb-wrap"><span class="gchat-post-card__thumb-placeholder"><i class="fa-solid fa-spinner fa-spin"></i></span></span>` +
+                `<span class="gchat-post-card__info"><span class="gchat-post-card__id">#${itemId}</span></span>` +
+            `</span>`
+        );
+
+        // 6e. Remaining https URLs → embed media if from allowed host, else plain link
         html = html.replace(/(^|[\s>])(https?:\/\/[^\s<"]+)/g, (match, pre, url) => {
-            // Don't double-wrap already-embedded URLs
-            if (match.includes('<img') || match.includes('<video') || match.includes('<audio') || match.includes('<iframe') || match.includes('gchat-yt-card')) return match;
+            // Skip URLs already embedded by earlier steps
+            if (match.includes('<img') || match.includes('<video') || match.includes('<audio') ||
+                match.includes('<iframe') || match.includes('gchat-yt-card') || match.includes('gchat-item-embed'))
+                return match;
+
+            // Use URL API for reliable host + extension detection
+            try {
+                const urlObj = new URL(url);
+                const host   = urlObj.host;
+                const path   = urlObj.pathname;
+                // Derive CDN host from window.f0ckMediaBase (may be on a different subdomain in prod)
+                let mediaHost = '';
+                try { mediaHost = new URL(window.f0ckMediaBase || '').host; } catch (_) {}
+                const isSameSite      = host === window.location.host;
+                const isMediaHost     = !!mediaHost && host === mediaHost;
+                const isAllowedHoster = !isSameSite && !isMediaHost && (window.f0ckAllowedImages || []).some(h =>
+                    host === h || host.endsWith('.' + h)
+                );
+                if (isSameSite || isMediaHost || isAllowedHoster) {
+                    if (/\.(mp4|webm|ogv|mov)(\?.*)?$/i.test(path))
+                        return `${pre}<span class="gchat-embed-video"><video src="${url}" controls loop muted playsinline preload="metadata"></video></span>`;
+                    if (/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(path))
+                        return `${pre}<span class="gchat-embed-img"><img src="${url}" loading="lazy" alt="" onerror="this.parentNode.style.display='none'"></span>`;
+                    if (/\.(mp3|ogg|wav|flac|aac|opus|m4a)(\?.*)?$/i.test(path))
+                        return `${pre}<span class="gchat-embed-audio"><audio src="${url}" controls preload="metadata"></audio></span>`;
+                }
+            } catch (_) {}
+
             return `${pre}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.7em;margin-left:3px;opacity:0.6"></i></a>`;
         });
 
@@ -277,6 +331,70 @@
         if (authorEl) authorEl.textContent = meta.author_name || '';
     }
 
+    // Resolve same-site item links → post preview card
+    const itemPreviewCache = new Map(); // id → { item, meta } | null
+    async function fetchItemPreview(wrapEl) {
+        const id = wrapEl.dataset.itemId;
+        if (!id) return;
+
+        let cached = itemPreviewCache.get(id);
+        if (cached === undefined) {
+            try {
+                const [itemRes, metaRes] = await Promise.all([
+                    fetch(`/api/v2/item/${id}`),
+                    fetch(`/api/v2/scroller/meta?ids=${id}`)
+                ]);
+                const itemData = await itemRes.json();
+                const metaData = await metaRes.json();
+                const item = (itemData.success && itemData.rows) ? itemData.rows : null;
+                const meta = metaData[id] || null;
+                cached = item ? { item, meta } : null;
+            } catch (_) {
+                cached = null;
+            }
+            itemPreviewCache.set(id, cached);
+        }
+
+        if (!cached) {
+            // Fallback: plain link
+            const link = document.createElement('a');
+            link.href = `/${id}`;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = `#${id}`;
+            wrapEl.replaceWith(link);
+            return;
+        }
+
+        const { item, meta } = cached;
+        const commentCount = meta ? (meta.comment_count || 0) : 0;
+        const uploader = esc(item.username || 'unknown');
+        const mime = item.mime || '';
+        const thumbSrc = `/t/${id}.webp`;
+
+        // Media type badge
+        let typeBadge = '';
+        if (mime.startsWith('video/')) typeBadge = '<i class="fa-solid fa-film"></i>';
+        else if (mime.startsWith('audio/')) typeBadge = '<i class="fa-solid fa-music"></i>';
+        else if (mime.startsWith('image/')) typeBadge = '<i class="fa-solid fa-image"></i>';
+
+        const card = document.createElement('a');
+        card.className = 'gchat-post-card';
+        card.href = `/${id}`;
+        card.innerHTML =
+            `<span class="gchat-post-card__thumb-wrap">` +
+                `<img class="gchat-post-card__thumb" src="${esc(thumbSrc)}" alt="#${id}" loading="lazy" onerror="this.style.display='none'">` +
+                (typeBadge ? `<span class="gchat-post-card__type-badge">${typeBadge}</span>` : '') +
+            `</span>` +
+            `<span class="gchat-post-card__info">` +
+                `<span class="gchat-post-card__id">#${id}</span>` +
+                `<span class="gchat-post-card__uploader"><i class="fa-solid fa-user"></i> ${uploader}</span>` +
+                `<span class="gchat-post-card__comments"><i class="fa-solid fa-comment"></i> ${commentCount}</span>` +
+            `</span>`;
+
+        wrapEl.replaceWith(card);
+    }
+
     function appendMsg(msg, scrollForce = false) {
         const container = document.getElementById('gchat-messages');
         if (!container) return;
@@ -301,6 +419,8 @@
 
         // Wire up YouTube oEmbed cards
         node.querySelectorAll('.gchat-yt-card[data-yt-id]').forEach(fetchYtOembed);
+        // Wire up same-site item embeds
+        node.querySelectorAll('.gchat-item-embed[data-item-id]').forEach(fetchItemPreview);
 
         scrollToBottom(scrollForce);
 
@@ -772,9 +892,9 @@
         let _sseReady = false;
 
         function setConnecting(connecting) {
-            if (_inputArea) _inputArea.style.opacity  = connecting ? '0.35' : '';
-            if (_inputArea) _inputArea.style.pointerEvents = connecting ? 'none' : '';
-            if (_messages)  _messages.style.opacity   = connecting ? '0.35' : '';
+                if (_inputArea) _inputArea.style.opacity       = connecting ? '0.35' : '1';
+                if (_inputArea) _inputArea.style.pointerEvents = connecting ? 'none' : '';
+                if (_messages)  _messages.style.opacity        = connecting ? '0.35' : '1';
             const sendBtn = document.getElementById('gchat-send-btn');
             if (sendBtn) sendBtn.disabled = connecting;
         }
@@ -783,11 +903,38 @@
         const onSseReady = () => {
             if (_sseReady) return;
             _sseReady = true;
+            clearTimeout(_sseUnlockTimer);
+            clearInterval(_pollFallback);
             setConnecting(false);
         };
         document.addEventListener('f0ck:sse_ready', onSseReady);
         // Failsafe: if SSE already fired before this ran (e.g. fast reconnect), check flag
         if (document.documentElement.dataset.sseReady === '1') onSseReady();
+
+        // Absolute fallback: if SSE hasn't connected within 10s, unlock anyway and poll
+        let _pollFallback = null;
+        const _sseUnlockTimer = setTimeout(() => {
+            if (_sseReady) return;
+            console.warn('[Chat] SSE not ready after 10s — unlocking in polling mode');
+            setConnecting(false);
+            // Poll /api/chat every 15s as fallback so messages still appear
+            _pollFallback = setInterval(async () => {
+                if (_sseReady) { clearInterval(_pollFallback); return; }
+                try {
+                    const res  = await fetch('/api/chat', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const data = await res.json();
+                    if (!data.success) return;
+                    const container = document.getElementById('gchat-messages');
+                    if (!container) return;
+                    const lastId = parseInt(container.dataset.lastPollId || '0', 10);
+                    const newMsgs = (data.messages || []).filter(m => m.id > lastId);
+                    if (newMsgs.length) {
+                        newMsgs.forEach(m => appendMsg(m, false));
+                        container.dataset.lastPollId = String(Math.max(...newMsgs.map(m => m.id)));
+                    }
+                } catch (_) {}
+            }, 15000);
+        }, 10000);
 
         const textarea = document.getElementById('gchat-input');
 
@@ -1191,6 +1338,34 @@
         // SSE topic change — apply instantly to all clients
         document.addEventListener('f0ck:global_chat_topic', (e) => {
             applyTopic(e.detail?.topic || null);
+        });
+
+        // ── Online users bar ─────────────────────────────────────────────────
+        function renderOnline(users) {
+            const el = document.getElementById('gchat-online');
+            if (!el) return;
+            if (!users || users.length === 0) {
+                el.innerHTML = '';
+                el.style.display = 'none';
+                return;
+            }
+            el.style.display = 'block';
+            // Show up to 8 avatars, then "+N more" pill
+            const MAX_SHOWN = 8;
+            const shown  = users.slice(0, MAX_SHOWN);
+            const extra  = users.length - shown.length;
+            const avatarHTML = shown.map(u => {
+                const name = esc(u.display_name || u.username || '?');
+                const src  = avatarSrc(u);
+                const colorStyle = u.username_color ? `style="border-color:${esc(u.username_color)}"` : '';
+                return `<img src="${src}" class="gchat-online-avatar" title="${name}" alt="${name}" loading="lazy" ${colorStyle}>`;
+            }).join('');
+            const extraPill = extra > 0 ? `<span class="gchat-online-extra">+${extra}</span>` : '';
+            const countLabel = `<span class="gchat-online-count">${users.length} online</span>`;
+            el.innerHTML = `<div class="gchat-online-inner">${countLabel}<div class="gchat-online-avatars">${avatarHTML}${extraPill}</div></div>`;
+        }
+        document.addEventListener('f0ck:global_chat_presence', (e) => {
+            renderOnline(e.detail?.users || []);
         });
 
         // Event delegation: reply + admin delete buttons inside #gchat-messages

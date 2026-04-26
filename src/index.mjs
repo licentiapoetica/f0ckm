@@ -414,7 +414,7 @@ process.on('uncaughtException', err => {
   // because the session middleware will have completed by the time router callbacks execute.
   app.use(async (req, res) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
-    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps'].includes(req.url.pathname)) return;
+    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta'].includes(req.url.pathname)) return;
     // Hall manager routes are handled by bypass middleware with their own session auth
     if (req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
     // User hall image upload is handled by bypass middleware below
@@ -737,6 +737,7 @@ process.on('uncaughtException', err => {
     custom_brand_images_json: JSON.stringify(cfg.websrv.custom_brand_image || []),
     allowed_comment_images: cfg.websrv.allowed_comment_images || [],
     allowed_comment_images_json: JSON.stringify(cfg.websrv.allowed_comment_images || []),
+    paths_images: cfg.websrv.paths?.images || '/b',
 
     get fonts() {
       try {

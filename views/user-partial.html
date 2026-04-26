@@ -22,19 +22,15 @@
             @if(enable_profile_description && user.description)
             <div class="profile_description">{!! user.description !!}</div>
             @endif
-            @if(session && session.id !== user.user_id && private_messages)
-                <button id="send-dm-btn" class="btn btn-sm btn-outline-info" data-username="{!! user.user !!}" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.message_btn') }}</button>
-            @endif
-            @if(session && session.id === user.user_id)
-                <!--<button id="subscribe-all-uploads-btn" class="btn btn-sm btn-outline-info" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">Subscribe to all my uploads</button>-->
-            @endif
+
         </div>
         <div class="profile_head_user_stats">
             @if(user.is_ghost)
                 <div class="stat-legacy">{{ t('profile.legacy_record') }} <time class="timeago" tooltip="{{ user.timestamp.timefull }}">{{ user.timestamp.timeago }}</time></div>
             @else
                 <div class="stat-id">ID: {{ user.user_id || user.id }}</div>
-                <div class="stat-joined">{{ t('profile.joined') }} <time class="timeago" tooltip="{{ user.timestamp.timefull }}">{{ user.timestamp.timeago }}</time></div>
+    
+                <div class="stat-joined" title="{{ user.timestamp.timefull }}">{{ t('profile.age_days', { n: user.age_days }) }}</div>
                     @if(!user.is_ghost)
                         <div class="stat-comments">{{ t('profile.stat_comments') }} <a href="/user/{!! user.user !!}/comments">{{ count.comments }}</a></div>
                         <div class="stat-tags">{{ t('profile.stat_tags') }} {{ count.tags }}</div>
@@ -42,25 +38,26 @@
                         <div class="stat-halls">{{ t('profile.stat_halls') }} <a href="/user/{!! user.user !!}/halls">{{ count.halls }}</a></div>
                         @endif
                     @endif
-                @if(session)
-                @if(session.id !== user.user_id)
-                    @if(session.admin || session.is_moderator)
-                        @if(session.admin || !user.admin)
-                            @if(user.banned)
-                            <button id="unban-user-btn" class="btn btn-sm btn-outline-success" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid #5cb85c; color: #5cb85c; background: transparent; cursor: pointer;">{{ t('profile.unban_btn') }}</button>
-                            @else
-                            <button id="ban-user-btn" class="btn btn-sm btn-outline-danger" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.ban_btn') }}</button>
-                            @endif
-                            <button id="warn-user-btn" class="btn btn-sm btn-outline-warning" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;">{{ t('profile.warn_btn') }}</button>
-                        @endif
-                        @if(session.admin)
-                        <button id="admin-subscribe-user-btn" class="btn btn-sm btn-outline-warning" style="margin-left: 10px; padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;">{{ t('profile.subscribe_uploads_btn') }}</button>
-                        @endif
+
+            @endif
+        </div>
+        @if(session && session.id !== user.user_id)
+        <div class="profile-actions" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+            @if(private_messages)
+                <button id="send-dm-btn" class="btn btn-sm btn-outline-info" data-username="{!! user.user !!}" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.message_btn') }}</button>
+            @endif
+            @if(session.admin || session.is_moderator)
+                @if(session.admin || !user.admin)
+                    @if(user.banned)
+                    <button id="unban-user-btn" class="btn btn-sm btn-outline-success" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #5cb85c; color: #5cb85c; background: transparent; cursor: pointer;">{{ t('profile.unban_btn') }}</button>
+                    @else
+                    <button id="ban-user-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.ban_btn') }}</button>
                     @endif
-                @endif
+                    <button id="warn-user-btn" class="btn btn-sm btn-outline-warning" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;">{{ t('profile.warn_btn') }}</button>
                 @endif
             @endif
         </div>
+        @endif
     </div>
 </div>
 <div class="user_content_wrapper">
@@ -313,39 +310,7 @@
             };
         }
 
-        const subUserBtn = document.getElementById('admin-subscribe-user-btn');
-        if (subUserBtn && userId) {
-            subUserBtn.onclick = async () => {
-                if (!confirm('{{ t('profile.confirm_subscribe_uploads') }}')) return;
 
-                subUserBtn.disabled = true;
-                subUserBtn.innerText = '{{ t('profile.subscribing') }}';
-
-                try {
-                    const res = await fetch('/api/v2/admin/subscribe-user-to-uploads', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': window.f0ckSession?.csrf_token
-                        },
-                        body: JSON.stringify({ user_id: userId })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        alert('{{ t('profile.subscribed') }}');
-                        subUserBtn.innerText = '{{ t('profile.subscribed') }}';
-                    } else {
-                        alert('Error: ' + (data.msg || data.message));
-                        subUserBtn.disabled = false;
-                        subUserBtn.innerText = '{{ t('profile.subscribe_uploads_btn') }}';
-                    }
-                } catch (err) {
-                    alert('Failed to subscribe user: ' + err.message);
-                    subUserBtn.disabled = false;
-                    subUserBtn.innerText = '{{ t('profile.subscribe_uploads_btn') }}';
-                }
-            };
-        }
     })();
 </script>
 @endif
@@ -353,48 +318,7 @@
 @endif
 @endif
 
-@if(session && session.id === user.user_id)
-<script>
-    (function () {
-        const subAllBtn = document.getElementById('subscribe-all-uploads-btn');
-        if (subAllBtn) {
-            subAllBtn.onclick = async () => {
-                if (!confirm('{{ t('profile.confirm_subscribe_uploads') }}')) return;
 
-                subAllBtn.disabled = true;
-                subAllBtn.innerText = '{{ t('profile.subscribing') }}';
-
-                try {
-                    const res = await fetch('/api/v2/user/subscribe-all-uploads', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': window.f0ckSession?.csrf_token
-                        }
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        alert(data.message);
-                        subAllBtn.innerText = '{{ t('profile.subscribed') }}';
-                        setTimeout(() => {
-                            subAllBtn.innerText = '{{ t('profile.subscribe_to_my_uploads') }}';
-                            subAllBtn.disabled = false;
-                        }, 3000);
-                    } else {
-                        alert('Error: ' + data.message);
-                        subAllBtn.disabled = false;
-                        subAllBtn.innerText = '{{ t('profile.subscribe_to_my_uploads') }}';
-                    }
-                } catch (err) {
-                    alert('Failed to subscribe: ' + err.message);
-                    subAllBtn.disabled = false;
-                    subAllBtn.innerText = '{{ t('profile.subscribe_to_my_uploads') }}';
-                }
-            };
-        }
-    })();
-</script>
-@endif
 
 <div class="pagination-container-fluid" @if(typeof hidePagination !=='undefined' && hidePagination) style="display: none;" @endif>
   <div class="pagination-wrapper bottom-pagination fixed-pagination">

@@ -1183,9 +1183,15 @@ window.cancelAnimFrame = (function () {
         });
 
         // --- Gesture Support (Mobile & Desktop) ---
-        // Inject HUD and Overlay
+        // Inject HUD, Overlay, and Danmaku toggle
         const existingHUD = container.querySelector('.v0ck_hud');
         if (!existingHUD) {
+            // Determine initial danmaku state
+            const dmConfigDefault = (window.f0ckSession && window.f0ckSession.enable_danmaku !== undefined)
+                ? !!window.f0ckSession.enable_danmaku : true;
+            const dmSaved = localStorage.getItem('danmaku');
+            const dmOn = (dmSaved !== null) ? (dmSaved !== 'false') : dmConfigDefault;
+
             container.insertAdjacentHTML('beforeend', `
                 <div class="v0ck_hud v0ck_hidden" style="z-index: 10000;">
                     <svg viewBox="0 0 24 24"><use class="v0ck_hud_icon" href="/s/img/v0ck.svg#volume_full"></use></svg>
@@ -1194,7 +1200,51 @@ window.cancelAnimFrame = (function () {
                     </div>
                 </div>
                 <div class="ruffle-gesture-overlay"></div>
+                <button class="ruffle-danmaku-toggle${dmOn ? ' active' : ''}" title="Toggle Danmaku">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
             `);
+
+            // Wire up danmaku toggle
+            const dmBtn = container.querySelector('.ruffle-danmaku-toggle');
+            if (dmBtn) {
+                dmBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (window.danmakuInstance) {
+                        window.danmakuInstance.toggle();
+                        const on = window.danmakuInstance.isEnabled();
+                        dmBtn.classList.toggle('active', on);
+                        localStorage.setItem('danmaku', on ? 'true' : 'false');
+                        if (window.flashMessage) window.flashMessage(on ? 'Danmaku ON' : 'Danmaku OFF', 1800);
+                    } else {
+                        dmBtn.classList.toggle('active');
+                        const newVal = dmBtn.classList.contains('active');
+                        localStorage.setItem('danmaku', newVal ? 'true' : 'false');
+                        if (window.flashMessage) window.flashMessage(newVal ? 'Danmaku ON' : 'Danmaku OFF', 1800);
+                    }
+                });
+
+                // Mobile: show button briefly on tap, then auto-hide
+                const isMobileDevice = /Mobi/i.test(navigator.userAgent) || ('ontouchstart' in window);
+                if (isMobileDevice) {
+                    let dmHideTimer = null;
+                    const showDmBtn = () => {
+                        dmBtn.style.opacity = '1';
+                        dmBtn.style.pointerEvents = 'auto';
+                        clearTimeout(dmHideTimer);
+                        dmHideTimer = setTimeout(() => {
+                            dmBtn.style.opacity = '';
+                            dmBtn.style.pointerEvents = '';
+                        }, 3000);
+                    };
+                    container.addEventListener('touchstart', showDmBtn, { passive: true });
+                    // Keep visible while interacting with the button itself
+                    dmBtn.addEventListener('touchstart', (e) => {
+                        e.stopPropagation();
+                        showDmBtn();
+                    }, { passive: true });
+                }
+            }
         }
 
         const hud = container.querySelector('.v0ck_hud');
@@ -1379,7 +1429,7 @@ window.cancelAnimFrame = (function () {
     // that were applied so the main-site layout is fully restored.
     if (document.body.classList.contains('scroller-active')) {
       document.head.querySelectorAll('[data-pjax-abyss]').forEach(el => el.remove());
-      document.body.classList.remove('scroller-active');
+      document.body.classList.remove('scroller-active', 'gallery-open');
 
       // Restore body
       ['overflow', 'background', 'height'].forEach(p => document.body.style.removeProperty(p));
@@ -1403,6 +1453,10 @@ window.cancelAnimFrame = (function () {
       // Restore #main (element persists across PJAX, its inline styles must be cleared)
       const _m = document.getElementById('main');
       if (_m) ['height', 'overflow'].forEach(p => _m.style.removeProperty(p));
+
+      // Stop all media
+      document.querySelectorAll('video, audio').forEach(el => { try { el.pause(); el.removeAttribute('src'); el.load(); } catch {} });
+      document.querySelectorAll('ruffle-player').forEach(el => { try { el.remove(); } catch {} });
     }
 
     // Immediately close image modal on any navigation
@@ -2224,7 +2278,7 @@ window.cancelAnimFrame = (function () {
     if (visualizerRafId) window.cancelAnimFrame(visualizerRafId);
 
 
-    const media = document.querySelectorAll('video, audio');
+    const media = document.querySelectorAll('video:not(#gchat-messages video), audio:not(#gchat-messages audio)');
 
     media.forEach(m => {
       try {
@@ -2300,6 +2354,26 @@ window.cancelAnimFrame = (function () {
 
     if (isNavigating) return;
     isNavigating = true;
+
+    // ── Scroller-active cleanup (same as loadPageAjax) ───────────────────
+    if (document.body.classList.contains('scroller-active')) {
+      document.head.querySelectorAll('[data-pjax-abyss]').forEach(el => el.remove());
+      document.body.classList.remove('scroller-active', 'gallery-open');
+      ['overflow', 'background', 'height'].forEach(p => document.body.style.removeProperty(p));
+      const _nav = document.querySelector('nav.navbar');
+      if (_nav) _nav.style.removeProperty('display');
+      const _sb = document.querySelector('.global-sidebar-right');
+      if (_sb) _sb.style.removeProperty('display');
+      const _dz = document.getElementById('sidebar-drag-zone');
+      if (_dz) _dz.style.removeProperty('display');
+      const _pw = document.querySelector('.pagewrapper');
+      if (_pw) ['height', 'padding', 'margin', 'overflow'].forEach(p => _pw.style.removeProperty(p));
+      const _m = document.getElementById('main');
+      if (_m) ['height', 'overflow'].forEach(p => _m.style.removeProperty(p));
+      // Stop all media
+      document.querySelectorAll('video:not(#gchat-messages video), audio:not(#gchat-messages audio)').forEach(el => { try { el.pause(); el.removeAttribute('src'); el.load(); } catch {} });
+      document.querySelectorAll('ruffle-player').forEach(el => { try { el.remove(); } catch {} });
+    }
 
     // Dispatch pjax:start so navigation-aware listeners (e.g. metadata modal, image modal) can react
     if (!options.keepMedia) {
@@ -3059,6 +3133,25 @@ window.cancelAnimFrame = (function () {
     const url = window.location.href;
     const p = window.location.pathname;
 
+    // ── Abyss handling ───────────────────────────────────────────────────
+    const wasOnAbyss = document.body.classList.contains('scroller-active');
+
+    if (p.startsWith('/abyss')) {
+      if (wasOnAbyss) {
+        // Within-abyss back/forward — let the scroller's own popstate handler manage it
+        return;
+      }
+      // Coming BACK to abyss from a different page — full reload to reinitialize
+      window.location.reload();
+      return;
+    }
+
+    // Leaving abyss — stop all media
+    if (wasOnAbyss) {
+      document.querySelectorAll('video, audio').forEach(el => { try { el.pause(); el.removeAttribute('src'); el.load(); } catch {} });
+      document.querySelectorAll('ruffle-player').forEach(el => { try { el.remove(); } catch {} });
+    }
+
     // Item detection logic MUST match loadPageAjax/loadItemAjax analysis
     // Priorities: Item first, then Special/Grid
     const parts = p.split('/').filter(Boolean);
@@ -3458,6 +3551,11 @@ window.cancelAnimFrame = (function () {
         params.append('strict', '1');
       }
 
+      if (ctx.notif) {
+        const notifTab = document.getElementById('notifications-container')?.dataset?.tab;
+        if (notifTab) params.append('tab', notifTab);
+      }
+
       const fetchUrl = ctx.notif ? `/ajax/notifications?${params.toString()}` :
         ctx.tags ? `/api/tags?ajax=true&${params.toString()}` :
           ctx.subs ? `/ajax/subscriptions?${params.toString()}` :
@@ -3549,6 +3647,11 @@ window.cancelAnimFrame = (function () {
       if (document.cookie.includes('random_mode=1') || window.location.search.includes('random=1')) params.append('random', '1');
       if (isStrict) {
         params.append('strict', '1');
+      }
+
+      if (ctx.notif) {
+        const notifTab = document.getElementById('notifications-container')?.dataset?.tab;
+        if (notifTab) params.append('tab', notifTab);
       }
 
       const fetchUrl = ctx.notif ? `/ajax/notifications?${params.toString()}` :
@@ -4971,6 +5074,10 @@ if (sbtForm) {
 
 // Notification System
 class NotificationSystem {
+  // Notification type categorization
+  static USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
+  static SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report'];
+
   constructor() {
     this.bell = document.getElementById('nav-notif-btn');
     this.dropdown = document.getElementById('notif-dropdown');
@@ -4981,6 +5088,9 @@ class NotificationSystem {
     this.retryCount = 0;
     this.maxRetries = 20; // Increased retries
     this.pendingNotifIds = new Set(); // item IDs notified before thumbnail was in the grid
+    this.activeTab = 'user'; // 'user' or 'system'
+    this._cachedUser = [];
+    this._cachedSystem = [];
 
     // Generate/retrieve unique tab ID
     this.tabId = sessionStorage.getItem('f0ck_tab_id');
@@ -5086,6 +5196,12 @@ class NotificationSystem {
       }
 
       console.log("[NotificationSystem] Tab visible, signaling active...");
+      // If SSE died while hidden, restart it now
+      if (!this.es) {
+        console.log("[NotificationSystem] SSE was dead, restarting on tab visible.");
+        this.retryCount = 0;
+        this.initSSE();
+      }
       if (this.pollDebounced) this.pollDebounced();
       if (this.checkForNewItems) this.checkForNewItems();
       // Catch-up on emojis if they were updated while this tab was pruned/backgrounded
@@ -5326,6 +5442,8 @@ class NotificationSystem {
           document.dispatchEvent(new CustomEvent('f0ck:global_chat_background', { detail: data.data }));
         } else if (data.type === 'global_chat_topic') {
           document.dispatchEvent(new CustomEvent('f0ck:global_chat_topic', { detail: data.data }));
+        } else if (data.type === 'global_chat_presence') {
+          document.dispatchEvent(new CustomEvent('f0ck:global_chat_presence', { detail: data.data }));
         }
       } catch (err) {
         console.error('SSE data parse error', err);
@@ -5385,20 +5503,23 @@ class NotificationSystem {
           this.es = null;
       }
 
-      // Stop retrying if tab is inactive/hidden to save resources
+      // If tab is hidden, don't retry now — visibilitychange will restart SSE when visible again
       if (document.hidden) {
-          console.log("[NotificationSystem] Tab hidden, suspended SSE retries.");
+          console.log("[NotificationSystem] Tab hidden, deferring SSE retry until visible.");
           return;
       }
 
-      // Exponential backoff for reconnection
+      // Exponential backoff, capped at 30s
+      const delay = Math.min(Math.pow(2, this.retryCount) * 1000, 30000);
       if (this.retryCount < this.maxRetries) {
-        const delay = Math.pow(2, this.retryCount) * 1000;
-        console.log(`[NotificationSystem] Retrying SSE connection in ${delay}ms... (Attempt ${this.retryCount + 1}/${this.maxRetries})`);
+        console.log(`[NotificationSystem] Retrying SSE in ${delay}ms... (attempt ${this.retryCount + 1}/${this.maxRetries})`);
         setTimeout(() => this.initSSE(), delay);
         this.retryCount++;
       } else {
-        console.error("[NotificationSystem] Max SSE retries reached. Realtime updates disabled.");
+        // Past max retries — keep trying every 30s indefinitely, reset counter so backoff starts fresh
+        console.warn("[NotificationSystem] Max SSE retries reached, falling back to 30s polling.");
+        this.retryCount = 0;
+        setTimeout(() => this.initSSE(), 30000);
       }
     };
   }
@@ -5468,6 +5589,25 @@ class NotificationSystem {
     // Mark all as read
     if (this.markAllBtn) {
       this.markAllBtn.addEventListener('click', () => this.markAllRead());
+    }
+
+    // Tab switching in dropdown
+    if (this.dropdown) {
+      this.dropdown.querySelectorAll('.notif-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const tabName = tab.dataset.tab;
+          if (tabName === this.activeTab) return;
+          this.activeTab = tabName;
+          // Update active class
+          this.dropdown.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          if (this.list) this.list.dataset.activeTab = tabName;
+          // Re-render with cached data
+          this._renderActiveTab();
+        });
+      });
     }
 
     // Single Notification Click Handler (Delegated)
@@ -5706,30 +5846,45 @@ class NotificationSystem {
   updateUI(notifications) {
     if (!this.countBadge || !this.list) return;
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    // Split into user and system categories
+    this._cachedUser = notifications.filter(n => NotificationSystem.USER_TYPES.includes(n.type));
+    this._cachedSystem = notifications.filter(n => NotificationSystem.SYSTEM_TYPES.includes(n.type));
 
-    if (unreadCount > 0) {
-      this.countBadge.textContent = unreadCount;
+    const userUnread = this._cachedUser.filter(n => !n.is_read).length;
+    const systemUnread = this._cachedSystem.filter(n => !n.is_read).length;
+    const totalUnread = userUnread + systemUnread;
+
+    // Update main bell badge (total unread)
+    if (totalUnread > 0) {
+      this.countBadge.textContent = totalUnread;
       this.countBadge.style.display = 'block';
     } else {
       this.countBadge.style.display = 'none';
     }
+
+    // Update per-tab badges
+    const userBadge = document.getElementById('notif-tab-badge-user');
+    const systemBadge = document.getElementById('notif-tab-badge-system');
+    if (userBadge) {
+      userBadge.textContent = userUnread;
+      userBadge.style.display = userUnread > 0 ? '' : 'none';
+    }
+    if (systemBadge) {
+      systemBadge.textContent = systemUnread;
+      systemBadge.style.display = systemUnread > 0 ? '' : 'none';
+    }
+
     // Forward count to Abyss scroller notification badge if active
     if (typeof window._scrollerNotifHook === 'function') {
-      window._scrollerNotifHook(unreadCount);
+      window._scrollerNotifHook(totalUnread);
     }
 
     // Sync .has-notif highlights on main grid thumbnails for all unread notifications.
-    // This catches the case where the SSE event was missed (tab was backgrounded).
-    // IMPORTANT: this sweep must run BEFORE the early-return for empty notifications,
-    // because when all are read in another tab the server returns [] and we must still
-    // clear any stale .has-notif highlights that are already in the grid.
     const currentPath = window.location.pathname;
     const unreadItemIds = new Set();
     notifications.forEach(n => {
       if (!n.is_read && n.item_id) {
         unreadItemIds.add(String(n.item_id));
-        // Skip if the user is currently viewing this item (no need to highlight)
         if (currentPath === `/${n.item_id}` || currentPath === `/${n.item_id}/`) return;
         document.querySelectorAll(`a.thumb[href$="/${n.item_id}"], a.lazy-thumb[href$="/${n.item_id}"]`).forEach(el => {
           el.classList.add('has-notif');
@@ -5738,8 +5893,6 @@ class NotificationSystem {
     });
 
     // Remove .has-notif from any thumb whose item is no longer in the unread set.
-    // /api/notifications only returns unread items, so we can't rely on n.is_read === true
-    // being present — instead we sweep all highlighted thumbs in the grid.
     document.querySelectorAll('a.thumb.has-notif, a.lazy-thumb.has-notif').forEach(el => {
       const match = el.getAttribute('href')?.match(/\/(\d+)$/);
       if (match && !unreadItemIds.has(match[1])) {
@@ -5747,32 +5900,39 @@ class NotificationSystem {
       }
     });
 
-    if (notifications.length === 0) {
-      this.list.innerHTML = `<div class="notif-empty">${window.f0ckI18n?.no_notifications || 'No new notifications'}</div>`;
-      return;
-    }
-
-    this.list.innerHTML = Sanitizer.clean(notifications.map(n => this.renderItem(n)).join(''));
+    // Render the active tab
+    this._renderActiveTab();
 
     // Live update for History Page
     const historyContainer = document.querySelector('.notifications-list-full');
     if (historyContainer) {
-      notifications.forEach(n => {
+      const historyTab = historyContainer.dataset.tab || 'user';
+      const tabNotifs = historyTab === 'system' ? this._cachedSystem : this._cachedUser;
+      tabNotifs.forEach(n => {
         const existing = historyContainer.querySelector(`.notif-item[data-id="${n.id}"]`);
         if (!existing) {
           console.log("[NotificationSystem] Adding new item to history:", n.id);
           const html = this.renderHistoryItem(n);
-          // Create temp container to turn string into node
           const temp = document.createElement('div');
           temp.innerHTML = Sanitizer.clean(html);
           const node = temp.firstElementChild;
-          node.classList.add('new-item-fade'); // We can add CSS for this later if desired
+          node.classList.add('new-item-fade');
           historyContainer.prepend(node);
         } else {
           console.log("[NotificationSystem] Item already exists:", n.id);
         }
       });
     }
+  }
+
+  _renderActiveTab() {
+    if (!this.list) return;
+    const items = this.activeTab === 'system' ? this._cachedSystem : this._cachedUser;
+    if (items.length === 0) {
+      this.list.innerHTML = `<div class="notif-empty">${window.f0ckI18n?.no_notifications || 'No new notifications'}</div>`;
+      return;
+    }
+    this.list.innerHTML = Sanitizer.clean(items.map(n => this.renderItem(n)).join(''));
   }
 
   renderHistoryItem(n) {
@@ -5992,6 +6152,14 @@ class NotificationSystem {
 
   markAllReadUI() {
     this.countBadge.style.display = 'none';
+    // Clear per-tab badges
+    const userBadge = document.getElementById('notif-tab-badge-user');
+    const systemBadge = document.getElementById('notif-tab-badge-system');
+    if (userBadge) userBadge.style.display = 'none';
+    if (systemBadge) systemBadge.style.display = 'none';
+    // Clear cached data
+    this._cachedUser = [];
+    this._cachedSystem = [];
     if (this.list) {
       this.list.innerHTML = `<div class="notif-empty">${window.f0ckI18n?.no_notifications || 'No new notifications'}</div>`;
     }

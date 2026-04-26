@@ -304,6 +304,7 @@ if (window.__dmLoaded) {
     let threadHasMore    = false;
     const renderedIds    = new Set();
     let threadMessages   = []; // Cache for re-rendering (e.g. emojis)
+    const dmPostPreviewCache = new Map(); // itemId → { item, meta } | null
 
     // Title management — global across all pages
     let _dmTitleCount  = 0;
@@ -693,7 +694,97 @@ if (window.__dmLoaded) {
 
         const time = timeAgo(m.created_at);
         div.innerHTML = `<div class="dm-bubble comment-content">${content}</div><span class="dm-msg-time" data-ts="${escHtml(m.created_at)}">${escHtml(time)}</span>`;
+
+        // Async: extract post IDs from raw plaintext and inject preview cards into the bubble
+        if (m.plaintext) resolvePostPreviews(div, m.plaintext);
+
         return div;
+    }
+
+    // ── Post link preview cards ───────────────────────────────────────────────
+    // Extracts item IDs from the raw plaintext (immune to rendering pipeline
+    // variations: marked / commentSystem / plain-text fallback), then appends
+    // a preview card below the bubble content for each unique ID found.
+    async function resolvePostPreviews(msgDiv, plaintext) {
+        const bubble = msgDiv.querySelector('.dm-bubble');
+        if (!bubble) return;
+
+        // Match bare /12345 and full same-site URLs like https://site.com/12345
+        const siteOriginEsc = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const itemRx = new RegExp(
+            `(?:${siteOriginEsc})?\\/(\\d+)(?=[\\s,!?\"'\\)\\]<]|$)`,
+            'g'
+        );
+
+        const seen = new Set();
+        let match;
+        while ((match = itemRx.exec(plaintext)) !== null) {
+            const id = match[1];
+            if (!seen.has(id)) seen.add(id);
+        }
+        if (!seen.size) return;
+
+        for (const id of seen) {
+            // Insert loading placeholder card below the bubble text
+            const placeholder = document.createElement('span');
+            placeholder.className = 'dm-post-card dm-post-card--loading';
+            placeholder.innerHTML =
+                `<span class="dm-post-card__thumb-wrap"><span class="dm-post-card__thumb-placeholder"><i class="fa-solid fa-spinner fa-spin"></i></span></span>`+
+                `<span class="dm-post-card__info"><span class="dm-post-card__id">#${id}</span></span>`;
+            bubble.appendChild(placeholder);
+
+            // Fetch item info and meta (with cache)
+            let cached = dmPostPreviewCache.get(id);
+            if (cached === undefined) {
+                try {
+                    const [itemRes, metaRes] = await Promise.all([
+                        fetch(`/api/v2/item/${id}`),
+                        fetch(`/api/v2/scroller/meta?ids=${id}`)
+                    ]);
+                    const itemData = await itemRes.json();
+                    const metaData = await metaRes.json();
+                    const item = (itemData.success && itemData.rows) ? itemData.rows : null;
+                    const meta = metaData[id] || null;
+                    cached = item ? { item, meta } : null;
+                } catch (_) {
+                    cached = null;
+                }
+                dmPostPreviewCache.set(id, cached);
+            }
+
+            if (!cached) {
+                placeholder.remove(); // no item found — silently drop
+                continue;
+            }
+
+            const { item, meta } = cached;
+            const commentCount = meta ? (meta.comment_count || 0) : 0;
+            const uploader = escHtml(item.username || 'unknown');
+            const mime = item.mime || '';
+            const thumbSrc = `/t/${id}.webp`;
+
+            // Media type badge
+            let typeBadge = '';
+            if (mime.startsWith('video/')) typeBadge = '<i class="fa-solid fa-film"></i>';
+            else if (mime.startsWith('audio/')) typeBadge = '<i class="fa-solid fa-music"></i>';
+            else if (mime.startsWith('image/')) typeBadge = '<i class="fa-solid fa-image"></i>';
+
+            const card = document.createElement('a');
+            card.className = 'dm-post-card';
+            card.href = `/${id}`;
+            card.innerHTML =
+                `<span class="dm-post-card__thumb-wrap">`+
+                    `<img class="dm-post-card__thumb" src="${escHtml(thumbSrc)}" alt="#${id}" loading="lazy" onerror="this.style.display='none'">`+
+                    (typeBadge ? `<span class="dm-post-card__type-badge">${typeBadge}</span>` : '') +
+                `</span>`+
+                `<span class="dm-post-card__info">`+
+                    `<span class="dm-post-card__id">#${id}</span>`+
+                    `<span class="dm-post-card__uploader"><i class="fa-solid fa-user"></i> ${uploader}</span>`+
+                    `<span class="dm-post-card__comments"><i class="fa-solid fa-comment"></i> ${commentCount}</span>`+
+                `</span>`;
+
+            placeholder.replaceWith(card);
+        }
     }
 
     let sendInFlight = false; // debounce guard against double-submit
