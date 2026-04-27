@@ -234,7 +234,7 @@ process.on('uncaughtException', err => {
 
     if (req.cookies.session) {
       const user = await db`
-        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, COALESCE("user_options".use_alternative_infobox, false) as use_alternative_infobox
+        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox
         from "user_sessions"
         left join "user" on "user".id = "user_sessions".user_id
         left join "user_options" on "user_options".user_id = "user_sessions".user_id
@@ -351,8 +351,9 @@ process.on('uncaughtException', err => {
         quote_emojis: user[0].quote_emojis ?? true,
         embed_youtube_in_comments: user[0].embed_youtube_in_comments ?? (cfg.websrv.embed_youtube_in_comments !== false),
         hide_koepfe: user[0].hide_koepfe ?? false,
-        language: (user[0].language && user[0].language.trim()) ? user[0].language.trim() : null
-      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language')
+        language: (user[0].language && user[0].language.trim()) ? user[0].language.trim() : null,
+        use_alternative_infobox: user[0].use_alternative_infobox ?? (cfg.websrv.user_alternative_infobox !== false)
+      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language', 'use_alternative_infobox')
         }
         on conflict ("user_id") do update set
         theme = excluded.theme,
@@ -368,6 +369,7 @@ process.on('uncaughtException', err => {
           embed_youtube_in_comments = excluded.embed_youtube_in_comments,
           hide_koepfe = excluded.hide_koepfe,
           language = excluded.language,
+          use_alternative_infobox = excluded.use_alternative_infobox,
           user_id = excluded.user_id
       `.catch(e => console.error('[MIDDLEWARE] Options sync failed:', e));
     }
@@ -739,7 +741,6 @@ process.on('uncaughtException', err => {
     get default_layout() { return getDefaultLayout(); },
     show_koepfe: !!cfg.websrv.show_koepfe,
     allow_language_change: cfg.websrv.allow_language_change !== false,
-    user_alternative_infobox: !!cfg.websrv.user_alternative_infobox,
     enable_xd_score: !!cfg.websrv.enable_xd_score,
     enable_swf: !!cfg.websrv.enable_swf,
     enable_danmaku: cfg.websrv.enable_danmaku !== false,
@@ -792,9 +793,12 @@ process.on('uncaughtException', err => {
       if (process.env.NODE_ENV !== 'production')
         console.log(`[i18n] render: user=${req.session?.user} rawLang=${rawLang} userLang=${userLang}`);
     } else if (data && data.t && data.lang) {
-      // Called from @include — inherit t and lang from the parent render's data
+      // Called from @include — inherit values from the parent render's data
       perRequestT = data.t;
       perRequestLang = data.lang;
+      if (typeof data.user_alternative_infobox === 'boolean') {
+        // Inherit if already resolved in parent
+      }
     }
 
     // Build data: globals first, then caller-supplied data, then per-request i18n last
@@ -803,9 +807,18 @@ process.on('uncaughtException', err => {
     // inside render(), so globals must carry the per-request values too.
     globals.t = perRequestT;
     globals.lang = perRequestLang;
+
+    // Resolve per-request infobox preference
+    const useAltInfobox = (req && req.session && typeof req.session.use_alternative_infobox === 'boolean') 
+      ? req.session.use_alternative_infobox 
+      : (data && typeof data.user_alternative_infobox === 'boolean'
+        ? data.user_alternative_infobox
+        : (cfg.websrv.user_alternative_infobox !== false));
+
     data = Object.assign({}, globals, data || {}, {
       t: perRequestT,
-      lang: perRequestLang
+      lang: perRequestLang,
+      user_alternative_infobox: useAltInfobox
     });
 
     // Random brand image per-render

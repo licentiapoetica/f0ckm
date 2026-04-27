@@ -597,10 +597,13 @@ export default router => {
     group.put(/\/alternative_infobox/, lib.loggedin, async (req, res) => {
       const use_alternative_infobox = req.post.use_alternative_infobox === true || req.post.use_alternative_infobox === 'true';
       try {
+        const mode = req.session.mode || 0;
+        const theme = req.session.theme || cfg.websrv.theme || 'amoled';
         await db`
-          update user_options
-          set use_alternative_infobox = ${use_alternative_infobox}
-          where user_id = ${+req.session.id}
+          insert into user_options (user_id, use_alternative_infobox, mode, theme)
+          values (${+req.session.id}, ${use_alternative_infobox}, ${mode}, ${theme})
+          on conflict (user_id) do update set
+            use_alternative_infobox = excluded.use_alternative_infobox
         `;
         if (req.session) req.session.use_alternative_infobox = use_alternative_infobox;
         return res.json({ success: true, use_alternative_infobox }, 200);
