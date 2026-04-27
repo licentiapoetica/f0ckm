@@ -24,7 +24,7 @@
   "nsfl_tag_id": 1234,
   "allowedMimes": [ "audio", "image", "video" ],
   "nsfp": [
-    1, 2, 3
+    2, 3
   ],
   "websrv": {
     "port": "1337",
@@ -69,7 +69,7 @@
       "Hello World"
     ],
     "ban_video": "",
-    "enable_xd_score": true,
+    "enable_xd_score": false,
     "enable_autoplay": false,
     "enable_swiping": true,
     "enable_profile_description": true,
