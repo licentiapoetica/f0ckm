@@ -18,13 +18,17 @@
         @if(meme_creator)
         <a href="/meme">{{ t('nav.meme') }}</a>
         @endif
+        @if(halls_enabled)
         <div class="nav-user-dropdown nav-halls-dropdown">
           <a href="/halls" class="nav-halls-btn" title="{{ t('nav.halls') }}">
             <i class="fa-solid fa-building-columns"></i>
           </a>
         </div>
+        @endif
         <a href="/tags" title="{{ t('nav.tags') }}"><i class="fa-solid fa-tag"></i></a>
+        @if(abyss_enabled)
         <a href="/abyss" title="{{ t('nav.abyss') }}"><i class="fa-solid fa-dice-d6"></i></a>
+        @endif
         <a href="#" id="nav-search-btn" title="{{ t('nav.search') }}"><i class="fa-solid fa-magnifying-glass"></i></a>
         @if(!/^\/\d$/.test(url.pathname))
         <a href="/random" id="nav-random" title="{{ t('nav.random') }}"><i class="fa-solid fa-shuffle"></i></a>
@@ -50,7 +54,9 @@
         </button>
         <div class="nav-user-menu" id="nav-user-menu">
           <a href="/user/{!! session.user.toLowerCase() !!}">{{ t('nav.profile') }}</a>
+          @if(userhalls_enabled)
           <a href="/user/{!! session.user.toLowerCase() !!}/halls">{{ t('nav.my_halls') }}</a>
+          @endif
           <a href="/user/{{ session.user.toLowerCase() }}/favs" class="mobile-only">{{ t('nav.favs') }}</a>
           @if(session.admin)
           <a href="/admin">Admin
@@ -152,6 +158,7 @@
   <div class="nav-collapse" id="navbarContent">
     <div class="nav-links">
       <a href="/tags" title="Tags"><i class="fa-solid fa-tag"></i></a>
+      @if(halls_enabled)
       <div class="">
         <a href="/halls" class="nav-halls-btn" title="Halls">
           <i class="fa-solid fa-building-columns"></i>
@@ -167,8 +174,10 @@
           @endif
         </div>
       </div>
-      <a href="/tags" title="Tags"><i class="fa-solid fa-tag"></i></a>
+      @endif
+      @if(abyss_enabled)
       <a href="/abyss" title="Abyss"><i class="fa-solid fa-dice-d6"></i></a>
+      @endif
       @if(!/^\/\d$/.test(url.pathname))
       <a href="/random" id="nav-random" title="Random"><i class="fa-solid fa-shuffle"></i></a>
       @endif

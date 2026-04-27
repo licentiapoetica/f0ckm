@@ -46,7 +46,9 @@
     "enable_global_chat": true,
     "enable_danmaku": true,
     "private_messages": true,
-    "halls_enabled": true,
+    "halls_enabled": false,
+    "userhalls_enabled": false,
+    "abyss_enabled": false,
     "meme_creator": true,
 
     "web_url_upload": true,
@@ -71,7 +73,7 @@
     "enable_autoplay": false,
     "enable_swiping": true,
     "enable_profile_description": true,
-    "use_ententeich": true,
+    "user_alternative_infobox": false,
     "enable_swf": true,
     "swf_thumb": "/s/img/swf.png",
 

@@ -77,7 +77,7 @@ CREATE FUNCTION public.fill_normalized() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  NEW.normalized = slugify(NEW.tag);
+  NEW.normalized = public.slugify(NEW.tag);
   return NEW;
 end$$;
 
@@ -186,7 +186,7 @@ CREATE FUNCTION public.slugify(v text) RETURNS text
     LANGUAGE plpgsql
     AS $$
 BEGIN
-  RETURN trim(BOTH '-' FROM regexp_replace(lower(unaccent(trim(v))), '[\u0000-\u002f \u003a-\u0040\u005b-\u0060\u007b-\u00bf]+', '', 'gi'));
+  RETURN trim(BOTH '-' FROM regexp_replace(lower(public.unaccent(trim(v))), '[\u0000-\u002f \u003a-\u0040\u005b-\u0060\u007b-\u00bf]+', '', 'gi'));
 END;
 $$;
 
@@ -202,9 +202,9 @@ CREATE FUNCTION public.trg_update_xd_score() RETURNS trigger
     AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
-        PERFORM update_item_xd_score(OLD.item_id);
+        PERFORM public.update_item_xd_score(OLD.item_id);
     ELSE
-        PERFORM update_item_xd_score(NEW.item_id);
+        PERFORM public.update_item_xd_score(NEW.item_id);
     END IF;
     RETURN NULL;
 END;
@@ -222,7 +222,7 @@ CREATE FUNCTION public.unaccent_text(text) RETURNS text
     AS $_$
   -- unaccent is STABLE, but the indexes must use IMMUTABLE functions.
   -- comment this line out when calling pg_dump.
-  SELECT unaccent($1);
+  SELECT public.unaccent($1);
 
   -- Uncomment this line when calling pg_dump.
   --SELECT ''::text;
@@ -1171,7 +1171,8 @@ CREATE TABLE public.user_options (
     quote_emojis boolean DEFAULT true NOT NULL,
     embed_youtube_in_comments boolean DEFAULT true NOT NULL,
     hide_koepfe boolean DEFAULT false NOT NULL,
-    language text
+    language text,
+    use_alternative_infobox boolean DEFAULT false
 );
 
 
@@ -2426,3 +2427,46 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 
 \unrestrict ifoUZevi3oYdI7OmgFxUaco0kNV6kdlFS55QWa8PuaWXA3AY2nPUcs8ekmXvMEU
 
+
+--
+-- Data for Name: site_settings; Type: TABLE DATA; Schema: public; Owner: f0ckm
+--
+
+INSERT INTO public.site_settings (key, value) VALUES
+('motd', 'Hello World!'),
+('manual_approval', 'true'),
+('min_tags', '1'),
+('registration_open', 'false'),
+('trusted_uploads', '0'),
+('about_text', 'About'),
+('rules_text', 'foobar'),
+('terms_text', 'baz')
+ON CONFLICT (key) DO NOTHING;
+
+--
+-- Data for Name: halls; Type: TABLE DATA; Schema: public; Owner: f0ckm
+--
+
+INSERT INTO public.halls (name, slug, rating) VALUES
+('SFW', 'sfw', 'sfw'),
+('NSFW', 'nsfw', 'nsfw')
+ON CONFLICT (slug) DO NOTHING;
+
+
+--
+-- Core Tags Data
+--
+
+INSERT INTO public.tags (id, tag, normalized) VALUES
+(1, 'sfw', 'sfw'),
+(2, 'nsfw', 'nsfw'),
+(3, 'nsfp', 'nsfp'),
+(4, 'nsfl', 'nsfl')
+ON CONFLICT (id) DO UPDATE SET tag = EXCLUDED.tag, normalized = EXCLUDED.normalized;
+
+-- Ensure nsfp filter table has the correct IDs
+INSERT INTO public.tags_nsfp (id) VALUES (3), (4)
+ON CONFLICT DO NOTHING;
+
+-- Fix sequence
+SELECT setval('public.tags_id_seq', (SELECT MAX(id) FROM public.tags));

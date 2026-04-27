@@ -9,6 +9,7 @@ import fs from "fs/promises";
 export default (router, tpl) => {
   // Main Halls Overview
   router.get(/^\/halls$/, async (req, res) => {
+    if (cfg.websrv.halls_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     const mode = req.mode ?? 0;
     const excludedTags = req.session ? (req.session.excluded_tags || []) : [];
     

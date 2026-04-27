@@ -1,14 +1,5 @@
-/* =============================================
-   f0ckm.css - Unified Stylesheet
-   Merged: f0ck.css + w0bm.css + view styles
-   Born anew => f0ckm.css
-   ============================================= */
-
-/* f0ckwork omega */
-/* written by sirx for f0ck.me */
-/* use whatever you like */
+/* f0ckwork beyond what was ever imagined, spiced up with 3928484 spices */
 /* once upon a time this was a stiefelstrapse! but no more! */
-/* Licensed under wtfpl */
 
 html[theme='f0ck'] {
   --accent: #9f0;
@@ -1445,7 +1436,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     z-index: 1;
   }
 
-  body.layout-legacy .item-layout-container .ententeich-block {
+  body.layout-legacy .item-layout-container .user-infobox-block {
     width: 800px;
     max-width: 100%;
   }
@@ -10967,15 +10958,15 @@ textarea#profile_description {
 }
 
 /* =============================================
-   ENTENTEICH PROFILE STYLES
+   USER ALTERNATIVE INFOBOX STYLES
    ============================================= */
 
-/* When ENTEN profile is active, expand .blahlol to full metadata width */
-.blahlol:has(.ententeich-block) {
+/* When user infobox is active, expand .blahlol to full metadata width */
+.blahlol:has(.user-infobox-block) {
     grid-column: 1 / -1;
 }
 
-.ententeich-block {
+.user-infobox-block {
   display: flex;
   gap: 10px;
   background: rgba(0,0,0,0.2);
@@ -10990,43 +10981,43 @@ textarea#profile_description {
 }
 
 
-.enten-avatar {
+.user-infobox-avatar {
     flex-shrink: 0;
 }
 
-.enten-avatar img {
+.user-infobox-avatar img {
   width: 64px;
   height: 64px;
   object-fit: cover;
 }
 
-.enten-info {
+.user-infobox-info {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
 }
 
-.enten-header {
+.user-infobox-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 6px;
 }
 
-.enten-username {
+.user-infobox-username {
     font-weight: 700;
     color: var(--author-accent, inherit) !important;
     text-decoration: none;
 }
 
 
-.enten-timestamp {
+.user-infobox-timestamp {
     font-size: 0.8em;
     color: #888;
     letter-spacing: 0.5px;
 }
 
-.enten-description {
+.user-infobox-description {
     font-size: 0.9em;
     line-height: 1.5;
     color: #ccc;

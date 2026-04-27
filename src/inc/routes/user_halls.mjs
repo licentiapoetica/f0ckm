@@ -43,6 +43,7 @@ export default (router, tpl) => {
 
   // List halls for a user
   router.get(/^\/user\/(?<owner>[^/]+)\/halls\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     const ownerName = decodeURIComponent(req.params.owner);
     const mode = req.mode ?? 0;
     const excludedTags = req.session ? (req.session.excluded_tags || []) : [];
@@ -79,6 +80,7 @@ export default (router, tpl) => {
 
   // Item grid for a user hall
   router.get(/^\/user\/(?<owner>[^/]+)\/hall\/(?<slug>[^/]+)(?:\/p\/(?<page>\d+))?\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     const ownerName = decodeURIComponent(req.params.owner);
     const slug = decodeURIComponent(req.params.slug);
 
@@ -124,6 +126,7 @@ export default (router, tpl) => {
 
   // Single item within a user hall
   router.get(/^\/user\/(?<owner>[^/]+)\/hall\/(?<slug>[^/]+)\/(?<itemid>\d+)\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     const ownerName = decodeURIComponent(req.params.owner);
     const slug = decodeURIComponent(req.params.slug);
 
@@ -249,6 +252,7 @@ export default (router, tpl) => {
 
   // ── API: list own halls (for modal) ────────────────────────────────────────
   router.get(/^\/api\/v2\/me\/halls\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false }));
     if (!requireLogin(req, res)) return;
     try {
       const halls = await f0cklib.getUserHalls(req.session.id, 3, [], req.session.id);
@@ -261,6 +265,7 @@ export default (router, tpl) => {
 
   // ── API: create hall ────────────────────────────────────────────────────────
   router.post(/^\/api\/v2\/me\/halls\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false }));
     if (!requireLogin(req, res)) return;
     const name = (req.post.name || '').trim();
     const slug = slugify(req.post.slug || name);
@@ -279,6 +284,7 @@ export default (router, tpl) => {
 
   // ── API: update hall ────────────────────────────────────────────────────────
   router.patch(/^\/api\/v2\/me\/halls\/(?<slug>[^/]+)\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false }));
     if (!requireLogin(req, res)) return;
     const slug = decodeURIComponent(req.params.slug);
     const { name, slug: newSlugRaw, description, is_private } = req.post;
@@ -297,6 +303,7 @@ export default (router, tpl) => {
 
   // ── API: delete hall ────────────────────────────────────────────────────────
   router.delete(/^\/api\/v2\/me\/halls\/(?<slug>[^/]+)\/?$/, async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false }));
     if (!requireLogin(req, res)) return;
     const slug = decodeURIComponent(req.params.slug);
 

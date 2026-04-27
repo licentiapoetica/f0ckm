@@ -5,6 +5,7 @@ import lib from "../lib.mjs";
 export default (router, tpl) => {
   // Serve the scroller page
   router.get(/^\/abyss\/?$/, async (req, res) => {
+    if (cfg.websrv.abyss_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     if (cfg.websrv.private_society && !req.session) {
       return res.reply({ code: 502, body: '<html><body>502 Bad Gateway</body></html>' });
     }
@@ -26,6 +27,7 @@ export default (router, tpl) => {
   // Lightweight meta refresh — returns live counts + tags for a batch of item IDs
   // GET /api/v2/scroller/meta?ids=1,2,3
   router.get(/^\/api\/v2\/scroller\/meta\/?$/, async (req, res) => {
+    if (cfg.websrv.abyss_enabled === false) return res.reply({ code: 404, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false }) });
     if (cfg.websrv.private_society && !req.session) {
       return res.reply({ code: 502, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     }
@@ -66,6 +68,7 @@ export default (router, tpl) => {
 
   // Tag autocomplete endpoint
   router.get(/^\/api\/v2\/scroller\/tags\/?$/, async (req, res) => {
+    if (cfg.websrv.abyss_enabled === false) return res.reply({ code: 404, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) });
     if (cfg.websrv.private_society && !req.session) {
       return res.reply({ code: 502, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) });
     }
@@ -97,6 +100,11 @@ export default (router, tpl) => {
 
   // JSON API: returns a batch of items for the scroller
   router.get(/^\/api\/v2\/scroller\/feed\/?$/, async (req, res) => {
+    if (cfg.websrv.abyss_enabled === false) return res.reply({
+      code: 404,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: false, items: [] })
+    });
     if (cfg.websrv.private_society && !req.session) {
       return res.reply({
         code: 502,

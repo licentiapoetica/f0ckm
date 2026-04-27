@@ -13,10 +13,10 @@
     "mod": "mod",
     "settings": "Einstellungen",
     "logout": "Abmelden",
-    "notifications": "Benachrichtigungen",
+    "notifications": "Nuttis",
     "mark_all_read": "Alle als gelesen markieren",
-    "no_notifications": "Keine neuen Benachrichtigungen",
-    "view_all_notifications": "Alle anzeigen",
+    "no_notifications": "Keine neuen Nuttis",
+    "view_all_notifications": "Alle Nuttis anzeigen",
     "notif_tab_user": "Benutzer",
     "notif_tab_system": "System",
     "manage_subscriptions": "Abonnements verwalten",
@@ -127,6 +127,8 @@
     "show_motd": "Nachricht des Tages (MOTD) anzeigen",
     "modern_layout": "Modernes Layout",
     "modern_layout_hint": "3-Spalten-Layout",
+    "alternative_infobox": "Alternativer Autor-Infoblock",
+    "alternative_infobox_hint": "Zeigt einen erweiterten Autor-Block mit Avatar und Bio auf Beitragsseiten",
     "disable_autoplay": "Automatische Wiedergabe deaktivieren",
     "disable_autoplay_hint": "Verhindert die automatische Wiedergabe von Videos und Audio",
     "disable_swiping": "Wischen deaktivieren",
@@ -267,7 +269,7 @@
   },
   "comments": {
     "write_comment": "Kommentar schreiben...",
-    "post": "Senden",
+    "post": "Abschnalzen",
     "cancel": "Abbrechen"
   },
   "upload_btn": {
@@ -416,7 +418,7 @@
     "loading": "Gespräche werden geladen…",
     "decrypting": "Nachrichten werden entschlüsselt…",
     "input_placeholder": "Nachricht schreiben…",
-    "send": "Senden"
+    "send": "Abschnalzen"
   },
   "profile": {
     "message_btn": "Nachricht",

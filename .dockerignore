@@ -22,3 +22,6 @@ tmp/
 # Documentation
 README.md
 LICENSE
+
+postgres/
+f0ckm-data/

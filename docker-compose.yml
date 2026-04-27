@@ -1,0 +1,81 @@
+services:
+  f0ckm:
+    container_name: f0ckm
+    user: "${UID:-1000}:${GID:-1000}"
+    image: ${f0ckm_IMAGE:-f0ckm}:${f0ckm_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - GIT_HASH=${GIT_HASH:-unknown}
+    networks:
+      - f0ckm-net
+    volumes:
+      - ./config.json:/opt/f0bm/config.json
+      - ./f0ckm-data/a/:/opt/f0bm/public/a/
+      - ./f0ckm-data/b/:/opt/f0bm/public/b/
+      - ./f0ckm-data/t/:/opt/f0bm/public/t/
+      - ./f0ckm-data/deleted/:/opt/f0bm/deleted/
+      - ./f0ckm-data/pending/:/opt/f0bm/pending/
+      - ./f0ckm-data/emojis/:/opt/f0bm/public/s/emojis/
+      - ./f0ckm-data/memes/:/opt/f0bm/public/memes/
+      - ./f0ckm-data/ca/:/opt/f0bm/public/ca/
+      - ./f0ckm-data/tmp/:/opt/f0bm/tmp/
+      - ./f0ckm-data/logs/:/opt/f0bm/logs/
+      - ./f0ckm-data/tag_cache/:/opt/f0bm/public/tag_cache/
+      - ./f0ckm-data/fonts/:/opt/f0bm/public/s/fonts/
+      - ./f0ckm-data/hall_cache/:/opt/f0bm/public/hall_cache/
+      - ./f0ckm-data/hall_custom/:/opt/f0bm/public/hall_custom/
+      - ./f0ckm-data/manifest.json:/opt/f0bm/public/manifest.json
+
+    environment:
+      - GIT_HASH=${f0ckm_TAG:-unknown}
+    ports:
+      - "1337:1337"
+    restart: unless-stopped
+    depends_on:
+      f0ckm-db:
+        condition: service_healthy
+
+  f0ckm-db:
+    container_name: f0ckm-db
+    image: postgres:17
+    environment:
+      POSTGRES_DB: f0ckm
+      POSTGRES_USER: f0ckm
+      POSTGRES_PASSWORD: f0ckm
+      PGDATA: /data/postgres
+    volumes:
+      - ./postgres:/data/postgres
+    ports:
+      - "5454:5432"
+    networks:
+      - f0ckm-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+      start_interval: 1s
+
+  # anubis:
+  #   image: ghcr.io/techarohq/anubis:latest
+  #   container_name: anubis
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - BIND=:3000
+  #     - TARGET=http://f0ckm:1337
+  #     - DIFFICULTY=15
+  #     - POLICY_FNAME=/policy.yaml
+  #   volumes:
+  #     - ./botPolicy.yaml:/policy.yaml:ro
+  #   networks:
+  #     - f0ckm-net
+  #   restart: unless-stopped
+
+networks:
+  f0ckm-net:
+    driver: bridge

@@ -593,6 +593,23 @@ export default router => {
       }
     });
 
+    // Update alternative infobox preference (per-user toggle for the rich author block)
+    group.put(/\/alternative_infobox/, lib.loggedin, async (req, res) => {
+      const use_alternative_infobox = req.post.use_alternative_infobox === true || req.post.use_alternative_infobox === 'true';
+      try {
+        await db`
+          update user_options
+          set use_alternative_infobox = ${use_alternative_infobox}
+          where user_id = ${+req.session.id}
+        `;
+        if (req.session) req.session.use_alternative_infobox = use_alternative_infobox;
+        return res.json({ success: true, use_alternative_infobox }, 200);
+      } catch (e) {
+        console.error('Update alternative_infobox error:', e);
+        return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
     // Update per-user language preference
     group.put(/\/language/, lib.loggedin, async (req, res) => {
       if (cfg.websrv.allow_language_change === false) {

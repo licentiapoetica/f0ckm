@@ -64,10 +64,10 @@
             </div>
 
             <div class="blahlol">
-                @if(use_ententeich)
-                <div class="ententeich-block" style="--author-accent: @if(item.author_color){{ item.author_color }}@else var(--acent) @endif; --author-border: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif;">
+                @if(user_alternative_infobox)
+                <div class="user-infobox-block" style="--author-accent: @if(item.author_color){{ item.author_color }}@else var(--acent) @endif; --author-border: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif;">
 
-                    <div class="enten-avatar">
+                    <div class="user-infobox-avatar">
                         <a href="/user/{{ (item.username || '').toLowerCase() }}">
                             @if(item.author_avatar_file)
                                 <img src="/a/{{ item.author_avatar_file }}" />
@@ -78,14 +78,14 @@
                             @endif
                         </a>
                     </div>
-                    <div class="enten-info">
-                        <div class="enten-header">
-                            <div class="enten-username-container">
-                                <a href="/user/{{ (item.username || '').toLowerCase() }}" tooltip="ID: {{ item.author_id }}" class="enten-username">{!! item.author_display_name || item.username !!}</a>
+                    <div class="user-infobox-info">
+                        <div class="user-infobox-header">
+                            <div class="user-infobox-username-container">
+                                <a href="/user/{{ (item.username || '').toLowerCase() }}" tooltip="ID: {{ item.author_id }}" class="user-infobox-username">{!! item.author_display_name || item.username !!}</a>
                             </div>
-                            <span class="enten-timestamp"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
+                            <span class="user-infobox-timestamp"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
                         </div>
-                        <div class="enten-description">
+                        <div class="user-infobox-description">
                             {!! item.author_description || '' !!}
                         </div>
                     </div>
@@ -94,16 +94,16 @@
 
                 <span class="badge badge-dark">
 
-                    <a href="/{{ item.id }}" class="id-link" @if(use_ententeich)style="display:none"@endif>{{ item.id }}</a>
-                    @if(item.src.short)@if(!use_ententeich) — @endif<a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a>@endif
-                    @if(session && !use_ententeich) — [<a id="a_username" data-username="{!! item.username || '' !!}" href="/user/{{ (item.username || '').toLowerCase() }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
-                    @if(item.is_oc)@if(!use_ententeich || item.src.short) — @endif<span class="oc-badge" tooltip="Original Content">OC</span>@endif
+                    <a href="/{{ item.id }}" class="id-link" @if(user_alternative_infobox)style="display:none"@endif>{{ item.id }}</a>
+                    @if(item.src.short)@if(!user_alternative_infobox) — @endif<a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a>@endif
+                    @if(session && !user_alternative_infobox) — [<a id="a_username" data-username="{!! item.username || '' !!}" href="/user/{{ (item.username || '').toLowerCase() }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
+                    @if(item.is_oc)@if(!user_alternative_infobox || item.src.short) — @endif<span class="oc-badge" tooltip="Original Content">OC</span>@endif
                 </span>
-                @if(!use_ententeich) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span> — @endif
-                @if(item.primaryHall)
+                @if(!user_alternative_infobox) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span> — @endif
+                @if(halls_enabled && item.primaryHall)
                 <span class="badge hall-badge-wrap">
                     <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary">{{ item.primaryHall.name }}</a>@if(is_mod_or_admin)&nbsp;<a class="remove-from-hall" href="#" data-hall="{{ item.primaryHall.slug }}" title="Remove from hall"><i class="fa-solid fa-xmark"></i></a>@endif@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
-                </span>@if(!use_ententeich) —@endif
+                </span>@if(!user_alternative_infobox) —@endif
                 @endif
 
 
@@ -117,7 +117,9 @@
                     @endif
                     <i class="iconset {{ isSubscribed ? 'fa-solid' : 'fa-regular' }} fa-bell" id="subscribe-btn" data-item-id="{{ item.id }}" title="{{ isSubscribed ? 'Subscribed' : 'Subscribe' }}"></i>
                     <i class="iconset fa-solid fa-triangle-exclamation report-item-btn" data-item-id="{{ item.id }}" title="Report this post"></i>
+                    @if(halls_enabled)
                     <i class="iconset fa-solid fa-building-columns" id="a_hall" data-item-id="{{ item.id }}" data-halls="{{ halls_slugs }}" data-user-halls="{{ user_halls_slugs }}" data-current-hall="{{ (tmp.hall && typeof tmp.hall === 'object') ? tmp.hall.slug : (tmp.hall || '') }}" data-current-user-hall="{{ (tmp.userHall && typeof tmp.userHall === 'object') ? tmp.userHall.slug : (tmp.userHall || '') }}" data-current-user-hall-owner="{{ tmp.userHallOwner || '' }}" title="Add to Hall"></i>
+                    @endif
                     @if(can_manage_item)
                     <i class="iconset {{ item.is_oc ? 'fa-solid' : 'fa-regular' }} fa-star" id="a_oc" data-item-id="{{ item.id }}" data-is-oc="{{ item.is_oc }}" title="{{ item.is_oc ? 'Remove OC status' : 'Mark as OC' }}"></i>
                     @if(can_extract_meta)

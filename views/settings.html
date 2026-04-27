@@ -76,6 +76,15 @@
           </label>
           <small class="text-muted" style="margin-left: 25px;">{{ t('settings.modern_layout_hint') }}</small>
         </div>
+        @if(!session.use_new_layout)
+        <div class="setting-item" style="margin-top: 15px;">
+          <label for="alternative_infobox_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="alternative_infobox_toggle" @if(session.use_alternative_infobox === true) checked @endif>
+            <span>{{ t('settings.alternative_infobox') }}</span>
+          </label>
+          <small class="text-muted" style="margin-left: 25px;">{{ t('settings.alternative_infobox_hint') }}</small>
+        </div>
+        @endif
         <div class="setting-item" style="margin-top: 15px;">
           <label for="disable_autoplay_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
             <input type="checkbox" id="disable_autoplay_toggle" @if(session.disable_autoplay === true) checked @endif>
@@ -195,23 +204,7 @@
             </div>
         </fieldset>
         @endif
-        @if(enable_xd_score)
-        <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-            <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.content_filters') }}</legend>
-            <div class="setting-item" style="margin-bottom: 10px;">
-                <label for="min_xd_score_input" style="display: block; margin-bottom: 5px; font-weight: bold;">{{ t('settings.min_xd_score') }}</label>
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <input type="range" id="min_xd_score_input" min="0" max="100" step="1" value="{{ session.min_xd_score || 0 }}" class="xd-slider" style="flex: 1; min-width: 140px;">
-                    <span id="xd_score_val" class="xd-slider-val">{{ session.min_xd_score || 0 }}</span>
-                    <span id="xd_score_tier_label" class="xd-score-badge" style="display: none;"></span>
-                    <button type="button" id="btn-save-min-xd-score" class="button" style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save') }}</button>
-                    <button type="button" id="btn-reset-min-xd-score" class="button button-secondary" style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.reset') }}</button>
-                </div>
-                <small class="text-muted">{{ t('settings.min_xd_score_hint') }}</small>
-                <div id="xd-score-status" class="avatar-status"></div>
-            </div>
-        </fieldset>
-        @endif
+
     </div>
     <h2>{{ t('settings.account') }}</h2>
     <div class="account-settings-wrapper" style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">

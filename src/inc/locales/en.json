@@ -127,6 +127,8 @@
     "show_motd": "Show Message of the Day (MOTD)",
     "modern_layout": "Modern layout",
     "modern_layout_hint": "3 Column Layout",
+    "alternative_infobox": "Alternative Author Infobox",
+    "alternative_infobox_hint": "Show a rich author card with avatar and bio on item pages",
     "disable_autoplay": "Disable Autoplay",
     "disable_autoplay_hint": "Prevent videos and audio from playing automatically",
     "disable_swiping": "Disable Swiping",

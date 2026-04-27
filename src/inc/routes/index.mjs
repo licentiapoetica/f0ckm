@@ -202,6 +202,11 @@ export default (router, tpl) => {
     const tRouteStart = Date.now();
     const mode = req.params.itemid ? 'item' : 'index';
 
+    // Feature flag guards for disabled features
+    if (cfg.websrv.halls_enabled === false && req.params.hall) {
+      return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
+    }
+
     // Auto-persist strict mode from URL to session if it's there
     if (req.session && (req.query?.strict !== undefined || req.url.qs?.strict !== undefined)) {
       req.session.strict_mode = (req.query?.strict === '1' || req.url.qs?.strict === '1');
@@ -341,6 +346,8 @@ export default (router, tpl) => {
       data.current_hall_slug = (data.tmp && data.tmp.hall && typeof data.tmp.hall === 'object') ? data.tmp.hall.slug : (data.tmp && data.tmp.hall ? data.tmp.hall : '');
       data.current_user_hall_slug = (data.tmp && data.tmp.userHall && typeof data.tmp.userHall === 'object') ? data.tmp.userHall.slug : (data.tmp && data.tmp.userHall ? data.tmp.userHall : '');
       data.current_user_hall_owner = (data.tmp && data.tmp.userHallOwner) ? data.tmp.userHallOwner : '';
+      // Per-user alternative infobox preference overrides the site-wide config default
+      if (session) data.user_alternative_infobox = !!session.use_alternative_infobox;
     }
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

@@ -127,6 +127,8 @@
     "show_motd": "Nachricht des Tages (NdT) anzeigen",
     "modern_layout": "Modernes Layout",
     "modern_layout_hint": "3-Spalten-Layout",
+    "alternative_infobox": "Alternativer Autor-Infoblock",
+    "alternative_infobox_hint": "Zeigt einen erweiterten Autor-Block mit Avatar und Bio auf Beitragsseiten",
     "disable_autoplay": "Automatische Wiedergabe deaktivieren",
     "disable_autoplay_hint": "Vermeiden Sie das automatische Abspielen von Videos und Tondateien",
     "disable_swiping": "Wischen deaktivieren",

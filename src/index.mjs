@@ -134,8 +134,15 @@ process.on('uncaughtException', err => {
     self._trigger.set(trigger.name, new self.trigger(trigger));
   });
 
-  // Initial halls cache
-  await updateHallsCache();
+  // Initial halls cache (only if halls are enabled)
+  if (cfg.websrv.halls_enabled !== false) {
+    await updateHallsCache();
+  }
+
+  // Log feature flags
+  console.log(`[BOOT] Halls: ${cfg.websrv.halls_enabled !== false ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`[BOOT] UserHalls: ${cfg.websrv.userhalls_enabled !== false ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`[BOOT] Abyss: ${cfg.websrv.abyss_enabled !== false ? 'ENABLED' : 'DISABLED'}`);
 
   //console.timeEnd("loading");
 
@@ -227,7 +234,7 @@ process.on('uncaughtException', err => {
 
     if (req.cookies.session) {
       const user = await db`
-        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language
+        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, COALESCE("user_options".use_alternative_infobox, false) as use_alternative_infobox
         from "user_sessions"
         left join "user" on "user".id = "user_sessions".user_id
         left join "user_options" on "user_options".user_id = "user_sessions".user_id
@@ -416,9 +423,9 @@ process.on('uncaughtException', err => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
     if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta'].includes(req.url.pathname)) return;
     // Hall manager routes are handled by bypass middleware with their own session auth
-    if (req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
+    if (cfg.websrv.halls_enabled !== false && req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
     // User hall image upload is handled by bypass middleware below
-    if (req.url.pathname.match(/^\/api\/v2\/me\/halls\/[^/]+\/image$/)) return;
+    if (cfg.websrv.userhalls_enabled !== false && req.url.pathname.match(/^\/api\/v2\/me\/halls\/[^/]+\/image$/)) return;
     if (!validateCsrf(req, res)) return;
   });
 
@@ -484,6 +491,7 @@ process.on('uncaughtException', err => {
 
   // Bypass middleware for hall image uploads (multipart — needs raw body)
   app.use(async (req, res) => {
+    if (cfg.websrv.halls_enabled === false) return;
     const hallImgMatch = req.url.pathname.match(/^\/api\/v2\/admin\/halls\/([^/]+)\/image$/);
     if (hallImgMatch) {
       console.error('[BOOT] [HALL BYPASS] Image path hit:', req.method, req.url.pathname, 'cookies:', JSON.stringify(Object.keys(req.cookies || {})));
@@ -518,6 +526,7 @@ process.on('uncaughtException', err => {
 
   // Bypass middleware for user hall image uploads (multipart — raw body needed)
   app.use(async (req, res) => {
+    if (cfg.websrv.userhalls_enabled === false) return;
     const userHallImgMatch = req.url.pathname.match(/^\/api\/v2\/me\/halls\/([^/]+)\/image$/);
     if (userHallImgMatch && req.method === 'POST') {
       console.error('[BOOT] [USER_HALL BYPASS] Image upload:', req.url.pathname);
@@ -701,6 +710,9 @@ process.on('uncaughtException', err => {
     get rules_text() { return getRulesText(); },
     get terms_text() { return getTermsText(); },
     get halls() { return getHalls(); },
+    halls_enabled: cfg.websrv.halls_enabled !== false,
+    userhalls_enabled: cfg.websrv.userhalls_enabled !== false,
+    abyss_enabled: cfg.websrv.abyss_enabled !== false,
     smtp_enabled: !!(cfg.smtp && cfg.smtp.enabled && cfg.smtp.mail_reset_password),
     show_background_cfg: cfg.websrv.background !== false,
     allowed_mimes: Object.keys(cfg.mimes).concat([...new Set(Object.values(cfg.mimes))].map(ext => `.${ext}`)).join(','),
@@ -727,7 +739,7 @@ process.on('uncaughtException', err => {
     get default_layout() { return getDefaultLayout(); },
     show_koepfe: !!cfg.websrv.show_koepfe,
     allow_language_change: cfg.websrv.allow_language_change !== false,
-    use_ententeich: !!cfg.websrv.use_ententeich,
+    user_alternative_infobox: !!cfg.websrv.user_alternative_infobox,
     enable_xd_score: !!cfg.websrv.enable_xd_score,
     enable_swf: !!cfg.websrv.enable_swf,
     enable_danmaku: cfg.websrv.enable_danmaku !== false,

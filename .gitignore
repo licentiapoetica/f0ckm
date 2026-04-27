@@ -1,3 +1,4 @@
+f0ckm-data/
 node_modules/
 logs/*.log
 config.json
@@ -11,3 +12,5 @@ tmp/*
 tools
 public/a
 public/tag_cache
+.env
+config.json
