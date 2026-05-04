@@ -7,11 +7,12 @@
  *   node regen.mjs <id1> <id2> ...    - Regenerate multiple items
  *   node regen.mjs --all              - Regenerate ALL items
  *   node regen.mjs --audio            - Regenerate all audio items
+ *   node regen.mjs --pdf              - Regenerate all PDF items
  */
 
-import db from "./src/inc/sql.mjs";
-import queue from "./src/inc/queue.mjs";
-import cfg from "./src/inc/config.mjs";
+import db from "../src/inc/sql.mjs";
+import queue from "../src/inc/queue.mjs";
+import cfg from "../src/inc/config.mjs";
 import fs from "fs/promises";
 import path from "path";
 
@@ -23,6 +24,8 @@ if (args.length === 0) {
     console.log('  node regen.mjs <id1> <id2> ...    - Regenerate multiple items');
     console.log('  node regen.mjs --all              - Regenerate ALL items');
     console.log('  node regen.mjs --audio            - Regenerate all audio items');
+    console.log('  node regen.mjs --pdf              - Regenerate all PDF items');
+    console.log('  node regen.mjs --youtube          - Regenerate all YouTube thumbnails');
     process.exit(0);
 }
 
@@ -63,6 +66,12 @@ try {
     } else if (args.includes('--audio')) {
         items = await db`SELECT id, dest, mime, src FROM items WHERE active = true AND is_deleted = false AND mime ILIKE 'audio/%' ORDER BY id`;
         console.log(`Regenerating ${items.length} audio items...\n`);
+    } else if (args.includes('--pdf')) {
+        items = await db`SELECT id, dest, mime, src FROM items WHERE active = true AND is_deleted = false AND mime = 'application/pdf' ORDER BY id`;
+        console.log(`Regenerating ${items.length} PDF items...\n`);
+    } else if (args.includes('--youtube')) {
+        items = await db`SELECT id, dest, mime, src FROM items WHERE active = true AND is_deleted = false AND mime = 'video/youtube' ORDER BY id`;
+        console.log(`Regenerating ${items.length} YouTube items...\n`);
     } else {
         const ids = args.map(Number).filter(n => !isNaN(n) && n > 0);
         if (ids.length === 0) {

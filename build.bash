@@ -96,7 +96,9 @@ $DOCKER_COMPOSE down
 $DOCKER_COMPOSE up -d
 
 # Cleanup
-echo "Cleaning up old docker resources..."
-docker system prune -af
+# if you want to clear up all the old images uncomment
+# otherwise to prevent clutter clean it from time to time
+#echo "Cleaning up old docker resources..."
+#docker system prune -af
 
 echo "Successfully updated ${TARGET} with tag ${TAG}"

@@ -1,3 +1,7 @@
+# f0ckm
+
+## prod
+
 first things
 
 `cp .env.example .env`
@@ -28,6 +32,14 @@ host can either be localhost or the docker containers hostname, when running via
 
 `docker exec -t f0ckm node scripts/seed.mjs`
 
-`docker exec -t f0ckm node scripts/create-admin.mjs admin [PASSWORD]`
+`docker exec -t f0ckm node scripts/create-admin.mjs admin 'YOUR_PASSWORD_HERE'`
+
+For regular building after making changes to the source code
+
+`bash build.bash master`
 
 now vist http://localhost:1337 in your browser
+
+## dev
+
+tbd

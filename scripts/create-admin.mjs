@@ -6,7 +6,8 @@ import { getDefaultLayout } from "../src/inc/settings.mjs";
 const [username, password] = process.argv.slice(2);
 
 if (!username || !password) {
-    console.error("Usage: node scripts/create-admin.mjs <username> <password>");
+    console.error("Usage: node scripts/create-admin.mjs <username> '<password>'");
+    console.error("Note: Wrap the password in single quotes to prevent your shell from interpreting special characters (like !).");
     process.exit(1);
 }
 
@@ -20,13 +21,22 @@ async function createAdmin() {
 
     // Check if user exists
     const existing = await db`select id from "user" where "login" = ${username.toLowerCase()} or "user" = ${username}`;
-    if (existing.length > 0) {
-        console.error("Error: Username already taken.");
-        process.exit(1);
-    }
-
     const hash = await lib.hash(password);
     const ts = ~~(Date.now() / 1e3);
+
+    if (existing.length > 0) {
+        const userId = existing[0].id;
+        console.log(`User already exists. Updating password and ensuring admin status for ID: ${userId}...`);
+        
+        await db`
+            update "user" 
+            set password = ${hash}, admin = true, is_moderator = true, activated = true 
+            where id = ${userId}
+        `;
+        
+        console.log(`--- Admin User ${username} Updated Successfully ---`);
+        process.exit(0);
+    }
 
     try {
         const newUser = await db`

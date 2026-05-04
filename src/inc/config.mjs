@@ -1,6 +1,7 @@
 import _config from "../../config.json" with { type: "json" };
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
 let config = JSON.parse(JSON.stringify(_config));
 
@@ -14,7 +15,7 @@ if (process.env.NODE_ENV === 'production') {
     config.main.development = false;
 }
 
-const base = path.resolve();
+const base = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../");
 const storage = process.env.STORAGE_DIR;
 
 const resolvePath = (defaultRel) => {
