@@ -7,6 +7,7 @@ let config = JSON.parse(JSON.stringify(_config));
 
 // Environment variable overrides for database connection
 if (process.env.DB_HOST) config.sql.host = process.env.DB_HOST;
+if (process.env.DB_PORT) config.sql.port = parseInt(process.env.DB_PORT, 10);
 if (process.env.DB_USER) config.sql.user = process.env.DB_USER;
 if (process.env.DB_PASS) config.sql.password = process.env.DB_PASS;
 if (process.env.DB_NAME) config.sql.database = process.env.DB_NAME;

@@ -42,4 +42,11 @@ now vist http://localhost:1337 in your browser
 
 ## dev
 
-tbd
+`docker compose up -d f0ckm-db`
+
+on dev machine:
+
+`npm i`
+`npm run dev`
+
+now visit http://localhost:1337 in your browser, you can develop without needing to rebuild the docker image for every change

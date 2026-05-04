@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --trace-uncaught src/index.mjs",
-    "dev": "node --trace-uncaught --watch src/index.mjs",
+    "dev": "STORAGE_DIR=f0ckm-data DB_HOST=localhost DB_PORT=5454 node --trace-uncaught --watch src/index.mjs",
     "trigger": "node debug/trigger.mjs",
     "autotagger": "node debug/autotagger.mjs",
     "thumbnailer": "node debug/thumbnailer.mjs",
