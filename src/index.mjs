@@ -16,7 +16,7 @@ import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout } from "./inc/settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
 
@@ -234,7 +234,7 @@ process.on('uncaughtException', err => {
 
     if (req.cookies.session) {
       const user = await db`
-        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox
+        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox, "user_options".receive_system_notifications, "user_options".receive_user_notifications, "user_options".do_not_disturb, "user_options".comment_display_mode, "user_options".force_comment_display_mode
         from "user_sessions"
         left join "user" on "user".id = "user_sessions".user_id
         left join "user_options" on "user_options".user_id = "user_sessions".user_id
@@ -352,8 +352,10 @@ process.on('uncaughtException', err => {
         embed_youtube_in_comments: user[0].embed_youtube_in_comments ?? (cfg.websrv.embed_youtube_in_comments !== false),
         hide_koepfe: user[0].hide_koepfe ?? false,
         language: (user[0].language && user[0].language.trim()) ? user[0].language.trim() : null,
-        use_alternative_infobox: user[0].use_alternative_infobox ?? (cfg.websrv.user_alternative_infobox !== false)
-      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language', 'use_alternative_infobox')
+        use_alternative_infobox: user[0].use_alternative_infobox ?? (cfg.websrv.user_alternative_infobox !== false),
+        comment_display_mode: user[0].comment_display_mode ?? (cfg.websrv.default_comment_display_mode || 0),
+        force_comment_display_mode: user[0].force_comment_display_mode ?? 0
+      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language', 'use_alternative_infobox', 'comment_display_mode', 'force_comment_display_mode')
         }
         on conflict ("user_id") do update set
         theme = excluded.theme,
@@ -370,6 +372,8 @@ process.on('uncaughtException', err => {
           hide_koepfe = excluded.hide_koepfe,
           language = excluded.language,
           use_alternative_infobox = excluded.use_alternative_infobox,
+          comment_display_mode = excluded.comment_display_mode,
+          force_comment_display_mode = excluded.force_comment_display_mode,
           user_id = excluded.user_id
       `.catch(e => console.error('[MIDDLEWARE] Options sync failed:', e));
     }
@@ -635,6 +639,10 @@ process.on('uncaughtException', err => {
     console.warn(`[BOOT] Trusted Uploads fetch failed:`, e.message);
   }
 
+  // Set enable_pdf from config (pure config setting)
+  setEnablePdf(!!cfg.enable_pdf);
+  console.log(`[BOOT] Enable PDF setting: ${getEnablePdf()}`);
+
   // Load bypass_duplicate_check from config.json (static — not a DB setting)
   if (cfg.websrv.bypass_duplicate_check === true) {
     setBypassDuplicateCheck(true);
@@ -736,6 +744,7 @@ process.on('uncaughtException', err => {
     themes_json: JSON.stringify(cfg.websrv.themes || []),
     enable_profile_description: !!cfg.websrv.enable_profile_description,
     get private_messages() { return getPrivateMessages(); },
+    get enable_pdf() { return getEnablePdf(); },
     matrix_enabled: cfg.clients.find(c => c.type === 'matrix')?.enabled || false,
     ts: Date.now(),
     get default_layout() { return getDefaultLayout(); },
@@ -751,6 +760,7 @@ process.on('uncaughtException', err => {
     allowed_comment_images: cfg.websrv.allowed_comment_images || [],
     allowed_comment_images_json: JSON.stringify(cfg.websrv.allowed_comment_images || []),
     paths_images: cfg.websrv.paths?.images || '/b',
+    default_comment_display_mode: cfg.websrv.default_comment_display_mode || 0,
 
     get fonts() {
       try {
@@ -818,7 +828,12 @@ process.on('uncaughtException', err => {
     data = Object.assign({}, globals, data || {}, {
       t: perRequestT,
       lang: perRequestLang,
-      user_alternative_infobox: useAltInfobox
+      user_alternative_infobox: useAltInfobox,
+      comment_display_mode: (req && req.session && typeof req.session.comment_display_mode === 'number')
+        ? req.session.comment_display_mode
+        : (data && typeof data.comment_display_mode === 'number'
+          ? data.comment_display_mode
+          : (cfg.websrv.default_comment_display_mode || 0))
     });
 
     // Random brand image per-render
@@ -852,5 +867,25 @@ process.on('uncaughtException', err => {
   await router.importRoutesFromPath("src/inc/routes", tpl);
 
   app.listen(cfg.websrv.port);
+
+  // F-015 Security: Periodic session cleanup — purge sessions unused for 30 days
+  const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+  const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+
+  const cleanupStaleSessions = async () => {
+    try {
+      const cutoff = ~~(Date.now() / 1e3) - SESSION_TTL_SECONDS;
+      const result = await db`DELETE FROM user_sessions WHERE last_used <= ${cutoff}`;
+      if (result.count > 0) {
+        console.log(`[SESSION CLEANUP] Purged ${result.count} stale sessions (unused >30 days)`);
+      }
+    } catch (err) {
+      console.error('[SESSION CLEANUP] Failed:', err.message);
+    }
+  };
+
+  // Run once after startup (30s delay to let DB settle), then every 6 hours
+  setTimeout(cleanupStaleSessions, 30_000);
+  setInterval(cleanupStaleSessions, CLEANUP_INTERVAL_MS);
 
 })();

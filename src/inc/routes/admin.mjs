@@ -11,7 +11,7 @@ import cfg from "../config.mjs";
 import security from "../security.mjs";
 import crypto from "crypto";
 import path from "path";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads } from "../settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf } from "../settings.mjs";
 
 export default (router, tpl) => {
   router.get(/^\/login(\/)?$/, async (req, res) => {
@@ -84,9 +84,10 @@ export default (router, tpl) => {
 
     const stamp = ~~(Date.now() / 1e3);
 
+    // F-015: Clean up stale non-KMSI sessions unused for 7 days (on login)
     await db`
       delete from user_sessions
-      where last_action <= ${(Date.now() - 6048e5)}
+      where last_used <= ${stamp - 604800}
       and kmsi = 0
     `;
 
@@ -578,7 +579,7 @@ export default (router, tpl) => {
   router.post(/^\/admin\/settings\/?$/, lib.auth, async (req, res) => {
     const manual_approval = req.post.manual_approval === 'on' ? 'true' : 'false';
     const registration_open = req.post.registration_open === 'on' ? 'true' : 'false';
-    const min_tags = parseInt(req.post.min_tags) || 3;
+    const min_tags = isNaN(parseInt(req.post.min_tags)) ? 3 : Math.max(0, parseInt(req.post.min_tags));
     const trusted_uploads = Math.max(0, parseInt(req.post.trusted_uploads) ?? 3);
 
     await db`INSERT INTO site_settings (key, value) VALUES ('manual_approval', ${manual_approval}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
@@ -622,7 +623,7 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
       WITH filtered_users AS (
           SELECT 
               u.id, u.login, u.user, u.email, u.created_at, u.banned, u.is_moderator, u.admin, u.activated,
-              uo.avatar_file, uo.display_name,
+              uo.avatar_file, uo.display_name, uo.force_comment_display_mode, uo.comment_display_mode,
               (SELECT token FROM invite_tokens WHERE used_by = u.id ORDER BY created_at DESC LIMIT 1) as reg_method
           FROM "user" u
           LEFT JOIN user_options uo ON uo.user_id = u.id
@@ -632,7 +633,7 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
           SELECT 
               NULL::int as id, i.username as login, i.username as "user", 'Legacy Account' as email, 
               to_timestamp(MIN(i.stamp)) as created_at, false as banned, false as is_moderator, false as admin, true as activated,
-              NULL::text as avatar_file, NULL::varchar as display_name, 'Legacy' as reg_method
+              NULL::text as avatar_file, NULL::varchar as display_name, 0 as force_comment_display_mode, 0 as comment_display_mode, 'Legacy' as reg_method
           FROM items i
           WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.login = i.username OR u.user = i.username)
           ${q ? db`AND (i.username ILIKE ${'%' + lib.escapeLike(q) + '%'})` : db``}
@@ -761,6 +762,40 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
     }
   });
 
+  router.post(/^\/api\/v2\/admin\/users\/lock-layout\/?$/, lib.auth, async (req, res) => {
+    try {
+      const { user_id, mode, lock } = req.post;
+      if (!user_id) throw new Error('Missing user_id');
+
+      const isLocked = lock === true || lock === 'true' || lock === 1;
+      const targetMode = parseInt(mode, 10);
+
+      const updateData = { force_comment_display_mode: isLocked ? 1 : 0 };
+      if (!isNaN(targetMode)) updateData.comment_display_mode = targetMode;
+
+      const result = await db`
+        UPDATE user_options 
+        SET ${db(updateData)}
+        WHERE user_id = ${+user_id}
+        RETURNING user_id
+      `;
+
+      if (!result.length) throw new Error('User options not found');
+
+      // Log it in audit
+      await audit.log(req.session.id, isLocked ? 'lock_user_layout' : 'unlock_user_layout', 'user', +user_id, { mode: targetMode });
+
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        success: true,
+        msg: 'User layout ' + (isLocked ? 'locked' : 'unlocked') + '.',
+        force_comment_display_mode: isLocked ? 1 : 0,
+        comment_display_mode: targetMode
+      }));
+    } catch (err) {
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
+    }
+  });
+
   router.post(/^\/api\/v2\/admin\/users\/delete\/?$/, lib.auth, async (req, res) => {
     try {
       const { user_id } = req.post;
@@ -815,8 +850,11 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
           ghostSlugs.add(finalSlug);
 
           if (hall.custom_image) {
-            const oldPath = path.join(CUSTOM_DIR, `u_${targetId}_${hall.slug}.webp`);
-            const newPath = path.join(CUSTOM_DIR, `u_${ghostId}_${finalSlug}.webp`);
+            // F-004 Security: Sanitize slugs before constructing file paths
+            const safeSlug = path.basename(hall.slug);
+            const safeFinalSlug = path.basename(finalSlug);
+            const oldPath = path.join(CUSTOM_DIR, `u_${targetId}_${safeSlug}.webp`);
+            const newPath = path.join(CUSTOM_DIR, `u_${ghostId}_${safeFinalSlug}.webp`);
             try {
               await fs.rename(oldPath, newPath);
             } catch (e) {
@@ -1192,5 +1230,16 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
     });
   });
 
+  // Chat Manager
+  router.get(/^\/admin\/chat\/?$/, lib.auth, async (req, res) => {
+    res.reply({
+      body: tpl.render('admin/chat', {
+        session: req.session,
+        totals: await lib.countf0cks(),
+        tmp: null
+      }, req)
+    });
+  });
+
   return router;
-};
+}

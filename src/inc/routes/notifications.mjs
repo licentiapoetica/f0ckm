@@ -10,20 +10,26 @@ const activeTabs = new Map(); // sessionId -> tabId
 function broadcastChatPresence() {
     const seen = new Set();
     const users = [];
+    const guestIps = new Set();
     for (const client of clients) {
-        if (client.userId && !seen.has(client.userId)) {
-            seen.add(client.userId);
-            users.push({
-                username:       client.username,
-                display_name:   client.display_name,
-                avatar_file:    client.avatar_file,
-                avatar:         client.avatar,
-                username_color: client.username_color
-            });
+        if (client.userId) {
+            if (!seen.has(client.userId)) {
+                seen.add(client.userId);
+                users.push({
+                    username:       client.username,
+                    display_name:   client.display_name,
+                    avatar_file:    client.avatar_file,
+                    avatar:         client.avatar,
+                    username_color: client.username_color
+                });
+            }
+        } else if (client.ip) {
+            guestIps.add(client.ip);
         }
     }
+    const guestCount = guestIps.size;
     for (const client of clients) {
-        client.send({ type: 'global_chat_presence', data: { users } });
+        client.send({ type: 'global_chat_presence', data: { users, guestCount } });
     }
 }
 
@@ -41,9 +47,16 @@ db.listen('notifications', (payload) => {
     try {
         const data = JSON.parse(payload);
         const userId = data.user_id;
+        const SYSTEM_TYPES = ['upload_success', 'upload_error'];
+        const USER_TYPES = ['comment', 'comment_reply', 'mention', 'subscription', 'upload_comment'];
 
         for (const client of clients) {
             if (client.userId === userId) {
+                // Do Not Disturb takes absolute priority for standard notifications
+                if (client.do_not_disturb === true) continue;
+
+                if (SYSTEM_TYPES.includes(data.type) && client.receive_system_notifications === false) continue;
+                if (USER_TYPES.includes(data.type) && client.receive_user_notifications === false) continue;
                 client.send({ type: 'notify', data });
             }
         }
@@ -73,6 +86,11 @@ db.listen('profile_update', (payload) => {
         const data = JSON.parse(payload);
         for (const client of clients) {
             if (client.userId === data.user_id) {
+                // Sync notification preferences to client object for real-time filtering
+                if (data.receive_system_notifications !== undefined) client.receive_system_notifications = data.receive_system_notifications;
+                if (data.receive_user_notifications !== undefined) client.receive_user_notifications = data.receive_user_notifications;
+                if (data.do_not_disturb !== undefined) client.do_not_disturb = data.do_not_disturb;
+                
                 client.send({ type: 'profile_update', data });
             }
         }
@@ -217,6 +235,9 @@ db.listen('private_message', (payload) => {
         // Only send to the recipient — sender already knows they sent it
         for (const client of clients) {
             if (client.userId === data.recipient_id) {
+                // Silenced by DND
+                if (client.do_not_disturb === true) continue;
+
                 client.send({ type: 'private_message', data: {
                     id: data.id,
                     sender_id: data.sender_id,
@@ -292,6 +313,19 @@ db.listen('global_chat_background', (payload) => {
         console.error('Global chat background broadcast error:', e);
     }
 }).catch(err => console.error('DB Listen global_chat_background error:', err));
+
+// Global listener for rethumb live updates
+db.listen('rethumb', (payload) => {
+    try {
+        const data = JSON.parse(payload);
+        console.log(`[SSE] Broadcasting rethumb (id: ${data.item_id}) to ${clients.size} clients`);
+        for (const client of clients) {
+            client.send({ type: 'rethumb', data });
+        }
+    } catch (e) {
+        console.error('Rethumb broadcast error:', e);
+    }
+}).catch(err => console.error('DB Listen rethumb error:', err));
 
 // Global listener for chat topic changes
 db.listen('global_chat_topic', (payload) => {
@@ -391,7 +425,15 @@ export default (router, tpl) => {
                 LEFT JOIN user_options uo ON u.id = uo.user_id
                 LEFT JOIN items i ON n.item_id = i.id
                 WHERE n.user_id = ${req.session.id} AND n.is_read = false
-                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
+                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report', 'approve') 
+                     OR (
+                       ${req.session.do_not_disturb !== true} AND (
+                         (n.type IN ('upload_success', 'upload_error') AND ${req.session.receive_system_notifications !== false})
+                         OR (n.type IN ('comment', 'comment_reply', 'mention', 'subscription', 'upload_comment') AND ${req.session.receive_user_notifications !== false})
+                       )
+                     )
+                )
+                AND (n.item_id IS NULL OR (i.active = true AND i.is_deleted = false) OR n.type IN ('admin_pending', 'deny', 'item_deleted', 'report'))
                 ORDER BY n.created_at DESC
                 LIMIT 1000
             `;
@@ -510,8 +552,12 @@ export default (router, tpl) => {
             avatar_file:    req.session?.avatar_file    || null,
             avatar:         req.session?.avatar          || null,
             username_color: req.session?.username_color || null,
+            receive_system_notifications: req.session?.receive_system_notifications !== false,
+            receive_user_notifications: req.session?.receive_user_notifications !== false,
+            do_not_disturb: req.session?.do_not_disturb === true,
             sessionId,
             tabId,
+            ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
             send: (data) => {
                 try {
                     res.write(`data: ${JSON.stringify(data)}\n\n`);

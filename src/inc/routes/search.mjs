@@ -68,10 +68,10 @@ export default (router, tpl) => {
               from "items"
               join "tags_assign" on "tags_assign".item_id = "items".id
               join "tags" on "tags".id = "tags_assign".tag_id
-              where lower("tags".tag) in (${db(lowerTags)})
+              where "tags".normalized = ANY(ARRAY(SELECT slugify(x) FROM unnest(${tags}::text[]) AS x))
                 and "items".active = true
               group by "items".id
-              having count(distinct lower("tags".tag)) = ${lowerTags.length}
+              having count(distinct "tags".normalized) = ${tags.length}
             ) sub
           `;
           total = countResult.length > 0 ? countResult[0].total : 0;
@@ -85,10 +85,10 @@ export default (router, tpl) => {
             from "items"
             join "tags_assign" on "tags_assign".item_id = "items".id
             join "tags" on "tags".id = "tags_assign".tag_id
-            where lower("tags".tag) in (${db(lowerTags)})
+            where "tags".normalized = ANY(ARRAY(SELECT slugify(x) FROM unnest(${tags}::text[]) AS x))
               and "items".active = true
             group by "items".id
-            having count(distinct lower("tags".tag)) = ${lowerTags.length}
+            having count(distinct "tags".normalized) = ${tags.length}
             order by "items".id desc
             offset ${offset}
             limit ${_eps}
@@ -119,26 +119,34 @@ export default (router, tpl) => {
         }
       }
       else {
-        total = (await db`
-          select count(*) as total
-          from "tags"
-          left join "tags_assign" on "tags_assign".tag_id = "tags".id
-          left join "items" on "items".id = "tags_assign".item_id
-          where "tags".tag ilike ${'%' + tag + '%'}
-          group by "items".id, "tags".tag
-        `).length;
+        const q = '%' + tag + '%';
+
+        const countResult = await db`
+          select count(*) as total from (
+            select 1
+            from "items"
+            join "tags_assign" on "tags_assign".item_id = "items".id
+            join "tags" on "tags".id = "tags_assign".tag_id
+            where ("tags".tag ilike ${q} or "tags".normalized like '%' || slugify(${tag}) || '%')
+              and "items".active = true
+            group by "items".id
+          ) sub
+        `;
+        total = countResult.length > 0 ? parseInt(countResult[0].total) : 0;
 
         const pages = +Math.ceil(total / _eps);
         const act_page = Math.min(pages, page || 1);
         const offset = Math.max(0, (act_page - 1) * _eps);
 
         const rows = await db`
-          select "items".id, "items".username, "items".mime, "tags".tag
-          from "tags"
-          left join "tags_assign" on "tags_assign".tag_id = "tags".id
-          left join "items" on "items".id = "tags_assign".item_id
-          where "tags".tag ilike ${'%' + tag + '%'} and "items".active = true
-          group by "items".id, "tags".tag
+          select "items".id, "items".username, "items".mime, min("tags".tag) as tag
+          from "items"
+          join "tags_assign" on "tags_assign".item_id = "items".id
+          join "tags" on "tags".id = "tags_assign".tag_id
+          where ("tags".tag ilike ${q} or "tags".normalized like '%' || slugify(${tag}) || '%')
+            and "items".active = true
+          group by "items".id
+          order by "items".id desc
           offset ${offset}
           limit ${_eps}
         `;

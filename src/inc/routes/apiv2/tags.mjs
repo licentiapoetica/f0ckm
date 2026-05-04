@@ -79,7 +79,7 @@ export default router => {
         const isDuplicate = err.code === '23505' || err.constraint?.includes('tags_assign');
         return res.json({
           success: false,
-          msg: isDuplicate ? 'Tag already exists' : err.message,
+          msg: isDuplicate ? 'Tag already exists' : 'Failed to add tag',
           tags: await lib.getTags(postid)
         });
       }
@@ -124,7 +124,7 @@ export default router => {
 
         return res.json({ success: true, rating_tag_id: nextTagId, rating_label: label, rating_class: cls });
       } catch (err) {
-        return res.json({ success: false, msg: err.message });
+        return res.json({ success: false, msg: 'Failed to update rating' });
       }
     });
 

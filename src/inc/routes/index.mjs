@@ -241,8 +241,8 @@ export default (router, tpl) => {
         data.total = 0;
         data.success = true;
         if (!data.link) {
-          if (req.params.hall) data.link = { main: '/h/' + req.params.hall + '/', path: 'p/', suffix: '' };
-          else if (req.params.tag) data.link = { main: '/tag/' + req.params.tag + '/', path: 'p/', suffix: '' };
+          if (req.params.hall) data.link = { main: '/h/' + encodeURIComponent(req.params.hall) + '/', path: 'p/', suffix: '' };
+          else if (req.params.tag) data.link = { main: '/tag/' + encodeURIComponent(req.params.tag) + '/', path: 'p/', suffix: '' };
           else data.link = { main: '/', path: 'p/', suffix: '' };
         }
         data.tmp = data.tmp || {};

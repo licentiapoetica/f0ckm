@@ -148,6 +148,12 @@ export const handleRethumbUpload = async (req, res, itemId) => {
 
         await fs.unlink(tmpPath).catch(() => {});
 
+        try {
+            await db`SELECT pg_notify('rethumb', ${JSON.stringify({ item_id: item.id })})`;
+        } catch (err) {
+            console.error('[RETHUMB HANDLER] SSE notify error:', err);
+        }
+
         console.log('[RETHUMB HANDLER] Custom thumbnail applied to item', item.id);
         return sendJson(res, {
             success: true,

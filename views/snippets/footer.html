@@ -124,7 +124,8 @@
 @endif
 @if(private_society && !session)
 <script>
-  window.f0ckSession = { logged_in: false, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif };
+  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, development: @if(development) true @else false @endif };
+  window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   (() => {
     const loginModal = document.getElementById('login-modal');
     const registerModal = document.getElementById('register-modal');
@@ -379,13 +380,20 @@
     enable_swf: @if(enable_swf) true @else false @endif,
     enable_danmaku: @if(enable_danmaku) true @else false @endif,
     enable_global_chat: @if(enable_global_chat) true @else false @endif,
+    enable_xd_score: @if(enable_xd_score) true @else false @endif,
     ruffle_volume: @if(session && session.ruffle_volume !== undefined && session.ruffle_volume !== null) {{ session.ruffle_volume }} @else 0.5 @endif,
     ruffle_background: @if(session && session.ruffle_background !== false) true @else false @endif,
     quote_emojis: @if(session && session.quote_emojis !== false) true @else false @endif,
     embed_youtube_in_comments: @if(session && session.embed_youtube_in_comments !== false) true @else false @endif,
     avatar: @if(session && session.avatar) {{ session.avatar }} @else null @endif,
-    avatar_file: @if(session && session.avatar_file) "{{ session.avatar_file }}" @else null @endif
+    avatar_file: @if(session && session.avatar_file) "{{ session.avatar_file }}" @else null @endif,
+    receive_system_notifications: @if(session)@if(session.receive_system_notifications !== false) true @else false @endif@else true @endif,
+    receive_user_notifications: @if(session)@if(session.receive_user_notifications !== false) true @else false @endif@else true @endif,
+    do_not_disturb: @if(session && session.do_not_disturb) true @else false @endif,
+    comment_display_mode: {{ comment_display_mode }},
+    development: @if(development) true @else false @endif
   };
+  window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   window.f0ckI18n = {
     write_comment: "{{ t('comments.write_comment') }}",
     post: "{{ t('comments.post') }}",
@@ -409,6 +417,8 @@
     timeago_years: "{{ t('timeago.years') }}",
     timeago_month: "{{ t('timeago.month') }}",
     timeago_months: "{{ t('timeago.months') }}",
+    timeago_week: "{{ t('timeago.week') }}",
+    timeago_weeks: "{{ t('timeago.weeks') }}",
     timeago_day: "{{ t('timeago.day') }}",
     timeago_days: "{{ t('timeago.days') }}",
     timeago_hour: "{{ t('timeago.hour') }}",
@@ -539,9 +549,9 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').then((registration) => {
-        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        window.f0ckDebug('ServiceWorker registration successful with scope: ', registration.scope);
       }, (err) => {
-        console.log('ServiceWorker registration failed: ', err);
+        window.f0ckDebug('ServiceWorker registration failed: ', err);
       });
     });
   }

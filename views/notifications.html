@@ -35,10 +35,10 @@
 
                         // Load first page for this tab
                         try {
-                            const res = await fetch(`/ajax/notifications?page=1&tab=${tabName}`);
+                            const res = await fetch('/ajax/notifications?page=1&tab=' + tabName);
                             const data = await res.json();
                             if (data.success) {
-                                container.innerHTML = data.html || `<div class="notif-empty">${window.f0ckI18n?.no_notifications || 'No new notifications'}</div>`;
+                                container.innerHTML = data.html || '<div class="notif-empty">' + (window.f0ckI18n?.no_notifications || 'No new notifications') + '</div>';
                                 const footbar = document.getElementById('footbar');
                                 if (footbar) {
                                     footbar.style.display = data.hasMore ? '' : 'none';

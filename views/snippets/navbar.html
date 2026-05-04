@@ -14,18 +14,18 @@
   <!-- Nav links: desktop always-on, mobile hidden until toggled -->
   <div class="nav-collapse" id="navbarContent">
       <div class="nav-links">
-        <a id="nav-upload-link" style="cursor:pointer;"><i class="fa-solid fa-upload"></i> {{ t('nav.upload') }}</a>
+        <a id="nav-upload-link" style="cursor:pointer;"><i class="fa-solid fa-angle-up"></i> {{ t('nav.upload') }}</a>
         @if(meme_creator)
-        <a href="/meme">{{ t('nav.meme') }}</a>
+        <a id="nav-meme-link" href="/meme"><i class="fa-regular fa-image"></i> {{ t('nav.meme') }}</a>
         @endif
         @if(halls_enabled)
         <div class="nav-user-dropdown nav-halls-dropdown">
           <a href="/halls" class="nav-halls-btn" title="{{ t('nav.halls') }}">
-            <i class="fa-solid fa-building-columns"></i>
+            <i class="fa-solid fa-layer-group"></i>
           </a>
         </div>
         @endif
-        <a href="/tags" title="{{ t('nav.tags') }}"><i class="fa-solid fa-tag"></i></a>
+        <a href="/tags" title="{{ t('nav.tags') }}"><i class="fa-solid fa-tags"></i></a>
         @if(abyss_enabled)
         <a href="/abyss" title="{{ t('nav.abyss') }}"><i class="fa-solid fa-dice-d6"></i></a>
         @endif
@@ -59,14 +59,14 @@
           @endif
           <a href="/user/{{ session.user.toLowerCase() }}/favs" class="mobile-only">{{ t('nav.favs') }}</a>
           @if(session.admin)
-          <a href="/admin">Admin
+          <a href="/admin">{{ t('nav.admin') }}
             @if(typeof session.pending_count !== 'undefined' && session.pending_count > 0)
             <span class="notification-dot" title="{{ session.pending_count }} Pending" onclick="event.preventDefault(); window.location.href='/admin/approve';"></span>
             @endif
           </a>
           @endif
           @if(session.admin || session.is_moderator)
-          <a href="/mod">mod
+          <a href="/mod">{{ t('nav.mod') }}
             @if(typeof session.pending_count !== 'undefined' && session.pending_count > 0)
             <span class="notification-dot" title="{{ session.pending_count }} Pending" onclick="event.preventDefault(); window.location.href='/mod/approve';"></span>
             @endif
@@ -121,7 +121,7 @@
       <a href="/settings" title="Settings" class="desktop-only"><i class="fa-solid fa-gear"></i></a>
 
       <!-- Filter -->
-      <a href="#" id="nav-filter-btn" title="Excluded Tags"><i class="fa-solid fa-filter"></i></a>
+      <a href="#" id="nav-filter-btn" title="Filter"><i class="fa-solid fa-filter"></i></a>
 
       <!-- Logout -->
       <a href="/logout" title="Logout" class="desktop-only"><i class="fa-solid fa-right-from-bracket"></i></a>
@@ -157,11 +157,11 @@
 
   <div class="nav-collapse" id="navbarContent">
     <div class="nav-links">
-      <a href="/tags" title="Tags"><i class="fa-solid fa-tag"></i></a>
+      <a href="/tags" title="Tags"><i class="fa-solid fa-tags"></i></a>
       @if(halls_enabled)
       <div class="">
         <a href="/halls" class="nav-halls-btn" title="Halls">
-          <i class="fa-solid fa-building-columns"></i>
+          <i class="fa-solid fa-layer-group"></i>
         </a>
         <div class="nav-user-menu">
           <a href="/halls" style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px;"><i class="fa-solid fa-building-columns"></i> Overview</a>
@@ -357,7 +357,7 @@
     <button class="modal-close" id="drag-modal-close" title="Cancel Upload">&times;</button>
     <div class="modal-body">
       <div class="upload-container" style="padding: 0; animation: none; opacity: 1;">
-          <h2>{{ t('upload.title') }}</h2>
+          <div class="upload-title">{{ t('upload.title') }}</div>
 
           <div class="upload-limit-info">
               @if(session.uploads_remaining === undefined)

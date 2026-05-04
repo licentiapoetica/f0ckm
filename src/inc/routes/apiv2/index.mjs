@@ -11,8 +11,17 @@ import { parseMultipart, collectBody } from '../../multipart.mjs';
 
 const allowedMimes = ["audio", "image", "video", "%"];
 const globalfilter = cfg.nsfp?.length ? cfg.nsfp.map(n => `tag_id = ${n}`).join(' or ') : null;
+const metaCache = new Map();
+const MAX_META_CACHE = 2000;
 
 export default router => {
+  // Ensure cache table exists
+  db`CREATE TABLE IF NOT EXISTS meta_cache (
+    url TEXT PRIMARY KEY,
+    data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`.catch(err => console.error('[META-CACHE] Table creation failed:', err));
+
   router.group(/^\/api\/v2/, group => {
     
     const ytRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
@@ -282,6 +291,8 @@ export default router => {
         }
     });
 
+    // F-002 Security: Require authentication to prevent SSRF via arbitrary URL fetching.
+    // Guests use cached entries from DB (populated by authenticated user requests).
     group.get(/\/meta\/fetch$/, lib.loggedin, async (req, res) => {
         if (!cfg.websrv.web_meta_extraction) {
             return res.json({ success: false, msg: 'Metadata extraction is disabled' }, 403);
@@ -289,6 +300,38 @@ export default router => {
 
         const url = req.url.qs.url;
         if (!url) return res.json({ success: false, msg: 'URL required' }, 400);
+
+        if (metaCache.has(url)) {
+            return res.json({ success: true, meta: metaCache.get(url) });
+        }
+
+        // Check DB cache for persistence across restarts
+        try {
+            const cached = await db`SELECT data FROM meta_cache WHERE url = ${url} LIMIT 1`;
+            if (cached.length > 0) {
+                const meta = cached[0].data;
+                metaCache.set(url, meta); // update in-memory cache
+                return res.json({ success: true, meta });
+            }
+        } catch (err) {
+            console.error('[META-CACHE] DB lookup failed:', err);
+        }
+
+        const setCache = async (u, m) => {
+            if (!m || !m.title) return;
+            metaCache.set(u, m);
+            if (metaCache.size > MAX_META_CACHE) {
+                const first = metaCache.keys().next().value;
+                metaCache.delete(first);
+            }
+            // Persist to DB
+            try {
+                await db`INSERT INTO meta_cache (url, data) VALUES (${u}, ${m}) 
+                         ON CONFLICT (url) DO UPDATE SET data = EXCLUDED.data, created_at = CURRENT_TIMESTAMP`;
+            } catch (err) {
+                console.error('[META-CACHE] DB save failed:', err);
+            }
+        };
 
         if (/\.(mp4|webm|mp3|ogg|opus|flac|m4a|mkv|jpg|jpeg|png|gif|webp|swf)$/i.test(url)) {
             return res.json({ success: false, msg: 'Metadata extraction skipped for direct media URLs' }, 400);
@@ -314,13 +357,15 @@ export default router => {
                 if (oembedOut && oembedOut.trim()) {
                     const data = JSON.parse(oembedOut);
                     if (data.title) {
+                        const meta = {
+                            title: data.title,
+                            site_name: 'youtube.com',
+                            author: data.author_name || 'Unknown'
+                        };
+                        await setCache(url, meta);
                         return res.json({
                             success: true,
-                            meta: {
-                                title: data.title,
-                                site_name: 'youtube.com',
-                                author: data.author_name || 'Unknown'
-                            }
+                            meta
                         });
                     }
                 }
@@ -354,13 +399,15 @@ export default router => {
                 }
 
                 if (title) {
+                    const meta = { 
+                        title: title,
+                        site_name: lines[2] ? lines[2].trim() : 'Media Site',
+                        author: lines[1] ? lines[1].trim() : 'Unknown'
+                    };
+                    await setCache(url, meta);
                     return res.json({ 
                         success: true, 
-                        meta: { 
-                            title: title,
-                            site_name: lines[2] ? lines[2].trim() : 'Media Site',
-                            author: lines[1] ? lines[1].trim() : 'Unknown'
-                        } 
+                        meta 
                     });
                 }
             } catch (err) {
@@ -402,6 +449,7 @@ export default router => {
                         return res.json({ success: false, msg: 'Reddit bot protection encountered' }, 403);
                     }
 
+                    await setCache(url, meta);
                     return res.json({ success: true, meta });
                 }
             } catch (err) {
@@ -663,7 +711,7 @@ export default router => {
         reply.success = true;
         reply.suggestions = search(q, searchString);
       } catch (err) {
-        reply.error = err.msg;
+        reply.error = 'Tag suggestion error';
       }
 
       return res.json(reply);
@@ -688,7 +736,7 @@ export default router => {
         `;
         return res.json({ success: true, suggestions: users });
       } catch (err) {
-        return res.json({ success: false, error: err.message, suggestions: [] });
+        return res.json({ success: false, error: 'User suggestion error', suggestions: [] });
       }
     });
 

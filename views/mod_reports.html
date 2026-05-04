@@ -166,7 +166,12 @@ window.expandItem = function(e, id) {
         const mime = r.resolved_item_mime || '';
         const src = '/b/' + r.resolved_item_dest;
         const baseStyle = 'max-height: 250px; border: 1px solid #333; border-radius: 4px;';
-        if (mime.startsWith('image/')) {
+        if (mime === 'video/youtube') {
+            const ytId = r.resolved_item_dest.replace('yt:', '');
+            previewHtml = '<div><iframe width="444" height="250" src="https://www.youtube.com/embed/' + ytId + '" frameborder="0" allowfullscreen style="' + baseStyle + '"></iframe></div>';
+        } else if (mime === 'application/pdf') {
+            previewHtml = '<div><iframe src="' + src + '#toolbar=0" style="' + baseStyle + ' width: 444px; height: 250px;" frameborder="0" allowfullscreen></iframe></div>';
+        } else if (mime.startsWith('image/')) {
             previewHtml = '<div><img src="' + src + '" style="' + baseStyle + ' background: #000;"></div>';
         } else if (mime.startsWith('audio/')) {
             previewHtml = '<div><audio src="' + src + '" controls style="' + baseStyle + '"></audio></div>';

@@ -16,7 +16,8 @@ const regex = {
   imgur: /(?:https?:)?\/\/(\w+\.)?imgur\.com\/\S+/i,
   fourchan: /https?:\/\/i\.4cdn\.org\/(\w+)\/(\d+)\.(\w{3,4})/i,
   instagram: /(?:https?:\/\/www\.)?instagram\.com\S*?\/(?:p|reel)\/(\w{11})\/?/im,
-  ph: /(?:https?:\/\/)?(?:\w+\.)?pornhub\.(?:com|org)\/view_video\.php\?viewkey=([\w-]+)/i
+  ph: /(?:https?:\/\/)?(?:\w+\.)?pornhub\.(?:com|org)\/view_video\.php\?viewkey=([\w-]+)/i,
+  vocaroo: /(?:https?:\/\/)?(?:www\.)?(?:vocaroo\.com|voca\.ro)\/([a-zA-Z0-9_-]+)/i
 };
 const pcUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 const mediagroupids = new Set();
@@ -444,7 +445,7 @@ export default async bot => {
         else if (link.match(regex.ph)) {
           try {
             // Added referer to fix fragment 404 errors, removed -vU to avoid exit code 100
-            source = (await queue.spawn('yt-dlp', [...proxyArgs, '--no-playlist', '--referer', 'https://www.pornhub.com', '--user-agent', pcUA, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim();
+            source = (await queue.spawn('yt-dlp', [...proxyArgs, '--no-playlist', '--referer', 'https://www.pornhub.com', '--user-agent', pcUA, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
           } catch (err) {
             console.error('Pornhub dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
@@ -455,7 +456,8 @@ export default async bot => {
         }
         else if (link.match(regex.instagram)) {
           try {
-            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim();
+                        source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
+
           } catch (err) {
             console.error('Instagram dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
@@ -466,7 +468,7 @@ export default async bot => {
         }
         else if (link.match(regex.imgur)) {
           try {
-            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / b[height<=1080]', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim();
+            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / b[height<=1080]', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
           } catch (err) {
             console.warn(`[PARSER] Imgur Stage 1 (yt-dlp) failed: ${err.message}. Retrying with curl...`);
             
@@ -528,7 +530,7 @@ export default async bot => {
         }
         else if (link.match(regex.yt)) {
           try {
-            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '-I', '1', '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim();
+            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '-I', '1', '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
           } catch (err) {
             console.error('YouTube dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
@@ -539,7 +541,7 @@ export default async bot => {
         }
         else if (link.match(regex.fourchan)) {
           try {
-            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim();
+            source = (await queue.spawn('yt-dlp', [...proxyArgs, ...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
           } catch (err) {
             console.error('4chan dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
@@ -550,7 +552,7 @@ export default async bot => {
         }
         else {
           try {
-            source = (await queue.spawn('yt-dlp', [...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim();
+            source = (await queue.spawn('yt-dlp', [...ytdlpArgs, '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w', link, '--max-filesize', `${maxfilesize / 1024}k`, '--postprocessor-args', 'ffmpeg:-bitexact', '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`), '--print', 'after_move:filepath', '--merge-output-format', 'mp4'])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
           } catch (err) {
             console.error('General dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);

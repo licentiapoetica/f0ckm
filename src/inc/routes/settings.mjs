@@ -38,7 +38,7 @@ export default (router, tpl) => {
       res.setHeader('Expires', '0');
       res.setHeader('Surrogate-Control', 'no-store');
 
-      console.log('Rendering settings. Excluded tags:', excluded_tags);
+
 
       res.reply({
         body: tpl.render('settings', {

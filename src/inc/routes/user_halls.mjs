@@ -157,6 +157,25 @@ export default (router, tpl) => {
     data.hidePagination = true;
     data.session = req.session ? { ...req.session } : false;
 
+    // Precompute boolean helpers for template @if() — must match index.mjs pattern
+    if (data.item) {
+      const session = data.session;
+      const item = data.item;
+      data.is_mod_or_admin = !!(session && (session.admin || session.is_moderator));
+      data.can_manage_item = !!(session && (session.admin || session.is_moderator || session.user === item.username));
+      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1 && item.mime.indexOf('youtube') === -1);
+      data.user_has_favorited = !!(session && Array.isArray(item.favorites) && item.favorites.some(f => f.user === session.user));
+      data.halls_slugs = Array.isArray(item.halls) ? item.halls.map(h => h.slug).join(',') : '';
+      data.user_halls_slugs = Array.isArray(item.user_halls) ? item.user_halls.map(h => h.slug).join(',') : '';
+      data.item_rating_class = item.is_nsfl ? 'is-nsfl' : (item.is_nsfw ? 'is-nsfw' : (item.is_sfw ? 'is-sfw' : 'is-untagged'));
+      data.item_rating_label = item.is_nsfl ? 'NSFL' : (item.is_nsfw ? 'NSFW' : (item.is_sfw ? 'SFW' : '?'));
+      data.item_username_lower = (item.username || '').toLowerCase();
+      data.is_flash_item = !!(item.mime && (item.mime.indexOf('flash') !== -1 || item.mime.indexOf('shockwave') !== -1));
+      data.current_hall_slug = (data.tmp && data.tmp.hall && typeof data.tmp.hall === 'object') ? data.tmp.hall.slug : (data.tmp && data.tmp.hall ? data.tmp.hall : '');
+      data.current_user_hall_slug = (data.tmp && data.tmp.userHall && typeof data.tmp.userHall === 'object') ? data.tmp.userHall.slug : (data.tmp && data.tmp.userHall ? data.tmp.userHall : '');
+      data.current_user_hall_owner = (data.tmp && data.tmp.userHallOwner) ? data.tmp.userHallOwner : '';
+    }
+
     // Precompute hall display
     if (data.item?.halls?.length) {
       data.item.primaryHall = data.item.halls[0];
@@ -168,17 +187,26 @@ export default (router, tpl) => {
 
     if (req.session || !cfg.main.hide_comments_from_public) {
       if (req.session?.id) f0cklib.markNotificationsRead(req.session.id, req.params.itemid).catch(() => {});
-      const useLegacy = req.session
-        ? (req.session.use_new_layout === false)
-        : (cfg.websrv.default_layout === 'legacy');
-      const sort = useLegacy ? 'old' : 'new';
-      data.comments = await f0cklib.getComments(req.params.itemid, sort, false);
       data.isSubscribed = req.session ? await f0cklib.getSubscriptionStatus(req.session.id, req.params.itemid) : false;
-      data.commentsJSON = Buffer.from(JSON.stringify(data.comments || [])).toString('base64');
+
+      // xD Score
+      const commentsForScore = await f0cklib.getComments(req.params.itemid, 'old', false);
+      const xdScore = f0cklib.computeXdScore(commentsForScore);
+      const xdMeta  = f0cklib.xdScoreMeta(xdScore);
+      data.item.xd_score = xdScore;
+      data.item.xd_tier  = xdMeta.tier;
+      data.item.xd_label = xdMeta.label;
+
+      // Comments loaded async by client
+      data.commentsJSON = null;
+      data.comments = [];
     } else {
       data.comments = [];
       data.isSubscribed = false;
-      data.commentsJSON = Buffer.from('[]').toString('base64');
+      data.commentsJSON = null;
+      data.item.xd_score = 0;
+      data.item.xd_tier  = 0;
+      data.item.xd_label = '';
     }
 
     return res.reply({ body: tpl.render('item', data, req) });
@@ -188,11 +216,13 @@ export default (router, tpl) => {
   router.get(/^\/user_hall_image\/(?<userId>\d+)\/(?<slug>.+)$/, async (req, res) => {
     const userId = +req.params.userId;
     const slug = decodeURIComponent(req.params.slug);
+    // F-016 Security: Sanitize slug to prevent path traversal
+    const safeSlug = path.basename(slug);
     const mode = +(req.url.qs?.m ?? 0);
 
     const CUSTOM_DIR = path.join(cfg.paths.s, '../hall_custom');
     const CACHE_DIR = path.join(cfg.paths.s, '../hall_cache');
-    const customPath = path.join(CUSTOM_DIR, `u_${userId}_${slug}.webp`);
+    const customPath = path.join(CUSTOM_DIR, `u_${userId}_${safeSlug}.webp`);
 
     try {
       // 1. Serve custom image if present
@@ -207,7 +237,7 @@ export default (router, tpl) => {
       } catch (_) { /* no custom image */ }
 
       // 2. Check mosaic cache
-      const hash = createHash('md5').update(`uh_${userId}_${slug}_${mode}`).digest('hex');
+      const hash = createHash('md5').update(`uh_${userId}_${safeSlug}_${mode}`).digest('hex');
       const cachePath = path.join(CACHE_DIR, `${hash}.webp`);
       try {
         await fs.access(cachePath);
@@ -316,8 +346,10 @@ export default (router, tpl) => {
     const result = await f0cklib.deleteUserHall(targetUserId, slug);
 
     // Clean up custom image if it exists
+    // F-016 Security: Sanitize slug to prevent path traversal in file deletion
+    const safeSlug = path.basename(slug);
     const CUSTOM_DIR = path.join(cfg.paths.s, '../hall_custom');
-    fs.unlink(path.join(CUSTOM_DIR, `u_${targetUserId}_${slug}.webp`)).catch(() => {});
+    fs.unlink(path.join(CUSTOM_DIR, `u_${targetUserId}_${safeSlug}.webp`)).catch(() => {});
 
     return res.writeHead(result.success ? 200 : 404, { 'Content-Type': 'application/json' })
       .end(JSON.stringify(result));
@@ -380,12 +412,14 @@ export default (router, tpl) => {
         .end(JSON.stringify({ success: false, msg: 'Hall not found' }));
     }
 
+    // F-016 Security: Sanitize slug to prevent path traversal in file deletion
+    const safeSlug = path.basename(slug);
     const CUSTOM_DIR = path.join(cfg.paths.s, '../hall_custom');
     const CACHE_DIR = path.join(cfg.paths.s, '../hall_cache');
-    await fs.unlink(path.join(CUSTOM_DIR, `u_${req.session.id}_${slug}.webp`)).catch(() => {});
+    await fs.unlink(path.join(CUSTOM_DIR, `u_${req.session.id}_${safeSlug}.webp`)).catch(() => {});
     // Clear mosaic cache entries for all modes
     for (const m of [0, 1, 2]) {
-      const h = createHash('md5').update(`uh_${req.session.id}_${slug}_${m}`).digest('hex');
+      const h = createHash('md5').update(`uh_${req.session.id}_${safeSlug}_${m}`).digest('hex');
       await fs.unlink(path.join(CACHE_DIR, `${h}.webp`)).catch(() => {});
     }
     await db`UPDATE user_halls SET custom_image = false WHERE id = ${hall.id}`;

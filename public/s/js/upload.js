@@ -40,6 +40,7 @@ window.initUploadForm = (selector) => {
                 const dragModal = form.closest('#upload-drag-modal');
                 if (dragModal) {
                     dragModal.classList.remove('show');
+                    document.body.classList.remove('modal-open');
                     if (form._f0ckUploader && typeof form._f0ckUploader.reset === 'function') {
                         form._f0ckUploader.reset();
                     }
@@ -59,8 +60,7 @@ window.initUploadForm = (selector) => {
     const ytRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
 
     // Dynamically get min tags requirement from DOM
-    const minTagsRaw = tagCount?.textContent.match(/\/(\d+)/);
-    const minTags = minTagsRaw ? parseInt(minTagsRaw[1]) : 3;
+    const minTags = parseInt(form.getAttribute('data-min-tags') || '3');
 
     let tags = [];
     let autoTags = []; // Track tags suggested from metadata
@@ -465,8 +465,12 @@ window.initUploadForm = (selector) => {
         }
 
         if (tagCount) {
-            tagCount.textContent = '(' + tags.length + '/' + minTags + ' minimum)';
-            tagCount.classList.toggle('valid', tags.length >= minTags);
+            if (minTags > 0) {
+                tagCount.textContent = '(' + tags.length + '/' + minTags + ' minimum)';
+                tagCount.classList.toggle('valid', tags.length >= minTags);
+            } else {
+                tagCount.style.display = 'none';
+            }
         }
     };
 
@@ -567,6 +571,10 @@ window.initUploadForm = (selector) => {
             previewElem = document.createElement('div');
             previewElem.className = 'generic-file-icon swf-preview-icon';
             previewElem.innerHTML = '<span style="font-size:2.5em;">⚡</span><br><span style="font-size:0.85em;letter-spacing:0.1em;color:#e040fb;font-weight:bold;">SWF</span>';
+        } else if (file.type === 'application/pdf' || fileExt === 'pdf') {
+            previewElem = document.createElement('div');
+            previewElem.className = 'generic-file-icon pdf-preview-icon';
+            previewElem.innerHTML = '<span style="font-size:2.5em;"><i class="fa-solid fa-file-pdf"></i></span><br><span style="font-size:0.85em;letter-spacing:0.1em;color:#ef5350;font-weight:bold;"></span>';
         } else {
             previewElem = document.createElement('div');
             previewElem.className = 'generic-file-icon';
@@ -951,7 +959,7 @@ window.initUploadForm = (selector) => {
                                 </div>
                             `;
                         }
-                        console.log('[UPLOAD] Rendering ' + filtered.length + ' suggestions');
+                        window.f0ckDebug('[UPLOAD] Rendering ' + filtered.length + ' suggestions');
                         if (tagSuggestions) {
                             tagSuggestions.innerHTML = html;
                             tagSuggestions.style.display = 'block';
@@ -1087,11 +1095,26 @@ window.initUploadForm = (selector) => {
                     }
 
                     if (dragModal) dragModal.classList.remove('show');
+                    if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+                    if (window.hideAllModals) window.hideAllModals();
                     form._f0ckUploader.reset();
                     if (!dragModal) {
                         statusDiv.innerHTML = '✓ ' + data.msg;
                         statusDiv.className = 'upload-status success';
                     }
+                    
+                    if (data.itemid) {
+                        try {
+                            const ts = Date.now();
+                            const bustedStr = localStorage.getItem('bustedThumbs');
+                            const busted = bustedStr ? JSON.parse(bustedStr) : {};
+                            busted[data.itemid] = ts;
+                            const keys = Object.keys(busted);
+                            if (keys.length > 50) delete busted[keys[0]];
+                            localStorage.setItem('bustedThumbs', JSON.stringify(busted));
+                        } catch(e) {}
+                    }
+
                     if (data.manual_approval && typeof window.showFlash === 'function') {
                         window.showFlash('Upload awaits approval, please be patient', 'info');
                     }
@@ -1190,6 +1213,19 @@ window.initUploadForm = (selector) => {
                             statusDiv.innerHTML = '✓ ' + res.msg;
                             statusDiv.className = 'upload-status success';
                         }
+                        
+                        if (res.itemid) {
+                            try {
+                                const ts = Date.now();
+                                const bustedStr = localStorage.getItem('bustedThumbs');
+                                const busted = bustedStr ? JSON.parse(bustedStr) : {};
+                                busted[res.itemid] = ts;
+                                const keys = Object.keys(busted);
+                                if (keys.length > 50) delete busted[keys[0]];
+                                localStorage.setItem('bustedThumbs', JSON.stringify(busted));
+                            } catch(e) {}
+                        }
+
                         if (res.manual_approval && typeof window.showFlash === 'function') {
                             window.showFlash('Upload awaits approval', 'info');
                         }

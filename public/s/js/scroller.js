@@ -335,6 +335,7 @@
 
   // Close popup if click outside
   document.addEventListener('click', e => {
+    if (!document.body.classList.contains('scroller-active')) return;
     if (!volumePopup.contains(e.target) && e.target !== muteBtn && !muteBtn.contains(e.target)) {
       volumePopup.classList.remove('open');
     }
@@ -369,6 +370,11 @@
     closePanel(filterPanel, filterBackdrop);
     closePanel(commentsPanel, commentsBackdrop);
     closePanel(settingsPanel, settingsBackdrop);
+    if (typeof closeTagBar === 'function') closeTagBar();
+    if (typeof closeSharePanel === 'function') closeSharePanel();
+    if (typeof closeChanPanel === 'function') closeChanPanel();
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
   }
   function addSwipeClose(panel, backdrop) {
     let startY = 0;
@@ -690,10 +696,22 @@
     });
   }
 
-  // Spoiler/blur reveal — delegated click on the comments list
+  // Spoiler/blur reveal & context links — delegated click on the comments list
   commentsList.addEventListener('click', e => {
     const sp = e.target.closest('.scroller-spoiler, .scroller-blur');
     if (sp) sp.classList.toggle('revealed');
+
+    const contextLink = e.target.closest('.comment-context-link');
+    if (contextLink) {
+      e.preventDefault();
+      const id = contextLink.dataset.id;
+      const target = commentsList.querySelector(`.comment-item[data-comment-id="${id}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('highlight-comment');
+        setTimeout(() => target.classList.remove('highlight-comment'), 2000);
+      }
+    }
   });
 
   // ── Slide activation ──────────────────────────────────────────────────────
@@ -1593,6 +1611,7 @@
               is_video: isVideo,
               is_image: isImage,
               is_audio: false,
+              comment_count: p.replies || 0,
               rating_label: isWsg ? 'SFW' : (isGif ? 'NSFW' : 'External'),
               rating_class: isWsg ? 'sfw' : (isGif ? 'nsfw' : 'untagged')
             };
@@ -1618,6 +1637,7 @@
                 item.username = m.username;
                 item.display_name = m.display_name;
                 item.avatar = m.avatar;
+                if (m.comment_count != null) item.comment_count = m.comment_count;
                 if (m.rating_class) { item.rating_class = m.rating_class; item.rating_label = m.rating_label; }
 
               }
@@ -1931,8 +1951,36 @@
       indicator.style.display = 'flex';
     }
     if (commentInput) {
+      const quote = `>>${commentId} `;
+      const start = commentInput.selectionStart;
+      const end = commentInput.selectionEnd;
+      const val = commentInput.value;
+      commentInput.value = val.substring(0, start) + quote + val.substring(end);
       commentInput.focus();
+      commentInput.selectionStart = commentInput.selectionEnd = start + quote.length;
+      commentInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
+  }
+
+  function quoteComment(id, username) {
+    if (!commentInput) return;
+    const commentEl = commentsList.querySelector(`.comment-item[data-comment-id="${id}"]`);
+    if (!commentEl) return;
+    const contentEl = commentEl.querySelector('.comment-content');
+    if (!contentEl) return;
+
+    const raw = (contentEl.dataset.raw || '').replace(/<br\s*\/?>/gi, '\n').trim();
+    const lines = raw.split('\n');
+    const quote = `>>${id}\n${lines.map(line => `>${line}`).join('\n')}\n`;
+
+    const start = commentInput.selectionStart;
+    const end = commentInput.selectionEnd;
+    const val = commentInput.value;
+
+    commentInput.value = val.substring(0, start) + quote + val.substring(end);
+    commentInput.focus();
+    commentInput.selectionStart = commentInput.selectionEnd = start + quote.length;
+    commentInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   function clearReply() {
@@ -1956,17 +2004,26 @@
       <img class="comment-avatar" src="${esc(av)}" alt="" loading="lazy" onerror="this.src='/a/default.png'">
       <div class="comment-body">
         <div class="comment-username" style="${nc}">${esc(uname)}</div>
-        <div class="comment-content">${renderCommentContent(c.content || '')}</div>
+        <div class="comment-content" data-raw="${esc(c.content || '')}">${renderCommentContent(c.content || '')}</div>
         <div class="comment-meta">
           <span class="comment-time">${c.created_at ? timeAgo(c.created_at) : (_i.ta_just_now || _i.just_now || 'just now')}</span>
-          ${canReply ? `<button class="comment-reply-btn" data-id="${c.id}" data-user="${esc(c.username || uname)}">${_i.reply || 'Reply'}</button>` : ''}
+          ${canReply ? `
+            <button class="comment-reply-btn" data-id="${c.id}" data-user="${esc(c.username || uname)}">${_i.reply || 'Reply'}</button>
+            <button class="comment-quote-btn" data-id="${c.id}" data-user="${esc(c.username || uname)}">${_i.quote || 'Quote'}</button>
+          ` : ''}
         </div>
       </div>`;
-    // Wire reply button
+    // Wire buttons
     const replyBtn = el.querySelector('.comment-reply-btn');
     if (replyBtn) {
       replyBtn.addEventListener('click', () => {
         setReplyTo(replyBtn.dataset.id, replyBtn.dataset.user);
+      });
+    }
+    const quoteBtn = el.querySelector('.comment-quote-btn');
+    if (quoteBtn) {
+      quoteBtn.addEventListener('click', () => {
+        quoteComment(quoteBtn.dataset.id, quoteBtn.dataset.user);
       });
     }
     return el;
@@ -2009,6 +2066,7 @@
   const tagBarClose = document.getElementById('tag-bar-close-btn');
 
   function openTagBar(itemId) {
+    closeAllPanels();
     tagBarItemId = itemId;
     if (!tagBar) return;
     tagBar.classList.add('open');
@@ -2022,11 +2080,9 @@
     closeSugg();
     tagBarItemId = null;
     const inp = document.getElementById('scroll-tag-input');
-    if (inp) inp.value = '';
+    if (inp) { inp.value = ''; inp.blur(); }
   }
   if (tagBarClose) tagBarClose.addEventListener('click', closeTagBar);
-  // Close on Escape key
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && tagBar?.classList.contains('open')) closeTagBar(); });
 
   // ── Share panel ────────────────────────────────────────────────────────────
   const sharePanel    = document.getElementById('share-panel');
@@ -2263,11 +2319,13 @@
     );
 
     // Escape HTML first, then process line by line
-    const escaped = esc(text);
+    const normalized = text.replace(/<br\s*\/?>/gi, '\n');
+    const escaped = esc(normalized);
     const lines = escaped.split('\n').map(line => {
       const trimmed = line.trimStart();
       // Greentext / quote: lines starting with >
-      if (trimmed.startsWith('&gt;')) {
+      // Exclude only the numeric context links (>>ID) so they can be handled as interactive links.
+      if (trimmed.startsWith('&gt;') && !trimmed.match(/^&gt;&gt;\d+/)) {
         const after = line.substring(line.indexOf('&gt;') + 4);
         const withEmoji = after.replace(/:([a-z0-9_]+):/g, (m, name) => {
           const url = customEmojis[name];
@@ -2289,9 +2347,19 @@
         const url = customEmojis[name];
         return url ? `<img src="${esc(url)}" alt=":${esc(name)}:" title=":${esc(name)}:" style="height:1.8em;vertical-align:middle;display:inline-block;margin:0 2px">` : m;
       });
+
+      // 3. Replace >>ID patterns with context links
+      out = out.replace(/(?<!\w)&gt;&gt;(\d+)/g, (match, id) => {
+        return `<a href="#c${id}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
+      });
+
       return out;
     });
-    let html = lines.join('<br>');
+    let html = lines.map((line, i) => {
+      if (i === lines.length - 1) return line;
+      if (line.includes('scroller-greentext') || line.includes('display:block')) return line;
+      return line + '<br>';
+    }).join('');
     // [spoiler]…[/spoiler] — iterative to handle nesting
     const spoilerRe = /\[spoiler\]((?:(?!\[spoiler\])[\s\S])*?)\[\/spoiler\]/gi;
     let prev, n = 0;
@@ -2783,12 +2851,12 @@
         chanHashPending = fetch(`/api/v2/scroller/external/4chan/${board}/find/${postno}`)
           .then(r => r.json())
           .then(data => {
-            console.log('[CHAN] Find result:', data);
+            window.f0ckDebug('[CHAN] Find result:', data);
             if (data.success && data.tid) {
               applied.externalUrl = `https://boards.4chan.org/${board}/thread/${data.tid}`;
               applied.order = 'oldest';
               unlock4chan();
-              console.log('[CHAN] Set externalUrl:', applied.externalUrl);
+              window.f0ckDebug('[CHAN] Set externalUrl:', applied.externalUrl);
             }
           })
           .catch(err => { console.error('[CHAN] Find error:', err); });
@@ -2887,11 +2955,13 @@
 
   // ── Keyboard ──────────────────────────────────────────────────────────────
   document.addEventListener('keydown', e => {
+    if (!document.body.classList.contains('scroller-active')) return;
     const active = document.activeElement;
     const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
 
     // 'c' toggles comments — only when NOT typing (so it never fires inside the comment input)
     if ((e.key === 'c' || e.key === 'C') && !isTyping && !tagBar?.classList.contains('open')) {
+      e.preventDefault();
       if (commentsPanel.classList.contains('open')) closeAllPanels();
       else if (currentSlide) openComments(currentSlide.dataset.localId || currentSlide.dataset.id);
       return;
@@ -2915,10 +2985,10 @@
     const idx = currentSlide ? slides.indexOf(currentSlide) : 0;
     if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); const n = slides[idx + 1]; if (n) n.scrollIntoView({ behavior: 'smooth' }); }
     else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); const p = slides[idx - 1]; if (p) p.scrollIntoView({ behavior: 'smooth' }); }
-    else if (e.key === 'm') { isMuted = !isMuted; if (!isMuted && volume === 0) volume = 0.5; syncVolumeUI(); applyVolumeToAll(); saveVolume(); prefs.startUnmuted = !isMuted; savePrefs(prefs); applyStartUnmuted(!isMuted); showVolumePopup(); }
+    else if (e.key === 'm') { e.preventDefault(); isMuted = !isMuted; if (!isMuted && volume === 0) volume = 0.5; syncVolumeUI(); applyVolumeToAll(); saveVolume(); prefs.startUnmuted = !isMuted; savePrefs(prefs); applyStartUnmuted(!isMuted); showVolumePopup(); }
     else if (e.key === ' ') { e.preventDefault(); if (currentMedia) currentMedia.paused ? currentMedia.play().catch(() => {}) : currentMedia.pause(); }
-    else if (e.key === 'f' || e.key === 'F') { pending = { ...applied, tags: [...applied.tags] }; syncPanelUI(); renderPresets(); openPanel(filterPanel, filterBackdrop); }
-    else if (e.key === 'g' || e.key === 'G') { if (applied.externalUrl && chanGalleryBtn) toggleGallery(); }
+    else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); pending = { ...applied, tags: [...applied.tags] }; syncPanelUI(); renderPresets(); openPanel(filterPanel, filterBackdrop); }
+    else if (e.key === 'g' || e.key === 'G') { e.preventDefault(); if (applied.externalUrl && chanGalleryBtn) toggleGallery(); }
     else if (e.key === 'r' || e.key === 'R') {
       e.preventDefault();
       e.stopImmediatePropagation(); // prevent f0ckm.js global 'r' random shortcut from firing
@@ -2982,7 +3052,7 @@
         })
         .catch(() => {});
     }
-    else if (e.key === 'l' || e.key === 'L') { if (currentSlide) toggleFav(currentSlide); }
+    else if (e.key === 'l' || e.key === 'L') { e.preventDefault(); if (currentSlide) toggleFav(currentSlide); }
     else if (e.key === 'i' || e.key === 'I') { e.preventDefault(); if (currentSlide) openTagBar(currentSlide.dataset.id); }
     else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); e.stopImmediatePropagation(); } // suppress upload modal shortcut in abyss
     else if (e.key === 'Escape') { window.location.href = '/'; }
@@ -3000,6 +3070,7 @@
     let fourCount = 0;
     let fourTimer = null;
     document.addEventListener('keydown', (e) => {
+      if (!document.body.classList.contains('scroller-active')) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === '4') {
         fourCount++;
@@ -3407,6 +3478,7 @@
 
       // Close on outside click
       document.addEventListener('click', (e) => {
+        if (!document.body.classList.contains('scroller-active')) return;
         if (sNotifOpen && !sNotifDropdown.contains(e.target) && !sNotifBtn.contains(e.target)) {
           sNotifOpen = false;
           sNotifDropdown.classList.remove('visible');

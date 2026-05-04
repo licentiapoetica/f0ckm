@@ -315,7 +315,7 @@ export default (router, tpl) => {
       return res.reply({
         code: 500,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: false, items: [], error: e.message })
+        body: JSON.stringify({ success: false, items: [], error: 'Feed error' })
       });
     }
   });

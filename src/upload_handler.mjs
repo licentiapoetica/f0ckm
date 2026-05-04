@@ -5,7 +5,7 @@ import cfg from "./inc/config.mjs";
 import queue from "./inc/queue.mjs";
 import path from "path";
 import https from "https";
-import { getManualApproval, getMinTags, getTrustedUploads, getBypassDuplicateCheck } from "./inc/settings.mjs";
+import { getManualApproval, getMinTags, getTrustedUploads, getBypassDuplicateCheck, getEnablePdf } from "./inc/settings.mjs";
 import { parseMultipart, collectBody } from "./inc/multipart.mjs";
 
 // Helper for JSON response
@@ -169,6 +169,11 @@ export const handleUpload = async (req, res, self) => {
         if (!allowedMimes.includes(actualMime)) {
             await fs.unlink(tmpPath).catch(() => { });
             return sendJson(res, { success: false, msg: `Invalid file type detected: ${actualMime}` }, 400);
+        }
+
+        if (actualMime === 'application/pdf' && !getEnablePdf()) {
+            await fs.unlink(tmpPath).catch(() => { });
+            return sendJson(res, { success: false, msg: 'PDF uploads are currently disabled.' }, 403);
         }
 
         // Reclassify audio-only MP4 containers (e.g. .m4a files detected as video/mp4)
@@ -347,6 +352,7 @@ export const handleUpload = async (req, res, self) => {
                 await db`UPDATE items SET has_coverart = TRUE WHERE id = ${itemid}`;
             }
         } catch (err) {
+            console.warn(`[UPLOAD WARNING] genThumbnail failed for item ${itemid} (falling back to placeholder):`, err.message);
             // Fallback to placeholder for thumbnail ONLY if it hasn't been processed yet
             if (!thumbProcessed) {
                 const tPath = !isPending

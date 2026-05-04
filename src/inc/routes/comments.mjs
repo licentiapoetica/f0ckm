@@ -61,6 +61,43 @@ export default (router, tpl) => {
         }
     });
 
+    // Get a single comment by ID
+    router.get(/\/api\/comment\/(?<id>\d+)/, async (req, res) => {
+        const id = req.params.id;
+
+        // Require login unless comments are public
+        if (!req.session && cfg.main.hide_comments_from_public) {
+            return res.reply({
+                code: 401,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify({ success: false, message: "Unauthorized" })
+            });
+        }
+
+        try {
+            const comment = await f0cklib.getComment(id);
+            if (!comment) {
+                return res.reply({
+                    code: 404,
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                    body: JSON.stringify({ success: false, message: "Comment not found" })
+                });
+            }
+
+            return res.reply({
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify({ success: true, comment })
+            });
+        } catch (err) {
+            console.error(err);
+            return res.reply({
+                code: 500,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify({ success: false, message: "Database error" })
+            });
+        }
+    });
+
     // Browse User Comments
     router.get(/\/user\/(?<user>[^\/]+)\/comments/, async (req, res) => {
         const user = decodeURIComponent(req.params.user);
@@ -207,7 +244,7 @@ export default (router, tpl) => {
             }
         }
 
-        console.log("DEBUG: POST /api/comments");
+        if (cfg.main.development) console.log("DEBUG: POST /api/comments");
 
         // Use standard framework parsing
         const body = req.post || {};
@@ -218,7 +255,7 @@ export default (router, tpl) => {
             ? parseFloat(body.video_time)
             : null;
 
-        console.log("DEBUG: Posting comment:", { item_id, parent_id, content: content?.substring(0, 20) });
+        if (cfg.main.development) console.log("DEBUG: Posting comment:", { item_id, parent_id, content: content?.substring(0, 20) });
 
         if (!content || !content.trim()) {
             return res.reply({ body: JSON.stringify({ success: false, message: "Empty comment" }) });
@@ -444,7 +481,7 @@ export default (router, tpl) => {
     router.post(/\/api\/comments\/(?<id>\d+)\/delete/, async (req, res) => {
         if (!req.session) return res.reply({ code: 401, body: JSON.stringify({ success: false }) });
         const commentId = req.params.id;
-        console.log(`[DEBUG] Attempting to delete comment ${commentId} by user ${req.session.id} (mod: ${req.session.is_moderator})`);
+        if (cfg.main.development) console.log(`[DEBUG] Attempting to delete comment ${commentId} by user ${req.session.id} (mod: ${req.session.is_moderator})`);
 
         try {
             const comment = await db`SELECT content, item_id, user_id FROM comments WHERE id = ${commentId}`;

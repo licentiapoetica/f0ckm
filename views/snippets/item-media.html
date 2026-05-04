@@ -25,6 +25,10 @@
 <div class="embed-responsive embed-responsive-16by9">
     <div id="ruffle-container" class="embed-responsive-item" data-swf="{{ item.dest }}"></div>
 </div>
+@elseif(item.mime === 'application/pdf' && enable_pdf)
+<div class="embed-responsive embed-responsive-16by9" style="background: #fff;border: 1px solid #444; overflow: hidden;">
+    <iframe class="embed-responsive-item" src="{{ item.dest }}#toolbar=0" sandbox="allow-scripts allow-same-origin" loading="lazy" style="border: none; overscroll-behavior: contain !important;"></iframe>
+</div>
 @else
 <h1>404 - Not f0cked</h1>
 @endif

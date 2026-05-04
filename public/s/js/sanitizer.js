@@ -3,7 +3,10 @@
  * Protects against XSS by stripping disallowed tags and attributes.
  */
 class Sanitizer {
-    static ALLOWED_TAGS = ['span', 'img', 'a', 'br', 'b', 'i', 'strong', 'em', 'blockquote', 'pre', 'code', 'div', 'p', 'hr', 'ul', 'ol', 'li', 'textarea', 'button', 'input', 'label', 'select', 'option', 'svg', 'polyline', 'path', 'line', 'rect', 'circle', 'g', 'defs', 'symbol', 'use', 'polygon', 'ellipse', 'lineargradient', 'radialgradient', 'stop', 'clippath', 'mask', 'iframe', 'video', 'audio'];
+    // F-009 Security: Removed form elements (textarea, button, input, label, select, option)
+    // to prevent phishing via user-generated content (comments, DMs, chat).
+    // Style attribute is kept for admin-authored MOTD content.
+    static ALLOWED_TAGS = ['span', 'img', 'a', 'br', 'b', 'i', 'strong', 'em', 'blockquote', 'pre', 'code', 'div', 'p', 'hr', 'ul', 'ol', 'li', 'svg', 'polyline', 'path', 'line', 'rect', 'circle', 'g', 'defs', 'symbol', 'use', 'polygon', 'ellipse', 'lineargradient', 'radialgradient', 'stop', 'clippath', 'mask', 'iframe', 'video', 'audio'];
     static ALLOWED_ATTRS = ['class', 'style', 'src', 'href', 'alt', 'title', 'target', 'width', 'height', 'placeholder', 'readonly', 'disabled', 'value', 'name', 'id', 'type', 'data-parent', 'data-id', 'data-username', 'xmlns', 'viewbox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'points', 'x1', 'y1', 'x2', 'y2', 'd', 'transform', 'rx', 'ry', 'x', 'y', 'offset', 'stop-color', 'stop-opacity', 'fill-rule', 'clip-rule', 'cx', 'cy', 'r', 'fill-opacity', 'stroke-opacity', 'preserveaspectratio', 'vector-effect', 'pointer-events', 'allowfullscreen', 'frameborder', 'allow', 'referrerpolicy', 'rel', 'controls', 'loop', 'muted', 'playsinline', 'preload', 'tooltip', 'flow'];
     static DISALLOWED_URL_SCHEMES = ['javascript:', 'data:', 'vbscript:'];
 
@@ -56,9 +59,11 @@ class Sanitizer {
                                 if (this.DISALLOWED_URL_SCHEMES.some(scheme => val.startsWith(scheme))) {
                                     node.removeAttribute(attr.name);
                                 }
-                                // Iframes: only allow YouTube embed URLs
+                                // Iframes: allow YouTube and Vocaroo embed URLs
                                 if (attrName === 'src' && tagName === 'iframe') {
-                                    if (!val.startsWith('https://www.youtube.com/embed/')) {
+                                    const isYouTube = val.startsWith('https://www.youtube.com/embed/');
+                                    const isVocaroo = val.startsWith('https://vocaroo.com/embed/');
+                                    if (!isYouTube && !isVocaroo) {
                                         node.removeAttribute(attr.name);
                                     }
                                 }
@@ -71,7 +76,14 @@ class Sanitizer {
                                 const styleParts = attr.value.split(';').filter(p => p.trim().length > 0);
                                 const cleanStyles = styleParts.filter(part => {
                                     const prop = part.split(':')[0].trim().toLowerCase();
-                                    return safeStyles.includes(prop);
+                                    if (!safeStyles.includes(prop)) return false;
+                                    // F-009 Security: Strip url() from background/background-image
+                                    // to prevent CSS-based tracking (e.g. background-image: url(https://evil.com/track))
+                                    const val = part.split(':').slice(1).join(':').trim().toLowerCase();
+                                    if ((prop === 'background-image' || prop === 'background') && /url\s*\(/i.test(val)) {
+                                        return false;
+                                    }
+                                    return true;
                                 });
                                 if (cleanStyles.length > 0) {
                                     node.setAttribute(attr.name, cleanStyles.join('; '));

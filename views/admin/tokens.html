@@ -27,10 +27,10 @@
     <script>
         const loadTokens = async () => {
             try {
-                console.log('Loading tokens...');
+                window.f0ckDebug('Loading tokens...');
                 const res = await fetch('/api/v2/admin/tokens');
                 const data = await res.json();
-                console.log('Tokens data:', data);
+                window.f0ckDebug('Tokens data:', data);
                 if (data.success) {
                     const tbody = document.getElementById('token-list');
                     if (!tbody) return;
@@ -57,14 +57,14 @@
         };
 
         const generateToken = async () => {
-            console.log('Generating...');
+            window.f0ckDebug('Generating...');
             try {
                 const res = await fetch('/api/v2/admin/tokens/create', { 
                     method: 'POST',
                     headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
                 });
                 const data = await res.json();
-                console.log('Gen result:', data);
+                window.f0ckDebug('Gen result:', data);
                 if (data.success) {
                     loadTokens();
                 } else {

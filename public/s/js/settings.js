@@ -612,6 +612,97 @@
         });
     }
 
+    // Comment Display Mode Toggle
+    const commentDisplayModeSelect = document.getElementById('comment_display_mode_select');
+    if (commentDisplayModeSelect) {
+        commentDisplayModeSelect.addEventListener('change', async () => {
+            const mode = parseInt(commentDisplayModeSelect.value, 10);
+            try {
+                const res = await fetch('/api/v2/settings/comment_display_mode', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: JSON.stringify({ mode })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('Comment display mode updated!', 'success');
+                    if (window.f0ckSession) window.f0ckSession.comment_display_mode = mode;
+                } else {
+                    alert(data.msg || 'Error saving preference');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to save preference');
+            }
+        });
+    }
+
+    // Alternative Infobox Toggle (legacy layout only)
+    const alternativeInfoboxToggle = document.getElementById('alternative_infobox_toggle');
+    if (alternativeInfoboxToggle) {
+        alternativeInfoboxToggle.addEventListener('change', async () => {
+            const use_alternative_infobox = alternativeInfoboxToggle.checked;
+            try {
+                const res = await fetch('/api/v2/settings/alternative_infobox', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: new URLSearchParams({ use_alternative_infobox })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('Infobox preference updated!', 'success');
+                    if (window.f0ckSession) window.f0ckSession.use_alternative_infobox = use_alternative_infobox;
+                } else {
+                    alert(data.msg || 'Error saving preference');
+                    alternativeInfoboxToggle.checked = !use_alternative_infobox;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to save infobox preference');
+                alternativeInfoboxToggle.checked = !use_alternative_infobox;
+            }
+        });
+    }
+
+    // Notification Preferences Toggles
+    const setupPreferenceToggle = (id, sessionKey) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', async () => {
+            const enabled = el.checked;
+            try {
+                const res = await fetch('/api/v2/settings/notifications', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: new URLSearchParams({ key: sessionKey, value: enabled })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (window.f0ckSession) window.f0ckSession[sessionKey] = enabled;
+                } else {
+                    alert(data.msg || 'Error saving preference');
+                    el.checked = !enabled;
+                }
+            } catch (err) {
+                console.error(err);
+                el.checked = !enabled;
+            }
+        });
+    };
+
+    setupPreferenceToggle('chk-receive-system-notifications', 'receive_system_notifications');
+    setupPreferenceToggle('chk-receive-user-notifications', 'receive_user_notifications');
+    setupPreferenceToggle('chk-do-not-disturb', 'do_not_disturb');
+
     const wheelToggle = document.getElementById('wheel_nav_toggle');
     if (wheelToggle) {
         wheelToggle.checked = localStorage.getItem('wheelNavEnabled') === 'true';
@@ -1255,25 +1346,15 @@
     }
 
     // ==== Ruffle (Flash) Settings ====
-    const ruffleVolumeInput = document.getElementById('ruffle_volume_input');
-    const ruffleVolumeVal   = document.getElementById('ruffle_volume_val');
     const ruffleBackToggle  = document.getElementById('ruffle_background_toggle');
     const ruffleSaveBtn     = document.getElementById('btn-save-ruffle-settings');
     const ruffleStatus      = document.getElementById('ruffle-settings-status');
 
-    if (ruffleVolumeInput && ruffleVolumeVal) {
-        ruffleVolumeInput.addEventListener('input', () => {
-            ruffleVolumeVal.textContent = Math.round(ruffleVolumeInput.value * 100) + '%';
-        });
-    }
 
-    if (ruffleSaveBtn) {
-        ruffleSaveBtn.addEventListener('click', async () => {
-            const ruffle_volume = parseFloat(ruffleVolumeInput.value);
+
+    if (ruffleBackToggle) {
+        ruffleBackToggle.addEventListener('change', async () => {
             const ruffle_background = ruffleBackToggle.checked;
-
-            ruffleSaveBtn.disabled = true;
-            ruffleSaveBtn.textContent = i18n.saving || 'Saving...';
 
             try {
                 const res = await fetch('/api/v2/settings/ruffle', {
@@ -1282,13 +1363,12 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': window.f0ckSession?.csrf_token
                     },
-                    body: JSON.stringify({ ruffle_volume, ruffle_background })
+                    body: JSON.stringify({ ruffle_background })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showAccountStatus(ruffleStatus, 'Flash settings updated correctly!', 'success');
+                    showAccountStatus(ruffleStatus, 'Flash settings updated!', 'success');
                     if (window.f0ckSession) {
-                        window.f0ckSession.ruffle_volume = ruffle_volume;
                         window.f0ckSession.ruffle_background = ruffle_background;
 
                         // Apply to the active Ruffle player if it exists so user doesn't need to refresh
@@ -1296,7 +1376,6 @@
                         if (ruffleContainer) {
                             const player = ruffleContainer.querySelector('ruffle-player') || ruffleContainer.querySelector('ruffle-object');
                             if (player) {
-                                player.volume = ruffle_volume;
                                 // Ruffle doesn't dynamically toggle pageVisibility well without recreation,
                                 // but we can update the config for subsequent initializations
                                 if (window.RufflePlayer && window.RufflePlayer.config) {
@@ -1308,13 +1387,12 @@
                     }
                 } else {
                     showAccountStatus(ruffleStatus, data.msg || 'Failed to update Flash settings', 'error');
+                    ruffleBackToggle.checked = !ruffle_background; // Revert on failure
                 }
             } catch (err) {
                 console.error(err);
                 showAccountStatus(ruffleStatus, 'Request failed', 'error');
-            } finally {
-                ruffleSaveBtn.disabled = false;
-                ruffleSaveBtn.textContent = 'Save Flash Settings';
+                ruffleBackToggle.checked = !ruffle_background; // Revert on error
             }
         });
     }

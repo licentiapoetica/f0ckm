@@ -21,7 +21,7 @@ export default (router, tpl) => {
         const offset = (page - 1) * eps;
 
         try {
-            console.log('[DEBUG SUB] Fetching subscriptions for user', req.session.id, 'page', page);
+            if (cfg.main.development) console.log('[DEBUG SUB] Fetching subscriptions for user', req.session.id, 'page', page);
 
             const countRes = await db`
                 SELECT count(*) as total
@@ -41,7 +41,7 @@ export default (router, tpl) => {
                 ORDER BY s.created_at DESC
                 LIMIT ${eps} OFFSET ${offset}
             `;
-            console.log('[DEBUG SUB] Found', subs.length, 'subscriptions out of', total);
+            if (cfg.main.development) console.log('[DEBUG SUB] Found', subs.length, 'subscriptions out of', total);
 
             const items = subs.map(i => ({
                 id: i.id,

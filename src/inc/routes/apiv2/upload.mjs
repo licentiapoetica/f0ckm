@@ -54,14 +54,13 @@ import { getManualApproval, getMinTags, getBypassDuplicateCheck } from "../../se
 // Collect request body as buffer with debug logging
 const collectBody = (req) => {
     return new Promise((resolve, reject) => {
-        console.log('[UPLOAD DEBUG] collectBody started');
+        if (cfg.main.development) console.log('[UPLOAD DEBUG] collectBody started');
         const chunks = [];
         req.on('data', chunk => {
-            // console.log(`[UPLOAD DEBUG] chunk received: ${chunk.length} bytes`);
             chunks.push(chunk);
         });
         req.on('end', () => {
-            console.log(`[UPLOAD DEBUG] Stream ended. Total size: ${chunks.reduce((acc, c) => acc + c.length, 0)}`);
+            if (cfg.main.development) console.log(`[UPLOAD DEBUG] Stream ended. Total size: ${chunks.reduce((acc, c) => acc + c.length, 0)}`);
             resolve(Buffer.concat(chunks));
         });
         req.on('error', err => {
@@ -71,7 +70,7 @@ const collectBody = (req) => {
 
         // Ensure stream is flowing
         if (req.isPaused()) {
-            console.log('[UPLOAD DEBUG] Stream was paused, resuming...');
+            if (cfg.main.development) console.log('[UPLOAD DEBUG] Stream was paused, resuming...');
             req.resume();
         }
     });
@@ -230,16 +229,11 @@ export default router => {
 
                     // Download YouTube thumbnail as our thumbnail
                     try {
-                        const thumbUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-                        const tDir = isApprovalRequired ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
-                        const tmpThumb = path.join(cfg.paths.tmp, `${itemid}_yt.jpg`);
-                        await queue.spawn('wget', ['-q', thumbUrl, '-O', tmpThumb]);
-                        await queue.spawn('magick', [tmpThumb, '-resize', '128x128^', '-gravity', 'center', '-crop', '128x128+0+0', '+repage', path.join(tDir, `${itemid}.webp`)]);
-                        await fs.unlink(tmpThumb).catch(() => {});
+                        await queue.genThumbnail(filename, 'video/youtube', itemid, ytUrl, isApprovalRequired);
                     } catch (err) {
                         console.error('[UPLOAD-URL] YouTube thumbnail error:', err);
                         const tDir = isApprovalRequired ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
-                        await queue.spawn('magick', ['./mugge.png', path.join(tDir, `${itemid}.webp`)]).catch(() => {});
+                        await queue.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', '-gravity', 'center', '-fill', '#666', '-pointsize', '20', '-annotate', '0', 'YouTube', path.join(tDir, `${itemid}.webp`)]).catch(() => {});
                     }
 
                     // Assign rating tag
@@ -317,8 +311,8 @@ export default router => {
                             
                             // Priority 2: Extract HTTP codes
                             const httpCode = msg.match(/HTTP Error (\d+)/i)?.[1]
-                                          || msg.match(/\b(4\d{2}|5\d{2})\b/)?.[1]
-                                          || null;
+                                          || msg.match(/status code (\d{3})/i)?.[1]
+                                          || (msg.match(/\b(4\d{2}|5\d{2})\b/)?.[1] !== '537' ? msg.match(/\b(4\d{2}|5\d{2})\b/)?.[1] : null);
                             if (httpCode) return `Download/Process failed (HTTP ${httpCode})`;
 
                             // Priority 3: Sanitize raw queue.spawn errors
@@ -355,7 +349,7 @@ export default router => {
                                     '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`),
                                     '--print', 'after_move:filepath',
                                     '--merge-output-format', 'mp4'
-                                ])).stdout.trim();
+                                ])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
                             } catch (err) {
                                 console.warn(`[UPLOAD-URL-ASYNC] Stage 1 failed: ${err.message}`);
                                 if (isInstagram) throw new Error(sanitizeError(err));
@@ -367,9 +361,10 @@ export default router => {
                                         '--max-filesize', `${maxfilesize / 1024}k`,
                                         '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`),
                                         '--print', 'after_move:filepath'
-                                    ])).stdout.trim();
+                                    ])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
                                 } catch (err2) {
                                     console.warn(`[UPLOAD-URL-ASYNC] Stage 2 failed: ${err2.message}`);
+                                    console.log(`[UPLOAD-URL-ASYNC] Starting Stage 3 (curl) fallback for ${url}`);
                                     const fallbackTmp = path.join(cfg.paths.tmp, `${uuid}.tmp`);
                                     let referer = url;
                                     try {
@@ -380,7 +375,7 @@ export default router => {
                                     } catch (e) {}
 
                                     const curlArgs = [
-                                        '-s', '-f', '-L', url, '-o', fallbackTmp,
+                                        '-s', '-S', '-f', '-L', url, '-o', fallbackTmp,
                                         '--max-filesize', `${maxfilesize}`,
                                         '--connect-timeout', '30',
                                         '--max-time', '300',

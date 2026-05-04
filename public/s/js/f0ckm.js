@@ -40,12 +40,92 @@ window.cancelAnimFrame = (function () {
       } catch(e) { console.error('Visit tracking error:', e); }
   };
 
+  window.applyThumbCacheBust = (bgUrlStr) => {
+      if (!bgUrlStr) return bgUrlStr;
+      try {
+          const bustedStr = localStorage.getItem('bustedThumbs');
+          if (!bustedStr) return bgUrlStr;
+          const busted = JSON.parse(bustedStr);
+          const match = bgUrlStr.match(/\/t\/(\d+)(?:_blur)?\.webp/);
+          if (match) {
+              const id = match[1];
+              if (busted[id]) {
+                  const url = new URL(bgUrlStr, window.location.origin);
+                  url.searchParams.set('t', busted[id]);
+                  return url.pathname + url.search;
+              }
+          }
+      } catch(e) {}
+      return bgUrlStr;
+  };
+
+  /**
+   * Forcefully refreshes all thumbnail occurrences for a specific item in the DOM.
+   * Handles grid items (data-bg), images (src), and the background canvas.
+   */
+  window.refreshItemThumbnails = (itemId, timestamp = Date.now()) => {
+      if (!itemId) return;
+      const idStr = String(itemId);
+      
+      // Update localStorage so future navigations use the new timestamp
+      try {
+          const bustedStr = localStorage.getItem('bustedThumbs');
+          const busted = bustedStr ? JSON.parse(bustedStr) : {};
+          busted[idStr] = timestamp;
+          const keys = Object.keys(busted);
+          if (keys.length > 50) delete busted[keys[0]];
+          localStorage.setItem('bustedThumbs', JSON.stringify(busted));
+      } catch(e) {}
+
+      // Clear grid cache to force fresh render on next navigation
+      if (typeof gridCacheMap !== 'undefined') gridCacheMap.clear();
+
+      // Update elements with data-bg (grid items).
+      // We look for any data-bg or inline style containing the thumbnail path for this ID.
+      document.querySelectorAll(`[data-bg*="/t/${idStr}.webp"], [data-bg*="/t/${idStr}_blur.webp"], [style*="/t/${idStr}.webp"], [style*="/t/${idStr}_blur.webp"]`).forEach(el => {
+          // If it has data-bg, update it (this handles lazy-thumb logic)
+          if (el.dataset.bg) {
+              el.dataset.bg = window.applyThumbCacheBust(el.dataset.bg);
+          }
+          // If it's already showing the background, update the style directly
+          if (el.style.backgroundImage || el.getAttribute('style')?.includes('background-image')) {
+              const currentStyle = el.getAttribute('style') || '';
+              // Match url(...) contents
+              const newStyle = currentStyle.replace(/url\(['"]?([^'"]+)['"]?\)/g, (match, p1) => {
+                  if (p1.includes(`/t/${idStr}.webp`) || p1.includes(`/t/${idStr}_blur.webp`)) {
+                      return `url('${window.applyThumbCacheBust(p1)}')`;
+                  }
+                  return match;
+              });
+              el.setAttribute('style', newStyle);
+          }
+      });
+
+      // Update actual img tags
+      document.querySelectorAll(`img[src*="/t/${idStr}.webp"], img[src*="/t/${idStr}_blur.webp"]`).forEach(el => {
+          try {
+              const url = new URL(el.src, window.location.origin);
+              url.searchParams.set('t', timestamp);
+              el.src = url.pathname + url.search;
+          } catch(e) {}
+      });
+
+      // Refresh background canvas if it matches the current item
+      const pathParts = window.location.pathname.split('/');
+      const numParts = pathParts.filter(s => /^\d+$/.test(s));
+      const currentId = numParts.length > 0 ? numParts[numParts.length - 1] : null;
+      if (currentId === idStr && window.initBackground) {
+          window.initBackground();
+      }
+  };
+
   let lazyObserver;
   window.initLazyLoading = () => {
     if (!('IntersectionObserver' in window)) {
         document.querySelectorAll('.lazy-thumb').forEach(thumb => {
             if (thumb.dataset.bg) {
-                thumb.style.backgroundImage = `url('${thumb.dataset.bg}')`;
+                const finalBg = window.applyThumbCacheBust(thumb.dataset.bg);
+                thumb.style.backgroundImage = `url('${finalBg}')`;
                 thumb.classList.remove('lazy-thumb');
             }
         });
@@ -57,8 +137,9 @@ window.cancelAnimFrame = (function () {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const thumb = entry.target;
-                    const bg = thumb.dataset.bg;
+                    let bg = thumb.dataset.bg;
                     if (bg && !thumb.classList.contains('loaded')) {
+                        bg = window.applyThumbCacheBust(bg);
                         const img = new Image();
                         img.onload = () => {
                             thumb.style.backgroundImage = `url('${bg}')`;
@@ -293,11 +374,61 @@ window.cancelAnimFrame = (function () {
     if (!modal) return;
     if (modal === loginModal) switchModalView(view);
     modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
     if (visitorMenu) visitorMenu.classList.remove('show');
   };
 
   const closeModal = (modal) => {
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+      modal.style.display = 'none';
+      document.body.classList.remove('modal-open');
+    }
+  };
+
+  /**
+   * Surgical cleanup of scroll-lock state and modal visibility.
+   * Used during AJAX navigation to ensure the UI remains interactive.
+   */
+  window.resetGlobalScrollState = () => {
+    document.body.classList.remove('modal-open');
+    document.documentElement.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.height = '';
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.height = '';
+    const pw = document.querySelector('.pagewrapper');
+    if (pw) {
+      pw.style.overflow = '';
+      pw.style.height = '';
+    }
+  };
+
+  window.hideAllModals = () => {
+    const modalIds = [
+      'login-modal', 'register-modal', 'forgot-modal', 'reset-modal',
+      'report-modal', 'halls-modal', 'metadata-modal', 'warning-modal',
+      'shortcuts-modal', 'upload-drag-modal', 'excluded-tags-overlay',
+      'content-warning-modal', 'gchat-img-modal', 'image-modal'
+    ];
+    modalIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('show', 'visible');
+        // If the modal uses CSS classes for visibility, we must clear the inline display
+        // to allow those classes to work later. For others, we force display: none.
+        if (['upload-drag-modal', 'image-modal', 'gchat-img-modal', 'excluded-tags-overlay'].includes(id)) {
+           el.style.display = '';
+        } else {
+           el.style.display = 'none';
+        }
+      }
+    });
+    // Also handle class-based modals if any
+    document.querySelectorAll('.modal-overlay, .modal-backdrop').forEach(el => {
+      el.classList.remove('show', 'visible');
+      // Do NOT set display: none here as it might override CSS-based visibility
+      // for modals that use the classes we just removed.
+    });
   };
 
   if (loginModal) {
@@ -511,6 +642,8 @@ window.cancelAnimFrame = (function () {
       }
     }
   }
+
+
 
   if (registerBtn && registerModal) {
     registerBtn.addEventListener('click', (e) => {
@@ -844,7 +977,9 @@ window.cancelAnimFrame = (function () {
                     }
                     // For audio-only items with no thumbnail, canvas stays blank (nothing to draw)
                 };
-                thumb.src = `/t/${itemId}.webp`;
+                let newSrc = `/t/${itemId}.webp`;
+                if (window.applyThumbCacheBust) newSrc = window.applyThumbCacheBust(newSrc);
+                thumb.src = newSrc;
             } else if (isDrawable) {
                 // No item ID — fall back to waiting for the main image
                 if (elem.complete) {
@@ -1016,8 +1151,7 @@ window.cancelAnimFrame = (function () {
   if (cwModal) {
     if (!localStorage.getItem('content_warning_accepted')) {
       cwModal.style.display = 'flex';
-      document.body.style.overflow = 'hidden'; // Prevent scrolling on body
-      document.documentElement.style.overflow = 'hidden'; // Prevent scrolling on html
+      document.body.classList.add('modal-open');
     }
 
     const acceptBtn = document.getElementById('cw-accept');
@@ -1027,8 +1161,7 @@ window.cancelAnimFrame = (function () {
       acceptBtn.addEventListener('click', () => {
         localStorage.setItem('content_warning_accepted', 'true');
         cwModal.style.display = 'none';
-        document.body.style.overflow = '';
-        document.documentElement.style.overflow = '';
+        document.body.classList.remove('modal-open');
       });
     }
 
@@ -1079,7 +1212,7 @@ window.cancelAnimFrame = (function () {
     const applyRuffleKeepAlive = () => {
       if (ruffleKeepAliveApplied) return;
       
-      console.log("[Ruffle] Registering background keep-alive patches (Browser Level)...");
+      window.f0ckDebug("[Ruffle] Registering background keep-alive patches (Browser Level)...");
       
       try {
         const docProto = Object.getPrototypeOf(document);
@@ -1422,6 +1555,11 @@ window.cancelAnimFrame = (function () {
 
   const loadPageAjax = async (url, replace = true, options = {}) => {
     if (isNavigating) return;
+
+    // Immediately restore scrollability and hide modals
+    if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+    if (window.hideAllModals) window.hideAllModals();
+
     isNavigating = true;
 
     // ── Scroller-active cleanup ──────────────────────────────────────────────
@@ -1793,7 +1931,7 @@ window.cancelAnimFrame = (function () {
           document.body.style.height = '';
           document.body.style.minHeight = '';
 
-          console.log("[loadPageAjax] State synced for " + (isFullPage ? "full page" : "partial"));
+          window.f0ckDebug("[loadPageAjax] State synced for " + (isFullPage ? "full page" : "partial"));
           if (window.updateMimeLabel) window.updateMimeLabel();
         }
 
@@ -2287,7 +2425,7 @@ window.cancelAnimFrame = (function () {
         m.removeAttribute('src');
         m.preload = 'none'; // Prevent further buffering
         // m.load(); // Intentionally removed: calling load() with no src can fetch current page URL
-        console.log("Media aborted:", m);
+        window.f0ckDebug("Media aborted:", m);
       } catch (e) { console.error("Error stopping media:", e); }
     });
   };
@@ -2309,7 +2447,7 @@ window.cancelAnimFrame = (function () {
 
     try {
       const fetchUrl = `/ajax/item/${itemid}?${params.toString()}`;
-      console.log(`[updateNavForMode] mode=${mode} itemid=${itemid} → ${fetchUrl}`);
+      window.f0ckDebug(`[updateNavForMode] mode=${mode} itemid=${itemid} → ${fetchUrl}`);
       const resp = await fetch(fetchUrl, { credentials: 'include' });
       if (!resp.ok) { console.warn('[updateNavForMode] bad response:', resp.status); return; }
       const data = await resp.json();
@@ -2326,14 +2464,14 @@ window.cancelAnimFrame = (function () {
       if (livePrev && newPrev) {
         const h = newPrev.getAttribute('href');
         livePrev.setAttribute('href', h);
-        console.log(`[updateNavForMode] #prev → ${h}`);
+        window.f0ckDebug(`[updateNavForMode] #prev → ${h}`);
       } else {
         console.warn(`[updateNavForMode] #prev missing: live=${!!livePrev} new=${!!newPrev}`);
       }
       if (liveNext && newNext) {
         const h = newNext.getAttribute('href');
         liveNext.setAttribute('href', h);
-        console.log(`[updateNavForMode] #next → ${h}`);
+        window.f0ckDebug(`[updateNavForMode] #next → ${h}`);
       } else {
         console.warn(`[updateNavForMode] #next missing: live=${!!liveNext} new=${!!newNext}`);
       }
@@ -2353,6 +2491,11 @@ window.cancelAnimFrame = (function () {
   const loadItemAjax = async (url, inheritContext = true, options = {}) => {
 
     if (isNavigating) return;
+
+    // Immediately restore scrollability and hide modals
+    if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+    if (window.hideAllModals) window.hideAllModals();
+
     isNavigating = true;
 
     // ── Scroller-active cleanup (same as loadPageAjax) ───────────────────
@@ -2534,7 +2677,7 @@ window.cancelAnimFrame = (function () {
 
       if (window.randomizeLogo) window.randomizeLogo();
 
-      console.log("Fetching:", ajaxUrl);
+      window.f0ckDebug("Fetching:", ajaxUrl);
       const tStart = performance.now();
       const response = await fetch(ajaxUrl, { credentials: 'include' });
       const tHeaders = performance.now();
@@ -2544,7 +2687,7 @@ window.cancelAnimFrame = (function () {
       const rawText = await response.text();
       const tBody = performance.now();
 
-      console.log(`[CLIENT_DEBUG] Fetch timing for ${ajaxUrl}:
+      window.f0ckDebug(`[CLIENT_DEBUG] Fetch timing for ${ajaxUrl}:
       - TTFB (Headers): ${(tHeaders - tStart).toFixed(2)}ms
       - Content Download: ${(tBody - tHeaders).toFixed(2)}ms
       - Total Network: ${(tBody - tStart).toFixed(2)}ms
@@ -2705,7 +2848,7 @@ window.cancelAnimFrame = (function () {
       // Try to extract ID from response if possible or just use itemid
       document.title = `${window.f0ckDomain} - ${itemid}`;
       if (navbar) navbar.classList.remove("pbwork");
-      console.log("AJAX load complete");
+      window.f0ckDebug("AJAX load complete");
 
       // Notify extensions — also triggers CommentSystem init which renders comments
       document.dispatchEvent(new Event('f0ck:contentLoaded'));
@@ -2956,8 +3099,10 @@ window.cancelAnimFrame = (function () {
         if (window.f0ckSession && window.f0ckSession.logged_in) {
           window.showFlash('Already logged in lol', 'error');
         } else {
-          loadPageAjax(anyLink.href, true);
+          if (pathname === '/login') openModal(loginModal, 'login');
+          else openModal(registerModal);
         }
+
         return false;
       }
 
@@ -3067,6 +3212,9 @@ window.cancelAnimFrame = (function () {
                     fileInput.value = '';
                     if (data.success) {
                         window.flashMessage(data.msg);
+                        if (window.refreshItemThumbnails) {
+                            window.refreshItemThumbnails(currentItemId);
+                        }
                     } else {
                         window.flashError(data.msg || 'Upload failed');
                     }
@@ -3163,7 +3311,7 @@ window.cancelAnimFrame = (function () {
     const isSpecial = p.startsWith('/notifications') || p.startsWith('/tags') || p.startsWith('/user/') || p.startsWith('/subscriptions') || p.startsWith('/ranking');
     const isGridLike = url.match(/\/p\/\d+/) || url.match(/[?&]page=\d+/) || p === '/';
 
-    console.log("[popstate] Navigation to:", url, { isItem, isSpecial, isGridLike });
+    window.f0ckDebug("[popstate] Navigation to:", url, { isItem, isSpecial, isGridLike });
 
     if (isItem) {
       loadItemAjax(url, true, { skipPush: true });
@@ -4280,6 +4428,7 @@ window.cancelAnimFrame = (function () {
         const tag = (e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
         if (window.location.pathname.startsWith('/abyss')) return;
+        e.preventDefault();
         toggleModal(!overlay.classList.contains('visible'));
       }
     });
@@ -4510,6 +4659,7 @@ window.cancelAnimFrame = (function () {
   };
 
   window.updateXdBadgeFromScore = (itemId, score) => {
+    if (window.f0ckSession && window.f0ckSession.enable_xd_score === false) return;
     updateItemPageXdBadge(itemId, score);
     updateThumbXdIndicator(itemId, score);
   };
@@ -5143,7 +5293,7 @@ class NotificationSystem {
         fetch(`/api/notifications/active?tabId=${this.tabId}`).catch(() => {});
         // If SSE is closed, reconnect
         if (!this.es || this.es.readyState === 2) {
-            console.log("[NotificationSystem] SSE was closed, reconnecting as active tab...");
+            window.f0ckDebug("[NotificationSystem] SSE was closed, reconnecting as active tab...");
             this.initSSE();
         }
     };
@@ -5195,17 +5345,19 @@ class NotificationSystem {
         });
       }
 
-      console.log("[NotificationSystem] Tab visible, signaling active...");
+      window.f0ckDebug("[NotificationSystem] Tab visible, signaling active...");
       // If SSE died while hidden, restart it now
       if (!this.es) {
-        console.log("[NotificationSystem] SSE was dead, restarting on tab visible.");
+        window.f0ckDebug("[NotificationSystem] SSE was dead, restarting on tab visible.");
         this.retryCount = 0;
         this.initSSE();
       }
       if (this.pollDebounced) this.pollDebounced();
       if (this.checkForNewItems) this.checkForNewItems();
-      // Catch-up on emojis if they were updated while this tab was pruned/backgrounded
-      window.dispatchEvent(new CustomEvent('f0ck:emojis_updated'));
+      // Note: emojis_updated dispatch was removed from here — it caused emoji cache flush +
+      // async re-fetch + re-render that could fight the scroll-position restoration.
+      // Emojis rarely change while a tab is hidden; SSE will deliver a targeted emojis_updated
+      // event if they actually changed.
       signalActive();
       // Sync display name in case it was changed while this tab was inactive
       if (window.f0ckSession?.logged_in) this.syncDisplayName();
@@ -5241,11 +5393,11 @@ class NotificationSystem {
       this.es.close();
     }
 
-    console.log(`[NotificationSystem] Initializing SSE connection (tabId: ${this.tabId})...`);
+    window.f0ckDebug(`[NotificationSystem] Initializing SSE connection (tabId: ${this.tabId})...`);
     this.es = new EventSource(`/api/notifications/stream?tabId=${this.tabId}`);
 
     this.es.onopen = () => {
-      console.log("[NotificationSystem] SSE connection established");
+      window.f0ckDebug("[NotificationSystem] SSE connection established");
       this.retryCount = 0;
       document.documentElement.dataset.sseReady = '1';
       document.dispatchEvent(new CustomEvent('f0ck:sse_ready'));
@@ -5254,16 +5406,17 @@ class NotificationSystem {
     this.es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        console.log(`[SSE] Received message:`, data.type);
+        window.f0ckDebug(`[SSE] Received message:`, data.type);
         if (data.type === 'notify') {
           this.pollDebounced();
+          const dnd = window.f0ckSession?.do_not_disturb === true;
           // Haptic feedback on mobile (supported: Chrome for Android, not iOS)
-          if (navigator.vibrate) navigator.vibrate([200, 80, 200]);
+          if (!dnd && navigator.vibrate) navigator.vibrate([200, 80, 200]);
           // Live Grid Highlight
           if (data.data && data.data.item_id) {
             const itemId = data.data.item_id;
             const notifType = data.data.type;
-            console.log(`[SSE] Live notification for item ${itemId} (type: ${notifType})`);
+            window.f0ckDebug(`[SSE] Live notification for item ${itemId} (type: ${notifType})`);
 
             // System notifications (deletion, deny, reports) require explicit acknowledgment —
             // never auto-mark them as read just because the user is viewing that item.
@@ -5273,7 +5426,7 @@ class NotificationSystem {
             // (they are live on the thread, so no need to show a badge/highlight)
             const currentPath = window.location.pathname;
             if (!isSystemNotif && (currentPath === `/${itemId}` || currentPath === `/${itemId}/`)) {
-              console.log(`[SSE] Notification for current item ${itemId} — auto-marking as read`);
+              window.f0ckDebug(`[SSE] Notification for current item ${itemId} — auto-marking as read`);
               fetch(`/api/notifications/item/${itemId}/read`, {
                 method: 'POST',
                 keepalive: true
@@ -5307,13 +5460,13 @@ class NotificationSystem {
           }
           this.handleActivity(data.data);
         } else if (data.type === 'tags') {
-          console.log(`[SSE] Tag update received for item ${data.data?.item_id}`);
+          window.f0ckDebug(`[SSE] Tag update received for item ${data.data?.item_id}`);
           this.handleTagsUpdate(data.data);
         } else if (data.type === 'favorites') {
-          console.log(`[SSE] Favorite update received for item ${data.data?.item_id}`);
+          window.f0ckDebug(`[SSE] Favorite update received for item ${data.data?.item_id}`);
           this.handleFavoritesUpdate(data.data);
         } else if (data.type === 'comments') {
-          console.log(`[SSE] Comment update received:`, data.data);
+          window.f0ckDebug(`[SSE] Comment update received:`, data.data);
           if (data.data.type === 'comment') {
             // New comment posted — update xD badge from server-authoritative score
             if (typeof data.data.xd_score === 'number') {
@@ -5339,21 +5492,26 @@ class NotificationSystem {
             window.dispatchEvent(new CustomEvent('f0ck:comment_edited', { detail: data.data }));
           }
         } else if (data.type === 'emojis_updated') {
-          console.log("[SSE] Emojis updated, refreshing caches...");
+          window.f0ckDebug("[SSE] Emojis updated, refreshing caches...");
           this.loadEmojis();
           window.dispatchEvent(new CustomEvent('f0ck:emojis_updated'));
         } else if (data.type === 'motd') {
-          console.log(`[SSE] MOTD update received:`, data.data.motd);
+          window.f0ckDebug(`[SSE] MOTD update received:`, data.data.motd);
           if (typeof window.updateMotdUI === 'function') {
             window.updateMotdUI(data.data.motd);
           }
+        } else if (data.type === 'rethumb') {
+          window.f0ckDebug(`[SSE] Rethumb update received for item ${data.data?.item_id}`);
+          if (data.data && data.data.item_id && window.refreshItemThumbnails) {
+            window.refreshItemThumbnails(data.data.item_id);
+          }
         } else if (data.type === 'new_item') {
-          console.log(`[SSE] New item received:`, data.data);
+          window.f0ckDebug(`[SSE] New item received:`, data.data);
           this.handleNewItem(data.data);
         } else if (data.type === 'delete_item') {
           const delId = data.data?.id;
           if (!delId) return;
-          console.log(`[SSE] Item deleted: ${delId}`);
+          window.f0ckDebug(`[SSE] Item deleted: ${delId}`);
 
           // Remove from main grid — a.thumb is the anchor, li is its parent card
           const thumb = document.querySelector(`a.thumb[href$="/${delId}"], a.lazy-thumb[href$="/${delId}"]`);
@@ -5389,22 +5547,23 @@ class NotificationSystem {
           // Remove from sidebar activity if present
           document.querySelectorAll(`#sidebar-activity-container [data-item="${delId}"]`).forEach(el => el.remove());
         } else if (data.type === 'emojis_updated') {
-          console.log(`[SSE] Emoji update event received`);
+          window.f0ckDebug(`[SSE] Emoji update event received`);
           if (window.commentSystem && typeof window.commentSystem.loadEmojis === 'function') {
             window.commentSystem.loadEmojis();
           }
           // Global dispatch for other listeners (e.g. Admin Dashboard)
           document.dispatchEvent(new Event('f0ck:emojis_updated'));
         } else if (data.type === 'warning') {
-          console.log(`[SSE] Warning received:`, data.data);
+          window.f0ckDebug(`[SSE] Warning received:`, data.data);
           const warningModal = document.getElementById('warning-modal');
           if (warningModal) {
               document.getElementById('warning-reason').textContent = data.data.reason;
               document.getElementById('warning-id').value = data.data.warning_id;
               warningModal.style.display = 'flex';
+              document.body.classList.add('modal-open');
           }
         } else if (data.type === 'private_message') {
-          console.log(`[SSE] Private message received from user ${data.data?.sender_id}`);
+          window.f0ckDebug(`[SSE] Private message received from user ${data.data?.sender_id}`);
           // Haptic feedback for DMs (distinct double-pulse pattern)
           if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
           // Dispatch event for messages.js thread live-update
@@ -5432,6 +5591,12 @@ class NotificationSystem {
         } else if (data.type === 'profile_update') {
           const { display_name, user } = data.data;
           this.applyDisplayNameUpdate(display_name, user);
+          // Sync preferences to global session object for client-side gating (like DND)
+          if (window.f0ckSession && data.data.user_id === window.f0ckSession.id) {
+            for (const key in data.data) {
+              if (key !== 'user_id') window.f0ckSession[key] = data.data[key];
+            }
+          }
         } else if (data.type === 'global_chat') {
           document.dispatchEvent(new CustomEvent('f0ck:global_chat', { detail: data.data }));
         } else if (data.type === 'global_chat_clear') {
@@ -5505,14 +5670,14 @@ class NotificationSystem {
 
       // If tab is hidden, don't retry now — visibilitychange will restart SSE when visible again
       if (document.hidden) {
-          console.log("[NotificationSystem] Tab hidden, deferring SSE retry until visible.");
+          window.f0ckDebug("[NotificationSystem] Tab hidden, deferring SSE retry until visible.");
           return;
       }
 
       // Exponential backoff, capped at 30s
       const delay = Math.min(Math.pow(2, this.retryCount) * 1000, 30000);
       if (this.retryCount < this.maxRetries) {
-        console.log(`[NotificationSystem] Retrying SSE in ${delay}ms... (attempt ${this.retryCount + 1}/${this.maxRetries})`);
+        window.f0ckDebug(`[NotificationSystem] Retrying SSE in ${delay}ms... (attempt ${this.retryCount + 1}/${this.maxRetries})`);
         setTimeout(() => this.initSSE(), delay);
         this.retryCount++;
       } else {
@@ -5618,7 +5783,7 @@ class NotificationSystem {
 
       // Handle "Mark as Read"
       if (link.dataset.id && link.classList.contains('unread')) {
-        console.log(`[NotificationSystem] Marking ${link.dataset.id} as read...`);
+        window.f0ckDebug(`[NotificationSystem] Marking ${link.dataset.id} as read...`);
         // Fire and forget (keepalive ensures it survives navigation)
         fetch(`/api/notifications/${link.dataset.id}/read`, {
           method: 'POST',
@@ -5663,6 +5828,10 @@ class NotificationSystem {
       const href = link.getAttribute('href');
       if (href && href !== '#') {
         e.preventDefault();
+
+        // Immediately restore scrollability and hide modals for better UX
+        if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+        if (window.hideAllModals) window.hideAllModals();
 
         // Close dropdown
         if (this.isOpen) this.close();
@@ -5766,7 +5935,7 @@ class NotificationSystem {
     if (ids.length === 0) return;
     const maxId = Math.max(...ids);
 
-    console.log(`[NotificationSystem] Checking for items newer than ${maxId}...`);
+    window.f0ckDebug(`[NotificationSystem] Checking for items newer than ${maxId}...`);
 
     try {
       // Build filters from URL
@@ -5806,7 +5975,7 @@ class NotificationSystem {
       const data = await res.json();
 
       if (data.success && data.html) {
-        console.log(`[NotificationSystem] Loaded new items for grid.`);
+        window.f0ckDebug(`[NotificationSystem] Loaded new items for grid.`);
         const temp = document.createElement('div');
         temp.innerHTML = Sanitizer.clean(data.html);
         
@@ -5911,7 +6080,7 @@ class NotificationSystem {
       tabNotifs.forEach(n => {
         const existing = historyContainer.querySelector(`.notif-item[data-id="${n.id}"]`);
         if (!existing) {
-          console.log("[NotificationSystem] Adding new item to history:", n.id);
+          window.f0ckDebug("[NotificationSystem] Adding new item to history:", n.id);
           const html = this.renderHistoryItem(n);
           const temp = document.createElement('div');
           temp.innerHTML = Sanitizer.clean(html);
@@ -5919,7 +6088,7 @@ class NotificationSystem {
           node.classList.add('new-item-fade');
           historyContainer.prepend(node);
         } else {
-          console.log("[NotificationSystem] Item already exists:", n.id);
+          window.f0ckDebug("[NotificationSystem] Item already exists:", n.id);
         }
       });
     }
@@ -6177,10 +6346,10 @@ class NotificationSystem {
     const idLink = document.querySelector('.id-link');
     const currentId = idLink ? parseInt(idLink.innerText) : null;
 
-    console.log(`[NotificationSystem] Processing tag update for #${data.item_id}. Current view is #${currentId}`);
+    window.f0ckDebug(`[NotificationSystem] Processing tag update for #${data.item_id}. Current view is #${currentId}`);
 
     if (currentId !== parseInt(data.item_id)) {
-      console.log("[NotificationSystem] Item ID mismatch, ignoring update.");
+      window.f0ckDebug("[NotificationSystem] Item ID mismatch, ignoring update.");
       return;
     }
 
@@ -6192,11 +6361,11 @@ class NotificationSystem {
 
     // DO NOT re-render if the user is currently typing a new tag (has an active input)
     if (tagsContainer.querySelector('input')) {
-      console.log("[NotificationSystem] Live Tag Update deferred - User is currently typing.");
+      window.f0ckDebug("[NotificationSystem] Live Tag Update deferred - User is currently typing.");
       return;
     }
 
-    console.log("[NotificationSystem] Re-rendering tags for item:", data.item_id);
+    window.f0ckDebug("[NotificationSystem] Re-rendering tags for item:", data.item_id);
 
     const inner = tagsContainer.querySelector('.tags-inner') || tagsContainer;
 
@@ -6216,7 +6385,7 @@ class NotificationSystem {
       const isAdminBySession = !!(window.f0ckSession?.is_admin || window.f0ckSession?.is_moderator);
       const hasSession = !!window.f0ckSession;
 
-      console.log(`[NotificationSystem] Rendering ${data.tags.length} tags. isAdmin: ${isAdminBySession}, hasSession: ${hasSession}`);
+      window.f0ckDebug(`[NotificationSystem] Rendering ${data.tags.length} tags. isAdmin: ${isAdminBySession}, hasSession: ${hasSession}`);
 
       const fragment = document.createDocumentFragment();
       data.tags.forEach(tag => {
@@ -6256,7 +6425,7 @@ class NotificationSystem {
     const favsContainer = document.querySelector('#favs');
     if (!favsContainer) return;
 
-    console.log("[NotificationSystem] Live Favorite Update for item:", data.item_id);
+    window.f0ckDebug("[NotificationSystem] Live Favorite Update for item:", data.item_id);
 
     // Sync the heart icon for the current user
     const currentUser = window.f0ckSession?.user?.toLowerCase();
@@ -6384,7 +6553,7 @@ class NotificationSystem {
     // 3. Handle Activity Feed
     const activityContainer = document.getElementById('activity-container');
     if (activityContainer) {
-      console.log("[NotificationSystem] New Activity:", data);
+      window.f0ckDebug("[NotificationSystem] New Activity:", data);
       const html = this.renderActivityItem(data);
       const temp = document.createElement('div');
       temp.innerHTML = Sanitizer.clean(html);
@@ -6965,6 +7134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const intervals = [
             { unit: 'year',   seconds: 31536000 },
             { unit: 'month',  seconds: 2592000  },
+            { unit: 'week',   seconds: 604800   },
             { unit: 'day',    seconds: 86400    },
             { unit: 'hour',   seconds: 3600     },
             { unit: 'minute', seconds: 60       },
@@ -6975,13 +7145,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = Math.floor(seconds / interval.seconds);
             if (count >= 1) {
                 try {
+                    // Force fallback for custom/unrecognized locales like 'zange'
+                    if (lang === 'zange') throw new Error('Force fallback');
                     const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
                     return rtf.format(-count, interval.unit);
                 } catch (e) {
                     // Intl not available — fall back to i18n strings
                     const key = count === 1 ? `timeago_${interval.unit}` : `timeago_${interval.unit}s`;
                     const tpl = i18n[key] || `{n} ${interval.unit}${count !== 1 ? 's' : ''}`;
-                    const timeStr = tpl.replace('{n}', count);
+                    const timeStr = tpl.replace('{n}', count).replace('{s}', count !== 1 ? 's' : '');
                     const agoTpl = i18n.timeago_ago || '{t} ago';
                     return agoTpl.replace('{t}', timeStr);
                 }
@@ -7307,6 +7479,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reportReason.value = '';
             reportError.textContent = '';
             reportModal.style.display = 'flex';
+            document.body.classList.add('modal-open');
         }
 
         const commentBtn = e.target.closest('.report-comment-btn');
@@ -7318,6 +7491,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reportReason.value = '';
             reportError.textContent = '';
             reportModal.style.display = 'flex';
+            document.body.classList.add('modal-open');
         }
 
         const userBtn = e.target.closest('.report-user-btn'); // for future
@@ -7329,11 +7503,13 @@ document.addEventListener('DOMContentLoaded', () => {
             reportReason.value = '';
             reportError.textContent = '';
             reportModal.style.display = 'flex';
+            document.body.classList.add('modal-open');
         }
 
         // Close logic
         if (e.target.matches('#report-cancel')) {
             reportModal.style.display = 'none';
+            document.body.classList.remove('modal-open');
         }
 
         // Submit logic
@@ -7392,6 +7568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('warning-reason').textContent = warning.reason;
                         document.getElementById('warning-id').value = warning.id;
                         warningModal.style.display = 'flex';
+                        document.body.classList.add('modal-open');
                     }
                 }
             } catch (e) { console.error('Error fetching warnings', e); }
@@ -7414,6 +7591,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await res.json();
                     if (data.success) {
                         document.getElementById('warning-modal').style.display = 'none';
+                        document.body.classList.remove('modal-open');
                         // Check for more warnings
                         checkWarnings();
                     } else {
@@ -8128,6 +8306,7 @@ if (navigator.vibrate) {
             const noResults = document.getElementById('metadata-no-results');
 
             modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
             loading.style.display = 'block';
             resultsCont.style.display = 'none';
             error.style.display = 'none';
@@ -8136,6 +8315,7 @@ if (navigator.vibrate) {
 
             const close = () => { 
                 modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
                 document.removeEventListener('keydown', onEsc);
                 window.removeEventListener('pjax:start', onNav);
                 document.removeEventListener('f0ck:contentLoaded', onContentLoaded);
@@ -8365,4 +8545,9 @@ if (navigator.vibrate) {
             }
         }
     });
+  // Ensure any navigation event restores the scroll state
+  window.addEventListener('pjax:start', () => {
+    if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+    if (window.hideAllModals) window.hideAllModals();
+  });
 })();

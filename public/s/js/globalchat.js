@@ -15,7 +15,7 @@
     const MAX_VISIBLE_MSGS = 100;
     const RATE_LIMIT_MS    = 800;
 
-    let isMinimized  = localStorage.getItem('f0ck_chat_minimized') === '1';
+    let isMinimized  = localStorage.getItem('f0ck_chat_minimized') !== '0';
     let isClosed     = localStorage.getItem('f0ck_chat_closed')    === '1';
     let lastSent     = 0;
     let customEmojis = null; // name → url
@@ -223,6 +223,13 @@
                     `<span class="gchat-yt-author"></span>` +
                 `</div>` +
             `</a>`;
+        });
+        
+        // 6d.1 Vocaroo URLs → iframe embed
+        const vocarooRegex = /https?:\/\/(?:www\.)?(?:voca\.ro|vocaroo\.com)\/([a-zA-Z0-9_-]+)[^\s]*/gi;
+        html = html.replace(vocarooRegex, (match, vocarooId) => {
+            if (['upload', 'contact', 'privacy', 'tos', 'about'].includes(vocarooId.toLowerCase())) return match;
+            return `<span class="vocaroo-embed-wrap gchat-embed-audio"><iframe src="https://vocaroo.com/embed/${vocarooId}?autoplay=0" width="300" height="60" frameborder="0" allow="autoplay"></iframe></span>`;
         });
 
         // 6d.5  Same-site item page links → post preview card (resolved async)
@@ -1133,8 +1140,18 @@
                 panel.style.top  = newY + 'px';
             };
             const onEnd = () => {
+                const curY = parseInt(panel.style.top);
                 localStorage.setItem('f0ck_chat_float_x', parseInt(panel.style.left));
-                localStorage.setItem('f0ck_chat_float_y', parseInt(panel.style.top));
+                localStorage.setItem('f0ck_chat_float_y', curY);
+
+                if (isMinimized) {
+                    const topBound = getTopBound();
+                    const bottomBound = window.innerHeight;
+                    const distToTop = Math.abs(curY - topBound);
+                    const distToBottom = Math.abs(bottomBound - (curY + 42));
+                    localStorage.setItem('f0ck_chat_anchor_top', distToTop < distToBottom ? '1' : '0');
+                }
+
                 document.removeEventListener('mousemove', mouseMove);
                 document.removeEventListener('mouseup',   mouseEnd);
                 document.removeEventListener('touchmove', touchMove);
@@ -1169,28 +1186,59 @@
         // Minimize toggle — in float mode anchor to bottom edge in both directions
         function toggleMinimized() {
             const willExpand = isMinimized; // about to expand
-            if (!willExpand && isFloating) {
-                // About to minimize: capture bottom edge BEFORE shrinking
+            if (isFloating) {
                 const r = panel.getBoundingClientRect();
-                const curBottom = r.top + r.height;
-                setMinimized(true);
-                // After CSS applies 42px height, shift top so bottom edge is preserved
-                requestAnimationFrame(() => {
-                    const newTop = Math.min(window.innerHeight - 42, Math.max(getTopBound(), curBottom - 42));
-                    panel.style.top = newTop + 'px';
-                    localStorage.setItem('f0ck_chat_float_y', newTop);
-                });
-            } else {
-                setMinimized(!isMinimized);
-                if (willExpand && isFloating) {
-                    // Expanding: shift top UP to maintain bottom edge
+                const topBound = getTopBound();
+                const bottomBound = window.innerHeight;
+
+                if (!willExpand) {
+                    // About to minimize: decide anchor based on proximity
+                    const distToTop = Math.abs(r.top - topBound);
+                    const distToBottom = Math.abs(bottomBound - (r.top + r.height));
+                    const anchorTop = distToTop < distToBottom;
+                    localStorage.setItem('f0ck_chat_anchor_top', anchorTop ? '1' : '0');
+
+                    const curTop = r.top;
+                    const curBottom = r.top + r.height;
+                    setMinimized(true);
+
                     requestAnimationFrame(() => {
-                        const fullH  = panel.getBoundingClientRect().height;
-                        const curTop = parseInt(panel.style.top) || 0;
-                        const newTop = Math.max(getTopBound(), curTop - (fullH - 42));
+                        let newTop;
+                        if (anchorTop) {
+                            // Anchor to top: keep current top
+                            newTop = Math.max(topBound, curTop);
+                        } else {
+                            // Anchor to bottom: keep current bottom (existing behavior)
+                            newTop = Math.min(bottomBound - 42, Math.max(topBound, curBottom - 42));
+                        }
                         panel.style.top = newTop + 'px';
                         localStorage.setItem('f0ck_chat_float_y', newTop);
                     });
+                } else {
+                    // Expanding: use saved anchor or default to bottom if not set
+                    const wasAnchorTop = localStorage.getItem('f0ck_chat_anchor_top') === '1';
+                    setMinimized(false);
+
+                    requestAnimationFrame(() => {
+                        const fullH  = panel.getBoundingClientRect().height;
+                        const curTop = parseInt(panel.style.top) || 0;
+                        let newTop;
+                        if (wasAnchorTop) {
+                            // Expanding from top anchor: top stays same
+                            newTop = Math.max(topBound, curTop);
+                        } else {
+                            // Expanding from bottom anchor: shift top UP (existing behavior)
+                            newTop = Math.max(topBound, curTop - (fullH - 42));
+                        }
+                        panel.style.top = newTop + 'px';
+                        localStorage.setItem('f0ck_chat_float_y', newTop);
+                    });
+                }
+            } else {
+                setMinimized(!isMinimized);
+                if (!isMinimized) {
+                    // Normal docked expand
+                    loadHistory();
                 }
             }
         }
@@ -1341,10 +1389,10 @@
         });
 
         // ── Online users bar ─────────────────────────────────────────────────
-        function renderOnline(users) {
+        function renderOnline(users, guestCount = 0) {
             const el = document.getElementById('gchat-online');
             if (!el) return;
-            if (!users || users.length === 0) {
+            if ((!users || users.length === 0) && guestCount === 0) {
                 el.innerHTML = '';
                 el.style.display = 'none';
                 return;
@@ -1361,11 +1409,16 @@
                 return `<img src="${src}" class="gchat-online-avatar" title="${name}" alt="${name}" loading="lazy" ${colorStyle}>`;
             }).join('');
             const extraPill = extra > 0 ? `<span class="gchat-online-extra">+${extra}</span>` : '';
-            const countLabel = `<span class="gchat-online-count">${users.length} online</span>`;
+            
+            let countText = `${users.length} online`;
+            if (guestCount > 0 && (window.f0ckSession.is_admin || window.f0ckSession.is_moderator)) {
+                countText += ` (${guestCount} guests)`;
+            }
+            const countLabel = `<span class="gchat-online-count">${countText}</span>`;
             el.innerHTML = `<div class="gchat-online-inner">${countLabel}<div class="gchat-online-avatars">${avatarHTML}${extraPill}</div></div>`;
         }
         document.addEventListener('f0ck:global_chat_presence', (e) => {
-            renderOnline(e.detail?.users || []);
+            renderOnline(e.detail?.users || [], e.detail?.guestCount || 0);
         });
 
         // Event delegation: reply + admin delete buttons inside #gchat-messages

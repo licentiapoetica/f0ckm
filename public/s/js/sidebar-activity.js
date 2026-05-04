@@ -37,7 +37,56 @@
         return div.innerHTML;
     };
 
-    const renderCommentContent = (content) => {
+    const ytOembedCache = new Map(); // videoId -> meta object
+    const ytOembedPending = new Map(); // videoId -> Promise
+
+    const fetchSidebarYoutubeTitles = async (container) => {
+        const links = container.querySelectorAll('.sidebar-video-link[data-yt-id]');
+        if (links.length === 0) return;
+
+        for (const link of links) {
+            const videoId = link.dataset.ytId;
+            if (!videoId) continue;
+            
+            const titleSpan = link.querySelector('.yt-title');
+            if (!titleSpan || titleSpan.dataset.loaded === 'true') continue;
+
+            let meta = ytOembedCache.get(videoId);
+            if (!meta) {
+                if (ytOembedPending.has(videoId)) {
+                    meta = await ytOembedPending.get(videoId);
+                } else {
+                    const promise = (async () => {
+                        try {
+                            const ytUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+                            const r = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(ytUrl)}`);
+                            if (r.ok) {
+                                const data = await r.json();
+                                if (data.success && data.meta) {
+                                    ytOembedCache.set(videoId, data.meta);
+                                    return data.meta;
+                                }
+                            }
+                        } catch (e) {}
+                        return null;
+                    })();
+                    ytOembedPending.set(videoId, promise);
+                    meta = await promise;
+                    ytOembedPending.delete(videoId);
+                }
+            }
+
+            if (meta && meta.title) {
+                titleSpan.textContent = meta.title;
+            } else {
+                // If title fails, just leave it blank or use a generic label
+                titleSpan.textContent = 'YouTube Video';
+            }
+            titleSpan.dataset.loaded = 'true';
+        }
+    };
+
+    const renderCommentContent = (content, commentId = null, itemId = null) => {
         if (!content) return '';
 
         // Anti-recursion / Performance safeguard for extremely long comments
@@ -149,7 +198,7 @@
             // Line-by-line rendering to avoid paragraph collapsing and recursion
             const renderedLines = escaped.split('\n').map(line => {
                 const trimmed = line.trimStart();
-                if (trimmed.startsWith('>')) {
+                if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     // Manual greentext handling — apply emoji if the user preference allows it
                     const quoteContent = line.substring(line.indexOf('>') + 1);
                     const quoteEmojis  = window.f0ckSession?.quote_emojis === true;
@@ -166,10 +215,19 @@
                 
                 // Perform replacements on the single line
                 let processedLine = line;
+
+                // Handle Mentions
                 processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
                     const user = g1 || g2;
                     return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
                 });
+
+                // Handle Comment Context Links (>>ID)
+                processedLine = processedLine.replace(/(?<!\w)>>(\d+)/g, (match, id) => {
+                    const targetHref = itemId ? `/${itemId}#c${id}` : `#c${id}`;
+                    return `<a href="${targetHref}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
+                });
+
                 processedLine = processedLine.replace(imageRegex, (match, url) => {
                     let fullUrl = url;
                     if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) {
@@ -196,10 +254,25 @@
             // YouTube label replacement: show icon + labeled link
             md = md.replace(
                 /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?(?:[^"]*&(?:amp;)?)?v=|youtu\.be\/)([a-zA-Z0-9_\-]{11})[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
-                (match) => {
+                (match, videoId) => {
                     const hrefMatch = match.match(/href="([^"]+)"/i);
-                    const href = hrefMatch ? hrefMatch[1] : '#';
-                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="sidebar-video-link"><i class="fa-brands fa-youtube"></i></a>`;
+                    const ytHref = hrefMatch ? hrefMatch[1] : '#';
+                    const targetHref = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : ytHref);
+                    const externalAttr = (itemId && commentId) || commentId ? '' : ' target="_blank" rel="noopener noreferrer"';
+                    return `<a href="${targetHref}"${externalAttr} class="sidebar-video-link" data-yt-id="${videoId}"><i class="fa-brands fa-youtube"></i> <span class="yt-title"></span></a>`;
+                }
+            );
+            
+            // Vocaroo label replacement
+            md = md.replace(
+                /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:voca\.ro|vocaroo\.com)\/([a-zA-Z0-9_-]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
+                (match, vocarooId) => {
+                    if (['upload', 'contact', 'privacy', 'tos', 'about'].includes(vocarooId.toLowerCase())) return match;
+                    const hrefMatch = match.match(/href="([^"]+)"/i);
+                    const vocaHref = hrefMatch ? hrefMatch[1] : '#';
+                    const targetHref = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : vocaHref);
+                    const externalAttr = (itemId && commentId) || commentId ? '' : ' target="_blank" rel="noopener noreferrer"';
+                    return `<a href="${targetHref}"${externalAttr} class="sidebar-video-link"><i class="fa-solid fa-microphone"></i> <span>Vocaroo Audio</span></a>`;
                 }
             );
 
@@ -258,6 +331,10 @@
                 return codeBlocks[index] || '';
             });
 
+            if (window.Sanitizer && typeof window.Sanitizer.clean === 'function') {
+                md = window.Sanitizer.clean(md);
+            }
+
             return md;
         } catch (e) {
             return content;
@@ -269,7 +346,7 @@
 
     const renderActivityItem = (c) => {
         const rawContent = c.content || c.body || '';
-        const displayContent = renderCommentContent(rawContent);
+        const displayContent = renderCommentContent(rawContent, c.id, c.item_id);
 
         // Build avatar URL — same priority as the rest of the app
         let avatarSrc = '/a/default.png';
@@ -277,6 +354,7 @@
             avatarSrc = `/a/${c.avatar_file}`;
         } else if (c.avatar) {
             avatarSrc = `/t/${c.avatar}.webp`;
+            if (window.applyThumbCacheBust) avatarSrc = window.applyThumbCacheBust(avatarSrc);
         }
 
         const timeStr = c.created_at
@@ -287,7 +365,9 @@
         let itemPreview = '';
         if (c.item_id) {
             let mediaHtml = '';
-            mediaHtml = `<img src="/t/${c.item_id}.webp" style="width: 32px; height: 32px; object-fit: cover; border-radius: 2px;" onerror="this.style.display='none'" />`;
+            let thumbUrl = `/t/${c.item_id}.webp`;
+            if (window.applyThumbCacheBust) thumbUrl = window.applyThumbCacheBust(thumbUrl);
+            mediaHtml = `<img src="${thumbUrl}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 2px;" onerror="this.style.display='none'" />`;
 
             itemPreview = `
                 <div class="item-preview">
@@ -308,7 +388,7 @@
                         </div>
                         <span class="comment-time timeago" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content" style="font-size: 0.85em; line-height: 1.3;"><div class="comment-content-inner">${displayContent}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content"><div class="comment-content-inner">${displayContent}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;
@@ -361,16 +441,13 @@
             html += renderActivityItem(c);
         });
 
-        if (window.Sanitizer) {
-            container.innerHTML = window.Sanitizer.clean(html);
-        } else {
-            container.innerHTML = html;
-        }
+        container.innerHTML = html;
         // Re-append IO sentinel so the scroll observer keeps working after re-renders
         if (ioSentinel) {
             container.appendChild(ioSentinel);
         }
         checkOverflow();
+        fetchSidebarYoutubeTitles(container);
         return true;
     };
 
@@ -462,17 +539,14 @@
                 newComments.forEach(c => { html += renderActivityItem(c); });
                 if (html) {
                     const temp = document.createElement('div');
-                    if (window.Sanitizer) {
-                        temp.innerHTML = window.Sanitizer.clean(html);
-                    } else {
-                        temp.innerHTML = html;
-                    }
+                    temp.innerHTML = html;
                     while (temp.firstElementChild) {
                         container.appendChild(temp.firstElementChild);
                     }
                     // Keep the IO sentinel at the very end so it triggers on the next scroll
                     if (ioSentinel) container.appendChild(ioSentinel);
                     checkOverflow();
+                    fetchSidebarYoutubeTitles(container);
                 }
             } else {
                 hasMore = false;
@@ -496,7 +570,7 @@
         
         // 1. Deduplicate: check if this comment ID is already in the cache
         if (window._sidebarActivityCache.some(c => parseInt(c.id) === parseInt(data.id))) {
-            console.log("Sidebar Activity: Duplicate comment ignored", data.id);
+            window.f0ckDebug("Sidebar Activity: Duplicate comment ignored", data.id);
             return;
         }
 
@@ -512,16 +586,13 @@
         if (container) {
             const html = renderActivityItem(newItem);
             const temp = document.createElement('div');
-            if (window.Sanitizer) {
-                temp.innerHTML = window.Sanitizer.clean(html);
-            } else {
                 temp.innerHTML = html;
-            }
             const node = temp.firstElementChild;
             if (node) {
                 node.classList.add('new-item-fade');
                 container.prepend(node);
                 checkOverflow();
+                fetchSidebarYoutubeTitles(container);
             }
         }
     };
@@ -533,7 +604,7 @@
 
     // Listen for live activity from f0ckm.js
     document.addEventListener('f0ck:activityReceived', (e) => {
-        console.log("Sidebar Activity: Live update received", e.detail);
+        window.f0ckDebug("Sidebar Activity: Live update received", e.detail);
         handleNewActivity(e.detail);
     });
 
@@ -555,18 +626,20 @@
             if (el) {
                 const inner = el.querySelector('.comment-content-inner');
                 if (inner) {
-                    inner.innerHTML = renderCommentContent(data.content);
+                    const comment = window._sidebarActivityCache.find(c => String(c.id) === String(data.comment_id));
+                    inner.innerHTML = renderCommentContent(data.content, data.comment_id, comment ? comment.item_id : null);
                     el.classList.remove('new-item-fade');
                     void el.offsetWidth;
                     el.classList.add('new-item-fade');
                     checkOverflow();
+                    fetchSidebarYoutubeTitles(el);
                 }
             }
         }
     };
 
     window.addEventListener('f0ck:comment_edited', (e) => {
-        console.log("Sidebar Activity: Live edit received", e.detail);
+        window.f0ckDebug("Sidebar Activity: Live edit received", e.detail);
         handleLiveEdit(e.detail);
     });
 
@@ -578,7 +651,7 @@
         const modeChanged = lastBoundMode !== null && lastBoundMode !== currentMode;
         lastBoundMode = currentMode;
 
-        console.log("Sidebar Activity: Page transition detected", modeChanged ? "(Mode changed)" : "");
+        window.f0ckDebug("Sidebar Activity: Page transition detected", modeChanged ? "(Mode changed)" : "");
         
         if (modeChanged) {
             window._sidebarActivityCache = [];
@@ -600,7 +673,7 @@
 
     // Handle explicit mode changes (e.g. from item page where full transition doesn't occur)
     document.addEventListener('f0ck:modeChanged', (e) => {
-        console.log("Sidebar Activity: Mode change detected", e.detail.mode);
+        window.f0ckDebug("Sidebar Activity: Mode change detected", e.detail.mode);
         lastBoundMode = e.detail.mode;
         window._sidebarActivityCache = [];
         currentPage = 1;
@@ -610,7 +683,7 @@
 
     // When the current user posts a comment, silently refresh sidebar to show it
     document.addEventListener('f0ck:commentPosted', () => {
-        console.log("Sidebar Activity: Own comment posted, refreshing...");
+        window.f0ckDebug("Sidebar Activity: Own comment posted, refreshing...");
         loadActivity(true);
     });
 

@@ -593,11 +593,18 @@
     .scroller-blur.revealed, .scroller-blur:hover { filter: none; }
     .comment-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
     .comment-time { font-size: .67rem; color: rgba(255,255,255,.38); }
-    .comment-reply-btn {
+    .comment-reply-btn, .comment-quote-btn {
       background: none; border: none; color: rgba(255,255,255,.45); font-size: .67rem;
       font-weight: 700; cursor: pointer; padding: 0; text-transform: none;
     }
-    .comment-reply-btn:hover { color: var(--accent, #fff); }
+    .comment-reply-btn:hover, .comment-quote-btn:hover { color: var(--accent, #fff); }
+    .comment-context-link { color: var(--accent); text-decoration: none; font-family: 'VCR', monospace; }
+    .comment-context-link:hover { text-decoration: underline; }
+    @keyframes comment-highlight {
+      0% { background: rgba(255,255,255,.15); border-color: var(--accent); }
+      100% { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.05); }
+    }
+    .highlight-comment { animation: comment-highlight 2.5s cubic-bezier(0.2, 0, 0, 1); }
     #reply-indicator {
       display: flex; align-items: center; gap: 8px;
       padding: 6px 12px; background: rgba(255,255,255,.05);

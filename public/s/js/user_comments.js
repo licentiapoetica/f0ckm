@@ -28,7 +28,7 @@ class UserCommentSystem {
         if (el && this.container.contains(el)) {
             const contentEl = el.querySelector('.comment-content');
             if (contentEl) {
-                contentEl.innerHTML = this.renderCommentContent(data.content);
+                contentEl.innerHTML = this.renderCommentContent(data.content, data.item_id);
                 el.classList.remove('new-item-fade');
                 void el.offsetWidth;
                 el.classList.add('new-item-fade');
@@ -77,7 +77,7 @@ class UserCommentSystem {
             // Check if this instance is still active
             if (!document.body.contains(this.container)) return;
 
-            console.log('Mode changed, reloading comments...');
+            window.f0ckDebug('Mode changed, reloading comments...');
             this.container.innerHTML = '';
             this.page = 1;
             this.finished = false;
@@ -108,7 +108,7 @@ class UserCommentSystem {
                     this.userColor = json.user.username_color;
                 }
                 json.comments.forEach(c => {
-                    console.log('Raw Comment Content (ID ' + c.id + '):', c.content);
+                    window.f0ckDebug('Raw Comment Content (ID ' + c.id + '):', c.content);
                     const html = this.renderComment(c);
                     this.container.insertAdjacentHTML('beforeend', html);
                 });
@@ -134,7 +134,7 @@ class UserCommentSystem {
         return match;
     }
 
-    renderCommentContent(content) {
+    renderCommentContent(content, itemId = null) {
         if (!content) return '';
 
         // Anti-recursion / Performance safeguard for extremely long comments
@@ -194,7 +194,7 @@ class UserCommentSystem {
             // 3. Line-by-line rendering to avoid paragraph collapsing and recursion
             const renderedLines = escaped.split('\n').map(line => {
                 const trimmed = line.trimStart();
-                if (trimmed.startsWith('>')) {
+                if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     const quoteContent = line.substring(line.indexOf('>') + 1);
                     return `<span class="greentext">&gt;${quoteContent}</span>`;
                 }
@@ -204,6 +204,13 @@ class UserCommentSystem {
                 if (!line.trim()) return '&nbsp;';
 
                 let processedLine = line.replace(mentionRegex, '[@$1](/user/$1)');
+
+                // Handle Comment Context Links (>>ID)
+                processedLine = processedLine.replace(/(?<!\w)>>(\d+)/g, (match, id) => {
+                    const targetHref = itemId ? `/${itemId}#c${id}` : `#c${id}`;
+                    return `<a href="${targetHref}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
+                });
+
                 const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
                 let rendered = marked.parseInline ? marked.parseInline(escapedAsterisks, { renderer: renderer }) : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
                 
@@ -241,6 +248,10 @@ class UserCommentSystem {
                 iterations++;
             } while (html !== prevMd && iterations < 10);
 
+            if (window.Sanitizer && typeof Sanitizer.clean === 'function') {
+                html = Sanitizer.clean(html);
+            }
+
             return html;
         } catch (e) {
             console.error('UserCommentSystem Markdown Render Error:', e);
@@ -251,7 +262,7 @@ class UserCommentSystem {
     renderComment(c) {
         const timeAgo = this.timeAgo(c.created_at);
         const fullDate = new Date(c.created_at).toISOString();
-        const content = this.renderCommentContent(c.content);
+        const content = this.renderCommentContent(c.content, c.item_id);
 
         // Replicating the structure of comments.js but adapting for the list view
         // We add a header indicating which item this comment belongs to

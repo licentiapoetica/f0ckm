@@ -122,6 +122,17 @@ window.F0ckUpload = class {
                 try {
                     const res = JSON.parse(xhr.responseText);
                     if (res.success) {
+                        if (res.itemid) {
+                            try {
+                                const ts = Date.now();
+                                const bustedStr = localStorage.getItem('bustedThumbs');
+                                const busted = bustedStr ? JSON.parse(bustedStr) : {};
+                                busted[res.itemid] = ts;
+                                const keys = Object.keys(busted);
+                                if (keys.length > 50) delete busted[keys[0]];
+                                localStorage.setItem('bustedThumbs', JSON.stringify(busted));
+                            } catch(e) {}
+                        }
                         this.onComplete(res);
                         resolve(res);
                     } else {

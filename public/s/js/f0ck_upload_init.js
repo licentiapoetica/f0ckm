@@ -10,6 +10,7 @@
     const showModal = () => {
         if (!dragModal) return;
         dragModal.classList.add('show');
+        document.body.classList.add('modal-open');
         // Reset scroll position so it always starts at the top
         dragModal.scrollTop = 0;
         const modalContent = dragModal.querySelector('.modal-content');
@@ -89,6 +90,7 @@
     // Modal Close
     dragModalClose.onclick = () => {
         dragModal.classList.remove('show');
+        document.body.classList.remove('modal-open');
         if (uploader && uploader.reset) {
             uploader.reset();
         }

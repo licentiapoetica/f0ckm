@@ -84,6 +84,10 @@ export default (router, tpl) => {
         if (!req.session) {
             return res.reply({ code: 401, body: JSON.stringify({ success: false, msg: 'Login required' }) });
         }
+        // F-007 Security: Block banned users from chatting
+        if (req.session.banned) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, msg: 'You are banned' }) });
+        }
 
         const message = (req.post?.message || '').trim();
         if (!message || message.length > MAX_MSG_LEN) {

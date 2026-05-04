@@ -52,7 +52,8 @@ export default new class {
      */
     async recordAttempt(ip, username, type, success) {
         const ip_hash = this.hashIP(ip);
-        console.log(`[SECURITY] Recording ${type} attempt: user=${username}, success=${success}, ip_hash=${ip_hash}`);
+        if (!success) console.warn(`[SECURITY] Failed ${type} attempt: user=${username}, ip_hash=${ip_hash}`);
+        else if (cfg.main.development) console.log(`[SECURITY] Recording ${type} attempt: user=${username}, success=${success}, ip_hash=${ip_hash}`);
         await db`
             insert into login_attempts (ip_hash, username, type, success)
             values (${ip_hash}, ${username?.toLowerCase() || null}, ${type}, ${success})
@@ -66,7 +67,7 @@ export default new class {
      */
     async clearAttempts(ip, username) {
         const ip_hash = this.hashIP(ip);
-        console.log(`[SECURITY] Clearing attempts for user=${username}, ip_hash=${ip_hash}`);
+        if (cfg.main.development) console.log(`[SECURITY] Clearing attempts for user=${username}, ip_hash=${ip_hash}`);
         await db`
             delete from login_attempts
             where (ip_hash = ${ip_hash} OR username = ${username?.toLowerCase() || ''})
@@ -92,7 +93,7 @@ export default new class {
 
         const windowStart = new Date(Date.now() - windowMinutes * 60000);
 
-        console.log(`[SECURITY] Checking rate limit for ${type}: user=${username}, ip_hash=${ip_hash}`);
+        if (cfg.main.development) console.log(`[SECURITY] Checking rate limit for ${type}: user=${username}, ip_hash=${ip_hash}`);
 
         // Check attempts by IP
         const ipAttempts = await db`
@@ -105,7 +106,10 @@ export default new class {
         `;
 
         const ipCount = +ipAttempts[0].count;
-        if (ipCount >= maxAttempts) return true;
+        if (ipCount >= maxAttempts) {
+            console.warn(`[SECURITY] Rate limit hit for ${type}: ip_hash=${ip_hash}, attempts=${ipCount}/${maxAttempts}`);
+            return true;
+        }
 
         // Check attempts by username (if provided)
         if (username) {
@@ -118,7 +122,10 @@ export default new class {
                 and attempted_at > ${windowStart}
             `;
             const userCount = +userAttempts[0].count;
-            if (userCount >= maxAttempts) return true;
+            if (userCount >= maxAttempts) {
+                console.warn(`[SECURITY] Rate limit hit for ${type}: user=${username}, attempts=${userCount}/${maxAttempts}`);
+                return true;
+            }
         }
 
         return false;

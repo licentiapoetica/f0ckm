@@ -13,11 +13,19 @@
             @each(pending as post)
             <div class="approval-card">
                 <div class="approval-card-media">
-                    @if(post.mime.startsWith('video'))
+                    @if(post.mime === 'video/youtube')
+                    <div class="embed-responsive embed-responsive-16by9" style="width: 100%;">
+                        <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/{!! post.dest.replace('yt:', '') !!}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    @elseif(post.mime.startsWith('video'))
                     <video controls loop muted preload="metadata">
                         <source src="/mod/pending/b/{!! post.dest !!}" type="{!! post.mime !!}">
                         Your browser does not support the video tag.
                     </video>
+                    @elseif(post.mime === 'application/pdf')
+                    <div class="embed-responsive embed-responsive-16by9" style="width: 100%;">
+                        <iframe class="embed-responsive-item" src="/mod/pending/b/{!! post.dest !!}#toolbar=0" loading="lazy" style="border: none;"></iframe>
+                    </div>
                     @else
                     <img src="/mod/pending/t/{!! post.id !!}.webp" alt="Preview">
                     @endif
@@ -34,8 +42,8 @@
                         @endeach
                     </div>
                     <div class="approval-card-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <a href="/mod/approve/?id={!! post.id !!}" class="badge badge-success btn-approve-async" style="margin: 0; text-align: center;">Approve</a>
-                        <a href="/mod/deny/?id={!! post.id !!}" class="badge badge-danger btn-deny-async" style="margin: 0; text-align: center;">Deny / Delete</a>
+                        <button data-id="{!! post.id !!}" class="badge badge-success btn-approve-async" style="margin: 0; text-align: center; border: none; cursor: pointer;">Approve</button>
+                        <button data-id="{!! post.id !!}" class="badge badge-danger btn-deny-async" style="margin: 0; text-align: center; border: none; cursor: pointer;">Deny / Delete</button>
                         <a href="/api/v2/tags/{!! post.id !!}/toggle" class="badge btn-rating-toggle-async" style="grid-column: span 2; background: #444; color: #ccc; margin: 0; text-align: center;">Rating</a>
                     </div>
                 </div>
@@ -56,11 +64,19 @@
             @each(trash as post)
             <div class="approval-card">
                 <div class="approval-card-media">
-                    @if(post.mime.startsWith('video'))
+                    @if(post.mime === 'video/youtube')
+                    <div class="embed-responsive embed-responsive-16by9" style="width: 100%;">
+                        <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/{!! post.dest.replace('yt:', '') !!}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    @elseif(post.mime.startsWith('video'))
                     <video controls loop muted preload="metadata">
                         <source src="/mod/deleted/b/{!! post.dest !!}" type="{!! post.mime !!}">
                         Your browser does not support the video tag.
                     </video>
+                    @elseif(post.mime === 'application/pdf')
+                    <div class="embed-responsive embed-responsive-16by9" style="width: 100%;">
+                        <iframe class="embed-responsive-item" src="/mod/deleted/b/{!! post.dest !!}#toolbar=0" loading="lazy" style="border: none;"></iframe>
+                    </div>
                     @else
                     <img src="/mod/deleted/t/{!! post.id !!}.webp" style="filter: grayscale(50%);" alt="Preview">
                     @endif
@@ -80,9 +96,9 @@
                         @endeach
                     </div>
                     <div class="approval-card-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <a href="/mod/approve/?id={!! post.id !!}" class="badge badge-warning btn-approve-async" style="margin: 0; text-align: center;">Restore</a>
+                        <button data-id="{!! post.id !!}" class="badge badge-warning btn-approve-async" style="margin: 0; text-align: center; border: none; cursor: pointer;">Restore</button>
                         @if(session.admin)
-                        <a href="/mod/deny/?id={!! post.id !!}" class="badge badge-danger btn-deny-async" style="margin: 0; text-align: center;">Purge</a>
+                        <button data-id="{!! post.id !!}" class="badge badge-danger btn-deny-async" style="margin: 0; text-align: center; border: none; cursor: pointer;">Purge</button>
                         @else
                         <span></span>
                         @endif
@@ -195,14 +211,18 @@
                 document.querySelectorAll('.btn-deny-async').forEach(btn => {
                     btn.addEventListener('click', e => {
                         e.preventDefault();
-                        const url = btn.getAttribute('href');
+                        const itemId = btn.getAttribute('data-id');
                         const card = btn.closest('.approval-card');
                         showModal('{!! t('mod.confirm_action') !!}', '{!! t('mod.confirm_action') !!}?', async (reason) => {
-                            const res = await fetch(url + (url.indexOf('?') > -1 ? '&' : '?') + 'reason=' + encodeURIComponent(reason), { 
+                            const res = await fetch('/mod/deny', { 
+                                method: 'POST',
                                 headers: { 
+                                    'Content-Type': 'application/json',
                                     'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json'
-                                } 
+                                    'Accept': 'application/json',
+                                    'X-CSRF-Token': window.f0ckSession?.csrf_token || ''
+                                },
+                                body: JSON.stringify({ id: itemId, reason })
                             });
                             const data = await res.json();
                             if (res.ok && data.success) {
@@ -221,15 +241,19 @@
                 document.querySelectorAll('.btn-approve-async').forEach(btn => {
                     btn.addEventListener('click', async e => {
                         e.preventDefault();
-                        const url = btn.getAttribute('href');
-                        const card = btn.closest('.approval-card'); // Updated selector
+                        const itemId = btn.getAttribute('data-id');
+                        const card = btn.closest('.approval-card');
 
                         try {
-                            const res = await fetch(url, {
+                            const res = await fetch('/mod/approve', {
+                                method: 'POST',
                                 headers: {
+                                    'Content-Type': 'application/json',
                                     'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json'
-                                }
+                                    'Accept': 'application/json',
+                                    'X-CSRF-Token': window.f0ckSession?.csrf_token || ''
+                                },
+                                body: JSON.stringify({ id: itemId })
                             });
                             const data = await res.json();
                             if (data.success) {
@@ -303,7 +327,12 @@
                 if (btnPurgeTrash) {
                     btnPurgeTrash.addEventListener('click', () => {
                         showModal('Purge Trash', 'Permanently delete ALL items in the trash? This cannot be undone.', async () => {
-                            const res = await fetch('/mod/purge-trash-all', { method: 'POST' });
+                            const res = await fetch('/mod/purge-trash-all', { 
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-Token': window.f0ckSession?.csrf_token || ''
+                                }
+                            });
                             const data = await res.json();
                             if (data.success) {
                                 location.reload();

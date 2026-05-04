@@ -85,9 +85,9 @@ export default new class {
   };
   genLink(env) {
     const link = [];
-    if (env.tag) link.push("tag", env.tag);
-    if (env.hall) link.push("h", env.hall);
-    if (env.user) link.push("user", env.user, env.type ?? 'uploads');
+    if (env.tag) link.push("tag", encodeURIComponent(env.tag));
+    if (env.hall) link.push("h", encodeURIComponent(env.hall));
+    if (env.user) link.push("user", encodeURIComponent(env.user), env.type ?? 'uploads');
 
     let tmp = link.length === 0 ? '/' : link.join('/');
     if (!tmp.endsWith('/'))

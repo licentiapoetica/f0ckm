@@ -8,12 +8,19 @@ let bypass_duplicate_check = false;
 let protect_files = false;
 let private_messages = true;
 let default_layout = 'modern';
+let enable_pdf = false;
+
+export const getEnablePdf = () => enable_pdf;
+export const setEnablePdf = (val) => enable_pdf = !!val;
 
 export const getManualApproval = () => manual_approval;
 export const setManualApproval = (val) => manual_approval = !!val;
 
 export const getMinTags = () => min_tags;
-export const setMinTags = (val) => min_tags = parseInt(val) || 3;
+export const setMinTags = (val) => {
+    const parsed = parseInt(val);
+    min_tags = isNaN(parsed) ? 3 : Math.max(0, parsed);
+};
 
 export const getRegistrationOpen = () => {
     if (cfg.websrv.open_registration_web_toggle === false) {

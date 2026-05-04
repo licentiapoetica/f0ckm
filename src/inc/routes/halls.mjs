@@ -40,7 +40,7 @@ export default (router, tpl) => {
 
   // Hall Thumbnail Route
   router.get(/^\/hall_image\/(?<hallSlug>.+)$/, async (req, res) => {
-    const hallSlug = decodeURIComponent(req.params.hallSlug);
+    const hallSlug = path.basename(decodeURIComponent(req.params.hallSlug));
     const mode = +(req.url.qs?.m ?? 0);
     const CACHE_DIR = path.join(cfg.paths.s, '../hall_cache');
 

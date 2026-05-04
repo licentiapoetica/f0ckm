@@ -1,6 +1,8 @@
 import db from '../../sql.mjs';
 import lib from '../../lib.mjs';
 import cfg from '../../config.mjs';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Note: Avatar upload/delete is handled by middleware in index.mjs via avatar_handler.mjs
 // These routes remain for other settings API endpoints
@@ -443,6 +445,20 @@ export default router => {
     group.put(/\/font/, lib.loggedin, async (req, res) => {
       const { font } = req.post;
 
+      // F-023 Security: Validate font against actual files on disk
+      // The font value is rendered into CSS url() in header.html, so it must be a real filename
+      if (font) {
+        const fontsDir = path.join(path.resolve(), 'public/s/fonts');
+        try {
+          const available = (await fs.readdir(fontsDir)).filter(f => /\.(ttf|otf|woff2?)$/i.test(f));
+          if (!available.includes(font)) {
+            return res.json({ success: false, msg: 'Invalid font selection' }, 400);
+          }
+        } catch {
+          return res.json({ success: false, msg: 'Font directory unavailable' }, 500);
+        }
+      }
+
       try {
         await db`
           update user_options 
@@ -517,23 +533,25 @@ export default router => {
 
     // Update Ruffle (Flash) preferences
     group.put(/\/ruffle/, lib.loggedin, async (req, res) => {
-      const ruffle_volume = parseFloat(req.post.ruffle_volume);
       const ruffle_background = req.post.ruffle_background === 'true' || req.post.ruffle_background === true;
+      const ruffle_volume = req.post.ruffle_volume !== undefined ? parseFloat(req.post.ruffle_volume) : undefined;
 
-      if (isNaN(ruffle_volume) || ruffle_volume < 0 || ruffle_volume > 1) {
+      if (ruffle_volume !== undefined && (isNaN(ruffle_volume) || ruffle_volume < 0 || ruffle_volume > 1)) {
         return res.json({ success: false, msg: 'Invalid volume: must be 0-1' }, 400);
       }
 
       try {
+        const updateData = { ruffle_background };
+        if (ruffle_volume !== undefined) updateData.ruffle_volume = ruffle_volume;
+
         await db`
           update user_options
-          set ruffle_volume = ${ruffle_volume},
-              ruffle_background = ${ruffle_background}
+          set ${db(updateData)}
           where user_id = ${+req.session.id}
         `;
         if (req.session) {
-          req.session.ruffle_volume = ruffle_volume;
           req.session.ruffle_background = ruffle_background;
+          if (ruffle_volume !== undefined) req.session.ruffle_volume = ruffle_volume;
         }
         return res.json({ success: true, ruffle_volume, ruffle_background }, 200);
       } catch (e) {
@@ -635,6 +653,62 @@ export default router => {
         return res.json({ success: true, language: lang }, 200);
       } catch (e) {
         console.error('Update language error:', e);
+        return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
+    // Update comment display mode preference
+    group.put(/\/comment_display_mode/, lib.loggedin, async (req, res) => {
+      const mode = parseInt(req.post.mode, 10);
+      if (isNaN(mode) || (mode !== 0 && mode !== 1)) {
+        return res.json({ success: false, msg: 'Invalid mode' }, 400);
+      }
+      
+      // Check if mode is forced
+      const forced = (await db`select force_comment_display_mode from user_options where user_id = ${+req.session.id}`)[0]?.force_comment_display_mode;
+      if (forced) {
+        return res.json({ success: false, msg: 'Comment layout is locked for your account.' }, 403);
+      }
+
+      try {
+        await db`
+          update user_options
+          set comment_display_mode = ${mode}
+          where user_id = ${+req.session.id}
+        `;
+        if (req.session) req.session.comment_display_mode = mode;
+        return res.json({ success: true, mode }, 200);
+      } catch (e) {
+        console.error('Update comment_display_mode error:', e);
+        return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
+    // Update notification preferences (Consolidated Endpoint)
+    group.post('/notifications', lib.loggedin, async (req, res) => {
+      const { key, value } = req.post;
+      const allowedKeys = ['receive_system_notifications', 'receive_user_notifications', 'do_not_disturb'];
+      
+      if (!allowedKeys.includes(key)) {
+        return res.json({ success: false, msg: 'Invalid preference key' }, 400);
+      }
+
+      const boolValue = value === true || value === 'true';
+      
+      try {
+        await db`
+          update user_options
+          set ${db({ [key]: boolValue }, key)}
+          where user_id = ${+req.session.id}
+        `;
+        
+        if (req.session) req.session[key] = boolValue;
+        
+        await db`SELECT pg_notify('profile_update', ${JSON.stringify({ user_id: req.session.id, [key]: boolValue })})`;
+        
+        return res.json({ success: true, [key]: boolValue }, 200);
+      } catch (e) {
+        console.error(`Update notification preference (${key}) error:`, e);
         return res.json({ success: false, msg: 'Error updating preference' }, 500);
       }
     });

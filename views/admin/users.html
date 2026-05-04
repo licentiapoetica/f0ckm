@@ -313,6 +313,57 @@
             }, { hideReason: false, allowEmpty: true, confirmText: 'Set Nick', placeholder: currentDisplay || 'e.g. F.O.O' });
         }
 
+        async function adminLockLayout(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var isLocked = btn.dataset.locked === '1';
+            var currentMode = btn.dataset.mode || '0';
+
+            if (isLocked) {
+                ModAction.confirm('Unlock Layout', 'Unlock comment layout for <strong>' + escHTML(userName) + '</strong>? They will be able to change it again.', async () => {
+                    var res = await fetch('/api/v2/admin/users/lock-layout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: id, lock: false })
+                    });
+                    var data = await res.json();
+                    if (data.success) {
+                        showFlash('Layout unlocked for ' + escHTML(userName), 'success');
+                        btn.dataset.locked = '0';
+                        btn.innerHTML = '<i class="fa fa-lock"></i> Lock';
+                        btn.title = 'Lock Layout';
+                    } else {
+                        throw new Error(data.msg || 'Failed to unlock layout');
+                    }
+                }, { hideReason: true });
+            } else {
+                var hint = 'Select comment display mode to force for <strong>' + escHTML(userName) + '</strong>:<br><br>' +
+                           '<select id="force-mode-select" class="input" style="width: 100%; padding: 8px;">' +
+                           '<option value="0" ' + (currentMode == '0' ? 'selected' : '') + '>Tree</option>' +
+                           '<option value="1" ' + (currentMode == '1' ? 'selected' : '') + '>Linear</option>' +
+                           '</select>';
+
+                ModAction.confirm('Lock Layout', hint, async () => {
+                    var mode = document.getElementById('force-mode-select').value;
+                    var res = await fetch('/api/v2/admin/users/lock-layout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: id, lock: true, mode: mode })
+                    });
+                    var data = await res.json();
+                    if (data.success) {
+                        showFlash('Layout locked to ' + (mode == '0' ? 'Tree' : 'Linear') + ' for ' + escHTML(userName), 'success');
+                        btn.dataset.locked = '1';
+                        btn.dataset.mode = mode;
+                        btn.innerHTML = '<i class="fa fa-lock-open"></i> Unlock';
+                        btn.title = 'Unlock Layout';
+                    } else {
+                        throw new Error(data.msg || 'Failed to lock layout');
+                    }
+                }, { hideReason: true, confirmText: 'Lock & Apply' });
+            }
+        }
+
         var currentPage = {!! page !!};
         var hasMore = {!! hasMore ? 'true' : 'false' !!};
         var isLoading = false;

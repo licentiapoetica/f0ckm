@@ -290,7 +290,7 @@
               old.innerText = res.tag.trim();
               break;
             default:
-              console.log(res);
+              window.f0ckDebug(res);
               break;
           }
         }

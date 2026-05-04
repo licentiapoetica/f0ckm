@@ -32,6 +32,11 @@ export default (router, tpl) => {
         if (!req.session || !req.session.admin) {
             return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
         }
+        // F-031 Security: CSRF validation for destructive admin action
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Invalid CSRF token" }) });
+        }
         const id = req.params.id;
 
         try {

@@ -22,7 +22,10 @@
         <li><a href="/admin/motd">MOTD Manager</a></li>
         <li><a href="/admin/about">About Page</a></li>
         <li><a href="/admin/rules">Rules Page</a></li>
+        <li><a href="/admin/chat">Global Chat Manager</a></li>
       </ul>
+      <hr style="margin: 20px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
+      
 
       <hr style="margin: 20px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
 
@@ -55,7 +58,7 @@
           <label style="display: block; font-weight: bold; color: var(--accent);">Minimum Tags</label>
           <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">Minimum number of tags required per upload.</p>
         </div>
-        <input type="number" id="min_tags_input" value="{{ min_tags }}" min="1" max="20" style="width: 60px; background: #333; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; text-align: center;" onchange="saveAdminSettings()">
+        <input type="number" id="min_tags_input" value="{{ min_tags }}" min="0" max="20" style="width: 60px; background: #333; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; text-align: center;" onchange="saveAdminSettings()">
       </div>
 
       <div class="settings-item" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
@@ -90,6 +93,7 @@
   </style>
 
   <script>
+
     async function saveAdminSettings() {
       const status = document.getElementById('settings-status');
       const approvalToggle = document.getElementById('manual_approval_toggle');
@@ -170,6 +174,7 @@
         btn.textContent = 'Regenerate All';
       }
     }
+ 
 
   </script>
 </div>

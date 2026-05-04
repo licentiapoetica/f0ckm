@@ -96,7 +96,7 @@ class v0ck {
     if (["video", "audio"].includes(tagName)) {
       const parent = elem.parentElement;
       if (parent.querySelector('.v0ck_player_controls')) {
-        console.log("[v0ck] Player controls already exist, skipping injection and init");
+        window.f0ckDebug("[v0ck] Player controls already exist, skipping injection and init");
         return elem; // Return the video element as the constructor result
       } else {
         parent.classList.add("v0ck", "paused");
@@ -123,7 +123,7 @@ class v0ck {
         // Use absolute path for reliable asset loading
         const size = elem.getAttribute('data-size');
         elem.insertAdjacentHTML("afterend", tpl_player(`/s/img/v0ck.svg`, size));
-        console.log("[v0ck] Player initialized for", tagName);
+        window.f0ckDebug("[v0ck] Player initialized for", tagName);
       }
 
       if (tagName === "audio" && elem.hasAttribute('poster')) { // set cover
@@ -430,8 +430,12 @@ class v0ck {
         });
     }
 
-    // Initialize switch state (defaults to ON if not explicitly 'false')
-    if (toggleBgSwitch && localStorage.getItem('background') !== 'false') {
+    // Initialize switch state
+    const bgEnabled = (window.f0ckSession && window.f0ckSession.show_background !== undefined)
+        ? !!window.f0ckSession.show_background
+        : (localStorage.getItem('background') !== 'false');
+    
+    if (toggleBgSwitch && bgEnabled) {
         toggleBgSwitch.classList.add('active');
     }
     

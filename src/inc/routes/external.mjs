@@ -11,6 +11,34 @@ import { getManualApproval, getBypassDuplicateCheck } from "../settings.mjs";
  */
 export default (router) => {
 
+  // --- F-001 Security: Per-user rate limiter for proxy routes ---
+  const proxyRateMap = new Map();
+  const PROXY_RATE_LIMIT = 5000;   // max requests per window
+  const PROXY_RATE_WINDOW = 600000; // 10 minute window
+  const proxyRateLimit = (req, res) => {
+    if (!req.session) return true; // loggedin middleware handles auth; this is just a guard
+    const key = req.session.id;
+    const now = Date.now();
+    let entry = proxyRateMap.get(key);
+    if (!entry || now - entry.start > PROXY_RATE_WINDOW) {
+      entry = { start: now, count: 0 };
+      proxyRateMap.set(key, entry);
+    }
+    entry.count++;
+    if (entry.count > PROXY_RATE_LIMIT) {
+      res.reply({ code: 429, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, msg: 'Rate limit exceeded' }) });
+      return false;
+    }
+    return true;
+  };
+  // Periodic cleanup to prevent memory leak
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of proxyRateMap) {
+      if (now - v.start > PROXY_RATE_WINDOW * 2) proxyRateMap.delete(k);
+    }
+  }, PROXY_RATE_WINDOW * 2);
+
   /**
    * Helper to fetch data (JSON or Buffer) using curl if a proxy is configured.
    * This ensures we respect the SOCKS5 proxy for all external 4chan requests.
@@ -39,7 +67,8 @@ export default (router) => {
 
   // GET /api/v2/scroller/external/4chan/:board/:tid
   // Proxies 4chan thread JSON
-  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/(?<tid>\d+)\/?$/, async (req, res) => {
+  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/(?<tid>\d+)\/?$/, lib.loggedin, async (req, res) => {
+    if (!proxyRateLimit(req, res)) return;
     const { board, tid } = req.params || {};
 
     if (!board || !tid) {
@@ -84,7 +113,7 @@ export default (router) => {
 
   // POST /api/v2/scroller/external/rehost-meta
   // Given item IDs, return their metadata (username, avatar, timestamp)
-  router.post(/^\/api\/v2\/scroller\/external\/rehost-meta\/?$/, async (req, res) => {
+  router.post(/^\/api\/v2\/scroller\/external\/rehost-meta\/?$/, lib.loggedin, async (req, res) => {
     const ids = (req.post?.ids || '').split(',').map(Number).filter(n => n > 0);
     if (!ids.length) return res.reply({ headers: { 'Content-Type': 'application/json' }, body: '{}' });
 
@@ -96,7 +125,8 @@ export default (router) => {
           uo.avatar_file, uo.avatar,
           (SELECT ta.tag_id FROM tags_assign ta
            WHERE ta.item_id = i.id AND ta.tag_id = ANY(${ratingTagIds}::int[])
-           ORDER BY ta.tag_id LIMIT 1) AS rating_tag_id
+           ORDER BY ta.tag_id LIMIT 1) AS rating_tag_id,
+          (SELECT COUNT(*) FROM comments WHERE comments.item_id = i.id AND comments.is_deleted = false) AS comment_count
         FROM items i
         LEFT JOIN "user" u ON u."user" = i.username
         LEFT JOIN user_options uo ON uo.user_id = u.id
@@ -113,7 +143,8 @@ export default (router) => {
           avatar: r.avatar_file ? `/a/${r.avatar_file}` : (r.avatar ? `/t/${r.avatar}.webp` : '/a/default.png'),
           stamp: r.stamp,
           rating_class,
-          rating_label
+          rating_label,
+          comment_count: +r.comment_count || 0
         };
       });
       return res.reply({
@@ -128,7 +159,8 @@ export default (router) => {
 
   // GET /api/v2/scroller/external/4chan/:board/catalog
   // Proxies 4chan board catalog JSON
-  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/catalog\/?$/, async (req, res) => {
+  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/catalog\/?$/, lib.loggedin, async (req, res) => {
+    if (!proxyRateLimit(req, res)) return;
     const { board } = req.params || {};
     if (!board) return res.reply({ code: 400, body: JSON.stringify({ success: false }) });
 
@@ -165,7 +197,8 @@ export default (router) => {
 
   // GET /api/v2/scroller/external/4chan/:board/find/:postno
   // Resolves a post number to its parent thread ID
-  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/find\/(?<postno>\d+)\/?$/, async (req, res) => {
+  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/find\/(?<postno>\d+)\/?$/, lib.loggedin, async (req, res) => {
+    if (!proxyRateLimit(req, res)) return;
     const { board, postno } = req.params || {};
     if (!board || !postno) return res.reply({ code: 400, body: JSON.stringify({ success: false }) });
 
@@ -223,11 +256,25 @@ export default (router) => {
 
   // GET /api/v2/scroller/external/4chan/:board/media/:file
   // Proxies 4chan media — streams directly to client for fast playback start
-  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/media\/(?<file>[^/]+)$/, async (req, res) => {
-    const { board, file } = req.params || {};
-    const url = `https://i.4cdn.org/${board}/${file}`;
+  // F-001: Allowed file extensions for the media proxy (prevents abuse as generic proxy)
+  const ALLOWED_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'webm', 'mp4'];
 
-    const ext = file.split('.').pop();
+  router.get(/^\/api\/v2\/scroller\/external\/4chan\/(?<board>[a-z0-9]+)\/media\/(?<file>[^/]+)$/, lib.loggedin, async (req, res) => {
+    if (!proxyRateLimit(req, res)) return;
+    const { board, file } = req.params || {};
+
+    // Validate file extension against whitelist
+    const ext = (file.split('.').pop() || '').toLowerCase();
+    if (!ALLOWED_MEDIA_EXTS.includes(ext)) {
+      return res.reply({ code: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, msg: 'Disallowed file type' }) });
+    }
+
+    // Validate filename doesn't contain path traversal
+    if (file.includes('..') || file.includes('/') || file.includes('\\')) {
+      return res.reply({ code: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, msg: 'Invalid filename' }) });
+    }
+
+    const url = `https://i.4cdn.org/${board}/${file}`;
     const mimes = { 
       'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 
       'gif': 'image/gif', 'webp': 'image/webp',
@@ -275,6 +322,13 @@ export default (router) => {
     const { url, rating: initialRating, tags: tagsRaw, comment, is_oc } = req.post || {};
 
     if (!url) return res.reply({ code: 400, body: JSON.stringify({ success: false, msg: 'URL is required' }) });
+
+    // F-014 Security: Restrict rehost to 4chan media URLs only
+    const is4chanUrl = /^https?:\/\/(i\.4cdn\.org|boards\.4cdn\.org)\//i.test(url)
+                    || /\/api\/v2\/scroller\/external\/4chan\/[a-z0-9]+\/media\//i.test(url);
+    if (!is4chanUrl) {
+      return res.reply({ code: 400, body: JSON.stringify({ success: false, msg: 'Only 4chan media URLs are supported for rehosting' }) });
+    }
     
     const board = url.match(/boards\.4cdn\.org\/([a-z0-9]+)\//)?.[1]
                 || url.match(/i\.4cdn\.org\/([a-z0-9]+)\//)?.[1]
@@ -327,6 +381,11 @@ export default (router) => {
             const repost = await queue.checkrepostsum(checksum);
             if (repost) {
                 await fs.unlink(finalTmp).catch(() => {});
+                // Auto-subscribe user to the existing item they attempted to rehost
+                try {
+                  await db`INSERT INTO comment_subscriptions (user_id, item_id) VALUES (${session.id}, ${repost}) ON CONFLICT (user_id, item_id) DO UPDATE SET is_subscribed = true`;
+                } catch (e) { console.error('[REHOST] Auto-subscribe (repost) error:', e); }
+
                 return res.reply({
                   code: 200,
                   headers: { 'Content-Type': 'application/json' },
@@ -342,6 +401,11 @@ export default (router) => {
             const phashMatch = await queue.checkrepostphash(phash);
             if (phashMatch) {
                 await fs.unlink(finalTmp).catch(() => {});
+                // Auto-subscribe user to the existing item they attempted to rehost (visual match)
+                try {
+                  await db`INSERT INTO comment_subscriptions (user_id, item_id) VALUES (${session.id}, ${phashMatch}) ON CONFLICT (user_id, item_id) DO UPDATE SET is_subscribed = true`;
+                } catch (e) { console.error('[REHOST] Auto-subscribe (phash repost) error:', e); }
+
                 return res.reply({
                   code: 200,
                   headers: { 'Content-Type': 'application/json' },
@@ -376,6 +440,11 @@ export default (router) => {
             }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc')}
             RETURNING id
         `;
+
+        // Automatically subscribe user to the new item
+        try {
+          await db`INSERT INTO comment_subscriptions (user_id, item_id) VALUES (${session.id}, ${itemid}) ON CONFLICT (user_id, item_id) DO UPDATE SET is_subscribed = true`;
+        } catch (e) { console.error('[REHOST] Auto-subscribe (new item) error:', e); }
 
         // Process thumbnail
         try {
@@ -458,7 +527,7 @@ export default (router) => {
         return res.reply({
           code: 500,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ success: false, msg: err.message })
+          body: JSON.stringify({ success: false, msg: 'Rehost failed' })
         });
       }
   });

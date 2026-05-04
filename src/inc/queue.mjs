@@ -4,6 +4,7 @@ import fs from "fs";
 import db from "./sql.mjs";
 import cfg from "./config.mjs";
 import path from "path";
+import os from "os";
 
 export default new class queue {
 
@@ -62,7 +63,12 @@ export default new class queue {
     });
   }
 
+  /** @deprecated Use queue.spawn() instead — exec() invokes a shell and is vulnerable to injection if passed user input. */
   exec(cmd, options = {}) {
+    if (!this._execDeprecated) {
+      console.warn('[DEPRECATED] queue.exec() is deprecated — use queue.spawn() to avoid shell injection risks');
+      this._execDeprecated = true;
+    }
     return new Promise((resolve, reject) => {
       _exec(cmd, { maxBuffer: 5e3 * 1024, ...options }, (err, stdout, stderr) => {
         if (err) {
@@ -83,6 +89,11 @@ export default new class queue {
       // 2. Extract 3 frames: 10%, 50%, 90%.
       // 3. Generate dHash for each.
       // 4. Return combined hash "hash1_hash2_hash3".
+
+      // Skip ffprobe for PDFs (which would fail with "Invalid data")
+      if (source.toLowerCase().endsWith('.pdf')) {
+        return null; 
+      }
 
       const durationStr = (await this.spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', source])).stdout.trim();
       const duration = parseFloat(durationStr);
@@ -239,10 +250,25 @@ export default new class queue {
     const bDir = pending ? path.join(cfg.paths.pending, 'b') : cfg.paths.b;
     const tDir = pending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
     const cDir = pending ? path.join(cfg.paths.pending, 'ca') : cfg.paths.ca;
-    const tmpFile = path.join(cfg.paths.tmp, itemid + '.png');
-    const tmpJpg = path.join(cfg.paths.tmp, itemid + '.jpg');
+    const tmpFile = path.join(os.tmpdir(), itemid + '.png');
+    const tmpJpg = path.join(os.tmpdir(), itemid + '.jpg');
 
-    if (mime.startsWith('video/') || mime == 'image/gif') {
+    if (mime === 'video/youtube') {
+      const videoId = filename.startsWith('yt:') ? filename.split(':')[1] : null;
+      if (videoId) {
+        const thumbUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+        try {
+          const curlArgs = ['-s', '-L', thumbUrl, '-o', tmpFile];
+          if (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '') {
+            curlArgs.push('--proxy', cfg.main.socks.includes('://') ? cfg.main.socks : `socks5h://${cfg.main.socks}`);
+          }
+          await this.spawn('curl', curlArgs);
+        } catch (err) {
+          console.error(`[QUEUE] YouTube thumbnail extraction failed for ${itemid}:`, err);
+        }
+      }
+    }
+    else if (mime.startsWith('video/') || mime == 'image/gif') {
       const seeks = ['20%', '40%', '60%', '80%'];
       for (const seek of seeks) {
         await this.spawn('ffmpegthumbnailer', ['-i', path.join(bDir, filename), '-s', '1024', '-t', seek, '-o', tmpFile]);
@@ -257,11 +283,14 @@ export default new class queue {
     else if (mime.startsWith('audio/')) {
       let coverExtracted = false;
       if (link.match(/soundcloud/)) {
-        let cover = (await this.spawn('yt-dlp', ['-f', 'bv*[height<=720]+ba/b[height<=720] / wv*+ba/w', '--get-thumbnail', link])).stdout.trim();
+        const proxyArgs = (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '') ? ['--proxy', cfg.main.socks.includes('://') ? cfg.main.socks : `socks5h://${cfg.main.socks}`] : [];
+        let cover = (await this.spawn('yt-dlp', [...proxyArgs, '-f', 'bv*[height<=720]+ba/b[height<=720] / wv*+ba/w', '--get-thumbnail', link])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
         if (!cover.match(/default_avatar/)) {
           cover = cover.replace(/-(large|original)\./, '-t500x500.');
           try {
-            await this.spawn('wget', [cover, '-O', tmpJpg]);
+            const curlArgs = ['-s', '-L', cover, '-o', tmpJpg];
+            if (proxyArgs.length > 0) curlArgs.push(...proxyArgs);
+            await this.spawn('curl', curlArgs);
             const size = (await fs.promises.stat(tmpJpg)).size;
             if (size >= 0) {
               await this.spawn('magick', [tmpJpg, tmpFile]);
@@ -306,7 +335,6 @@ export default new class queue {
     }
     else if (mime === 'application/x-shockwave-flash' || mime === 'application/vnd.adobe.flash.movie') {
       let customThumb = cfg.websrv.swf_thumb;
-      // Resolve web paths (/s/...) to the filesystem (public/s/...)
       if (customThumb && customThumb.startsWith('/')) {
         customThumb = path.join(path.resolve(), 'public', customThumb);
       }
@@ -329,6 +357,32 @@ export default new class queue {
           '-annotate', '0', 'SWF',
           tmpFile
         ]).catch(() => {});
+      }
+    }
+    else if (mime === 'application/pdf') {
+      try {
+        await this.spawn('gs', [
+          '-q', '-dNOPAUSE', '-dBATCH', '-sDEVICE=png16m',
+          '-r150',
+          '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4',
+          '-dLastPage=1',
+          '-sOutputFile=' + tmpFile,
+          path.join(bDir, filename)
+        ]);
+      } catch (err) {
+        console.warn(`[QUEUE] PDF extraction failed for ${itemid}, using fallback icon.`);
+        const pdfFallback = path.join(cfg.paths.s, 'img', 'pdf.webp');
+        await fs.promises.copyFile(pdfFallback, tmpFile).catch(async () => {
+          // If the asset is missing, generate a red PDF-style placeholder matching the user's reference
+          await this.spawn('magick', [
+            '-size', '256x256', 'xc:#d32f2f', // Professional PDF Red
+            '-gravity', 'center',
+            '-fill', 'white',
+            '-pointsize', '60',
+            '-annotate', '0', 'PDF',
+            tmpFile
+          ]).catch(() => {});
+        });
       }
     }
 

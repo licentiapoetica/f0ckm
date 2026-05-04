@@ -20,11 +20,17 @@
     "development": true
   },
   "allowedModes": [ "sfw", "nsfw", "untagged", "all", "nsfl" ],
+  "enable_pdf": true,
   "enable_nsfl": true,
   "nsfl_tag_id": 1234,
-  "allowedMimes": [ "audio", "image", "video" ],
+  "allowedMimes": [
+    "audio",
+    "image",
+    "video",
+    "pdf"
+  ],
   "nsfp": [
-    2, 3
+    1, 2, 3
   ],
   "websrv": {
     "port": "1337",
@@ -46,9 +52,9 @@
     "enable_global_chat": true,
     "enable_danmaku": true,
     "private_messages": true,
-    "halls_enabled": false,
-    "userhalls_enabled": false,
-    "abyss_enabled": false,
+    "halls_enabled": true,
+    "userhalls_enabled": true,
+    "abyss_enabled": true,
     "meme_creator": true,
 
     "web_url_upload": true,
@@ -65,15 +71,16 @@
 
     "embed_youtube_in_comments": true,
     "show_content_warning": true,
+    "default_comment_display_mode": 0,
     "phrases": [
       "Hello World"
     ],
-    "ban_video": "",
-    "enable_xd_score": false,
+    "ban_video": "/b/17fd9881.mp4",
+    "enable_xd_score": true,
     "enable_autoplay": false,
     "enable_swiping": true,
     "enable_profile_description": true,
-    "user_alternative_infobox": false,
+    "use_ententeich": true,
     "enable_swf": true,
     "swf_thumb": "/s/img/swf.png",
 
@@ -153,7 +160,8 @@
     "video/x-m4v": "mp4",
     "video/x-matroska": "mkv",
     "application/x-shockwave-flash": "swf",
-    "application/vnd.adobe.flash.movie": "swf"
+    "application/vnd.adobe.flash.movie": "swf",
+    "application/pdf": "pdf"
 },
 "apis": {},
 "smtp": {

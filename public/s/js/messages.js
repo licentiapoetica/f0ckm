@@ -328,6 +328,13 @@ if (window.__dmLoaded) {
         currentOtherId  = parseInt(thread.dataset.otherId, 10);
         myId            = parseInt(thread.dataset.myId,    10);
 
+        // Reset state for a fresh load (essential if key just changed or multiple inits ran)
+        renderedIds.clear();
+        threadMessages = [];
+        latestMsgId    = 0;
+        oldestMsgId    = null;
+        threadHasMore  = false;
+
         // Update page title to reflect the conversation
         const otherName = thread.dataset.otherName || '';
         document.title  = otherName ? `DM with ${otherName}` : 'Messages';
@@ -601,7 +608,7 @@ if (window.__dmLoaded) {
             // 6. Line-by-line rendering to avoid paragraph collapsing and recursion
             const renderedLines = escaped.split('\n').map(line => {
                 const trimmed = line.trimStart();
-                if (trimmed.startsWith('>')) {
+                if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     const quoteContent = line.substring(line.indexOf('>') + 1);
                     return `<span class="greentext">&gt;${quoteContent}</span>`;
                 }
@@ -658,6 +665,13 @@ if (window.__dmLoaded) {
             const ytEmbedRegex = /(?:<p>)?\s*<a\s+[^>]*href="https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?(?:[^"]*&(?:amp;)?)?v=|youtu\.be\/)([a-zA-Z0-9_\-]{11})[^"]*"[^>]*>([\s\S]*?)<\/a>\s*(?:<\/p>)?/gi;
             html = html.replace(ytEmbedRegex, (match, videoId) => {
                 return `<span class="yt-embed-wrap"><iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></span>`;
+            });
+            
+            // 7.5 Vocaroo embed logic
+            const vocarooEmbedRegex = /(?:<p>)?\s*<a\s+[^>]*href="https?:\/\/(?:www\.)?(?:voca\.ro|vocaroo\.com)\/([a-zA-Z0-9_-]+)[^"]*"[^>]*>([\s\S]*?)<\/a>\s*(?:<\/p>)?/gi;
+            html = html.replace(vocarooEmbedRegex, (match, vocarooId) => {
+                if (['upload', 'contact', 'privacy', 'tos', 'about'].includes(vocarooId.toLowerCase())) return match;
+                return `<span class="vocaroo-embed-wrap"><iframe src="https://vocaroo.com/embed/${vocarooId}?autoplay=0" width="300" height="60" frameborder="0" allow="autoplay"></iframe></span>`;
             });
 
             // 8. Same-site video embed logic
@@ -1298,6 +1312,8 @@ if (window.__dmLoaded) {
                 localStorage.removeItem(DM_KEY_VERSION);
                 _privateKey = null; _publicKeyJwk = null;
                 await showRecoveryModal();
+                // REFRESH UI after recovery
+                if (typeof initMessagesPage === 'function') await initMessagesPage();
                 resolve();
             };
 
@@ -1476,6 +1492,10 @@ if (window.__dmLoaded) {
         modal.querySelector('#dm-recover-phrase-btn').onclick = async () => {
             modal.style.display = 'none';
             await showRecoveryModal();
+
+            // REFRESH UI after recovery
+            if (typeof initMessagesPage === 'function') await initMessagesPage();
+
             // Refresh status label on re-open
             const statusEl = modal.querySelector('#dm-key-status');
             if (statusEl) statusEl.textContent = hasKey() ? '✅ Key loaded and backed up.' : '❌ No key found.';
@@ -1494,6 +1514,8 @@ if (window.__dmLoaded) {
                 const status = await loadOrCreateKeyPair();
                 uploadPublicKey().catch(() => {});
                 if (status === 'new') await showSeedSetupModal();
+                // REFRESH UI after regen/setup
+                if (typeof initMessagesPage === 'function') await initMessagesPage();
             } catch (e) {
                 setMsg(msg, '❌ Error: ' + e.message, 'err');
             }
@@ -1595,7 +1617,7 @@ if (window.__dmLoaded) {
 
         const thread = document.getElementById('dm-thread');
         if (thread && currentOtherId && parseInt(thread.dataset.otherId) === currentOtherId) {
-            console.log('[DM] Tab active: catching up on conversation...');
+            window.f0ckDebug('[DM] Tab active: catching up on conversation...');
             appendNewMessages(thread).then(() => {
                 dmFetch('POST', `/api/dm/read/${currentOtherId}`)
                     .then(() => refreshDmBadge()) // refreshDmBadge clears title via updateDmBadge(0)
@@ -1644,7 +1666,7 @@ if (window.__dmLoaded) {
             const thread = document.getElementById('dm-thread');
             if (!thread || !threadMessages.length) return;
 
-            console.log('[DM] Emojis ready, re-rendering thread...');
+            window.f0ckDebug('[DM] Emojis ready, re-rendering thread...');
             const isAtBottom = (thread.scrollHeight - thread.scrollTop - thread.clientHeight) < 50;
             
             // Clear and re-render from cache

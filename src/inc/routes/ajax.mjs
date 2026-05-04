@@ -28,7 +28,7 @@ export default (router, tpl) => {
             contextUrl = contextUrl.replace(new RegExp(`/${req.params.itemid}$`), `/${query.mime}/${req.params.itemid}`);
         }
 
-        console.log(`[${new Date().toISOString()}] [AJAX] Starting item load for ${req.params.itemid}`);
+        if (cfg.main.development) console.log(`[${new Date().toISOString()}] [AJAX] Starting item load for ${req.params.itemid}`);
 
         const isRandom = query.random === '1' || req.cookies.random_mode === '1';
 
@@ -145,7 +145,7 @@ export default (router, tpl) => {
         const paginationHtml = tpl.render('snippets/pagination', data, req);
         const tAjaxRender = Date.now();
 
-        console.log(`[${new Date().toISOString()}] [AJAX] Complete request for ${req.params.itemid} in ${tAjaxRender - tAjaxStart}ms
+        if (cfg.main.development) console.log(`[${new Date().toISOString()}] [AJAX] Complete request for ${req.params.itemid} in ${tAjaxRender - tAjaxStart}ms
         - getf0ck: ${tAjaxFetch - tAjaxStart}ms
         - Comments/Sub: ${tAjaxAux - tAjaxFetch}ms
         - Render: ${tAjaxRender - tAjaxAux}ms`);

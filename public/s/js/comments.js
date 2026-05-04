@@ -5,7 +5,12 @@ class CommentSystem {
         this.user = this.container ? this.container.dataset.user : null; // logged in user?
         this.isAdmin = this.container ? this.container.dataset.isAdmin === 'true' : false;
         this.isLocked = this.container ? this.container.dataset.isLocked === 'true' : false;
+        this.displayMode = window.f0ckSession?.comment_display_mode || 0; // 0=Tree, 1=Linear
         this.sort = (document.body.classList.contains('layout-legacy') || document.body.classList.contains('legacy-view')) ? 'old' : 'new';
+        
+        // Linear mode usually implies chronological order (4chan style)
+        if (this.displayMode === 1) this.sort = 'old';
+
         this.customEmojis = CommentSystem.emojiCache || {};
 
         this.icons = {
@@ -40,6 +45,11 @@ class CommentSystem {
         this.pendingSubmissions = new Set();
         this.isMainSubmitting = false;
         this.scrollListenerAdded = false;
+        this.commentCache = new Map();
+        this._anchorScrollDone = false; // true after the first hash-anchor scroll on initial load
+
+        this.loadEmojis(); // Always load emojis for previews
+        this.setupHoverPreviews();
 
         if (this.itemId) {
             this.init();
@@ -52,13 +62,12 @@ class CommentSystem {
             return;
         }
         if (this.container.dataset.commentSystemInit) {
-            console.log('[CommentSystem] Already initialized for this container');
+            window.f0ckDebug('[CommentSystem] Already initialized for this container');
             return;
         }
         this.container.dataset.commentSystemInit = 'true';
-        console.log('[CommentSystem] Initializing for item:', this.itemId);
+        window.f0ckDebug('[CommentSystem] Initializing for item:', this.itemId);
 
-        this.loadEmojis(); // Don't await
         this.loadComments();
         this.setupGlobalListeners();
         this.setupDelegatedEvents();
@@ -181,7 +190,7 @@ class CommentSystem {
             this.stabilizationObserver.disconnect();
         }
         this.stopStabilization();
-        console.log('[CommentSystem] Instance destroyed');
+        window.f0ckDebug('[CommentSystem] Instance destroyed');
     }
 
     async loadEmojis() {
@@ -203,7 +212,7 @@ class CommentSystem {
                     this.customEmojis[e.name] = e.url;
                 });
                 CommentSystem.emojiCache = this.customEmojis;
-                console.log('Loaded Emojis:', this.customEmojis);
+                window.f0ckDebug('Loaded Emojis:', this.customEmojis);
 
                 // Preload images to prevent NS Binding Aborted errors
                 this.preloadEmojiImages();
@@ -221,9 +230,10 @@ class CommentSystem {
                     // even when emojis load late.
                     this.reconcile(this.lastData, this.lastUserId, this.lastIsSubscribed);
                     this.restoreState(state);
-                    // Only scroll to anchor if we're not in a preserve-scroll refresh
-                    if (!this.preservingScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+                    // Only scroll to anchor on the very first load — never on async emoji reloads
+                    if (!this._anchorScrollDone && !this.preservingScroll && window.location.hash && window.location.hash.startsWith('#c')) {
                         const hashId = window.location.hash.substring(2);
+                        this._anchorScrollDone = true;
                         this.scrollToComment(hashId);
                     }
                 }
@@ -255,7 +265,7 @@ class CommentSystem {
     // ...
 
     renderEmoji(match, name) {
-        // console.log('Rendering Emoji:', name, this.customEmojis ? this.customEmojis[name] : 'No list');
+        // window.f0ckDebug('Rendering Emoji:', name, this.customEmojis ? this.customEmojis[name] : 'No list');
         if (this.customEmojis && this.customEmojis[name]) {
             return `<img src="${this.customEmojis[name]}" style="height:60px;vertical-align:middle;" alt="${name}">`;
         }
@@ -364,7 +374,7 @@ class CommentSystem {
 
         // However, if we ARE currently loading comments from server, skip re-render.
         if (this.initialLoadDone === false && this.lastData.length === 0) {
-            console.log('[CommentSystem] Live comment skipped - initial comments load in progress.');
+            window.f0ckDebug('[CommentSystem] Live comment skipped - initial comments load in progress.');
             return;
         }
 
@@ -397,6 +407,17 @@ class CommentSystem {
                 data.display_name || data.username || '?',
                 data.username_color || null
             );
+        }
+        
+        // Update backlinks for live comment
+        if (data.body) {
+            const matches = data.body.matchAll(/(?<!\w)>>(\d+)/g);
+            for (const match of matches) {
+                this.updateCommentBacklinks(match[1], data.id || data.comment_id);
+            }
+        }
+        if (data.parent_id) {
+            this.updateCommentBacklinks(data.parent_id, data.id || data.comment_id);
         }
 
         if (!this.lastData) this.lastData = [];
@@ -503,6 +524,9 @@ class CommentSystem {
 
         // Check for server-side preloaded comments
         const dataEl = document.getElementById('initial-comments');
+        const subEl = document.getElementById('initial-subscription');
+        const initialIsSubscribed = subEl ? (subEl.textContent.trim() === 'true') : false;
+
         if (dataEl) {
             try {
                 // Decode Base64 for safe template transfer
@@ -510,22 +534,21 @@ class CommentSystem {
                 const json = decodeURIComponent(escape(atob(raw)));
                 const comments = JSON.parse(json);
 
-                const subEl = document.getElementById('initial-subscription');
-                const isSubscribed = subEl && (subEl.textContent.trim() === 'true');
-
                 // Consume
                 dataEl.remove();
                 if (subEl) subEl.remove();
 
-                this.render(comments, this.user, isSubscribed);
+                this.render(comments, this.user, initialIsSubscribed);
                 this.initialLoadDone = true;
                 this.restoreState(state);
                 this._loadDanmaku(comments);
 
                 if (scrollToId) {
+                    this._anchorScrollDone = true;
                     this.scrollToComment(scrollToId);
-                } else if (!preserveScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+                } else if (!this._anchorScrollDone && !preserveScroll && window.location.hash && window.location.hash.startsWith('#c')) {
                     const hashId = window.location.hash.substring(2);
+                    this._anchorScrollDone = true;
                     this.scrollToComment(hashId);
                 }
                 return;
@@ -538,7 +561,7 @@ class CommentSystem {
         // Skip when preserveScroll=true (tab re-focus refresh): the user already sees comments,
         // so wiping the DOM causes the browser to lose the #c anchor element and auto-scroll to top.
         if (!scrollToId && !preserveScroll) {
-            this.render([], this.user, false);
+            this.render([], this.user, initialIsSubscribed);
             this.restoreState(state);
         }
 
@@ -576,7 +599,7 @@ class CommentSystem {
                 // 1. Early Bail-out: If data is bit-for-bit identical, do nothing.
                 // This is the primary defense against tab-switch reloads when nothing changed.
                 if (preserveScroll && this._isDeeplyIdentical(data.comments, data.user_id, data.is_subscribed)) {
-                    console.log('[CommentSystem] Sync: Data identical, bailing early to protect media.');
+                    window.f0ckDebug('[CommentSystem] Sync: Data identical, bailing early to protect media.');
                     this.restoreState(state);
                     this.preservingScroll = false;
                     return;
@@ -584,7 +607,7 @@ class CommentSystem {
 
                 // 2. Reconciliation: If data changed but we want to preserve media.
                 if (preserveScroll && this.lastData && this.lastData.length > 0) {
-                    console.log('[CommentSystem] Sync: Data changed, reconciling DOM.');
+                    window.f0ckDebug('[CommentSystem] Sync: Data changed, reconciling DOM.');
                     this.reconcile(data.comments, data.user_id, data.is_subscribed);
                     this.initialLoadDone = true;
                     this.restoreState(state);
@@ -643,8 +666,9 @@ class CommentSystem {
                     this.preservingScroll = false;
                     if (savedHash) history.replaceState(null, '', window.location.pathname + window.location.search + savedHash);
                     // Only jump to anchor on first load — never on tab re-focus (preserveScroll).
-                    if (!preserveScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+                    if (!this._anchorScrollDone && !preserveScroll && window.location.hash && window.location.hash.startsWith('#c')) {
                         const hashId = window.location.hash.substring(2);
+                        this._anchorScrollDone = true;
                         this.scrollToComment(hashId);
                     }
                 }
@@ -691,7 +715,7 @@ class CommentSystem {
                     this.startStabilization(id);
                 }
             } else if (retries > 0) {
-                console.log(`[CommentSystem] Scroll target #c${id} not found, retrying... (${retries} left)`);
+                window.f0ckDebug(`[CommentSystem] Scroll target #c${id} not found, retrying... (${retries} left)`);
                 setTimeout(() => this.scrollToComment(id, retries - 1), 200);
             }
         };
@@ -715,7 +739,7 @@ class CommentSystem {
                 const scrollKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ', 'Home', 'End'];
                 if (!scrollKeys.includes(e.key)) return;
             }
-            console.log(`[CommentSystem] Stabilization aborted due to ${e.type}`);
+            window.f0ckDebug(`[CommentSystem] Stabilization aborted due to ${e.type}`);
             this.isUserInteracting = true;
             this.stopStabilization();
         };
@@ -738,7 +762,7 @@ class CommentSystem {
             
             // If it shifted more than 10px (e.g. media loaded), re-scroll
             if (diff > 10 && checks < maxChecks) {
-                console.log(`[CommentSystem] Layout shift detected (${Math.round(diff)}px), re-stabilizing scroll...`);
+                window.f0ckDebug(`[CommentSystem] Layout shift detected (${Math.round(diff)}px), re-stabilizing scroll...`);
                 this.scrollToComment(id, 0, true);
                 lastTop = currentEl.getBoundingClientRect().top;
             }
@@ -786,6 +810,177 @@ class CommentSystem {
             this.boundStopStabilization = null;
         }
     }
+    
+    async showCommentPreview(link, event) {
+        if (this.previewCloseTimer) {
+            clearTimeout(this.previewCloseTimer);
+            this.previewCloseTimer = null;
+        }
+
+        const targetId = link.dataset.id;
+        let targetEl = document.getElementById('c' + targetId);
+        
+        const parentPopup = link.closest('.comment-preview-popup');
+        const level = parentPopup ? parseInt(parentPopup.dataset.level || 0) + 1 : 0;
+
+        if (!targetEl) {
+            const cached = this.commentCache.get(targetId);
+            if (cached) {
+                targetEl = this.createTemporaryCommentNode(cached);
+            } else {
+                // Fetch from API
+                this.fetchCommentForPreview(targetId, link, level);
+                return;
+            }
+        }
+
+        // Close any previews at this level or higher (replacing the current branch)
+        this.closePreviewsAboveLevel(level - 1);
+
+        // If this exact ID is already the immediate child of this parent, don't re-open
+        const existing = document.querySelector(`.comment-preview-popup[data-id="${targetId}"][data-level="${level}"]`);
+        if (existing) return;
+
+        // Clone the target comment
+        const preview = targetEl.cloneNode(true);
+        preview.id = 'comment-preview-' + Date.now();
+        preview.classList.add('comment-preview-popup');
+        preview.dataset.level = level;
+        preview.dataset.id = targetId;
+        
+        // Remove temporary animation/highlight classes
+        preview.classList.remove('new-item-fade', 'comment-highlighted', 'comment-entering');
+        
+        // Remove input forms or action buttons
+        const actions = preview.querySelector('.comment-actions');
+        if (actions) actions.remove();
+        const footer = preview.querySelector('.comment-footer');
+        if (footer) footer.remove();
+
+        // Position the preview
+        const rect = link.getBoundingClientRect();
+        preview.style.position = 'fixed';
+        preview.style.zIndex = (100000 + level).toString();
+        
+        // Try to place it to the right of the link, or top/bottom if needed
+        let left = rect.right + 10;
+        let top = rect.top;
+
+        document.body.appendChild(preview);
+        
+        const previewRect = preview.getBoundingClientRect();
+        
+        // Boundary checks
+        if (left + previewRect.width > window.innerWidth) {
+            left = rect.left - previewRect.width - 10;
+        }
+        if (left < 0) left = 10;
+
+        if (top + previewRect.height > window.innerHeight) {
+            top = window.innerHeight - previewRect.height - 10;
+        }
+        if (top < 0) top = 10;
+
+        preview.style.left = left + 'px';
+        preview.style.top = top + 'px';
+    }
+
+    async fetchCommentForPreview(id, link, level) {
+        if (this.commentCache.has(id)) return; // Already fetching or fetched
+        
+        // Prevent double fetches
+        this.commentCache.set(id, { loading: true });
+
+        try {
+            const res = await fetch(`/api/comment/${id}`);
+            const json = await res.json();
+            if (json.success && json.comment) {
+                this.commentCache.set(id, json.comment);
+                // If the link is still being hovered (or we are in the middle of a dwell), show it
+                if (this.currentHoverLink === link) {
+                    this.showCommentPreview(link);
+                }
+            } else {
+                this.commentCache.delete(id);
+            }
+        } catch (e) {
+            console.error('[CommentSystem] Failed to fetch comment for preview:', e);
+            this.commentCache.delete(id);
+        }
+    }
+
+    createTemporaryCommentNode(comment) {
+        if (comment.loading) {
+            const div = document.createElement('div');
+            div.className = 'comment loading-comment';
+            div.innerHTML = '<div class="comment-body"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+            return div;
+        }
+        const html = this.renderComment(comment, window.f0ckSession?.user, false, true);
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.firstElementChild;
+    }
+
+    closePreviewsAboveLevel(level) {
+        document.querySelectorAll('.comment-preview-popup').forEach(p => {
+            if (parseInt(p.dataset.level || 0) > level) {
+                p.remove();
+            }
+        });
+    }
+
+    hideCommentPreview(force = false) {
+        if (force) {
+            this.closePreviewsAboveLevel(-1);
+            return;
+        }
+
+        if (this.previewCloseTimer) clearTimeout(this.previewCloseTimer);
+        this.previewCloseTimer = setTimeout(() => {
+            this.closePreviewsAboveLevel(-1);
+        }, 400); // 400ms grace period to move mouse between link and popup
+    }
+
+    quoteComment(id, openerEl, body) {
+        // If no reply input open anywhere, open the local one
+        let textarea = document.querySelector('.comment-input.reply-input textarea');
+        let isNew = false;
+        if (!textarea && !body.querySelector('.reply-input')) {
+            const div = document.createElement('div');
+            div.innerHTML = this.renderInput(id);
+            body.appendChild(div.firstElementChild);
+            const newForm = body.querySelector('.reply-input');
+            this.setupEmojiPicker(newForm);
+            textarea = newForm.querySelector('textarea');
+            newForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            isNew = true;
+        } else if (!textarea) {
+            textarea = body.querySelector('.reply-input textarea');
+        }
+
+        if (textarea) {
+            const author = openerEl.dataset.display || openerEl.dataset.username || 'System';
+            const contentEl = body.querySelector('.comment-content');
+            if (contentEl) {
+                const rawText = (contentEl.dataset.raw || '').trim();
+                const lines = rawText.split('\n');
+                const quote = `>>${id} \n>${author}\n${lines.map(line => `>${line}`).join('\n')}\n`;
+
+                if (isNew) {
+                    textarea.value = quote;
+                } else {
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const val = textarea.value;
+                    textarea.value = val.substring(0, start) + quote + val.substring(end);
+                }
+                textarea.focus({ preventScroll: true });
+                textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    }
 
     saveMediaState() {
         // Snapshot currently playing or paused-mid-way media elements
@@ -824,54 +1019,66 @@ class CommentSystem {
         this.lastData = comments;
         this.lastUserId = currentUserId;
         this.lastIsSubscribed = isSubscribed;
+        
+        // Build map of who replied to whom for back-references (>>ID)
+        this.buildBacklinkMap(comments);
 
-        // Build two-level tree: top-level comments + all replies at one level
-        const map = new Map();
-        const roots = [];
+        // Render logic based on display mode
+        let renderedHtml = '';
+        if (this.displayMode === 1) {
+            // Linear Mode: Just sort all comments by date and render them flat
+            const sortedComments = [...comments].sort((a, b) => {
+                if (this.sort === 'old') return new Date(a.created_at) - new Date(b.created_at);
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+            renderedHtml = sortedComments.map(c => this.renderComment(c, currentUserId, false, true)).join('');
+        } else {
+            // Tree Mode: Group by roots and replies
+            const map = new Map();
+            const roots = [];
 
-        comments.forEach(c => {
-            c.replies = [];
-            c.replyTo = null; // Username being replied to (for @mentions)
-            map.set(c.id, c);
-        });
+            comments.forEach(c => {
+                c.replies = [];
+                c.replyTo = null; // Username being replied to (for @mentions)
+                map.set(c.id, c);
+            });
 
-        // Find root parent for any comment
-        const findRoot = (comment) => {
-            if (!comment.parent_id) return null;
-            let current = comment;
-            while (current.parent_id && map.has(current.parent_id)) {
-                current = map.get(current.parent_id);
-            }
-            return current;
-        };
-
-        comments.forEach(c => {
-            if (!c.parent_id) {
-                // Top-level comment
-                roots.push(c);
-            } else {
-                // It's a reply - find root and attach there
-                const root = findRoot(c);
-                if (root && root !== c) {
-                    // If replying to a non-root, capture the username for @mention
-                    const directParent = map.get(c.parent_id);
-                    if (directParent && directParent.id !== root.id) {
-                        c.replyTo = directParent.username;
-                    }
-                    root.replies.push(c);
-                } else {
-                    // Orphaned reply (parent deleted?) - show as root
-                    roots.push(c);
+            // Find root parent for any comment
+            const findRoot = (comment) => {
+                if (!comment.parent_id) return null;
+                let current = comment;
+                while (current.parent_id && map.has(current.parent_id)) {
+                    current = map.get(current.parent_id);
                 }
-            }
-        });
+                return current;
+            };
 
-        // Sort replies by date (oldest first)
-        roots.forEach(r => {
-            if (r.replies && r.replies.length > 0) {
-                r.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            }
-        });
+            comments.forEach(c => {
+                if (!c.parent_id) {
+                    roots.push(c);
+                } else {
+                    const root = findRoot(c);
+                    if (root && root !== c) {
+                        const directParent = map.get(c.parent_id);
+                        if (directParent && directParent.id !== root.id) {
+                            c.replyTo = directParent.username;
+                        }
+                        root.replies.push(c);
+                    } else {
+                        roots.push(c);
+                    }
+                }
+            });
+
+            // Sort replies by date (oldest first)
+            roots.forEach(r => {
+                if (r.replies && r.replies.length > 0) {
+                    r.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                }
+            });
+
+            renderedHtml = roots.map(c => this.renderComment(c, currentUserId)).join('');
+        }
 
         // Determine what to show for input
         let inputSection = '';
@@ -896,23 +1103,36 @@ class CommentSystem {
             `;
         }
 
-        let html = `
-            <div class="comments-list">
-                ${scrollToBottomBtn}
-                ${roots.map(c => this.renderComment(c, currentUserId)).join('')}
-            </div>
-            ${inputSection}
-        `;
+        let html = '';
+        if (isLegacy) {
+            html = `
+                <div class="comments-list ${this.displayMode === 1 ? 'linear-view' : ''}">
+                    ${scrollToBottomBtn}
+                    ${renderedHtml}
+                </div>
+                ${inputSection}
+            `;
+        } else {
+            html = `
+                ${inputSection}
+                <div class="comments-list ${this.displayMode === 1 ? 'linear-view' : ''}">
+                    ${scrollToBottomBtn}
+                    ${renderedHtml}
+                </div>
+            `;
+        }
+
 
         const mediaState = this.saveMediaState();
-        this.container.innerHTML = Sanitizer.clean(html);
+        this.container.innerHTML = html;
         this.restoreMediaState(mediaState);
         this.syncSubscribeButton(isSubscribed);
 
         // Attach media load listeners to re-stabilize scroll if a hash is active.
-        // Skipped during a preserveScroll refresh (tab re-focus) to avoid fighting the
-        // position restoration and causing the visible jump-then-snap behaviour.
-        if (!this.preservingScroll && window.location.hash && window.location.hash.startsWith('#c')) {
+        // Only during the initial anchor scroll — never on subsequent renders (tab re-focus,
+        // emoji reloads, live comment updates). _anchorScrollDone is set after the first
+        // scrollToComment call, so this block only runs on the initial page load.
+        if (!this._anchorScrollDone && !this.preservingScroll && window.location.hash && window.location.hash.startsWith('#c')) {
             const hashId = window.location.hash.substring(2);
             this.container.querySelectorAll('img, video, audio').forEach(media => {
                 const handler = () => {
@@ -989,6 +1209,9 @@ class CommentSystem {
         this.lastData = comments;
         this.lastUserId = currentUserId;
         this.lastIsSubscribed = isSubscribed;
+        
+        // Build map of who replied to whom for back-references (>>ID)
+        this.buildBacklinkMap(comments);
 
         const incomingMap = new Map();
         comments.forEach(c => incomingMap.set(String(c.id), c));
@@ -1013,8 +1236,8 @@ class CommentSystem {
                 // Check for edits or state changes using robust data-attributes
                 const contentEl = el.querySelector('.comment-content');
                 if (contentEl && contentEl.dataset.raw !== incoming.content) {
-                    console.log(`[CommentSystem] Reconcile: Updating content for #c${id}`);
-                    contentEl.innerHTML = Sanitizer.clean(this.renderCommentContent(incoming.content));
+                    window.f0ckDebug(`[CommentSystem] Reconcile: Updating content for #c${id}`);
+                    contentEl.innerHTML = this.renderCommentContent(incoming.content);
                     contentEl.dataset.raw = incoming.content;
                 }
                 
@@ -1026,7 +1249,39 @@ class CommentSystem {
         });
 
         // 2. Insert new comments
-        // We re-run the tree logic to determine correct order
+        if (this.displayMode === 1) {
+            // Linear Mode Insertion
+            const sortedComments = [...comments].sort((a, b) => {
+                if (this.sort === 'old') return new Date(a.created_at) - new Date(b.created_at);
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+
+            sortedComments.forEach((c, idx) => {
+                const idStr = String(c.id);
+                if (document.getElementById('c' + idStr)) return;
+
+                window.f0ckDebug(`[CommentSystem] Reconcile: Injecting new flat comment #c${idStr}`);
+                const html = this.renderComment(c, currentUserId, false, true);
+                const tmp = document.createElement('div');
+                tmp.innerHTML = html;
+                const newEl = tmp.firstElementChild;
+
+                if (idx === 0) {
+                    const nav = list.querySelector('.scroll-nav-wrapper');
+                    if (nav) nav.insertAdjacentElement('afterend', newEl);
+                    else list.prepend(newEl);
+                } else {
+                    const prevId = String(sortedComments[idx - 1].id);
+                    const prevEl = document.getElementById('c' + prevId);
+                    if (prevEl) prevEl.insertAdjacentElement('afterend', newEl);
+                    else list.appendChild(newEl);
+                }
+                newEl.classList.add('comment-entering', 'new-item-fade');
+            });
+            return;
+        }
+
+        // Tree Mode Insertion (Existing Logic)
         const map = new Map();
         const roots = [];
         comments.forEach(c => {
@@ -1067,8 +1322,8 @@ class CommentSystem {
                 let el = document.getElementById('c' + idStr);
 
                 if (!el) {
-                    console.log(`[CommentSystem] Reconcile: Injecting new comment #c${idStr}`);
-                    const html = Sanitizer.clean(this.renderComment(c, currentUserId, isReply));
+                    window.f0ckDebug(`[CommentSystem] Reconcile: Injecting new comment #c${idStr}`);
+                    const html = this.renderComment(c, currentUserId, isReply);
                     const tmp = document.createElement('div');
                     tmp.innerHTML = html;
                     const newEl = tmp.firstElementChild;
@@ -1235,7 +1490,9 @@ class CommentSystem {
                 const trimmed = line.trimStart();
                 
                 // 1. Manual Greentext/Quote handling (avoids recursive blockquote parsing)
-                if (trimmed.startsWith('>')) {
+                // Exclude only the numeric context links (>>ID) so they can be handled as interactive links.
+                // Multiple chevrons (>>text, >>>text) should still be greentext.
+                if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     const quoteContent = line.substring(line.indexOf('>') + 1);
                     const quoteEmojis = window.f0ckSession?.quote_emojis === true;
                     const renderedContent = quoteEmojis
@@ -1256,6 +1513,11 @@ class CommentSystem {
                 processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
                     const user = g1 || g2;
                     return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                });
+
+                // Handle Comment Context Links (>>ID)
+                processedLine = processedLine.replace(/(?<!\w)>>(\d+)/g, (match, id) => {
+                    return `<a href="#c${id}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
                 });
                 
                 // Handle Image Embeds
@@ -1307,6 +1569,15 @@ class CommentSystem {
                     }
                 );
             }
+            
+            // Vocaroo embed
+            md = md.replace(
+                /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:voca\.ro|vocaroo\.com)\/([a-zA-Z0-9_-]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
+                (match, vocarooId) => {
+                    if (['upload', 'contact', 'privacy', 'tos', 'about'].includes(vocarooId.toLowerCase())) return match;
+                    return `<span class="vocaroo-embed-wrap"><iframe src="https://vocaroo.com/embed/${vocarooId}?autoplay=0" width="300" height="60" frameborder="0" allow="autoplay"></iframe></span>`;
+                }
+            );
 
             // Build regex for allowed media hosters (video/audio)
             const mediaHosts = [escapedSiteHost];
@@ -1359,11 +1630,42 @@ class CommentSystem {
                 return codeBlocks[index] || '';
             });
 
+            if (window.Sanitizer && typeof Sanitizer.clean === 'function') {
+                md = Sanitizer.clean(md);
+            }
             return md;
         } catch (e) {
             console.error('Markdown error:', e);
             return this.escapeHtml(content);
         }
+    }
+    
+    buildBacklinkMap(comments) {
+        this.backlinkMap = {};
+        const process = (c) => {
+            if (!c.content) return;
+            // Scan for >>ID patterns
+            const matches = c.content.matchAll(/(?<!\w)>>(\d+)/g);
+            for (const match of matches) {
+                const targetId = match[1];
+                if (!this.backlinkMap[targetId]) this.backlinkMap[targetId] = new Set();
+                this.backlinkMap[targetId].add(c.id);
+            }
+            // Also treat parent_id as a direct reply
+            if (c.parent_id) {
+                const targetId = String(c.parent_id);
+                if (!this.backlinkMap[targetId]) this.backlinkMap[targetId] = new Set();
+                this.backlinkMap[targetId].add(c.id);
+            }
+        };
+
+        const scan = (list) => {
+            list.forEach(c => {
+                process(c);
+                if (c.replies && c.replies.length > 0) scan(c.replies);
+            });
+        };
+        scan(comments);
     }
 
     renderEmoji(match, name) {
@@ -1386,7 +1688,36 @@ class CommentSystem {
         }, 30000);
     }
 
-    renderComment(comment, currentUserId, isReply = false) {
+    updateCommentBacklinks(targetId, replierId) {
+        if (!this.backlinkMap) this.backlinkMap = {};
+        if (!this.backlinkMap[targetId]) this.backlinkMap[targetId] = new Set();
+        this.backlinkMap[targetId].add(replierId);
+        
+        const targetEl = document.getElementById('c' + targetId);
+        if (targetEl) {
+            const headerLeft = targetEl.querySelector('.comment-header-left');
+            if (headerLeft) {
+                let span = headerLeft.querySelector('.comment-backlinks');
+                if (!span) {
+                    span = document.createElement('span');
+                    span.className = 'comment-backlinks';
+                    headerLeft.appendChild(span);
+                }
+                // Check if already present
+                if (!span.querySelector(`a[data-id="${replierId}"]`)) {
+                    const link = document.createElement('a');
+                    link.href = `#c${replierId}`;
+                    link.className = 'comment-context-link';
+                    link.dataset.id = replierId;
+                    link.textContent = `>>${replierId}`;
+                    span.appendChild(document.createTextNode(' '));
+                    span.appendChild(link);
+                }
+            }
+        }
+    }
+
+    renderComment(comment, currentUserId, isReply = false, isLinear = false) {
         const isDeleted = comment.is_deleted;
         const isPinned = comment.is_pinned;
 
@@ -1406,12 +1737,24 @@ class CommentSystem {
 
         // Build replies HTML (only for root comments, max 1 level deep)
         let repliesHtml = '';
-        if (!isReply && comment.replies && comment.replies.length > 0) {
+        if (!isReply && !isLinear && comment.replies && comment.replies.length > 0) {
             repliesHtml = `<div class="comment-replies">${comment.replies.map(r => this.renderComment(r, currentUserId, true)).join('')}</div>`;
         }
 
         const timeAgo = this.timeAgo(comment.created_at);
         const fullDate = new Date(comment.created_at).toISOString();
+
+        // Parent context marker removed (redundant with back-references)
+        let contextMarker = '';
+
+        // Back-references (replies to this comment)
+        let backlinkHtml = '';
+        if (this.backlinkMap && this.backlinkMap[comment.id]) {
+            const repliers = Array.from(this.backlinkMap[comment.id]);
+            if (repliers.length > 0) {
+                backlinkHtml = `<span class="comment-backlinks">${repliers.map(rid => `<a href="#c${rid}" class="comment-context-link" data-id="${rid}">>>${rid}</a>`).join(' ')}</span>`;
+            }
+        }
 
         return `
             <div class="${commentClass} ${isDeleted ? 'deleted' : ''} ${isPinned ? 'pinned' : ''}" id="c${comment.id}">
@@ -1424,20 +1767,22 @@ class CommentSystem {
                     <div class="comment-header">
                         <div class="comment-header-left">
                             ${pinnedBadge}${comment.username ? `<a href="/user/${comment.username}" class="comment-author" tooltip="ID: ${comment.user_id}" ${comment.username_color ? `style="color: ${comment.username_color}"` : ''}>${this.escapeHtml(comment.display_name || comment.username)}</a>` : '<span class="comment-author">System</span>'}
+                            ${contextMarker}
+                            ${backlinkHtml}
                         </div>
-                        <a href="#c${comment.id}" class="comment-time timeago" title="${fullDate}">${timeAgo}</a>
+                        <a href="#c${comment.id}" class="comment-time timeago" title="${fullDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
                     </div>
                     <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
                     <div class="comment-footer">
                         <div class="comment-footer-right">
                             <div class="comment-actions">
-                                ${!isDeleted && currentUserId ? `<button class="reply-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}"><i class="fa-solid fa-reply"></i></button><button class="report-comment-btn" data-id="${comment.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}
+                                ${!isDeleted && currentUserId ? `<button class="reply-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Reply"><i class="fa-solid fa-reply"></i></button><button class="quote-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Quote with Text"><i class="fa-solid fa-quote-left"></i></button><button class="report-comment-btn" data-id="${comment.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}
                                 ${adminButtons}
                             </div>
                         </div>
                     </div>
                 </div>
-                <a href="#c${comment.id}" class="comment-permalink" title="Permalink">#${comment.id}</a>
+                <a href="#c${comment.id}" class="comment-permalink" title="Permalink" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">#${comment.id}</a>
             </div>
             ${repliesHtml}
         `;
@@ -1488,8 +1833,117 @@ class CommentSystem {
         `;
     }
 
+    setupHoverPreviews() {
+        if (CommentSystem.hoverPreviewsAttached) return;
+        CommentSystem.hoverPreviewsAttached = true;
+
+        // Hover for Comment Context Links (>>ID) - Global delegation for nested previews (inception)
+        this.mouseCurrentLevel = -1;
+        this.currentHoverLink = null;
+        document.addEventListener('mouseover', (e) => {
+            const contextLink = e.target.closest('.comment-context-link');
+            const popup = e.target.closest('.comment-preview-popup');
+            
+            if (contextLink || popup) {
+                if (this.previewCloseTimer) {
+                    clearTimeout(this.previewCloseTimer);
+                    this.previewCloseTimer = null;
+                }
+            }
+
+            if (contextLink) {
+                // Ignore mouseover for previews on mobile touch devices to prevent tap-to-preview
+                // We handle mobile previews via the touchstart timer instead.
+                if (window.matchMedia('(pointer: coarse)').matches) return;
+
+                if (this.currentHoverLink === contextLink) return;
+                this.currentHoverLink = contextLink;
+
+                if (this.previewOpenTimer) clearTimeout(this.previewOpenTimer);
+                this.previewOpenTimer = setTimeout(() => {
+                    this.showCommentPreview(contextLink, e);
+                }, 150); // 150ms dwell time to prevent flickering while moving mouse
+            } else {
+                if (this.previewOpenTimer) {
+                    clearTimeout(this.previewOpenTimer);
+                    this.previewOpenTimer = null;
+                }
+                this.currentHoverLink = null;
+
+                const level = popup ? parseInt(popup.dataset.level || 0) : -1;
+                
+                // If we move back to a parent level or blank area of a popup, close its children
+                // but use a delay so the user can reach the child popup if they are moving towards it.
+                if (popup && !contextLink) {
+                    this.previewCloseTimer = setTimeout(() => {
+                        this.closePreviewsAboveLevel(level);
+                    }, 400);
+                }
+                
+                this.mouseCurrentLevel = level;
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            const contextLink = e.target.closest('.comment-context-link');
+            const popup = e.target.closest('.comment-preview-popup');
+            
+            if (contextLink) {
+                if (this.previewOpenTimer) {
+                    clearTimeout(this.previewOpenTimer);
+                    this.previewOpenTimer = null;
+                }
+                this.currentHoverLink = null;
+            }
+
+            if (contextLink || popup) {
+                if (this.previewCloseTimer) clearTimeout(this.previewCloseTimer);
+                this.previewCloseTimer = setTimeout(() => {
+                    this.closePreviewsAboveLevel(-1);
+                    this.mouseCurrentLevel = -1;
+                }, 400);
+            }
+        });
+
+        // Mobile Touch Support: Touch-and-hold to preview
+        let touchPreviewTimer = null;
+        document.addEventListener('touchstart', (e) => {
+            const contextLink = e.target.closest('.comment-context-link');
+            if (contextLink) {
+                if (touchPreviewTimer) clearTimeout(touchPreviewTimer);
+                touchPreviewTimer = setTimeout(() => {
+                    this.showCommentPreview(contextLink, e);
+                }, 150); // 150ms hold to trigger preview on mobile
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', () => {
+            if (touchPreviewTimer) {
+                clearTimeout(touchPreviewTimer);
+                touchPreviewTimer = null;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            if (touchPreviewTimer) {
+                clearTimeout(touchPreviewTimer);
+                touchPreviewTimer = null;
+            }
+        }, { passive: true });
+
+        // Global click listener to close popups (useful for mobile dismissal)
+        document.addEventListener('click', (e) => {
+            const isLink = e.target.closest('.comment-context-link');
+            const isPopup = e.target.closest('.comment-preview-popup');
+            
+            if (!isLink && !isPopup) {
+                this.closePreviewsAboveLevel(-1);
+            }
+        });
+    }
+
     setupDelegatedEvents() {
-        console.log('[DEBUG] Setting up delegated events for container:', this.container);
+        window.f0ckDebug('[DEBUG] Setting up delegated events for container:', this.container);
         if (!this.container) return;
 
         // Ctrl+Enter to submit comment
@@ -1517,13 +1971,9 @@ class CommentSystem {
 
         // Single Click Listener for Everything
         this.container.addEventListener('click', async (e) => {
-            console.log('[DEBUG] Click on container:', e.target);
+            window.f0ckDebug('[DEBUG] Click on container:', e.target);
             const target = e.target;
 
-            // Handle legacy layout focus scroll
-            if (target.matches('textarea') && (document.body.classList.contains('legacy-view') || document.body.classList.contains('layout-legacy'))) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
 
             // Toggling Scroll Action
             const scrollBtn = target.closest('.scroll-to-bottom');
@@ -1556,6 +2006,22 @@ class CommentSystem {
             if (target.matches('.cancel-reply')) {
                 const form = target.closest('.reply-input');
                 if (form) form.remove();
+                return;
+            }
+
+            // Comment Context Link (>>ID)
+            const contextLink = target.closest('.comment-context-link');
+            if (contextLink) {
+                e.preventDefault();
+                const targetId = contextLink.dataset.id;
+                this.scrollToComment(targetId, 0, true);
+                
+                // Highlight effect
+                const targetEl = document.getElementById('c' + targetId);
+                if (targetEl) {
+                    targetEl.classList.add('highlight-comment');
+                    setTimeout(() => targetEl.classList.remove('highlight-comment'), 2000);
+                }
                 return;
             }
 
@@ -1678,39 +2144,51 @@ class CommentSystem {
             }
 
             // Reply
+            // Reply Button (ID only)
             const replyBtn = target.closest('.reply-btn');
             if (replyBtn) {
                 const id = replyBtn.dataset.id;
-                const body = replyBtn.closest('.comment-body');
-
-                if (body.querySelector('.reply-input')) return;
-
-                const div = document.createElement('div');
-                div.innerHTML = this.renderInput(id);
-                body.appendChild(div.firstElementChild);
-                const newForm = body.querySelector('.reply-input');
-                this.setupEmojiPicker(newForm);
+                const commentEl = replyBtn.closest('[id^="c"]');
+                const body = commentEl ? commentEl.querySelector('.comment-body') : null;
                 
-                // Add quote content — use data-raw to get the original unrendered text,
-                // which always has :emojicode:, [spoiler] tags, etc. intact.
-                const author = replyBtn.dataset.display || replyBtn.dataset.username || 'System';
-                const contentEl = body.querySelector('.comment-content');
-                const textarea = newForm.querySelector('textarea');
-                if (contentEl && textarea) {
-                    const rawText = (contentEl.dataset.raw || '').trim();
-                    const lines = rawText.split('\n');
-                    const quote = `>${author}\n${lines.map(line => `>${line}`).join('\n')}\n`;
-                    textarea.value = quote;
+                if (body) {
+                    // Check if any reply input is ALREADY open
+                    let textarea = document.querySelector('.comment-input.reply-input textarea');
                     
-                    // Focus and move cursor to end
-                    textarea.focus();
-                    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                    // If none open, open the local one for this comment
+                    if (!textarea && !body.querySelector('.reply-input')) {
+                        const div = document.createElement('div');
+                        div.innerHTML = this.renderInput(id);
+                        body.appendChild(div.firstElementChild);
+                        const newForm = body.querySelector('.reply-input');
+                        this.setupEmojiPicker(newForm);
+                        textarea = newForm.querySelector('textarea');
+                    } else if (!textarea) {
+                        textarea = body.querySelector('.reply-input textarea');
+                    }
+                    
+                    if (textarea) {
+                        const quote = `>>${id} `;
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const val = textarea.value;
+                        textarea.value = val.substring(0, start) + quote + val.substring(end);
+                        textarea.focus({ preventScroll: true });
+                        textarea.selectionStart = textarea.selectionEnd = start + quote.length;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
                 }
+                return;
+            }
 
-                // Smoothly scroll the reply form into view
-                newForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-                // Buttons in newForm are handled by delegation (.submit-comment, .cancel-reply)
+            // Quote Button (Full Text Quote - Old Style)
+            const quoteBtn = target.closest('.quote-btn');
+            if (quoteBtn) {
+                const id = quoteBtn.dataset.id;
+                const body = quoteBtn.closest('.comment-body');
+                if (body) {
+                    this.quoteComment(id, quoteBtn, body);
+                }
                 return;
             }
 
@@ -1760,25 +2238,19 @@ class CommentSystem {
                 return;
             }
 
-            // Permalinks
-            if (target.classList.contains('comment-permalink')) {
-                const href = target.getAttribute('href');
-                if (href && href.startsWith('#c')) {
-                    e.preventDefault();
-                    const id = href.substring(2);
-                    history.pushState(null, null, href);
-                    this.scrollToComment(id);
-                }
-                return;
-            }
-
-            // Timestamp click → open reply
-            if (target.closest('.comment-time')) {
-                e.preventDefault();
-                const commentEl = target.closest('[id^="c"]');
-                if (commentEl) {
-                    const replyBtn = commentEl.querySelector(':scope > .comment-body .reply-btn');
-                    if (replyBtn) replyBtn.click();
+            // Permalinks & Timestamp clicks
+            if (target.classList.contains('comment-permalink') || target.closest('.comment-time')) {
+                const el = target.closest('.comment-permalink, .comment-time');
+                if (el) {
+                    const id = el.dataset.id;
+                    const commentEl = el.closest('[id^="c"]');
+                    const body = commentEl ? commentEl.querySelector('.comment-body') : null;
+                    if (body) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        this.quoteComment(id, el, body);
+                    }
                 }
                 return;
             }
@@ -1943,7 +2415,7 @@ class CommentSystem {
                                     repliesEl.className = 'comment-replies';
                                     parentEl.insertAdjacentElement('afterend', repliesEl);
                                 }
-                                const commentHtml = Sanitizer.clean(this.renderComment(newComment, this.lastUserId, true));
+                                const commentHtml = this.renderComment(newComment, this.lastUserId, true);
                                 const tmp = document.createElement('div');
                                 tmp.innerHTML = commentHtml;
                                 const commentEl = tmp.firstElementChild;
@@ -1966,7 +2438,7 @@ class CommentSystem {
                         } else {
                             const list = this.container.querySelector('.comments-list');
                             if (list) {
-                                const commentHtml = Sanitizer.clean(this.renderComment(newComment, this.lastUserId, false));
+                                const commentHtml = this.renderComment(newComment, this.lastUserId, false);
                                 const tmp = document.createElement('div');
                                 tmp.innerHTML = commentHtml;
                                 const commentEl = tmp.firstElementChild;
@@ -2004,7 +2476,7 @@ class CommentSystem {
                     retryCount++;
                     // Randomized exponential backoff
                     const delay = Math.min(1000 * Math.pow(1.5, retryCount) + (Math.random() * 1000), 10000);
-                    console.log(`[CommentSystem] Retrying in ${Math.round(delay)}ms...`);
+                    window.f0ckDebug(`[CommentSystem] Retrying in ${Math.round(delay)}ms...`);
                     setTimeout(attemptSubmit, delay);
                 } else {
                     alert('Failed to send comment after multiple attempts. Please check your connection.');
@@ -2198,6 +2670,7 @@ class CommentSystem {
 
     setupEmojiPicker(container) {
         const textarea = container.querySelector('textarea');
+        if (!textarea) return;
         if (container.querySelector('.emoji-trigger')) return;
 
         // Attach mentions
@@ -2376,7 +2849,7 @@ class CommentSystem {
         if (actions) {
             // Add spoiler button
             const spoilerBtn = document.createElement('button');
-            spoilerBtn.innerText = '[spoiler]';
+            spoilerBtn.innerText = '[S]';
             spoilerBtn.className = 'spoiler-trigger';
             spoilerBtn.title = 'Insert spoiler tag';
             spoilerBtn.addEventListener('click', (e) => {

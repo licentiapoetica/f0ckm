@@ -38,170 +38,8 @@ export default (router, tpl) => {
         });
     });
 
-    // Approval Queue (Ported/Shared from Admin)
+    // Approval Queue (View only — GET is safe, no state change)
     router.get(/^\/mod\/approve\/?/, lib.modAuth, async (req, res) => {
-        // Quick Approve Action
-        if (req.url.qs?.id) {
-            const id = +req.url.qs.id;
-            const f0ck = await db`
-                select i.dest, i.mime, i.username, i.id, ta.tag_id
-                from "items" i
-                left join tags_assign ta on ta.item_id = i.id and ta.tag_id in (1, 2)
-                where i.id = ${id} and i.active = false
-                limit 1
-            `;
-
-            if (f0ck.length === 0) {
-                return res.reply({ body: `f0ck ${id}: f0ck not found` });
-            }
-
-            // Fetch uploader details for audit log
-            let uploaderInfo = {};
-            try {
-                const uploader = await db`select id, "user" as username from "user" where login = ${f0ck[0].username} or "user" = ${f0ck[0].username} limit 1`;
-                if (uploader.length > 0) {
-                    uploaderInfo = { uploader_id: uploader[0].id, uploader_name: uploader[0].username };
-                }
-            } catch (err) { }
-
-            // ACTION: Approve
-            // We only proceed with side-effects (notifications/webhooks) if the update actually changed active=false to active=true.
-            // This prevents duplicate webhooks from double-clicks or race conditions.
-            const result = await db`update "items" set active = true, is_deleted = false where id = ${id} and active = false`;
-
-            if (result.count === 1) {
-                await audit.log(req.session.id, 'approve_item', 'item', id, { filename: f0ck[0].dest, ...uploaderInfo });
-
-                // Notify User (WebSocket/Internal)
-                try {
-                    const uploader = await db`select id from "user" where login = ${f0ck[0].username} or "user" = ${f0ck[0].username} limit 1`;
-                    if (uploader.length > 0) {
-                        await db`
-                            INSERT INTO notifications (user_id, type, reference_id, item_id)
-                            VALUES (${uploader[0].id}, 'approve', 0, ${id})
-                        `;
-                    }
-                } catch (err) {
-                    console.error('[MOD APPROVE] Failed to notify user:', err);
-                }
-
-                // Push to Discord Webhook (Direct)
-                try {
-                    const discordClient = cfg.clients.find(c => c.type === 'discord');
-                    if (discordClient && discordClient.webhook_url) {
-                        const message = `${f0ck[0].username} uploaded a new video ${cfg.main.url.full}/${id}`;
-                        const payload = JSON.stringify({ content: message });
-                        const url = new URL(discordClient.webhook_url);
-                        const options = {
-                            hostname: url.hostname,
-                            path: url.pathname + url.search,
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Content-Length': Buffer.byteLength(payload)
-                            }
-                        };
-                        const reqDiscord = https.request(options, (resDiscord) => {
-                            if (resDiscord.statusCode >= 400) {
-                                console.error(`[MOD APPROVE] Webhook returned status ${resDiscord.statusCode}`);
-                            }
-                        });
-                        reqDiscord.on('error', (err) => {
-                            console.error('[MOD APPROVE] Webhook failed:', err);
-                        });
-                        reqDiscord.write(payload);
-                        reqDiscord.end();
-                    }
-                } catch (err) {
-                    console.error('[MOD APPROVE] Discord Webhook error:', err);
-                }
-
-                // Push to Matrix Channel
-                try {
-                    const matrixCfg = cfg.clients.find(c => c.type === 'matrix');
-                    if (matrixCfg?.notification_channel_id && router.self?.bot?.clients) {
-                        const clients = await Promise.all(router.self.bot.clients);
-                        const matrixWrapper = clients.find(c => c.type === 'matrix');
-                        if (matrixWrapper?.client) {
-                            const message = `${f0ck[0].username} uploaded a new video ${cfg.main.url.full}/${id}`;
-                            await matrixWrapper.client.send(matrixCfg.notification_channel_id, message);
-                            console.log(`[MOD APPROVE] Matrix notification sent for item ${id}`);
-                        }
-                    }
-                } catch (err) {
-                    console.error('[MOD APPROVE] Matrix notification error:', err);
-                }
-
-                // Broadcast new_item event for live grid updates
-                try {
-                    await db`SELECT pg_notify('new_item', ${JSON.stringify({
-                        id: id,
-                        dest: f0ck[0].dest,
-                        mime: f0ck[0].mime,
-                        username: f0ck[0].username,
-                        tag_id: f0ck[0].tag_id,
-                        is_oc: !!f0ck[0].is_oc
-                    })})`;
-                } catch (err) {
-                    console.error('[MOD APPROVE] new_item notify failed:', err);
-                }
-            }
-
-            // Move files to public location
-            const movePaths = [
-                { b: path.join(cfg.paths.pending, 'b', f0ck[0].dest), t: path.join(cfg.paths.pending, 't', `${id}.webp`), ca: path.join(cfg.paths.pending, 'ca', `${id}.webp`) },
-                { b: path.join(cfg.paths.deleted, 'b', f0ck[0].dest), t: path.join(cfg.paths.deleted, 't', `${id}.webp`), ca: path.join(cfg.paths.deleted, 'ca', `${id}.webp`) }
-            ];
-
-            for (const p of movePaths) {
-                try {
-                    await fs.access(p.b);
-                    console.log(`[MOD APPROVE] Moving files for item ${id} from ${p.b.includes('pending') ? 'pending' : 'deleted'}`);
-
-                    const moveSafe = async (src, dst) => {
-                        try {
-                            const lstat = await fs.lstat(src);
-                            if (lstat.isSymbolicLink()) {
-                                const target = await fs.readlink(src);
-                                const absTarget = path.resolve(path.dirname(src), target);
-                                const relTarget = path.relative(path.dirname(dst), absTarget);
-                                await fs.symlink(relTarget, dst);
-                                await fs.unlink(src).catch(() => {});
-                            } else {
-                                await fs.copyFile(src, dst);
-                                await fs.unlink(src).catch(() => {});
-                            }
-                        } catch (e) {
-                            console.warn(`[MOD APPROVE ERROR] Failed to move ${src} to ${dst}:`, e.message);
-                        }
-                    };
-
-                    const bDst = path.join(cfg.paths.b, f0ck[0].dest);
-                    const tDst = path.join(cfg.paths.t, `${id}.webp`);
-                    const blurDst = path.join(cfg.paths.t, `${id}_blur.webp`);
-                    const caDst = path.join(cfg.paths.ca, `${id}.webp`);
-
-                    await moveSafe(p.b, bDst);
-                    await moveSafe(p.t, tDst);
-                    
-                    const blurSrc = p.t.replace('.webp', '_blur.webp');
-                    await moveSafe(blurSrc, blurDst);
-
-                    if (f0ck[0].mime.startsWith('audio')) {
-                        await moveSafe(p.ca, caDst);
-                    }
-                    break;
-                } catch (e) { }
-            }
-
-            if (req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'))) {
-                const body = JSON.stringify({ success: true, item_id: id, msg: "Item approved" });
-                return res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
-            }
-
-            return res.writeHead(302, { "Location": `/${id}` }).end();
-        }
-
         // View Queue
         const page = +req.url.qs.page || 1;
         const limit = 20;
@@ -267,10 +105,190 @@ export default (router, tpl) => {
         });
     });
 
-    // Deny / Delete Item
-    router.get(/^\/mod\/deny\/?/, lib.modAuth, async (req, res) => {
-        if (!req.url.qs?.id) return res.reply({ success: false, msg: "No ID provided" });
-        const id = +req.url.qs.id;
+    // F-005 Security: Approve action — POST with CSRF protection
+    router.post(/^\/mod\/approve\/?/, lib.modAuth, async (req, res) => {
+        const id = +(req.post?.id || 0);
+        if (!id) {
+            const body = JSON.stringify({ success: false, msg: 'No ID provided' });
+            return res.writeHead(400, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+        }
+
+        const f0ck = await db`
+            select i.dest, i.mime, i.username, i.id, ta.tag_id
+            from "items" i
+            left join tags_assign ta on ta.item_id = i.id and ta.tag_id in (1, 2)
+            where i.id = ${id} and i.active = false
+            limit 1
+        `;
+
+        if (f0ck.length === 0) {
+            const body = JSON.stringify({ success: false, msg: `f0ck ${id}: f0ck not found` });
+            return res.writeHead(404, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+        }
+
+        // Fetch uploader details for audit log
+        let uploaderInfo = {};
+        try {
+            const uploader = await db`select id, "user" as username from "user" where login = ${f0ck[0].username} or "user" = ${f0ck[0].username} limit 1`;
+            if (uploader.length > 0) {
+                uploaderInfo = { uploader_id: uploader[0].id, uploader_name: uploader[0].username };
+            }
+        } catch (err) { }
+
+        // ACTION: Approve
+        // We only proceed with side-effects (notifications/webhooks) if the update actually changed active=false to active=true.
+        // This prevents duplicate webhooks from double-clicks or race conditions.
+        const result = await db`update "items" set active = true, is_deleted = false where id = ${id} and active = false`;
+
+        if (result.count === 1) {
+            await audit.log(req.session.id, 'approve_item', 'item', id, { filename: f0ck[0].dest, ...uploaderInfo });
+
+            // Notify User (WebSocket/Internal)
+            try {
+                const uploader = await db`select id from "user" where login = ${f0ck[0].username} or "user" = ${f0ck[0].username} limit 1`;
+                if (uploader.length > 0) {
+                    await db`
+                        INSERT INTO notifications (user_id, type, reference_id, item_id)
+                        VALUES (${uploader[0].id}, 'approve', 0, ${id})
+                    `;
+                }
+            } catch (err) {
+                console.error('[MOD APPROVE] Failed to notify user:', err);
+            }
+
+            // Push to Discord Webhook (Direct)
+            try {
+                const discordClient = cfg.clients.find(c => c.type === 'discord');
+                if (discordClient && discordClient.webhook_url) {
+                    const message = `${f0ck[0].username} uploaded a new video ${cfg.main.url.full}/${id}`;
+                    const payload = JSON.stringify({ content: message });
+                    const url = new URL(discordClient.webhook_url);
+                    const options = {
+                        hostname: url.hostname,
+                        path: url.pathname + url.search,
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(payload)
+                        }
+                    };
+                    const reqDiscord = https.request(options, (resDiscord) => {
+                        if (resDiscord.statusCode >= 400) {
+                            console.error(`[MOD APPROVE] Webhook returned status ${resDiscord.statusCode}`);
+                        }
+                    });
+                    reqDiscord.on('error', (err) => {
+                        console.error('[MOD APPROVE] Webhook failed:', err);
+                    });
+                    reqDiscord.write(payload);
+                    reqDiscord.end();
+                }
+            } catch (err) {
+                console.error('[MOD APPROVE] Discord Webhook error:', err);
+            }
+
+            // Push to Matrix Channel
+            try {
+                const matrixCfg = cfg.clients.find(c => c.type === 'matrix');
+                if (matrixCfg?.notification_channel_id && router.self?.bot?.clients) {
+                    const clients = await Promise.all(router.self.bot.clients);
+                    const matrixWrapper = clients.find(c => c.type === 'matrix');
+                    if (matrixWrapper?.client) {
+                        const message = `${f0ck[0].username} uploaded a new video ${cfg.main.url.full}/${id}`;
+                        await matrixWrapper.client.send(matrixCfg.notification_channel_id, message);
+                        console.log(`[MOD APPROVE] Matrix notification sent for item ${id}`);
+                    }
+                }
+            } catch (err) {
+                console.error('[MOD APPROVE] Matrix notification error:', err);
+            }
+
+            // Broadcast new_item event for live grid updates
+            try {
+                await db`SELECT pg_notify('new_item', ${JSON.stringify({
+                    id: id,
+                    dest: f0ck[0].dest,
+                    mime: f0ck[0].mime,
+                    username: f0ck[0].username,
+                    tag_id: f0ck[0].tag_id,
+                    is_oc: !!f0ck[0].is_oc
+                })})`;
+            } catch (err) {
+                console.error('[MOD APPROVE] new_item notify failed:', err);
+            }
+        }
+
+        // Move files to public location
+        const movePaths = [
+            { b: path.join(cfg.paths.pending, 'b', f0ck[0].dest), t: path.join(cfg.paths.pending, 't', `${id}.webp`), ca: path.join(cfg.paths.pending, 'ca', `${id}.webp`) },
+            { b: path.join(cfg.paths.deleted, 'b', f0ck[0].dest), t: path.join(cfg.paths.deleted, 't', `${id}.webp`), ca: path.join(cfg.paths.deleted, 'ca', `${id}.webp`) }
+        ];
+
+        const isYouTube = f0ck[0].mime === 'video/youtube';
+        for (const p of movePaths) {
+            try {
+                if (isYouTube) {
+                    await fs.access(p.t);
+                } else {
+                    await fs.access(p.b);
+                }
+                console.log(`[MOD APPROVE] Moving files for item ${id} from ${p.b.includes('pending') ? 'pending' : 'deleted'}`);
+
+                const moveSafe = async (src, dst) => {
+                    try {
+                        const lstat = await fs.lstat(src);
+                        if (lstat.isSymbolicLink()) {
+                            const target = await fs.readlink(src);
+                            const absTarget = path.resolve(path.dirname(src), target);
+                            const relTarget = path.relative(path.dirname(dst), absTarget);
+                            await fs.symlink(relTarget, dst);
+                            await fs.unlink(src).catch(() => {});
+                        } else {
+                            await fs.copyFile(src, dst);
+                            await fs.unlink(src).catch(() => {});
+                        }
+                    } catch (e) {
+                        if (e.code !== 'ENOENT') {
+                            console.warn(`[MOD APPROVE ERROR] Failed to move ${src} to ${dst}:`, e.message);
+                        }
+                    }
+                };
+
+                const bDst = path.join(cfg.paths.b, f0ck[0].dest);
+                const tDst = path.join(cfg.paths.t, `${id}.webp`);
+                const blurDst = path.join(cfg.paths.t, `${id}_blur.webp`);
+                const caDst = path.join(cfg.paths.ca, `${id}.webp`);
+
+                if (!isYouTube) {
+                    await moveSafe(p.b, bDst);
+                }
+                await moveSafe(p.t, tDst);
+                
+                const blurSrc = p.t.replace('.webp', '_blur.webp');
+                await moveSafe(blurSrc, blurDst);
+
+                if (f0ck[0].mime.startsWith('audio')) {
+                    await moveSafe(p.ca, caDst);
+                }
+                break;
+            } catch (e) { }
+        }
+
+            if (req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+                const body = JSON.stringify({ success: true, item_id: id, msg: "Item approved" });
+                return res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+            }
+
+            return res.writeHead(302, { "Location": `/${id}` }).end();
+    });
+
+    // F-005 Security: Deny action — POST with CSRF protection
+    router.post(/^\/mod\/deny\/?/, lib.modAuth, async (req, res) => {
+        const id = +(req.post?.id || 0);
+        if (!id) {
+            const body = JSON.stringify({ success: false, msg: 'No ID provided' });
+            return res.writeHead(400, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+        }
 
         const f0ck = await db`select id, dest, mime, is_deleted, active, username from "items" where id = ${id} limit 1`;
         if (f0ck.length > 0) {
@@ -339,7 +357,7 @@ export default (router, tpl) => {
                     } catch (e) { }
                 }
 
-                const reason = req.url.qs?.reason || "Denied by moderator";
+                const reason = req.post?.reason || "Denied by moderator";
 
                 await db`update "items" set is_deleted = true, active = false where id = ${id}`;
 
@@ -541,8 +559,14 @@ export default (router, tpl) => {
     // Supports /mod/pending/b/filename.ext (Binaries)
     // Supports /mod/pending/t/id.webp (Thumbnails)
     router.get(/^\/mod\/pending\/(?<type>[btca])\/(?<file>.+)/, lib.modAuth, async (req, res) => {
-        const { type, file } = req.params;
-        const filePath = path.join(cfg.paths.pending, type, file);
+        const { type } = req.params;
+        // F-003 Security: Sanitize file parameter to prevent path traversal
+        const file = path.basename(req.params.file);
+        const baseDir = path.resolve(cfg.paths.pending, type);
+        const filePath = path.resolve(baseDir, file);
+        if (!filePath.startsWith(baseDir + path.sep) && filePath !== baseDir) {
+            return res.writeHead(403).end('Forbidden');
+        }
 
         try {
             const stats = await fs.stat(filePath);
@@ -552,7 +576,8 @@ export default (router, tpl) => {
             const mimeType = {
                 'mp4': 'video/mp4', 'webm': 'video/webm',
                 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-                'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp'
+                'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
+                'pdf': 'application/pdf'
             }[ext] || 'application/octet-stream';
 
             if (range) {
@@ -577,7 +602,7 @@ export default (router, tpl) => {
                 (await import('fs')).createReadStream(filePath).pipe(res);
             }
         } catch (err) {
-            console.error(err);
+            if (err.code !== 'ENOENT') console.error(err);
             res.writeHead(404).end('File not found');
         }
     });
@@ -586,10 +611,15 @@ export default (router, tpl) => {
     // Supports /mod/deleted/b/filename.ext (Binaries)
     // Supports /mod/deleted/t/id.webp (Thumbnails)
     router.get(/^\/mod\/deleted\/(?<type>[bt])\/(?<file>.+)/, lib.modAuth, async (req, res) => {
-        const file = decodeURIComponent(req.params.file);
+        // F-003 Security: Sanitize file parameter to prevent path traversal
+        const file = path.basename(decodeURIComponent(req.params.file));
         const type = req.params.type; // 'b' or 't'
         console.log(`[MOD_STREAM] Request: type=${type}, file=${file}, range=${req.headers.range || 'none'}`);
-        const filePath = path.join(cfg.paths.deleted, type, file);
+        const baseDir = path.resolve(cfg.paths.deleted, type);
+        const filePath = path.resolve(baseDir, file);
+        if (!filePath.startsWith(baseDir + path.sep) && filePath !== baseDir) {
+            return res.writeHead(403).end('Forbidden');
+        }
 
         try {
             const stat = await fs.stat(filePath);
@@ -599,7 +629,8 @@ export default (router, tpl) => {
             const mimeType = {
                 'mp4': 'video/mp4', 'webm': 'video/webm',
                 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-                'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp'
+                'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
+                'pdf': 'application/pdf'
             }[ext] || 'application/octet-stream';
 
             if (range) {
@@ -624,7 +655,7 @@ export default (router, tpl) => {
                 (await import('fs')).createReadStream(filePath).pipe(res);
             }
         } catch (err) {
-            console.error(err);
+            if (err.code !== 'ENOENT') console.error(err);
             res.writeHead(404).end('File not found');
         }
     });
@@ -656,7 +687,7 @@ export default (router, tpl) => {
             const body = JSON.stringify({ success: true, count });
             return res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
         } catch (err) {
-            const body = JSON.stringify({ success: false, msg: err.message });
+            const body = JSON.stringify({ success: false, msg: 'Purge failed' });
             return res.writeHead(500, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
         }
     });

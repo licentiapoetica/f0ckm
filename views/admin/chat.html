@@ -1,0 +1,223 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <div class="container">
+    <h1>ADMINBEREICH</h1>
+    <h5>Global Chat Management</h5>
+    <a href="/admin" style="font-size: 0.8em; color: var(--accent); text-decoration: none;"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    <hr>
+
+    <div class="chat-cheatsheet" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+      <label style="display: block; font-weight: bold; color: var(--accent); margin-bottom: 10px;">Global Chat Cheat Sheet</label>
+      <p style="font-size: 0.85em; color: #ccc; margin-bottom: 10px;">Admin commands for the global chat widget.</p>
+      <table style="width: 100%; font-size: 0.85em; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <th style="text-align: left; padding: 8px 0; color: #fff;">Command</th>
+          <th style="text-align: left; padding: 8px 0; color: #fff;">Description</th>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><code style="color: var(--accent);">/clear</code></td>
+          <td style="padding: 8px 0;">Deletes all messages and restarts history.</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><code style="color: var(--accent);">/setbackground &lt;url&gt; [opts]</code></td>
+          <td style="padding: 8px 0;">Sets a background image. Opts: <code style="color: #aaa;">center / cover no-repeat</code> etc.</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><code style="color: var(--accent);">/clearbg</code></td>
+          <td style="padding: 8px 0;">Removes the chat background.</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><code style="color: var(--accent);">/settopic &lt;text&gt;</code></td>
+          <td style="padding: 8px 0;">Sets the pinned topic at the top of the chat.</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0;"><code style="color: var(--accent);">/cleartopic</code></td>
+          <td style="padding: 8px 0;">Removes the pinned topic.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="chat-bg-tool" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+      <label style="display: block; font-weight: bold; color: var(--accent); margin-bottom: 10px;">Chat Background Builder</label>
+      <p style="font-size: 0.85em; color: #ccc; margin-bottom: 10px;">Craft the perfect background command or apply it instantly.</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <input type="text" id="bg_url" placeholder="Image URL (must be from allowed host)" style="width: 100%; background: #333; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; outline: none;">
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <select id="bg_pos" style="background: #333; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; cursor: pointer; outline: none;">
+            <option value="center">Position: Center</option>
+            <option value="top">Position: Top</option>
+            <option value="bottom">Position: Bottom</option>
+            <option value="left">Position: Left</option>
+            <option value="right">Position: Right</option>
+            <option value="top left">Position: Top Left</option>
+            <option value="top right">Position: Top Right</option>
+            <option value="bottom left">Position: Bottom Left</option>
+            <option value="bottom right">Position: Bottom Right</option>
+          </select>
+          
+          <div style="display: flex; gap: 5px; flex-grow: 1; min-width: 150px;">
+            <select id="bg_size_presets" onchange="document.getElementById('bg_size').value = this.value; updateBgCommand();" style="background: #333; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px 0 0 4px; cursor: pointer; outline: none; flex-shrink: 0;">
+              <option value="cover">Size: Cover</option>
+              <option value="contain">Size: Contain</option>
+              <option value="auto">Size: Auto</option>
+              <option value="100% 100%">Size: Stretch</option>
+              <option value="">Custom...</option>
+            </select>
+            <input type="text" id="bg_size" value="cover" placeholder="e.g. 50% or 200px" style="background: #333; border: 1px solid #444; border-left: 0; color: #fff; padding: 8px; border-radius: 0 4px 4px 0; outline: none; flex-grow: 1;" oninput="updateBgCommand()">
+          </div>
+          
+          <select id="bg_repeat" style="background: #333; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; cursor: pointer; outline: none;">
+            <option value="no-repeat">Repeat: No</option>
+            <option value="repeat">Repeat: Yes</option>
+            <option value="repeat-x">Repeat: X only</option>
+            <option value="repeat-y">Repeat: Y only</option>
+          </select>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+           <span style="color: #888; white-space: nowrap;">Command:</span>
+           <code id="bg_command_output" style="color: var(--accent); white-space: nowrap; overflow-x: auto; flex-grow: 1;">/setbackground  center / cover no-repeat</code>
+           <button onclick="copyBgCommand()" style="background: #444; border: 0; color: #fff; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'">Copy</button>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button onclick="applyBgFromAdmin()" id="apply_bg_btn" style="flex-grow: 1; background: var(--accent); border: 0; color: #000; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Apply Instantly</button>
+          <button onclick="clearBgFromAdmin()" style="background: #d9534f; border: 0; color: #fff; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Clear Background</button>
+        </div>
+      </div>
+      <span id="chat-status" style="display: block; margin-top: 10px; font-size: 0.8em; font-weight: bold; text-align: right;"></span>
+    </div>
+  </div>
+
+  <script>
+    // Chat Background Builder Logic
+    window.builder_url = "";
+    window.builder_pos = "";
+    window.builder_size = "";
+    window.builder_repeat = "";
+    window.builder_opts = "";
+    window.builder_cmd = "";
+
+    function updateBgCommand() {
+      var builder_uEl = document.getElementById('bg_url');
+      var builder_pEl = document.getElementById('bg_pos');
+      var builder_sEl = document.getElementById('bg_size');
+      var builder_rEl = document.getElementById('bg_repeat');
+      var builder_oEl = document.getElementById('bg_command_output');
+      
+      if (!builder_uEl || !builder_pEl || !builder_sEl || !builder_rEl || !builder_oEl) return { url: '', opts: '' };
+
+      window.builder_url = builder_uEl.value.trim();
+      window.builder_pos = builder_pEl.value;
+      window.builder_size = builder_sEl.value;
+      window.builder_repeat = builder_rEl.value;
+      
+      window.builder_opts = window.builder_pos + " / " + window.builder_size + " " + window.builder_repeat;
+      window.builder_cmd = "/setbackground " + window.builder_url + " " + window.builder_opts;
+      builder_oEl.textContent = window.builder_cmd;
+      return { url: window.builder_url, opts: window.builder_opts };
+    }
+
+    if (document.getElementById('bg_url')) {
+        document.getElementById('bg_url').addEventListener('input', updateBgCommand);
+        document.getElementById('bg_pos').addEventListener('change', updateBgCommand);
+        document.getElementById('bg_size').addEventListener('change', updateBgCommand);
+        document.getElementById('bg_repeat').addEventListener('change', updateBgCommand);
+    }
+
+    function copyBgCommand() {
+      const outputElem = document.getElementById('bg_command_output');
+      if (!outputElem) return;
+      const cmd = outputElem.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(cmd);
+          const status = document.getElementById('chat-status');
+          if (status) {
+              status.textContent = 'Command copied to clipboard!';
+              status.style.color = 'var(--accent)';
+              setTimeout(() => { status.textContent = ''; }, 2000);
+          }
+      } else {
+          alert('Clipboard access denied or not supported.');
+      }
+    }
+
+    async function applyBgFromAdmin() {
+      const { url, opts } = updateBgCommand();
+      if (!url) return alert('Please enter an image URL first.');
+      
+      const btn = document.getElementById('apply_bg_btn');
+      const status = document.getElementById('chat-status');
+      if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Applying...';
+      }
+      
+      try {
+        const res = await fetch('/api/chat/background', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': '{{ csrf_token }}'
+          },
+          body: new URLSearchParams({ url, opts }).toString()
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (status) {
+              status.textContent = 'Background applied successfully!';
+              status.style.color = '#28a745';
+          }
+          if (btn) btn.textContent = 'Applied!';
+          setTimeout(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Apply Instantly';
+            }
+            if (status) status.textContent = '';
+          }, 3000);
+        } else {
+          throw new Error(data.msg || 'Failed to apply background');
+        }
+      } catch (err) {
+        alert(err.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Apply Instantly';
+        }
+      }
+    }
+
+    async function clearBgFromAdmin() {
+      if (!confirm('Are you sure you want to clear the chat background?')) return;
+      const status = document.getElementById('chat-status');
+      try {
+        const res = await fetch('/api/chat/background', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': '{{ csrf_token }}'
+          },
+          body: new URLSearchParams({}).toString()
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (status) {
+              status.textContent = 'Background cleared!';
+              status.style.color = '#28a745';
+          }
+          const urlInput = document.getElementById('bg_url');
+          if (urlInput) urlInput.value = '';
+          updateBgCommand();
+          setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+        }
+      } catch (err) { alert(err.message); }
+    }
+  </script>
+</div>
+</div>
+@include(snippets/footer)

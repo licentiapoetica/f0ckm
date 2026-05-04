@@ -39,7 +39,7 @@
     <script>
         (() => {
             var i18n = window.f0ckI18n || {};
-            console.log('[MEME_ADMIN] Initializing');
+            window.f0ckDebug('[MEME_ADMIN] Initializing');
             const esc = (s) => (s || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             const loadMemes = async () => {
                 try {
@@ -65,7 +65,7 @@
 
             const addMeme = async (e) => {
                 if (e) e.preventDefault();
-                console.log('[MEME_ADMIN] addMeme triggered');
+                window.f0ckDebug('[MEME_ADMIN] addMeme triggered');
                 
                 const template_id = document.getElementById('meme-id').value;
                 const name = document.getElementById('meme-name').value;
@@ -145,7 +145,7 @@
 
             const btnAddMeme = document.getElementById('add-meme');
             if (btnAddMeme) {
-                console.log('[MEME_ADMIN] Registering click listener');
+                window.f0ckDebug('[MEME_ADMIN] Registering click listener');
                 btnAddMeme.addEventListener('click', addMeme);
             } else {
                 console.error('[MEME_ADMIN] Add button not found!');

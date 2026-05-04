@@ -124,13 +124,13 @@ export default {
     const actPage = +(page ?? 1);
     
     // Support multiple MIME types (comma separated)
-    const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash'].includes(m));
+    const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash', 'pdf'].includes(m));
     const mimeSQL = mimeParts.length > 0
       ? db`and (${mimeParts.map(m => m === 'flash'
           ? (flashMimes.length > 0
               ? flashMimes.map(fm => db`items.mime = ${fm}`).reduce((a, b) => db`${a} or ${b}`)
               : db`false`)
-          : db`items.mime ilike ${m + '/%'}`).reduce((a, b) => db`${a} or ${b}`)})`
+          : (m === 'pdf' ? db`items.mime = 'application/pdf'` : db`items.mime ilike ${m + '/%'}`)).reduce((a, b) => db`${a} or ${b}`)})`
       : db``;
     const eps = limit ?? cfg.websrv.eps;
     const excludedTags = session && exclude ? (exclude || []) : [];
@@ -155,16 +155,15 @@ export default {
             select ta.item_id 
             from tags_assign ta 
             join tags t on t.id = ta.tag_id 
-            where lower(t.normalized) = ANY(${strictParams}::text[])
+            where t.normalized = ANY(ARRAY(SELECT slugify(x) FROM unnest(${terms}::text[]) AS x))
             group by ta.item_id 
-            having count(distinct lower(t.normalized)) = ${strictParams.length}
+            having count(distinct t.normalized) = ${terms.length}
           )`;
         } else {
             // Non-strict intersection Logic (AND for partials)
             // For each term, ensure there is AT LEAST one matching tag assigned to the item
             const conditions = terms.map(term => {
-                const q = '%' + lib.slugify(term) + '%';
-                return db`and items.id in (select ta.item_id from tags_assign ta join tags t on t.id = ta.tag_id where lower(t.normalized) ilike ${q})`;
+                return db`and items.id in (select ta.item_id from tags_assign ta join tags t on t.id = ta.tag_id where t.normalized like '%' || slugify(${term}) || '%')`;
             });
             tagFilter = db`${conditions}`;
         }
@@ -317,13 +316,13 @@ export default {
     }
     const mime = (rawMime ?? "");
     const itemid = rawItemid ? +rawItemid : null;
-    const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash'].includes(m));
+    const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash', 'pdf'].includes(m));
     const mimeSQL = mimeParts.length > 0
       ? db`and (${mimeParts.map(m => m === 'flash'
           ? (flashMimes.length > 0
               ? flashMimes.map(fm => db`items.mime = ${fm}`).reduce((a, b) => db`${a} or ${b}`)
               : db`false`)
-          : db`items.mime ilike ${m + '/%'}`).reduce((a, b) => db`${a} or ${b}`)})`
+          : (m === 'pdf' ? db`items.mime = 'application/pdf'` : db`items.mime ilike ${m + '/%'}`)).reduce((a, b) => db`${a} or ${b}`)})`
       : db``;
     const excludedTags = exclude || [];
 
@@ -351,14 +350,13 @@ export default {
             select ta.item_id 
             from tags_assign ta 
             join tags t on t.id = ta.tag_id 
-            where lower(t.normalized) = ANY(${strictParams}::text[])
+            where t.normalized = ANY(ARRAY(SELECT slugify(x) FROM unnest(${terms}::text[]) AS x))
             group by ta.item_id 
-            having count(distinct lower(t.normalized)) = ${strictParams.length}
+            having count(distinct t.normalized) = ${terms.length}
           )`;
         } else {
             const conditions = terms.map(term => {
-                const q = '%' + lib.slugify(term) + '%';
-                return db`and items.id in (select ta.item_id from tags_assign ta join tags t on t.id = ta.tag_id where lower(t.normalized) ilike ${q})`;
+                return db`and items.id in (select ta.item_id from tags_assign ta join tags t on t.id = ta.tag_id where t.normalized like '%' || slugify(${term}) || '%')`;
             });
             tagFilter = db`${conditions}`;
         }
@@ -665,13 +663,13 @@ export default {
     }
 
     // Support multiple MIME types (comma separated)
-    const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash'].includes(m));
+    const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash', 'pdf'].includes(m));
     const mimeSQL = mimeParts.length > 0
       ? db`and (${mimeParts.map(m => m === 'flash'
           ? (flashMimes.length > 0
               ? flashMimes.map(fm => db`items.mime = ${fm}`).reduce((a, b) => db`${a} or ${b}`)
               : db`false`)
-          : db`items.mime ilike ${m + '/%'}`).reduce((a, b) => db`${a} or ${b}`)})`
+          : (m === 'pdf' ? db`items.mime = 'application/pdf'` : db`items.mime ilike ${m + '/%'}`)).reduce((a, b) => db`${a} or ${b}`)})`
       : db``;
     const excludedTags = session && exclude ? (exclude || []) : [];
     
@@ -714,14 +712,13 @@ export default {
                     select ta.item_id 
                     from tags_assign ta 
                     join tags t on t.id = ta.tag_id 
-                    where lower(t.normalized) = ANY(${strictParams}::text[])
+                    where t.normalized = ANY(ARRAY(SELECT slugify(x) FROM unnest(${terms}::text[]) AS x))
                     group by ta.item_id 
-                    having count(distinct lower(t.normalized)) = ${strictParams.length}
+                    having count(distinct t.normalized) = ${terms.length}
                 )`;
             } else {
                 const conditions = terms.map(term => {
-                    const q = '%' + lib.slugify(term) + '%';
-                    return db`and items.id in (select ta.item_id from tags_assign ta join tags t on t.id = ta.tag_id where lower(t.normalized) ilike ${q})`;
+                    return db`and items.id in (select ta.item_id from tags_assign ta join tags t on t.id = ta.tag_id where t.normalized like '%' || slugify(${term}) || '%')`;
                 });
                 tagFilter = db`${conditions}`;
             }
@@ -848,6 +845,28 @@ export default {
     } catch (e) {
       console.error('[F0CKLIB] Error fetching comments:', e);
       return [];
+    }
+  },
+  getComment: async (id, process = true) => {
+    if (!id) return null;
+    try {
+      const comment = await db`
+            SELECT
+                c.id, c.parent_id, c.item_id, c.content, c.created_at, c.vote_score, c.is_deleted,
+                COALESCE(c.is_pinned, false) as is_pinned,
+                c.video_time,
+                u.user as username, u.id as user_id, uo.avatar, uo.avatar_file, uo.username_color, uo.display_name
+            FROM comments c
+            JOIN "user" u ON c.user_id = u.id
+            LEFT JOIN user_options uo ON uo.user_id = u.id
+            WHERE c.id = ${id} AND c.is_deleted = false
+            LIMIT 1
+        `;
+      if (!comment.length) return null;
+      return process ? (await processMentions(comment))[0] : comment[0];
+    } catch (e) {
+      console.error('[F0CKLIB] Error fetching comment:', e);
+      return null;
     }
   },
   getSubscriptionStatus: async (userId, itemId) => {

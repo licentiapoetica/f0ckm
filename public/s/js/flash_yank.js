@@ -692,7 +692,7 @@
         // firefox mobile check
         const isFirefoxMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent) && /firefox/i.test(navigator.userAgent);
         if (isFirefoxMobile) {
-            console.log("Firefox Mobile detected, disabling Flash Yank script.");
+            window.f0ckDebug("Firefox Mobile detected, disabling Flash Yank script.");
             return;
         }
 

@@ -3,7 +3,7 @@
 <div id="main">
     <link rel="stylesheet" href="/s/css/upload.css">
     <div class="upload-container" style="opacity: 0;" data-mimes='{!! mimes_json !!}'>
-        <h2>{{ t('upload_page.title') }}</h2>
+        <div class="upload-title">{{ t('upload.title') }}</div>
 
         <div class="upload-limit-info">
             @if(uploads_remaining === null)
