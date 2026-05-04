@@ -7,6 +7,7 @@ RUN apk add --no-cache \
     yt-dlp \
     ffmpegthumbnailer \
     imagemagick \
+    ghostscript \
     git \
     mailcap \
     file \

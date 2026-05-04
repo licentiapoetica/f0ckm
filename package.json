@@ -1,18 +1,21 @@
 {
-  "name": "f0ckv2",
-  "version": "2.2.1",
-  "description": "f0ck, kennste?",
+  "name": "f0ckm",
+  "version": "2.5.1",
+  "description": "f0ck, kennste noch?",
   "main": "index.mjs",
   "type": "module",
   "scripts": {
     "start": "node --trace-uncaught src/index.mjs",
+    "dev": "node --trace-uncaught --watch src/index.mjs",
     "trigger": "node debug/trigger.mjs",
     "autotagger": "node debug/autotagger.mjs",
     "thumbnailer": "node debug/thumbnailer.mjs",
     "test": "node debug/test.mjs",
     "clean": "node debug/clean.mjs",
     "fix:deleted": "node debug/fix_deleted.mjs",
-    "build": "node scripts/build-css.mjs"
+    "build": "node scripts/build-css.mjs",
+    "seed": "node scripts/seed.mjs",
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "author": "Flummi",
   "license": "MIT",

@@ -23,6 +23,15 @@ window.cancelAnimFrame = (function () {
     return div.innerHTML;
   };
 
+  // OS and Browser detection for CSS targeting
+  const ua = navigator.userAgent;
+  const htmlEl = document.documentElement;
+  if (ua.includes('Linux')) htmlEl.classList.add('is-linux');
+  if (ua.includes('Windows')) htmlEl.classList.add('is-windows');
+  if (ua.includes('Firefox')) htmlEl.classList.add('is-firefox');
+  if (ua.includes('Chrome')) htmlEl.classList.add('is-chrome');
+  if (ua.includes('Safari') && !ua.includes('Chrome')) htmlEl.classList.add('is-safari');
+
   window.updateVisitIndicators = () => {
       try {
           // View indicators and counters have been permanently removed as requested.

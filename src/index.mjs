@@ -172,7 +172,19 @@ process.on('uncaughtException', err => {
     }
   });
 
+  // Handle missing default avatar with a redirect to 404.gif
   app.use(async (req, res) => {
+    if (req.url.pathname === '/a/default.png') {
+      const defaultAvatar = path.join(cfg.paths.a, 'default.png');
+      if (!fs.existsSync(defaultAvatar)) {
+        res.writeHead(302, { 'Location': '/s/img/404.gif' }).end();
+        req.url.pathname = '/default_avatar_redirect_bypass';
+      }
+    }
+  });
+
+  app.use(async (req, res) => {
+    // This can be used to annoy people on discord sending links to your site lmao, shouldnt be used though since it sucks ass
 //     if (cfg.main.development && req.method === 'POST') console.error(`[BOOT] [DEBUG_POST] ${req.method} ${req.url.pathname}`);
 //     const ua = (req.headers['user-agent'] || '').toLowerCase();
 //     if (ua.includes('discordbot')) {

@@ -20,24 +20,23 @@
     "development": true
   },
   "allowedModes": [ "sfw", "nsfw", "untagged", "all", "nsfl" ],
-  "enable_pdf": true,
-  "enable_nsfl": true,
-  "nsfl_tag_id": 1234,
+  "enable_pdf": false,
+  "enable_nsfl": false,
+  "nsfl_tag_id": 4,
   "allowedMimes": [
     "audio",
     "image",
-    "video",
-    "pdf"
+    "video"
   ],
   "nsfp": [
-    1, 2, 3
+    2,3,4
   ],
   "websrv": {
     "port": "1337",
     "language": "en",
     "allow_language_change": true,
     "cache": false,
-    "eps": 100,
+    "eps": 155,
     "background": true,
 
     "description": "Example Description",
@@ -71,17 +70,17 @@
 
     "embed_youtube_in_comments": true,
     "show_content_warning": true,
-    "default_comment_display_mode": 0,
+    "default_comment_display_mode": 1,
     "phrases": [
       "Hello World"
     ],
-    "ban_video": "/b/17fd9881.mp4",
-    "enable_xd_score": true,
+    "ban_video": "",
+    "enable_xd_score": false,
     "enable_autoplay": false,
     "enable_swiping": true,
     "enable_profile_description": true,
-    "use_ententeich": true,
-    "enable_swf": true,
+    "user_alternative_infobox": false,
+    "enable_swf": false,
     "swf_thumb": "/s/img/swf.png",
 
     "open_registration": true,

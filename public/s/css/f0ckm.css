@@ -43,7 +43,7 @@ html[theme='f0ck'] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #090909;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --footbar-color: #9f0;
   --loading-indicator-color: #9f0;
@@ -108,7 +108,7 @@ html[theme='p1nk'] {
   --badge-tag: #090909;
   --metadata-bg: #2b2b2b;
   --posts-meta-bg: #000000b8;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --footbar-color: #ff00d0;
   --loading-indicator-color: #ff00d0;
@@ -169,7 +169,7 @@ html[theme='orange'] {
   --badge-sfw: #68a728;
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --footbar-color: #ff6f00;
   --loading-indicator-color: #ff6f00;
@@ -231,7 +231,7 @@ html[theme='amoled'] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #1a1a1a;
-  --scrollbar-color: #1d1c1c;
+  --scrollbar-color: #444;
   --scroller-bg: #424242;
   --footbar-color: #fff;
   --loading-indicator-color: #fff;
@@ -512,7 +512,7 @@ html[theme="atmos"] {
   --badge-nsfw: #a72828;
   --badge-nsfl: #660000;
   --badge-tag: #353535;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --footbar-color: #1fb2b0;
   --loading-indicator-color: #1fb2b0;
   --img-border-width: 0;
@@ -572,7 +572,7 @@ html[theme="term"] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #131212;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --tooltip-bg: #131212;
   --footbar-color: #00DF00;
@@ -649,7 +649,7 @@ html[theme="iced"] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #22083c;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --tooltip-bg: #0a3f53;
   --footbar-color: #0084ff;
@@ -732,7 +732,7 @@ html[theme='f0ck95'] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #959393;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --footbar-color: #000;
   --loading-indicator-color: #000;
@@ -855,7 +855,7 @@ html[theme="4d"] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #353535;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --footbar-color: #1fb2b0;
   --loading-indicator-color: #1fb2b0;
   --img-border-width: 0;
@@ -902,7 +902,7 @@ html[theme="xd"] {
   --badge-nsfw: #E10DC3;
   --badge-nsfl: #660000;
   --badge-tag: #353535;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --footbar-color: #1fb2b0;
   --loading-indicator-color: #1fb2b0;
   --img-border-width: 0;
@@ -2288,7 +2288,7 @@ body.layout-legacy .scroll-to-bottom svg {
 
 .comments-list::-webkit-scrollbar-thumb {
   background: var(--gray);
-  border-radius: 3px;
+  border-radius: 10px;
 }
 
 .comment {
@@ -2997,7 +2997,7 @@ html[theme='f0ck95d'] {
   --badge-sfw: teal;
   --badge-nsfw: #a72828;
   --badge-tag: #2f2f2f;
-  --scrollbar-color: #2b2b2b;
+  --scrollbar-color: #555;
   --scroller-bg: #424242;
   --footbar-color: #fff;
   --loading-indicator-color: #fff;
@@ -3202,16 +3202,29 @@ html[res="fullscreen"] span#favs {
 }
 
 
+/* Global scrollbar rules */
 ::-webkit-scrollbar {
-  width: 2px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-color);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-track {
   background-color: transparent;
+}
+
+* {
+  scrollbar-color: var(--scrollbar-color) transparent;
+  scrollbar-width: thin;
+}
+
+/* Linux Firefox "thin" is often too small and hard to see. Use auto there. */
+html.is-linux.is-firefox * {
+  scrollbar-width: auto;
 }
 
 *,
@@ -3233,14 +3246,13 @@ html {
   background: var(--bg) !important;
 }
 
+
 body {
   background: transparent !important;
   color: var(--white);
   margin: 0;
   font-family: var(--font);
   line-height: 2;
-  scrollbar-color: var(--scrollbar-color) transparent;
-  scrollbar-width: thin;
   overflow-x: clip;
   font-size: 14px;
 }
