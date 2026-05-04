@@ -31,7 +31,7 @@ services:
       - ./f0ckm-data/hall_custom/:/opt/f0bm/public/hall_custom/:Z
       - ./f0ckm-data/manifest.json:/opt/f0bm/public/manifest.json:Z
 
-    command: npm run dev
+    command: npm run start
     environment:
       - GIT_HASH=${f0ckm_TAG:-unknown}
     ports:

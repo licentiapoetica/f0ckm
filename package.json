@@ -17,11 +17,11 @@
     "seed": "node scripts/seed.mjs",
     "create-admin": "node scripts/create-admin.mjs"
   },
-  "author": "Flummi",
+  "author": "Kibi Kelburton",
   "license": "MIT",
   "dependencies": {
     "@ruffle-rs/ruffle": "0.2.0-nightly.2026.4.21",
-    "cuffeo": "git+https://git.lat/naimi/scuffeo.git",
+    "cuffeo": "git+https://git.lat/kibi/scuffeo.git",
     "flumm-fetch": "^1.0.1",
     "flummpress": "^2.0.5",
     "marked": "^18.0.2",
