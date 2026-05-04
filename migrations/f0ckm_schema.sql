@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict ifoUZevi3oYdI7OmgFxUaco0kNV6kdlFS55QWa8PuaWXA3AY2nPUcs8ekmXvMEU
+\restrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG
 
--- Dumped from database version 17.7 (Debian 17.7-3.pgdg13+1)
--- Dumped by pg_dump version 18.3
+-- Dumped from database version 17.9 (Debian 17.9-1.pgdg13+1)
+-- Dumped by pg_dump version 17.9 (Debian 17.9-1.pgdg13+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -19,6 +19,234 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+DROP PUBLICATION IF EXISTS alltables;
+ALTER TABLE IF EXISTS ONLY public.user_warnings DROP CONSTRAINT IF EXISTS user_warnings_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_warnings DROP CONSTRAINT IF EXISTS user_warnings_admin_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_video_views DROP CONSTRAINT IF EXISTS user_video_views_video_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_video_views DROP CONSTRAINT IF EXISTS user_video_views_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_sessions DROP CONSTRAINT IF EXISTS user_sessions_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_pubkeys DROP CONSTRAINT IF EXISTS user_pubkeys_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_options DROP CONSTRAINT IF EXISTS user_options_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_options DROP CONSTRAINT IF EXISTS user_options_avatar_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_halls DROP CONSTRAINT IF EXISTS user_halls_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_halls_assign DROP CONSTRAINT IF EXISTS user_halls_assign_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_halls_assign DROP CONSTRAINT IF EXISTS user_halls_assign_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_halls_assign DROP CONSTRAINT IF EXISTS user_halls_assign_hall_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_dm_keyvault DROP CONSTRAINT IF EXISTS user_dm_keyvault_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_conversation_states DROP CONSTRAINT IF EXISTS user_conversation_states_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_conversation_states DROP CONSTRAINT IF EXISTS user_conversation_states_other_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.tags_assign DROP CONSTRAINT IF EXISTS tags_assign_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.tags_assign DROP CONSTRAINT IF EXISTS tags_assign_tag_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.tags_assign DROP CONSTRAINT IF EXISTS tags_assign_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.tags_alias DROP CONSTRAINT IF EXISTS tags_alias_tag_orig_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.reports DROP CONSTRAINT IF EXISTS reports_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.reports DROP CONSTRAINT IF EXISTS reports_resolved_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.reports DROP CONSTRAINT IF EXISTS reports_reporter_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.reports DROP CONSTRAINT IF EXISTS reports_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.reports DROP CONSTRAINT IF EXISTS reports_comment_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.private_messages DROP CONSTRAINT IF EXISTS private_messages_sender_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.private_messages DROP CONSTRAINT IF EXISTS private_messages_recipient_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.link_token DROP CONSTRAINT IF EXISTS link_token_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.invite_tokens DROP CONSTRAINT IF EXISTS invite_tokens_used_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.invite_tokens DROP CONSTRAINT IF EXISTS invite_tokens_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.halls_assign DROP CONSTRAINT IF EXISTS halls_assign_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.halls_assign DROP CONSTRAINT IF EXISTS halls_assign_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.halls_assign DROP CONSTRAINT IF EXISTS halls_assign_hall_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.global_chat DROP CONSTRAINT IF EXISTS global_chat_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.favorites DROP CONSTRAINT IF EXISTS favorites_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.favorites DROP CONSTRAINT IF EXISTS favorites_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.discord_queue DROP CONSTRAINT IF EXISTS discord_queue_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.discord_queue DROP CONSTRAINT IF EXISTS discord_queue_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.comments DROP CONSTRAINT IF EXISTS comments_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.comments DROP CONSTRAINT IF EXISTS comments_parent_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.comments DROP CONSTRAINT IF EXISTS comments_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.comment_subscriptions DROP CONSTRAINT IF EXISTS comment_subscriptions_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.comment_subscriptions DROP CONSTRAINT IF EXISTS comment_subscriptions_item_id_fkey;
+DROP TRIGGER IF EXISTS trigger_notify_private_message ON public.private_messages;
+DROP TRIGGER IF EXISTS trigger_notify_notification ON public.notifications;
+DROP TRIGGER IF EXISTS trigger_notify_activity ON public.comments;
+DROP TRIGGER IF EXISTS trg_comments_xd_score ON public.comments;
+DROP TRIGGER IF EXISTS tags_bu ON public.tags;
+DROP TRIGGER IF EXISTS tags_bi ON public.tags;
+DROP TRIGGER IF EXISTS tags_assign_ad ON public.tags_assign;
+DROP TRIGGER IF EXISTS global_chat_notify ON public.global_chat;
+CREATE OR REPLACE VIEW public.items_li AS
+SELECT
+    NULL::integer AS id,
+    NULL::character varying(255) AS src,
+    NULL::character varying(40) AS dest,
+    NULL::character varying(100) AS mime,
+    NULL::integer AS size,
+    NULL::character varying(255) AS checksum,
+    NULL::character varying(40) AS username,
+    NULL::character varying(255) AS userchannel,
+    NULL::character varying(40) AS usernetwork,
+    NULL::integer AS stamp;
+DROP INDEX IF EXISTS public.tags_assign_tag_id_idx;
+DROP INDEX IF EXISTS public.items_phash;
+DROP INDEX IF EXISTS public.idx_user_warnings_user_status;
+DROP INDEX IF EXISTS public.idx_user_last_seen;
+DROP INDEX IF EXISTS public.idx_user_halls_user_id;
+DROP INDEX IF EXISTS public.idx_user_halls_assign_item;
+DROP INDEX IF EXISTS public.idx_user_halls_assign_hall;
+DROP INDEX IF EXISTS public.idx_user_alias_userid;
+DROP INDEX IF EXISTS public.idx_user_alias_type;
+DROP INDEX IF EXISTS public.idx_user_alias_alias;
+DROP INDEX IF EXISTS public.idx_ucs_user_hidden;
+DROP INDEX IF EXISTS public.idx_reports_status;
+DROP INDEX IF EXISTS public.idx_pm_sender;
+DROP INDEX IF EXISTS public.idx_pm_recipient;
+DROP INDEX IF EXISTS public.idx_pm_conversation;
+DROP INDEX IF EXISTS public.idx_notifications_user_id;
+DROP INDEX IF EXISTS public.idx_notifications_unread;
+DROP INDEX IF EXISTS public.idx_login_attempts_username_time;
+DROP INDEX IF EXISTS public.idx_login_attempts_ip_time;
+DROP INDEX IF EXISTS public.idx_link_token_token;
+DROP INDEX IF EXISTS public.idx_items_xd_score;
+DROP INDEX IF EXISTS public.idx_items_username_lower;
+DROP INDEX IF EXISTS public.idx_items_username;
+DROP INDEX IF EXISTS public.idx_items_pinned_id;
+DROP INDEX IF EXISTS public.idx_items_is_purged;
+DROP INDEX IF EXISTS public.idx_items_is_deleted;
+DROP INDEX IF EXISTS public.idx_items_active_id;
+DROP INDEX IF EXISTS public.idx_global_chat_created_at;
+DROP INDEX IF EXISTS public.idx_discord_queue_sent;
+DROP INDEX IF EXISTS public.idx_comments_user_id;
+DROP INDEX IF EXISTS public.idx_comments_item_id;
+DROP INDEX IF EXISTS public.idx_comments_is_pinned;
+DROP INDEX IF EXISTS public.idx_audit_log_user_id;
+DROP INDEX IF EXISTS public.idx_audit_log_created_at;
+DROP INDEX IF EXISTS public.idx_audit_log_action;
+ALTER TABLE IF EXISTS ONLY public.user_warnings DROP CONSTRAINT IF EXISTS user_warnings_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_video_views DROP CONSTRAINT IF EXISTS user_video_views_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_pubkeys DROP CONSTRAINT IF EXISTS user_pubkeys_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_options DROP CONSTRAINT IF EXISTS user_options_user_id;
+ALTER TABLE IF EXISTS ONLY public."user" DROP CONSTRAINT IF EXISTS user_name_unique;
+ALTER TABLE IF EXISTS ONLY public."user" DROP CONSTRAINT IF EXISTS user_login_unique;
+ALTER TABLE IF EXISTS ONLY public.user_halls DROP CONSTRAINT IF EXISTS user_halls_user_id_slug_key;
+ALTER TABLE IF EXISTS ONLY public.user_halls DROP CONSTRAINT IF EXISTS user_halls_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_halls_assign DROP CONSTRAINT IF EXISTS user_halls_assign_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_dm_keyvault DROP CONSTRAINT IF EXISTS user_dm_keyvault_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_conversation_states DROP CONSTRAINT IF EXISTS user_conversation_states_pkey;
+ALTER TABLE IF EXISTS ONLY public.tags DROP CONSTRAINT IF EXISTS tags_id;
+ALTER TABLE IF EXISTS ONLY public.tags_assign DROP CONSTRAINT IF EXISTS tags_assign_item_id_tag_id_unique;
+ALTER TABLE IF EXISTS ONLY public.tags_assign DROP CONSTRAINT IF EXISTS tags_assign_item_id_tag_id_primary;
+ALTER TABLE IF EXISTS ONLY public.tags_alias DROP CONSTRAINT IF EXISTS tags_alias_tag_orig_id;
+ALTER TABLE IF EXISTS ONLY public.tags_alias DROP CONSTRAINT IF EXISTS tags_alias_tag_alias_tag_orig_id;
+ALTER TABLE IF EXISTS ONLY public.site_settings DROP CONSTRAINT IF EXISTS site_settings_pkey;
+ALTER TABLE IF EXISTS ONLY public.reports DROP CONSTRAINT IF EXISTS reports_pkey;
+ALTER TABLE IF EXISTS ONLY public.private_messages DROP CONSTRAINT IF EXISTS private_messages_pkey;
+ALTER TABLE IF EXISTS ONLY public.notifications DROP CONSTRAINT IF EXISTS notifications_pkey;
+ALTER TABLE IF EXISTS ONLY public.meta_cache DROP CONSTRAINT IF EXISTS meta_cache_pkey;
+ALTER TABLE IF EXISTS ONLY public.meme_templates DROP CONSTRAINT IF EXISTS meme_templates_template_id_key;
+ALTER TABLE IF EXISTS ONLY public.meme_templates DROP CONSTRAINT IF EXISTS meme_templates_pkey;
+ALTER TABLE IF EXISTS ONLY public.login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
+ALTER TABLE IF EXISTS ONLY public.link_token DROP CONSTRAINT IF EXISTS link_token_token_key;
+ALTER TABLE IF EXISTS ONLY public.link_token DROP CONSTRAINT IF EXISTS link_token_pkey;
+ALTER TABLE IF EXISTS ONLY public.items DROP CONSTRAINT IF EXISTS items_checksum;
+ALTER TABLE IF EXISTS ONLY public.invite_tokens DROP CONSTRAINT IF EXISTS invite_tokens_token_key;
+ALTER TABLE IF EXISTS ONLY public.invite_tokens DROP CONSTRAINT IF EXISTS invite_tokens_pkey;
+ALTER TABLE IF EXISTS ONLY public.user_sessions DROP CONSTRAINT IF EXISTS idx_16572_primary;
+ALTER TABLE IF EXISTS ONLY public.user_options DROP CONSTRAINT IF EXISTS idx_16567_user_id;
+ALTER TABLE IF EXISTS ONLY public."user" DROP CONSTRAINT IF EXISTS idx_16554_primary;
+ALTER TABLE IF EXISTS ONLY public.items DROP CONSTRAINT IF EXISTS idx_16526_primary;
+ALTER TABLE IF EXISTS ONLY public.favorites DROP CONSTRAINT IF EXISTS idx_16521_primary;
+ALTER TABLE IF EXISTS ONLY public.halls DROP CONSTRAINT IF EXISTS halls_slug_key;
+ALTER TABLE IF EXISTS ONLY public.halls DROP CONSTRAINT IF EXISTS halls_pkey;
+ALTER TABLE IF EXISTS ONLY public.halls_assign DROP CONSTRAINT IF EXISTS halls_assign_pkey;
+ALTER TABLE IF EXISTS ONLY public.global_chat_settings DROP CONSTRAINT IF EXISTS global_chat_settings_pkey;
+ALTER TABLE IF EXISTS ONLY public.global_chat DROP CONSTRAINT IF EXISTS global_chat_pkey;
+ALTER TABLE IF EXISTS ONLY public.discord_queue DROP CONSTRAINT IF EXISTS discord_queue_pkey;
+ALTER TABLE IF EXISTS ONLY public.custom_emojis DROP CONSTRAINT IF EXISTS custom_emojis_pkey;
+ALTER TABLE IF EXISTS ONLY public.custom_emojis DROP CONSTRAINT IF EXISTS custom_emojis_name_key;
+ALTER TABLE IF EXISTS ONLY public.comments DROP CONSTRAINT IF EXISTS comments_pkey;
+ALTER TABLE IF EXISTS ONLY public.comment_subscriptions DROP CONSTRAINT IF EXISTS comment_subscriptions_pkey;
+ALTER TABLE IF EXISTS ONLY public.audit_log DROP CONSTRAINT IF EXISTS audit_log_pkey;
+ALTER TABLE IF EXISTS public.user_warnings ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.user_halls ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.reports ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.private_messages ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.notifications ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.meme_templates ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.login_attempts ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.link_token ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.invite_tokens ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.halls ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.global_chat ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.discord_queue ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.custom_emojis ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.comments ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.audit_log ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE IF EXISTS public.user_warnings_id_seq;
+DROP TABLE IF EXISTS public.user_warnings;
+DROP TABLE IF EXISTS public.user_video_views;
+DROP TABLE IF EXISTS public.user_sessions;
+DROP SEQUENCE IF EXISTS public.user_sessions_id_seq;
+DROP TABLE IF EXISTS public.user_pubkeys;
+DROP TABLE IF EXISTS public.user_options;
+DROP SEQUENCE IF EXISTS public.user_halls_id_seq;
+DROP TABLE IF EXISTS public.user_halls_assign;
+DROP TABLE IF EXISTS public.user_halls;
+DROP TABLE IF EXISTS public.user_dm_keyvault;
+DROP TABLE IF EXISTS public.user_conversation_states;
+DROP TABLE IF EXISTS public.user_alias;
+DROP TABLE IF EXISTS public."user";
+DROP SEQUENCE IF EXISTS public.user_id_seq;
+DROP TABLE IF EXISTS public.tags_alias;
+DROP TABLE IF EXISTS public.tags;
+DROP SEQUENCE IF EXISTS public.tags_id_seq;
+DROP TABLE IF EXISTS public.site_settings;
+DROP SEQUENCE IF EXISTS public.reports_id_seq;
+DROP TABLE IF EXISTS public.reports;
+DROP SEQUENCE IF EXISTS public.private_messages_id_seq;
+DROP TABLE IF EXISTS public.private_messages;
+DROP SEQUENCE IF EXISTS public.notifications_id_seq;
+DROP TABLE IF EXISTS public.notifications;
+DROP TABLE IF EXISTS public.meta_cache;
+DROP SEQUENCE IF EXISTS public.meme_templates_id_seq;
+DROP TABLE IF EXISTS public.meme_templates;
+DROP SEQUENCE IF EXISTS public.login_attempts_id_seq;
+DROP TABLE IF EXISTS public.login_attempts;
+DROP SEQUENCE IF EXISTS public.link_token_id_seq;
+DROP TABLE IF EXISTS public.link_token;
+DROP VIEW IF EXISTS public.items_sfw;
+DROP TABLE IF EXISTS public.tags_nsfp;
+DROP TABLE IF EXISTS public.tags_assign;
+DROP VIEW IF EXISTS public.items_li;
+DROP TABLE IF EXISTS public.items;
+DROP SEQUENCE IF EXISTS public.items_id_seq;
+DROP SEQUENCE IF EXISTS public.invite_tokens_id_seq;
+DROP TABLE IF EXISTS public.invite_tokens;
+DROP SEQUENCE IF EXISTS public.halls_id_seq;
+DROP TABLE IF EXISTS public.halls_assign;
+DROP TABLE IF EXISTS public.halls;
+DROP TABLE IF EXISTS public.global_chat_settings;
+DROP SEQUENCE IF EXISTS public.global_chat_id_seq;
+DROP TABLE IF EXISTS public.global_chat;
+DROP TABLE IF EXISTS public.favorites;
+DROP SEQUENCE IF EXISTS public.discord_queue_id_seq;
+DROP TABLE IF EXISTS public.discord_queue;
+DROP SEQUENCE IF EXISTS public.custom_emojis_id_seq;
+DROP TABLE IF EXISTS public.custom_emojis;
+DROP SEQUENCE IF EXISTS public.comments_id_seq;
+DROP TABLE IF EXISTS public.comments;
+DROP TABLE IF EXISTS public.comment_subscriptions;
+DROP SEQUENCE IF EXISTS public.audit_log_id_seq;
+DROP TABLE IF EXISTS public.audit_log;
+DROP FUNCTION IF EXISTS public.update_item_xd_score(p_item_id bigint);
+DROP FUNCTION IF EXISTS public.unaccent_text(text);
+DROP FUNCTION IF EXISTS public.trg_update_xd_score();
+DROP FUNCTION IF EXISTS public.slugify(v text);
+DROP FUNCTION IF EXISTS public.notify_private_message();
+DROP FUNCTION IF EXISTS public.notify_notification();
+DROP FUNCTION IF EXISTS public.notify_global_chat();
+DROP FUNCTION IF EXISTS public.notify_activity();
+DROP FUNCTION IF EXISTS public.fill_normalized();
+DROP FUNCTION IF EXISTS public.delete_unused_tags();
+DROP EXTENSION IF EXISTS unaccent;
+-- *not* dropping schema, since initdb creates it
 --
 -- Name: public; Type: SCHEMA; Schema: -; Owner: f0ckm
 --
@@ -77,7 +305,7 @@ CREATE FUNCTION public.fill_normalized() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  NEW.normalized = public.slugify(NEW.tag);
+  NEW.normalized = slugify(NEW.tag);
   return NEW;
 end$$;
 
@@ -137,7 +365,7 @@ CREATE FUNCTION public.notify_notification() RETURNS trigger
 DECLARE
     payload JSON;
 BEGIN
-    -- Only notify on INSERT or when transitioning to is_read = true
+    -- Only notify on INSERT or when a notification transitions to is_read = true
     IF (TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND OLD.is_read = false AND NEW.is_read = true) THEN
         SELECT json_build_object(
             'id', NEW.id,
@@ -186,7 +414,7 @@ CREATE FUNCTION public.slugify(v text) RETURNS text
     LANGUAGE plpgsql
     AS $$
 BEGIN
-  RETURN trim(BOTH '-' FROM regexp_replace(lower(public.unaccent(trim(v))), '[\u0000-\u002f \u003a-\u0040\u005b-\u0060\u007b-\u00bf]+', '', 'gi'));
+  RETURN trim(BOTH '-' FROM regexp_replace(lower(unaccent(trim(v))), '[\u0000-\u002f \u003a-\u0040\u005b-\u0060\u007b-\u00bf]+', '', 'gi'));
 END;
 $$;
 
@@ -202,9 +430,9 @@ CREATE FUNCTION public.trg_update_xd_score() RETURNS trigger
     AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
-        PERFORM public.update_item_xd_score(OLD.item_id);
+        PERFORM update_item_xd_score(OLD.item_id);
     ELSE
-        PERFORM public.update_item_xd_score(NEW.item_id);
+        PERFORM update_item_xd_score(NEW.item_id);
     END IF;
     RETURN NULL;
 END;
@@ -222,7 +450,7 @@ CREATE FUNCTION public.unaccent_text(text) RETURNS text
     AS $_$
   -- unaccent is STABLE, but the indexes must use IMMUTABLE functions.
   -- comment this line out when calling pg_dump.
-  SELECT public.unaccent($1);
+  SELECT unaccent($1);
 
   -- Uncomment this line when calling pg_dump.
   --SELECT ''::text;
@@ -494,8 +722,8 @@ CREATE TABLE public.halls (
     name text NOT NULL,
     slug text NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
-    description text,
     custom_image text,
+    description text DEFAULT ''::text NOT NULL,
     rating text DEFAULT 'sfw'::text NOT NULL
 );
 
@@ -832,6 +1060,19 @@ ALTER SEQUENCE public.meme_templates_id_seq OWNED BY public.meme_templates.id;
 
 
 --
+-- Name: meta_cache; Type: TABLE; Schema: public; Owner: f0ckm
+--
+
+CREATE TABLE public.meta_cache (
+    url text NOT NULL,
+    data jsonb,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.meta_cache OWNER TO f0ckm;
+
+--
 -- Name: notifications; Type: TABLE; Schema: public; Owner: f0ckm
 --
 
@@ -1035,7 +1276,6 @@ CREATE TABLE public."user" (
     email text,
     reset_token text,
     reset_expires timestamp without time zone,
-    username_color character varying,
     last_seen integer DEFAULT 0,
     force_password_change boolean DEFAULT false
 );
@@ -1157,9 +1397,8 @@ CREATE TABLE public.user_options (
     show_motd boolean DEFAULT true,
     strict_mode boolean DEFAULT false,
     use_new_layout boolean DEFAULT false,
-    username_color character varying(20) DEFAULT NULL::character varying,
+    username_color character varying,
     font character varying(255) DEFAULT NULL::character varying,
-    font_size smallint,
     disable_autoplay boolean DEFAULT false,
     disable_swiping boolean DEFAULT false,
     description text,
@@ -1172,7 +1411,12 @@ CREATE TABLE public.user_options (
     embed_youtube_in_comments boolean DEFAULT true NOT NULL,
     hide_koepfe boolean DEFAULT false NOT NULL,
     language text,
-    use_alternative_infobox boolean DEFAULT false
+    use_alternative_infobox boolean DEFAULT false,
+    receive_system_notifications boolean DEFAULT true,
+    receive_user_notifications boolean DEFAULT true,
+    do_not_disturb boolean DEFAULT false,
+    comment_display_mode integer DEFAULT 1,
+    force_comment_display_mode integer DEFAULT 0
 );
 
 
@@ -1583,6 +1827,14 @@ ALTER TABLE ONLY public.meme_templates
 
 
 --
+-- Name: meta_cache meta_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public.meta_cache
+    ADD CONSTRAINT meta_cache_pkey PRIMARY KEY (url);
+
+
+--
 -- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: f0ckm
 --
 
@@ -1820,6 +2072,13 @@ CREATE INDEX idx_items_is_purged ON public.items USING btree (is_purged) WHERE (
 
 
 --
+-- Name: idx_items_pinned_id; Type: INDEX; Schema: public; Owner: f0ckm
+--
+
+CREATE INDEX idx_items_pinned_id ON public.items USING btree (is_pinned DESC, id DESC);
+
+
+--
 -- Name: idx_items_username; Type: INDEX; Schema: public; Owner: f0ckm
 --
 
@@ -1901,6 +2160,13 @@ CREATE INDEX idx_pm_sender ON public.private_messages USING btree (sender_id, cr
 --
 
 CREATE INDEX idx_reports_status ON public.reports USING btree (status);
+
+
+--
+-- Name: idx_ucs_user_hidden; Type: INDEX; Schema: public; Owner: f0ckm
+--
+
+CREATE INDEX idx_ucs_user_hidden ON public.user_conversation_states USING btree (user_id, is_hidden);
 
 
 --
@@ -2289,7 +2555,7 @@ ALTER TABLE ONLY public.tags_assign
 --
 
 ALTER TABLE ONLY public.user_conversation_states
-    ADD CONSTRAINT user_conversation_states_other_id_fkey FOREIGN KEY (other_id) REFERENCES public."user"(id);
+    ADD CONSTRAINT user_conversation_states_other_id_fkey FOREIGN KEY (other_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -2297,7 +2563,7 @@ ALTER TABLE ONLY public.user_conversation_states
 --
 
 ALTER TABLE ONLY public.user_conversation_states
-    ADD CONSTRAINT user_conversation_states_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id);
+    ADD CONSTRAINT user_conversation_states_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -2425,48 +2691,5 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ifoUZevi3oYdI7OmgFxUaco0kNV6kdlFS55QWa8PuaWXA3AY2nPUcs8ekmXvMEU
+\unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG
 
-
---
--- Data for Name: site_settings; Type: TABLE DATA; Schema: public; Owner: f0ckm
---
-
-INSERT INTO public.site_settings (key, value) VALUES
-('motd', 'Hello World!'),
-('manual_approval', 'true'),
-('min_tags', '1'),
-('registration_open', 'false'),
-('trusted_uploads', '0'),
-('about_text', 'About'),
-('rules_text', 'foobar'),
-('terms_text', 'baz')
-ON CONFLICT (key) DO NOTHING;
-
---
--- Data for Name: halls; Type: TABLE DATA; Schema: public; Owner: f0ckm
---
-
-INSERT INTO public.halls (name, slug, rating) VALUES
-('SFW', 'sfw', 'sfw'),
-('NSFW', 'nsfw', 'nsfw')
-ON CONFLICT (slug) DO NOTHING;
-
-
---
--- Core Tags Data
---
-
-INSERT INTO public.tags (id, tag, normalized) VALUES
-(1, 'sfw', 'sfw'),
-(2, 'nsfw', 'nsfw'),
-(3, 'nsfp', 'nsfp'),
-(4, 'nsfl', 'nsfl')
-ON CONFLICT (id) DO UPDATE SET tag = EXCLUDED.tag, normalized = EXCLUDED.normalized;
-
--- Ensure nsfp filter table has the correct IDs
-INSERT INTO public.tags_nsfp (id) VALUES (3), (4)
-ON CONFLICT DO NOTHING;
-
--- Fix sequence
-SELECT setval('public.tags_id_seq', (SELECT MAX(id) FROM public.tags));
