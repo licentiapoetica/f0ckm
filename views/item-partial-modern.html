@@ -132,7 +132,7 @@
                 @endif
                 @endif
                 @if(halls_enabled)
-                <i class="iconset fa-solid fa-building-columns" id="a_hall" data-item-id="{{ item.id }}" data-halls="{{ halls_slugs }}" data-user-halls="{{ user_halls_slugs }}" data-current-hall="{{ current_hall_slug }}" data-current-user-hall="{{ current_user_hall_slug }}" data-current-user-hall-owner="{{ current_user_hall_owner }}" title="Add to Hall"></i>
+                <i class="iconset fa-solid fa-layer-group" id="a_hall" data-item-id="{{ item.id }}" data-halls="{{ halls_slugs }}" data-user-halls="{{ user_halls_slugs }}" data-current-hall="{{ current_hall_slug }}" data-current-user-hall="{{ current_user_hall_slug }}" data-current-user-hall-owner="{{ current_user_hall_owner }}" title="Add to Hall"></i>
                 @endif
                 @if(is_mod_or_admin)
                 <i class="iconset fa-solid fa-thumbtack{{ item.is_pinned ? ' active' : '' }}" id="a_pin" data-pinned="{{ item.is_pinned }}" title="{{ item.is_pinned ? 'Unpin from main' : 'Pin to main' }}"></i>

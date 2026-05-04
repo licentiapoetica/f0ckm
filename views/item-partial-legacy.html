@@ -118,7 +118,7 @@
                     <i class="iconset {{ isSubscribed ? 'fa-solid' : 'fa-regular' }} fa-bell" id="subscribe-btn" data-item-id="{{ item.id }}" title="{{ isSubscribed ? 'Subscribed' : 'Subscribe' }}"></i>
                     <i class="iconset fa-solid fa-triangle-exclamation report-item-btn" data-item-id="{{ item.id }}" title="Report this post"></i>
                     @if(halls_enabled)
-                    <i class="iconset fa-solid fa-building-columns" id="a_hall" data-item-id="{{ item.id }}" data-halls="{{ halls_slugs }}" data-user-halls="{{ user_halls_slugs }}" data-current-hall="{{ (tmp.hall && typeof tmp.hall === 'object') ? tmp.hall.slug : (tmp.hall || '') }}" data-current-user-hall="{{ (tmp.userHall && typeof tmp.userHall === 'object') ? tmp.userHall.slug : (tmp.userHall || '') }}" data-current-user-hall-owner="{{ tmp.userHallOwner || '' }}" title="Add to Hall"></i>
+                    <i class="iconset fa-solid fa-layer-group" id="a_hall" data-item-id="{{ item.id }}" data-halls="{{ halls_slugs }}" data-user-halls="{{ user_halls_slugs }}" data-current-hall="{{ (tmp.hall && typeof tmp.hall === 'object') ? tmp.hall.slug : (tmp.hall || '') }}" data-current-user-hall="{{ (tmp.userHall && typeof tmp.userHall === 'object') ? tmp.userHall.slug : (tmp.userHall || '') }}" data-current-user-hall-owner="{{ tmp.userHallOwner || '' }}" title="Add to Hall"></i>
                     @endif
                     @if(can_manage_item)
                     <i class="iconset {{ item.is_oc ? 'fa-solid' : 'fa-regular' }} fa-star" id="a_oc" data-item-id="{{ item.id }}" data-is-oc="{{ item.is_oc }}" title="{{ item.is_oc ? 'Remove OC status' : 'Mark as OC' }}"></i>
