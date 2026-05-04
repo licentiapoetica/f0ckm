@@ -382,7 +382,6 @@ export default (router, tpl) => {
       body: tpl.render('about', {
         tmp: null,
         mail: cfg.main.mail,
-        discord: cfg.main.discord,
         session: (req.session && req.session.user) ? { ...req.session } : false,
         page_meta: {
           title: 'about',

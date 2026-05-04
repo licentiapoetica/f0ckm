@@ -721,7 +721,6 @@ process.on('uncaughtException', err => {
     domain: cfg.main.url.domain,
     hide_comments_from_public: cfg.main.hide_comments_from_public,
     git_hash: typeof gitHash !== 'undefined' ? gitHash : 'unknown',
-    discord: cfg.main.discord,
     get motd() { return getMotd(); },
     get manual_approval() { return getManualApproval(); },
     get min_tags() { return getMinTags(); },

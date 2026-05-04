@@ -7,7 +7,6 @@
     },
     "socks": "socks5://127.0.0.1:9050",
     "mail": "admin@example.com",
-    "discord": "",
     "maxfilesize": 104857600,
     "adminmultiplier": 3.5,
     "upload_limit": 300,
