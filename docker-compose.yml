@@ -11,25 +11,25 @@ services:
     networks:
       - f0ckm-net
     volumes:
-      - ./config.json:/opt/f0bm/config.json:Z
-      - ./src/:/opt/f0bm/src/:Z
-      - ./views/:/opt/f0bm/views/:Z
-      - ./scripts/:/opt/f0bm/scripts/:Z
-      - ./f0ckm-data/a/:/opt/f0bm/public/a/:Z
-      - ./f0ckm-data/b/:/opt/f0bm/public/b/:Z
-      - ./f0ckm-data/t/:/opt/f0bm/public/t/:Z
-      - ./f0ckm-data/deleted/:/opt/f0bm/deleted/:Z
-      - ./f0ckm-data/pending/:/opt/f0bm/pending/:Z
-      - ./f0ckm-data/emojis/:/opt/f0bm/public/s/emojis/:Z
-      - ./f0ckm-data/memes/:/opt/f0bm/public/memes/:Z
-      - ./f0ckm-data/ca/:/opt/f0bm/public/ca/:Z
-      - ./f0ckm-data/tmp/:/opt/f0bm/tmp/:Z
-      - ./f0ckm-data/logs/:/opt/f0bm/logs/:Z
-      - ./f0ckm-data/tag_cache/:/opt/f0bm/public/tag_cache/:Z
-      - ./f0ckm-data/fonts/:/opt/f0bm/public/s/fonts/:Z
-      - ./f0ckm-data/hall_cache/:/opt/f0bm/public/hall_cache/:Z
-      - ./f0ckm-data/hall_custom/:/opt/f0bm/public/hall_custom/:Z
-      - ./f0ckm-data/manifest.json:/opt/f0bm/public/manifest.json:Z
+      - ./config.json:/opt/f0ckm/config.json:Z
+      - ./src/:/opt/f0ckm/src/:Z
+      - ./views/:/opt/f0ckm/views/:Z
+      - ./scripts/:/opt/f0ckm/scripts/:Z
+      - ./f0ckm-data/a/:/opt/f0ckm/public/a/:Z
+      - ./f0ckm-data/b/:/opt/f0ckm/public/b/:Z
+      - ./f0ckm-data/t/:/opt/f0ckm/public/t/:Z
+      - ./f0ckm-data/deleted/:/opt/f0ckm/deleted/:Z
+      - ./f0ckm-data/pending/:/opt/f0ckm/pending/:Z
+      - ./f0ckm-data/emojis/:/opt/f0ckm/public/s/emojis/:Z
+      - ./f0ckm-data/memes/:/opt/f0ckm/public/memes/:Z
+      - ./f0ckm-data/ca/:/opt/f0ckm/public/ca/:Z
+      - ./f0ckm-data/tmp/:/opt/f0ckm/tmp/:Z
+      - ./f0ckm-data/logs/:/opt/f0ckm/logs/:Z
+      - ./f0ckm-data/tag_cache/:/opt/f0ckm/public/tag_cache/:Z
+      - ./f0ckm-data/fonts/:/opt/f0ckm/public/s/fonts/:Z
+      - ./f0ckm-data/hall_cache/:/opt/f0ckm/public/hall_cache/:Z
+      - ./f0ckm-data/hall_custom/:/opt/f0ckm/public/hall_custom/:Z
+      - ./f0ckm-data/manifest.json:/opt/f0ckm/public/manifest.json:Z
 
     environment:
       - GIT_HASH=${f0ckm_TAG:-unknown}

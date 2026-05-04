@@ -15,7 +15,7 @@ RUN apk add --no-cache \
     torsocks \
     exiftool
 
-WORKDIR /opt/f0bm
+WORKDIR /opt/f0ckm
 COPY . .
 
 RUN npm i
