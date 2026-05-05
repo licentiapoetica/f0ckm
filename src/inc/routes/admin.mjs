@@ -26,7 +26,17 @@ export default (router, tpl) => {
     const username = req.post.username;
     const password = req.post.password;
 
-    if (!password || password.length < 20) {
+    const fail = async (msg) => {
+      await security.recordAttempt(ip, username, 'login', false);
+      // Artificial delay to prevent timing attacks and slow down brute-force
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'))) {
+        return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg }));
+      }
+      return res.reply({ body: tpl.render("login", { error: msg, theme: req.theme }) });
+    };
+
+    if (!username || !password || password.length < 20) {
       return fail("Invalid username or password.");
     }
 
@@ -45,15 +55,6 @@ export default (router, tpl) => {
       limit 1
     `;
 
-    const fail = async (msg) => {
-      await security.recordAttempt(ip, username, 'login', false);
-      // Artificial delay to prevent timing attacks and slow down brute-force
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'))) {
-        return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg }));
-      }
-      return res.reply({ body: tpl.render("login", { error: msg, theme: req.theme }) });
-    };
 
     if (user.length === 0)
       return fail("user doesn't exist or wrong password");
