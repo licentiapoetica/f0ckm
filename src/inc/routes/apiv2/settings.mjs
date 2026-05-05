@@ -382,9 +382,22 @@ export default router => {
     group.put(/\/email/, lib.loggedin, async (req, res) => {
       const { email } = req.post;
       if (!email || !email.trim()) return res.json({ success: false, msg: 'Email is required' }, 400);
-      if (!email.includes('@')) return res.json({ success: false, msg: 'Invalid email address' }, 400);
+      const cleanEmail = email.trim();
+      if (!cleanEmail.includes('@')) return res.json({ success: false, msg: 'Invalid email address' }, 400);
 
-      await db`update "user" set email = ${email.trim()} where id = ${+req.session.id}`;
+      // Check if email is already taken by another user
+      const existing = await db`
+        select id from "user" 
+        where lower(email) = lower(${cleanEmail}) 
+        and id != ${+req.session.id}
+        limit 1
+      `;
+
+      if (existing.length > 0) {
+        return res.json({ success: false, msg: 'Email already in use' }, 400);
+      }
+
+      await db`update "user" set email = ${cleanEmail} where id = ${+req.session.id}`;
       return res.json({ success: true, msg: 'Email updated successfully' }, 200);
     });
 

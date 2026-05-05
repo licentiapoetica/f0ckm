@@ -1963,6 +1963,14 @@ ALTER TABLE ONLY public."user"
 
 
 --
+-- Name: user user_email_unique; Type: CONSTRAINT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public."user"
+    ADD CONSTRAINT user_email_unique UNIQUE (email);
+
+
+--
 -- Name: user_options user_options_user_id; Type: CONSTRAINT; Schema: public; Owner: f0ckm
 --
 

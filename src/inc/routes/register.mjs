@@ -110,8 +110,22 @@ export default (router, tpl) => {
         }
 
         // Check user existence
-        const existing = await db`select id from "user" where "login" = ${username.toLowerCase()} or "user" = ${username}`;
-        if (existing.length > 0) return renderError("Username taken");
+        const existing = await db`
+            select id, login, email 
+            from "user" 
+            where "login" = ${username.toLowerCase()} 
+               or "user" = ${username}
+               or ("email" is not null and "email" = ${email})
+        `;
+        
+        if (existing.length > 0) {
+            // Check if it was the email that matched
+            const emailMatch = existing.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
+            if (emailMatch) {
+                return renderError("Email already registered");
+            }
+            return renderError("Username taken");
+        }
 
         // Create User
         const hash = await lib.hash(password);

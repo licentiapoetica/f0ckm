@@ -6,11 +6,11 @@ import { fileURLToPath } from "url";
 let config = JSON.parse(JSON.stringify(_config));
 
 // Environment variable overrides for database connection
-if (process.env.DB_HOST) config.sql.host = process.env.DB_HOST;
-if (process.env.DB_PORT) config.sql.port = parseInt(process.env.DB_PORT, 10);
-if (process.env.DB_USER) config.sql.user = process.env.DB_USER;
-if (process.env.DB_PASS) config.sql.password = process.env.DB_PASS;
-if (process.env.DB_NAME) config.sql.database = process.env.DB_NAME;
+config.sql.host = process.env.DB_HOST || process.env.POSTGRES_HOST || process.env.PGHOST || config.sql.host;
+config.sql.port = parseInt(process.env.DB_PORT || process.env.POSTGRES_PORT || process.env.PGPORT || config.sql.port, 10);
+config.sql.user = process.env.DB_USER || process.env.POSTGRES_USER || process.env.PGUSER || config.sql.user;
+config.sql.password = process.env.DB_PASS || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || config.sql.password;
+config.sql.database = process.env.DB_NAME || process.env.POSTGRES_DB || process.env.PGDATABASE || config.sql.database;
 
 if (process.env.NODE_ENV === 'production') {
     config.main.development = false;
