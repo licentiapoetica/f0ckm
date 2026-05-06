@@ -136,7 +136,7 @@ export default (router, tpl) => {
     }
 
     userData.timestamp = {
-      timeago: lib.timeAgo(userData.created_at),
+      timeago: lib.timeAgo(userData.created_at, req.lang),
       timefull: userData.created_at
     };
     userData.age_days = Math.floor((Date.now() - new Date(userData.created_at).getTime()) / 86400000);
@@ -228,7 +228,8 @@ export default (router, tpl) => {
       strict: !!(req.query?.strict || req.url.qs?.strict || req.session?.strict_mode),
       explicitStrict: !!(req.query?.strict || req.url.qs?.strict),
       random: req.cookies.random_mode === '1',
-      minXdScore: req.params.itemid ? 0 : (req.url.qs?.min_xd !== undefined ? +req.url.qs.min_xd : (req.session?.min_xd_score || 0))
+      minXdScore: req.params.itemid ? 0 : (req.url.qs?.min_xd !== undefined ? +req.url.qs.min_xd : (req.session?.min_xd_score || 0)),
+      lang: req.lang
     });
     console.log(`[DEBUG] Checking strict mode: query=${req.query?.strict}, session=${req.session?.strict_mode}, effective=${!!(req.query?.strict || req.url.qs?.strict || req.session?.strict_mode)}`);
     console.log(`[${new Date().toISOString()}] [ROUTE] Data fetch complete in ${Date.now() - tRouteStart}ms`);

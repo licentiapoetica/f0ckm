@@ -290,7 +290,7 @@ export default {
       view_mode: fav ? 'favs' : 'uploads'
     };
   },
-  getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, session, strict, exclude, user_id, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner } = {}) => {
+  getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, session, strict, exclude, user_id, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, lang } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
     const tag = lib.parseTag(rawTag ?? null);
     let hall = rawHall ?? null;
@@ -614,7 +614,7 @@ export default {
         mime: actitem.mime,
         size: lib.formatSize(actitem.size),
         timestamp: {
-          timeago: lib.timeAgo(new Date(actitem.stamp * 1e3).toISOString()),
+          timeago: lib.timeAgo(new Date(actitem.stamp * 1e3).toISOString(), lang),
           timefull: new Date(actitem.stamp * 1e3).toISOString()
         },
         favorites: favorites,

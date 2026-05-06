@@ -923,49 +923,8 @@
     window.f0ckAllowedImages = {{ allowed_comment_images_json }};
     window.scrollerPublic = {{ private_society ? 'false' : 'true' }};
     window.scrollerMimeCats = {{ JSON.stringify(scroller_mime_cats) }};
-    @if(typeof session !== 'undefined' && session)
-    window.scrollerUsername = "{{ session.user || '' }}";
-    window.scrollerDisplayName = "{{ session.display_name || session.user || '' }}";
-    window.scrollerUserAvatar = "{{ session.avatar_file ? '/a/' + session.avatar_file : (session.avatar ? '/t/' + session.avatar + '.webp' : '/a/default.png') }}";
     window.f0ckI18n = {
-      // notifications
-      notif_upload_approved: "{{ t('notifications.upload_approved_short') }}",
-      notif_upload_pending: "{{ t('notifications.upload_pending_short') }}",
-      notif_new_report: "{{ t('notifications.new_report_short') }}",
-      notif_upload_denied: "{{ t('notifications.upload_denied_short') }}",
-      notif_upload_deleted: "{{ t('notifications.upload_deleted_short') }}",
-      notif_upload_success: "{{ t('notifications.upload_success') }}",
-      notif_upload_error: "{{ t('notifications.upload_error') }}",
-      notif_replied: "{{ t('notifications.replied_short') }}",
-      notif_subscribed: "{{ t('notifications.subscribed_short') }}",
-      notif_mentioned: "{{ t('notifications.mentioned_short') }}",
-      notif_commented: "{{ t('notifications.commented') }}",
-      notif_system: "{{ t('notifications.system') }}",
-      notif_admin: "{{ t('notifications.admin') }}",
-      notif_moderation: "{{ t('notifications.moderation') }}",
-      notif_tab_user: "{{ t('nav.notif_tab_user') }}",
-      notif_tab_system: "{{ t('nav.notif_tab_system') }}",
-      no_notifications: "{{ t('nav.no_notifications') }}",
-      // scroller
-      just_now: "{{ t('scroller.just_now') }}",
-      add: "{{ t('scroller.add') }}",
-      update_preset: "{{ t('scroller.update_preset') }}",
-      update_preset_sub: "{{ t('scroller.update_preset_sub') }}",
-      no_presets: "{{ t('scroller.no_presets') }}",
-      copy_clipboard: "{{ t('scroller.copy_clipboard') }}",
-      copied: "{{ t('scroller.copied') }}",
-      recent: "{{ t('scroller.recent') }}",
-      nothing_found: "{{ t('scroller.nothing_found') }}",
-      adjust_filters: "{{ t('scroller.adjust_filters') }}",
-      failed_load_comments: "{{ t('scroller.failed_load_comments') }}",
-      no_custom_emojis: "{{ t('scroller.no_custom_emojis') }}",
-      login_required: "{{ t('scroller.login_required') }}",
-      rehost_failed: "{{ t('scroller.rehost_failed') }}",
-      chan_load_failed: "{{ t('scroller.chan_load_failed') }}",
-      fetch_failed: "{{ t('scroller.fetch_failed') }}",
-      invalid_chan_url: "{{ t('scroller.invalid_chan_url') }}",
-      chan_catalog_failed: "{{ t('scroller.chan_catalog_failed') }}",
-      anonymous: "{{ t('scroller.anonymous') }}",
+      lang: "{{ lang }}",
       // timeago
       ta_just_now: "{{ t('timeago.just_now') }}",
       ta_second: "{{ t('timeago.second') }}",
@@ -997,8 +956,56 @@
       add_to_site_first: "{{ t('scroller.add_to_site_first') }}",
       // reply
       replying_to: "{{ t('scroller.replying_to') }}",
-      reply: "{{ t('scroller.reply') }}"
+      reply: "{{ t('scroller.reply') }}",
+      // scroller labels
+      just_now: "{{ t('scroller.just_now') }}",
+      failed_load_comments: "{{ t('scroller.failed_load_comments') }}",
+      no_comments: "{{ t('scroller.no_comments') }}",
+      write_comment: "{{ t('scroller.write_comment') }}",
+      login_required: "{{ t('scroller.login_required') }}",
+      login_to_comment: "{{ t('scroller.login_to_comment') }}"
     };
+    @if(typeof session !== 'undefined' && session)
+    window.scrollerUsername = "{{ session.user || '' }}";
+    window.scrollerDisplayName = "{{ session.display_name || session.user || '' }}";
+    window.scrollerUserAvatar = "{{ session.avatar_file ? '/a/' + session.avatar_file : (session.avatar ? '/t/' + session.avatar + '.webp' : '/a/default.png') }}";
+    Object.assign(window.f0ckI18n, {
+      // notifications
+      notif_upload_approved: "{{ t('notifications.upload_approved_short') }}",
+      notif_upload_pending: "{{ t('notifications.upload_pending_short') }}",
+      notif_new_report: "{{ t('notifications.new_report_short') }}",
+      notif_upload_denied: "{{ t('notifications.upload_denied_short') }}",
+      notif_upload_deleted: "{{ t('notifications.upload_deleted_short') }}",
+      notif_upload_success: "{{ t('notifications.upload_success') }}",
+      notif_upload_error: "{{ t('notifications.upload_error') }}",
+      notif_replied: "{{ t('notifications.replied_short') }}",
+      notif_subscribed: "{{ t('notifications.subscribed_short') }}",
+      notif_mentioned: "{{ t('notifications.mentioned_short') }}",
+      notif_commented: "{{ t('notifications.commented') }}",
+      notif_system: "{{ t('notifications.system') }}",
+      notif_admin: "{{ t('notifications.admin') }}",
+      notif_moderation: "{{ t('notifications.moderation') }}",
+      notif_tab_user: "{{ t('nav.notif_tab_user') }}",
+      notif_tab_system: "{{ t('nav.notif_tab_system') }}",
+      no_notifications: "{{ t('nav.no_notifications') }}",
+      // scroller
+      add: "{{ t('scroller.add') }}",
+      update_preset: "{{ t('scroller.update_preset') }}",
+      update_preset_sub: "{{ t('scroller.update_preset_sub') }}",
+      no_presets: "{{ t('scroller.no_presets') }}",
+      copy_clipboard: "{{ t('scroller.copy_clipboard') }}",
+      copied: "{{ t('scroller.copied') }}",
+      recent: "{{ t('scroller.recent') }}",
+      nothing_found: "{{ t('scroller.nothing_found') }}",
+      adjust_filters: "{{ t('scroller.adjust_filters') }}",
+      no_custom_emojis: "{{ t('scroller.no_custom_emojis') }}",
+      rehost_failed: "{{ t('scroller.rehost_failed') }}",
+      chan_load_failed: "{{ t('scroller.chan_load_failed') }}",
+      fetch_failed: "{{ t('scroller.fetch_failed') }}",
+      invalid_chan_url: "{{ t('scroller.invalid_chan_url') }}",
+      chan_catalog_failed: "{{ t('scroller.chan_catalog_failed') }}",
+      anonymous: "{{ t('scroller.anonymous') }}"
+    });
     @endif
   </script>
 

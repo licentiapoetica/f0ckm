@@ -3,6 +3,7 @@ import util from "util";
 import db from "./sql.mjs";
 
 import cfg from "./config.mjs";
+import { createI18n } from "./i18n.mjs";
 
 
 
@@ -43,11 +44,14 @@ export default new class {
   calcSpeed(b, s) {
     return (Math.round((b * 8 / s / 1e6) * 1e4) / 1e4);
   };
-  timeAgo(date) {
+  timeAgo(date, lang = 'en') {
+    const { t } = createI18n(lang);
     const duration = getDuration(~~((new Date() - new Date(date)) / 1e3));
-    if (!duration) return "just now";
+    if (!duration) return t('timeago.just_now');
     const { interval, epoch } = duration;
-    return `${interval} ${epoch}${interval === 1 ? "" : "s"} ago`;
+    const unitKey = interval === 1 ? `timeago.${epoch}` : `timeago.${epoch}s`;
+    const timeStr = t(unitKey, { n: interval });
+    return t('timeago.ago', { t: timeStr });
   };
   md5(str) {
     return crypto.createHash('md5').update(str).digest("hex");

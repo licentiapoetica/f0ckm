@@ -212,21 +212,21 @@
   function timeAgo(iso) {
     const s = Math.floor((Date.now() - new Date(iso)) / 1000);
     const i = window.f0ckI18n || {};
-    const fmt = (tpl, n) => (tpl || '{n}').replace('{n}', n);
+    const fmt = (tpl, n, unit) => (tpl || `{n} ${unit}${n !== 1 ? 's' : ''}`).replace('{n}', n);
     const ago = (t) => (i.ta_ago || '{t} ago').replace('{t}', t);
-    if (s < 60) return i.ta_just_now || i.just_now || 'just now';
+    if (s < 60) return i.ta_just_now || 'just now';
     const m = Math.floor(s / 60);
-    if (m < 60) return ago(fmt(m === 1 ? i.ta_minute : i.ta_minutes, m));
+    if (m < 60) return ago(fmt(m === 1 ? i.ta_minute : i.ta_minutes, m, 'minute'));
     const h = Math.floor(s / 3600);
-    if (h < 24) return ago(fmt(h === 1 ? i.ta_hour : i.ta_hours, h));
+    if (h < 24) return ago(fmt(h === 1 ? i.ta_hour : i.ta_hours, h, 'hour'));
     const d = Math.floor(s / 86400);
-    if (d < 7) return ago(fmt(d === 1 ? i.ta_day : i.ta_days, d));
+    if (d < 7) return ago(fmt(d === 1 ? i.ta_day : i.ta_days, d, 'day'));
     const w = Math.floor(d / 7);
-    if (d < 30) return ago(fmt(w === 1 ? i.ta_week : i.ta_weeks, w));
+    if (d < 30) return ago(fmt(w === 1 ? i.ta_week : i.ta_weeks, w, 'week'));
     const mo = Math.floor(d / 30);
-    if (d < 365) return ago(fmt(mo === 1 ? i.ta_month : i.ta_months, mo));
+    if (d < 365) return ago(fmt(mo === 1 ? i.ta_month : i.ta_months, mo, 'month'));
     const y = Math.floor(d / 365);
-    return ago(fmt(y === 1 ? i.ta_year : i.ta_years, y));
+    return ago(fmt(y === 1 ? i.ta_year : i.ta_years, y, 'year'));
   }
   function hashId() {
     // Strip the leading '#' and allow numeric IDs or board/postid format

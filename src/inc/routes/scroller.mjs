@@ -285,7 +285,7 @@ export default (router, tpl) => {
           avatar: row.avatar_file ? `/a/${row.avatar_file}` : (row.avatar ? `/t/${row.avatar}.webp` : '/a/default.png'),
           username_color: row.username_color || null,
           stamp: row.stamp,
-          timeago: lib.timeAgo(new Date(row.stamp * 1e3).toISOString()),
+          timeago: lib.timeAgo(new Date(row.stamp * 1e3).toISOString(), req.lang),
           tags: row.tag_list || '',
           is_oc: row.is_oc || false,
           is_faved: row.is_faved || false,
