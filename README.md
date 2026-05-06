@@ -49,4 +49,8 @@ on dev machine:
 `npm i`
 `npm run dev`
 
+Create admin user in dev env
+
+`DB_HOST=localhost DB_PORT=5454 node scripts/create-admin.mjs admin 'YOUR_PASSWORD_HERE'`
+
 now visit http://localhost:1337 in your browser, you can develop without needing to rebuild the docker image for every change
