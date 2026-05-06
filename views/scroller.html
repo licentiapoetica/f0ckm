@@ -575,8 +575,13 @@
     /* ── COMMENTS PANEL ───────────────────────────── */
     #comments-panel { z-index: 802; }
     #comments-list { flex: 1; overflow-y: auto; padding: 0 16px 8px; }
-    #comments-list::-webkit-scrollbar { width: 4px; }
-    #comments-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
+    #comments-list::-webkit-scrollbar { width: 10px; }
+    #comments-list::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,.12);
+      background-clip: content-box;
+      border: 3px solid transparent;
+      border-radius: 10px;
+    }
     .comment-item { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
     .comment-item:last-child { border-bottom: none; }
     .comment-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid rgba(255,255,255,.12); }
