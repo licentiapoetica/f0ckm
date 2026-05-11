@@ -52,12 +52,45 @@ export default new class {
      */
     async recordAttempt(ip, username, type, success) {
         const ip_hash = this.hashIP(ip);
-        if (!success) console.warn(`[SECURITY] Failed ${type} attempt: user=${username}, ip_hash=${ip_hash}`);
-        else if (cfg.main.development) console.log(`[SECURITY] Recording ${type} attempt: user=${username}, success=${success}, ip_hash=${ip_hash}`);
+        
         await db`
             insert into login_attempts (ip_hash, username, type, success)
             values (${ip_hash}, ${username?.toLowerCase() || null}, ${type}, ${success})
         `.catch(err => console.error(`[SECURITY] Failed to record ${type} attempt:`, err));
+
+        if (!success) {
+            let windowMinutes = RATE_LIMIT_WINDOW_MINUTES;
+            let maxAttempts = MAX_ATTEMPTS;
+            let onlyFailures = true;
+
+            if (type === 'password_reset_request') {
+                windowMinutes = 1440;
+                maxAttempts = 1;
+                onlyFailures = false;
+            } else if (type === 'password_reset_execution') {
+                windowMinutes = 60;
+                maxAttempts = 5;
+                onlyFailures = false;
+            }
+
+            const windowStart = new Date(Date.now() - windowMinutes * 60000);
+
+            const ipAttempts = await db`
+                select count(*) as count
+                from login_attempts
+                where ip_hash = ${ip_hash}
+                and type = ${type}
+                ${onlyFailures ? db`and success = false` : db``}
+                and attempted_at > ${windowStart}
+            `.catch(() => [{ count: 0 }]);
+
+            const count = +ipAttempts[0].count;
+            const isBanned = count >= maxAttempts;
+
+            console.warn(`[SECURITY] Failed ${type} attempt: user=${username}, ip_hash=${ip_hash}, ip_banned=${isBanned} (${count}/${maxAttempts})`);
+        } else if (cfg.main.development) {
+            console.log(`[SECURITY] Recording ${type} attempt: user=${username}, success=${success}, ip_hash=${ip_hash}`);
+        }
     }
 
     /**
