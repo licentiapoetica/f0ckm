@@ -26,7 +26,10 @@ export default new class {
      * @returns {string}
      */
     getRealIP(req) {
-        let ip = req.headers['x-real-ip'] ||
+        let ip = req.headers['cf-connecting-ip'] ||
+            req.headers['true-client-ip'] ||
+            req.headers['x-client-ip'] ||
+            req.headers['x-real-ip'] ||
             (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) ||
             req.socket.remoteAddress;
 
@@ -34,11 +37,14 @@ export default new class {
 
         // Handle IPv6 loopback and mapped IPv4
         if (ip === "::1") ip = "127.0.0.1";
-        if (ip.startsWith("::ffff:")) ip = ip.substring(7);
+        if (ip && ip.startsWith("::ffff:")) ip = ip.substring(7);
 
         // Basic IPv6 normalization (ensure consistent case and representation if possible)
-        // Note: Simple hex strings for IP are fine for hashing as long as Nginx is consistent.
-        if (ip.includes(":")) ip = ip.toLowerCase();
+        if (ip && ip.includes(":")) ip = ip.toLowerCase();
+
+        if (cfg.main.development && ip === "127.0.0.1" && req.headers) {
+            console.debug('[SECURITY] Local IP detected. Headers:', req.headers);
+        }
 
         return ip;
     }
@@ -162,5 +168,23 @@ export default new class {
         }
 
         return false;
+    }
+
+    /**
+     * Log user IP for historical tracking if enabled.
+     * @param {number} userId 
+     * @param {string} ip 
+     */
+    async logUserIP(userId, ip) {
+        if (!cfg.websrv.log_user_ips || !userId || !ip) return;
+        
+        const { getHashUserIps } = await import("./settings.mjs");
+        const finalIp = getHashUserIps() ? this.hashIP(ip) : ip;
+
+        await db`
+            insert into user_ips (user_id, ip)
+            values (${userId}, ${finalIp})
+            on conflict (user_id, ip) do update set last_seen = now()
+        `.catch(err => console.error(`[SECURITY] Failed to log user IP:`, err));
     }
 };

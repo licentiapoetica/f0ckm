@@ -23,6 +23,14 @@ window.cancelAnimFrame = (function () {
     return div.innerHTML;
   };
 
+  window.getCurrentItemId = () => {
+    const path = window.location.pathname;
+    // Explicitly ignore admin/mod/settings paths to avoid false positives from user IDs, etc.
+    if (path.includes('/admin/') || path.includes('/mod/') || path.includes('/settings') || path.includes('/user/')) return null;
+    const match = path.match(/\/(\d+)\/?$/);
+    return match ? match[1] : null;
+  };
+
   // OS and Browser detection for CSS targeting
   const ua = navigator.userAgent;
   const htmlEl = document.documentElement;
@@ -120,9 +128,7 @@ window.cancelAnimFrame = (function () {
       });
 
       // Refresh background canvas if it matches the current item
-      const pathParts = window.location.pathname.split('/');
-      const numParts = pathParts.filter(s => /^\d+$/.test(s));
-      const currentId = numParts.length > 0 ? numParts[numParts.length - 1] : null;
+      const currentId = window.getCurrentItemId();
       if (currentId === idStr && window.initBackground) {
           window.initBackground();
       }
@@ -943,9 +949,7 @@ window.cancelAnimFrame = (function () {
             // Always use the thumbnail first for instant backdrop — thumbnails are tiny,
             // often browser-cached from grid view, and give us a frame-0 equivalent for GIFs too.
             // Extract item ID from URL for thumbnail path.
-            const pathParts = window.location.pathname.split('/');
-            const numParts = pathParts.filter(s => /^\d+$/.test(s));
-            const itemId = numParts.length > 0 ? numParts[numParts.length - 1] : null;
+            const itemId = window.getCurrentItemId();
 
             const showCanvas = () => {
                 canvas.classList.remove('fader-out', 'fast-fade');
@@ -1055,9 +1059,7 @@ window.cancelAnimFrame = (function () {
       if (background) {
         canvas._bgFadingOut = false;
         // Draw the item thumbnail if we have an item ID in the URL
-        const pathParts = window.location.pathname.split('/');
-        const numParts = pathParts.filter(s => /^\d+$/.test(s));
-        const itemId = numParts.length > 0 ? numParts[numParts.length - 1] : null;
+        const itemId = window.getCurrentItemId();
         if (itemId) {
           const context = canvas.getContext('2d');
           const cw = canvas.width = canvas.clientWidth | 0;

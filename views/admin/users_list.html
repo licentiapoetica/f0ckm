@@ -68,6 +68,9 @@
             @endif
 
             @if(u.id)
+                @if(log_user_ips)
+                <a href="/admin/user/{{ u.id }}/ips" class="btn-modern" style="background: rgba(150, 150, 150, 0.1); color: #aaa; border: 1px solid rgba(150, 150, 150, 0.2); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 10px;" title="View IP History">IP Hist</a>
+                @endif
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="deleteUploads(this)" class="btn-modern btn-files">Del Files</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="deleteComments(this)" class="btn-modern btn-comms">Del Comms</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminBulkDeleteHalls(this)" class="btn-modern btn-comms" title="Delete all user halls" style="background: rgba(255, 0, 255, 0.1); color: #ff00ff; border: 1px solid rgba(255, 0, 255, 0.2);"><i class="fa fa-folder-open"></i> Del Halls</button>

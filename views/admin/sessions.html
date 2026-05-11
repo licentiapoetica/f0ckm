@@ -30,6 +30,12 @@
       </div>
     </div>
     <div class="session-body">
+      @if(log_user_ips)
+      <div class="session-info">
+        <span class="label">IP:</span>
+        <span class="value">{{ s.ip || 'unknown' }}</span>
+      </div>
+      @endif
       <div class="session-info">
         <span class="label">Browser:</span>
         <span class="value browser-info" title="{{ s.browser }}">{{ s.browser }}</span>

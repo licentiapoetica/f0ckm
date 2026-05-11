@@ -11642,15 +11642,13 @@ i.iconset#a_oc {
   .responsive-table td {
     border: none;
     position: relative;
-    padding: 12px 15px 12px 42% !important;
-    /* Slightly reduced labels width for more content space */
+    padding: 12px 15px !important;
     min-height: 48px;
     display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    /* Prevent wrapping inside standard cells */
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
     text-align: left !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     box-sizing: border-box;
@@ -11682,9 +11680,8 @@ i.iconset#a_oc {
 
   .responsive-table td::before {
     content: attr(data-label);
-    position: absolute;
-    left: 15px;
-    width: 35%;
+    position: static;
+    width: auto;
     white-space: nowrap;
     font-weight: 800;
     color: var(--accent);
@@ -11692,6 +11689,7 @@ i.iconset#a_oc {
     text-transform: uppercase;
     letter-spacing: 1px;
     opacity: 0.8;
+    margin-bottom: 2px;
   }
 
   /* Special handling for the Actions cell */
@@ -13508,4 +13506,56 @@ body.scroller-active #gchat-reopen-bubble {
 
 #nav-meme-link, #nav-upload-link {
   white-space: nowrap;
+}
+/* --- Admin IP History Styles --- */
+.admin-ips-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    color: var(--white);
+}
+.admin-ips-table th {
+    padding: 15px;
+    text-align: left;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: #888;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.admin-ips-table tr {
+    transition: all 0.2s ease;
+}
+.admin-ips-table tbody tr {
+    background: rgba(255, 255, 255, 0.02);
+}
+.admin-ips-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.admin-ips-table td {
+    padding: 15px;
+    vertical-align: middle;
+}
+.ip-badge {
+    font-family: monospace;
+    padding: 4px 10px;
+    background: rgba(var(--accent-rgb, 153, 255, 0), 0.1);
+    border: 1px solid rgba(var(--accent-rgb, 153, 255, 0), 0.2);
+    color: var(--accent);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    word-break: break-all;
+    display: inline-block;
+    max-width: 100%;
+}
+.date-cell {
+    font-size: 0.85rem;
+    color: #aaa;
+}
+.date-label {
+    display: block;
+    font-size: 0.7rem;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 2px;
 }

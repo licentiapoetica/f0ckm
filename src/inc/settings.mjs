@@ -44,3 +44,18 @@ export const setPrivateMessages = (val) => private_messages = !!val;
 
 export const getDefaultLayout = () => default_layout;
 export const setDefaultLayout = (val) => default_layout = (val === 'legacy' ? 'legacy' : 'modern');
+
+let log_user_ips = false;
+export const getLogUserIps = () => log_user_ips;
+export const setLogUserIps = (val) => {
+    log_user_ips = !!val;
+    // Also update the config object for components that read from it directly
+    cfg.websrv.log_user_ips = log_user_ips;
+};
+
+let hash_user_ips = false;
+export const getHashUserIps = () => hash_user_ips;
+export const setHashUserIps = (val) => {
+    hash_user_ips = !!val;
+    cfg.websrv.hash_user_ips = hash_user_ips;
+};

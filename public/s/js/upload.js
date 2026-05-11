@@ -1,11 +1,11 @@
-const escapeHtmlUpload = (unsafe) => {
+window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
     return (unsafe || '').toString()
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-};
+});
 
 window.initUploadForm = (selector) => {
     const form = (typeof selector === 'string') ? document.querySelector(selector) : selector;
@@ -749,7 +749,7 @@ window.initUploadForm = (selector) => {
         chip.className = 'tag-chip';
         chip.style.cursor = 'pointer';
         chip.title = 'Click to edit prefix or tag';
-        chip.innerHTML = `<span class="tag-text">${escapeHtmlUpload(tagName)}</span><button type="button">&times;</button>`;
+        chip.innerHTML = `<span class="tag-text">${window.escapeHtmlUpload(tagName)}</span><button type="button">&times;</button>`;
         
         // Remove button logic
         chip.querySelector('button').addEventListener('click', (e) => {
@@ -867,7 +867,7 @@ window.initUploadForm = (selector) => {
         const sug = document.createElement('div');
         sug.className = 'meta-suggestion';
         sug.setAttribute('data-text', text);
-        sug.innerHTML = `<i class="fa fa-plus-circle" style="user-select:none"></i> <span>${escapeHtmlUpload(text)}</span>`;
+        sug.innerHTML = `<i class="fa fa-plus-circle" style="user-select:none"></i> <span>${window.escapeHtmlUpload(text)}</span>`;
 
         sug.addEventListener('mouseup', (ev) => {
             const sel = window.getSelection?.()?.toString().trim();
@@ -976,7 +976,7 @@ window.initUploadForm = (selector) => {
                             const scoreStr = typeof s.score === 'number' ? s.score.toFixed(2) : '0.00';
                             html += `
                                 <div class="tag-suggestion-item">
-                                    <span class="tag-suggestion-name">${escapeHtmlUpload(s.tag)}</span>
+                                    <span class="tag-suggestion-name">${window.escapeHtmlUpload(s.tag)}</span>
                                     <span class="tag-suggestion-meta">${s.tagged || 0}× · ${scoreStr}</span>
                                 </div>
                             `;

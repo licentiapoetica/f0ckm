@@ -5,6 +5,8 @@ config.json
 public/b
 public/ca
 public/t
+public/hall_cache
+public/hall_custom
 deleted/b
 deleted/ca
 deleted/t

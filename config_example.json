@@ -38,6 +38,8 @@
     "cache": false,
     "eps": 155,
     "background": true,
+    "log_user_ips": false,
+    "hash_user_ips": true,
 
     "description": "Example Description",
     "themes": [ "amoled" ],

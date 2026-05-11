@@ -2699,5 +2699,19 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG
+-- Migration to add user_ips table for historical IP logging
+CREATE TABLE IF NOT EXISTS user_ips (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    ip TEXT NOT NULL,
+    first_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, ip)
+);
 
+CREATE INDEX IF NOT EXISTS idx_user_ips_user_id ON user_ips(user_id);
+
+-- Add IP tracking to user_sessions for "current" IP view
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS ip TEXT;
+
+\unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG

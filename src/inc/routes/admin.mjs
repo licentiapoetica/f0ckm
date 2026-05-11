@@ -11,7 +11,7 @@ import cfg from "../config.mjs";
 import security from "../security.mjs";
 import crypto from "crypto";
 import path from "path";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf } from "../settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps } from "../settings.mjs";
 
 export default (router, tpl) => {
   router.get(/^\/login(\/)?$/, async (req, res) => {
@@ -102,13 +102,17 @@ export default (router, tpl) => {
       created_at: stamp,
       last_used: stamp,
       last_action: "/login",
-      kmsi: typeof req.post.kmsi !== 'undefined' ? 1 : 0
+      kmsi: typeof req.post.kmsi !== 'undefined' ? 1 : 0,
+      ip: ip
     };
 
     await db`
-      insert into "user_sessions" ${db(blah, 'user_id', 'session', 'csrf_token', 'browser', 'created_at', 'last_used', 'last_action', 'kmsi')
+      insert into "user_sessions" ${db(blah, 'user_id', 'session', 'csrf_token', 'browser', 'created_at', 'last_used', 'last_action', 'kmsi', 'ip')
       }
     `;
+    
+    // Log IP for historical data
+    await security.logUserIP(user[0].id, ip);
 
     return res.writeHead(301, {
       "Cache-Control": "no-cache, public",
@@ -277,6 +281,8 @@ export default (router, tpl) => {
         totals: await lib.countf0cks(),
         session: req.session,
         manual_approval: getManualApproval(),
+        log_user_ips: getLogUserIps(),
+        hash_user_ips: getHashUserIps(),
         tmp: null
       }, req)
     });
@@ -302,6 +308,32 @@ export default (router, tpl) => {
         sessions: rows,
         activeUsers: activeUsernames.length,
         activeUserList: activeUsernames,
+        totals: await lib.countf0cks(),
+        log_user_ips: getLogUserIps(),
+        tmp: null
+      }, req)
+    });
+  });
+
+  router.get(/\/admin\/user\/(?<userId>\d+)\/ips(\/)?$/, lib.auth, async (req, res) => {
+    const userId = +req.params.userId;
+    const user = await db`select "user", login from "user" where id = ${userId} limit 1`;
+    if (user.length === 0) return res.reply({ code: 404, body: 'User not found' });
+
+    const rows = await db`
+      select * from user_ips
+      where user_id = ${userId}
+      order by last_seen desc
+    `;
+
+    res.reply({
+      body: tpl.render("admin/user_ips", {
+        session: req.session,
+        targetUser: user[0],
+        ips: rows,
+        page_meta: {
+          title: `IP History - ${user[0].user}`
+        },
         totals: await lib.countf0cks(),
         tmp: null
       }, req)
@@ -580,10 +612,14 @@ export default (router, tpl) => {
   router.post(/^\/admin\/settings\/?$/, lib.auth, async (req, res) => {
     const manual_approval = req.post.manual_approval === 'on' ? 'true' : 'false';
     const registration_open = req.post.registration_open === 'on' ? 'true' : 'false';
+    const log_user_ips = req.post.log_user_ips === 'on' ? 'true' : 'false';
+    const hash_user_ips = req.post.hash_user_ips === 'on' ? 'true' : 'false';
     const min_tags = isNaN(parseInt(req.post.min_tags)) ? 3 : Math.max(0, parseInt(req.post.min_tags));
     const trusted_uploads = Math.max(0, parseInt(req.post.trusted_uploads) ?? 3);
 
     await db`INSERT INTO site_settings (key, value) VALUES ('manual_approval', ${manual_approval}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    await db`INSERT INTO site_settings (key, value) VALUES ('log_user_ips', ${log_user_ips}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    await db`INSERT INTO site_settings (key, value) VALUES ('hash_user_ips', ${hash_user_ips}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     if (cfg.websrv.open_registration_web_toggle !== false) {
       await db`INSERT INTO site_settings (key, value) VALUES ('registration_open', ${registration_open}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
@@ -594,6 +630,8 @@ export default (router, tpl) => {
     await db`INSERT INTO site_settings (key, value) VALUES ('trusted_uploads', ${trusted_uploads.toString()}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     setManualApproval(manual_approval === 'true');
+    setLogUserIps(log_user_ips === 'true');
+    setHashUserIps(hash_user_ips === 'true');
     setMinTags(min_tags);
     setTrustedUploads(trusted_uploads);
 
@@ -697,6 +735,7 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
       total,
       hasMore: users.length === limit,
       totals: await lib.countf0cks(),
+      log_user_ips: getLogUserIps(),
       tmp: null
     };
 

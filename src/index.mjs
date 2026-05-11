@@ -19,6 +19,7 @@ import { handleMetaStrip } from "./meta_strip_handler.mjs";
 import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
+import security from "./inc/security.mjs";
 
 const nginx502 = `<html>
 <head><title>502 Bad Gateway</title></head>
@@ -297,12 +298,17 @@ process.on('uncaughtException', err => {
 
       // log last action (Fire-and-Forget)
       if (!req.url.pathname.startsWith('/api/notifications')) {
+        const { getLogUserIps, getHashUserIps } = await import("./inc/settings.mjs");
+        const currentIp = security.getRealIP(req);
+        const finalIp = getHashUserIps() ? security.hashIP(currentIp) : currentIp;
+
         db`
         update "user_sessions" set ${db({
           last_used: ~~(Date.now() / 1e3),
           last_action: req.url.pathname,
-          browser: req.headers['user-agent']
-        }, 'last_used', 'last_action', 'browser')
+          browser: req.headers['user-agent'],
+          ...(getLogUserIps() ? { ip: finalIp } : {})
+        }, 'last_used', 'last_action', 'browser', ...(getLogUserIps() ? ['ip'] : []))
           }
         where id = ${+user[0].sess_id}
         `.catch(e => console.error('[MIDDLEWARE] Session update failed:', e));
@@ -310,6 +316,9 @@ process.on('uncaughtException', err => {
         // Update last_seen on user table (Fire-and-Forget) — feeds the 30-day orakel pool
         db`update "user" set last_seen = ${~~(Date.now() / 1e3)} where id = ${+user[0].id}`
           .catch(e => console.error('[MIDDLEWARE] last_seen update failed:', e));
+          
+        // Log IP for historical data
+        security.logUserIP(user[0].id, currentIp);
       }
 
       if (req.session.admin) {
@@ -654,6 +663,30 @@ process.on('uncaughtException', err => {
   // Set enable_pdf from config (pure config setting)
   setEnablePdf(!!cfg.enable_pdf);
   console.log(`[BOOT] Enable PDF setting: ${getEnablePdf()}`);
+
+  // Fetch log_user_ips and hash_user_ips setting
+  const { getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps } = await import("./inc/settings.mjs");
+  try {
+    const lipSetting = await db`SELECT value FROM site_settings WHERE key = 'log_user_ips' LIMIT 1`;
+    if (lipSetting.length > 0) {
+      setLogUserIps(lipSetting[0].value === 'true');
+    } else {
+      setLogUserIps(!!cfg.websrv.log_user_ips);
+    }
+    console.log(`[BOOT] Log User IPs: ${getLogUserIps()}`);
+
+    const hipSetting = await db`SELECT value FROM site_settings WHERE key = 'hash_user_ips' LIMIT 1`;
+    if (hipSetting.length > 0) {
+      setHashUserIps(hipSetting[0].value === 'true');
+    } else {
+      setHashUserIps(!!cfg.websrv.hash_user_ips);
+    }
+    console.log(`[BOOT] Hash User IPs: ${getHashUserIps()}`);
+  } catch (e) {
+    console.warn(`[BOOT] IP logging settings fetch failed:`, e.message);
+    setLogUserIps(!!cfg.websrv.log_user_ips);
+    setHashUserIps(!!cfg.websrv.hash_user_ips);
+  }
 
   // Load bypass_duplicate_check from config.json (static — not a DB setting)
   if (cfg.websrv.bypass_duplicate_check === true) {
