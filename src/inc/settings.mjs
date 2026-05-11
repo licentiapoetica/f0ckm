@@ -9,6 +9,21 @@ let protect_files = false;
 let private_messages = true;
 let default_layout = 'modern';
 let enable_pdf = false;
+let enable_cleanup = false;
+let cleanup_start_date = '';
+let cleanup_end_date = '';
+
+export const getEnableCleanup = () => {
+    if (cfg.websrv.enable_cleanup === false) return false;
+    return enable_cleanup;
+};
+export const setEnableCleanup = (val) => enable_cleanup = !!val;
+
+export const getCleanupStartDate = () => cleanup_start_date;
+export const setCleanupStartDate = (val) => cleanup_start_date = val || '';
+
+export const getCleanupEndDate = () => cleanup_end_date;
+export const setCleanupEndDate = (val) => cleanup_end_date = val || '';
 
 export const getEnablePdf = () => enable_pdf;
 export const setEnablePdf = (val) => enable_pdf = !!val;
@@ -45,17 +60,8 @@ export const setPrivateMessages = (val) => private_messages = !!val;
 export const getDefaultLayout = () => default_layout;
 export const setDefaultLayout = (val) => default_layout = (val === 'legacy' ? 'legacy' : 'modern');
 
-let log_user_ips = false;
-export const getLogUserIps = () => log_user_ips;
-export const setLogUserIps = (val) => {
-    log_user_ips = !!val;
-    // Also update the config object for components that read from it directly
-    cfg.websrv.log_user_ips = log_user_ips;
-};
+export const getLogUserIps = () => !!cfg.websrv.log_user_ips;
+export const setLogUserIps = (val) => {}; // No-op, strictly config-based
 
-let hash_user_ips = false;
-export const getHashUserIps = () => hash_user_ips;
-export const setHashUserIps = (val) => {
-    hash_user_ips = !!val;
-    cfg.websrv.hash_user_ips = hash_user_ips;
-};
+export const getHashUserIps = () => !!cfg.websrv.hash_user_ips;
+export const setHashUserIps = (val) => {}; // No-op, strictly config-based

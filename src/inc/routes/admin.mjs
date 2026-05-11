@@ -1,6 +1,7 @@
 import db from "../sql.mjs";
 import audit from "../audit.mjs";
 import f0cklib from "../routeinc/f0cklib.mjs";
+import { safeDeleteMediaFile } from "../lib_delete.mjs";
 
 import lib from "../lib.mjs";
 import { setMotd } from "../motd.mjs";
@@ -11,7 +12,7 @@ import cfg from "../config.mjs";
 import security from "../security.mjs";
 import crypto from "crypto";
 import path from "path";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps } from "../settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate } from "../settings.mjs";
 
 export default (router, tpl) => {
   router.get(/^\/login(\/)?$/, async (req, res) => {
@@ -283,6 +284,8 @@ export default (router, tpl) => {
         manual_approval: getManualApproval(),
         log_user_ips: getLogUserIps(),
         hash_user_ips: getHashUserIps(),
+        enable_cleanup: getEnableCleanup(),
+        enable_cleanup_config: cfg.websrv.enable_cleanup !== false,
         tmp: null
       }, req)
     });
@@ -612,14 +615,12 @@ export default (router, tpl) => {
   router.post(/^\/admin\/settings\/?$/, lib.auth, async (req, res) => {
     const manual_approval = req.post.manual_approval === 'on' ? 'true' : 'false';
     const registration_open = req.post.registration_open === 'on' ? 'true' : 'false';
-    const log_user_ips = req.post.log_user_ips === 'on' ? 'true' : 'false';
-    const hash_user_ips = req.post.hash_user_ips === 'on' ? 'true' : 'false';
+    const enable_cleanup = req.post.enable_cleanup === 'on' ? 'true' : 'false';
     const min_tags = isNaN(parseInt(req.post.min_tags)) ? 3 : Math.max(0, parseInt(req.post.min_tags));
     const trusted_uploads = Math.max(0, parseInt(req.post.trusted_uploads) ?? 3);
 
     await db`INSERT INTO site_settings (key, value) VALUES ('manual_approval', ${manual_approval}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-    await db`INSERT INTO site_settings (key, value) VALUES ('log_user_ips', ${log_user_ips}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-    await db`INSERT INTO site_settings (key, value) VALUES ('hash_user_ips', ${hash_user_ips}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    await db`INSERT INTO site_settings (key, value) VALUES ('enable_cleanup', ${enable_cleanup}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     if (cfg.websrv.open_registration_web_toggle !== false) {
       await db`INSERT INTO site_settings (key, value) VALUES ('registration_open', ${registration_open}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
@@ -630,8 +631,7 @@ export default (router, tpl) => {
     await db`INSERT INTO site_settings (key, value) VALUES ('trusted_uploads', ${trusted_uploads.toString()}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     setManualApproval(manual_approval === 'true');
-    setLogUserIps(log_user_ips === 'true');
-    setHashUserIps(hash_user_ips === 'true');
+    setEnableCleanup(enable_cleanup === 'true');
     setMinTags(min_tags);
     setTrustedUploads(trusted_uploads);
 
@@ -649,6 +649,160 @@ export default (router, tpl) => {
     }
 
     return res.writeHead(302, { "Location": "/admin" }).end();
+  });
+  
+  router.get(/^\/admin\/cleanup\/?$/, lib.auth, async (req, res) => {
+    if (!getEnableCleanup()) {
+      return res.redirect("/admin");
+    }
+
+    const cleanup_payload = {
+      session: req.session,
+      enable_cleanup: getEnableCleanup(),
+      cleanup_start_date: getCleanupStartDate(),
+      cleanup_end_date: getCleanupEndDate(),
+      totals: await lib.countf0cks(),
+      tmp: null
+    };
+
+    res.reply({
+      body: tpl.render("admin/cleanup", cleanup_payload, req)
+    });
+  });
+
+  router.post(/^\/admin\/cleanup\/?$/, lib.auth, async (req, res) => {
+    try {
+      const enable_cleanup = req.post.enable_cleanup === 'on' ? 'true' : 'false';
+      const cleanup_start_date = req.post.cleanup_start_date || '';
+      const cleanup_end_date = req.post.cleanup_end_date || '';
+
+      await db`INSERT INTO site_settings (key, value) VALUES ('enable_cleanup', ${enable_cleanup}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+      await db`INSERT INTO site_settings (key, value) VALUES ('cleanup_start_date', ${cleanup_start_date}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+      await db`INSERT INTO site_settings (key, value) VALUES ('cleanup_end_date', ${cleanup_end_date}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+
+      setEnableCleanup(enable_cleanup === 'true');
+      setCleanupStartDate(cleanup_start_date);
+      setCleanupEndDate(cleanup_end_date);
+
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        const body = JSON.stringify({ success: true, enable_cleanup: getEnableCleanup(), cleanup_start_date: getCleanupStartDate(), cleanup_end_date: getCleanupEndDate() });
+        return res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+      }
+
+      return res.writeHead(302, { "Location": "/admin/cleanup" }).end();
+    } catch (err) {
+      console.error('[ADMIN] Cleanup Settings Save failed:', err);
+      const msg = 'Failed to save Cleanup settings: ' + err.message;
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        const body = JSON.stringify({ success: false, msg });
+        return res.writeHead(500, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+      }
+      return res.reply({ code: 500, body: msg });
+    }
+  });
+
+  router.post(/^\/admin\/cleanup\/run\/?$/, lib.auth, async (req, res) => {
+    try {
+      // Ensure settings are synced from DB before execution
+      const settings = await db`SELECT key, value FROM site_settings WHERE key IN ('enable_cleanup', 'cleanup_start_date', 'cleanup_end_date')`;
+      const settingsMap = Object.fromEntries(settings.map(s => [s.key, s.value]));
+
+      const isEnabled = settingsMap['enable_cleanup'] === 'true';
+      const startDate = settingsMap['cleanup_start_date'] || '';
+      const endDate = settingsMap['cleanup_end_date'] || '';
+
+      // Update memory state
+      setEnableCleanup(isEnabled);
+      setCleanupStartDate(startDate);
+      setCleanupEndDate(endDate);
+
+      if (!isEnabled) {
+        throw new Error('Cleanup is disabled in settings.');
+      }
+
+      if (!startDate || !endDate) {
+        throw new Error('Please select both a Start Date and an End Date.');
+      }
+
+      console.log(`[ADMIN] Starting manual cleanup for period ${startDate} to ${endDate}...`);
+      
+      const start_stamp = ~~(new Date(startDate).getTime() / 1000);
+      const end_stamp = ~~(new Date(endDate).getTime() / 1000) + 86399; // Include full end day
+
+      // Diagnostics: Count candidates
+      const totalCleanable = await db`SELECT count(*) as c FROM items WHERE is_purged = false AND is_pinned = false`;
+      const withinRange = await db`SELECT count(*) as c FROM items WHERE is_purged = false AND is_pinned = false AND stamp >= ${start_stamp} AND stamp <= ${end_stamp}`;
+
+      const oldItems = await db`
+        SELECT i.id, i.dest, i.mime 
+        FROM items i
+        WHERE i.is_purged = false
+          AND i.is_pinned = false
+          AND i.stamp >= ${start_stamp} 
+          AND i.stamp <= ${end_stamp}
+          AND (
+            -- Case 1: Active posts with no engagement (ignoring automatic subscriptions)
+            (i.active = true AND i.is_deleted = false AND NOT EXISTS (SELECT 1 FROM comments WHERE item_id = i.id) AND NOT EXISTS (SELECT 1 FROM favorites WHERE item_id = i.id))
+            OR
+            -- Case 2: Soft-deleted posts (trash) that are old enough to be purged
+            (i.is_deleted = true)
+            OR
+            -- Case 3: Pending posts (not yet approved) that are old enough
+            (i.active = false AND i.is_deleted = false)
+          )
+      `;
+
+      const statsInfo = `(Total items: ${totalCleanable[0].c}, In range: ${withinRange[0].c})`;
+      console.log(`[ADMIN] Cleanup diagnostic: found ${oldItems.length} targets. ${statsInfo}`);
+
+      let count = 0;
+      if (oldItems.length > 0) {
+        for (const item of oldItems) {
+          try {
+            await safeDeleteMediaFile(item.dest, item.id);
+            await fs.unlink(path.join(cfg.paths.t, `${item.id}.webp`)).catch(() => { });
+            await fs.unlink(path.join(cfg.paths.t, `${item.id}_blur.webp`)).catch(() => { });
+            
+            if (item.mime?.startsWith('audio')) {
+                await fs.unlink(path.join(cfg.paths.ca, `${item.id}.webp`)).catch(() => { });
+            }
+
+            await db`UPDATE items SET is_deleted = true, is_purged = true, active = false WHERE id = ${item.id}`;
+            count++;
+          } catch (e) {
+            console.error(`[CLEANUP] Failed to delete item ${item.id}:`, e.message);
+          }
+        }
+      }
+
+      // Log it in audit
+      await audit.log(req.session.id, 'run_cleanup_manual', 'system', 0, { count, startDate, endDate });
+
+      const response = { success: true, count, msg: `Successfully cleaned up ${count} posts. ${statsInfo}` };
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        const body = JSON.stringify(response);
+        return res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+      }
+
+      const cleanup_payload = {
+        ...response,
+        session: req.session,
+        enable_cleanup: getEnableCleanup(),
+        cleanup_start_date: getCleanupStartDate(),
+        cleanup_end_date: getCleanupEndDate(),
+        totals: await lib.countf0cks()
+      };
+
+      return res.reply({ body: tpl.render("admin/cleanup", cleanup_payload, req) });
+    } catch (err) {
+      console.error('[ADMIN] Cleanup execution failed:', err);
+      const msg = 'Cleanup failed: ' + err.message;
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        const body = JSON.stringify({ success: false, msg });
+        return res.writeHead(500, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }).end(body);
+      }
+      return res.reply({ code: 500, body: msg });
+    }
   });
 
   // User Management Routes

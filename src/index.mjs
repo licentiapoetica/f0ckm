@@ -16,7 +16,7 @@ import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf } from "./inc/settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
 import security from "./inc/security.mjs";
@@ -664,28 +664,34 @@ process.on('uncaughtException', err => {
   setEnablePdf(!!cfg.enable_pdf);
   console.log(`[BOOT] Enable PDF setting: ${getEnablePdf()}`);
 
-  // Fetch log_user_ips and hash_user_ips setting
-  const { getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps } = await import("./inc/settings.mjs");
-  try {
-    const lipSetting = await db`SELECT value FROM site_settings WHERE key = 'log_user_ips' LIMIT 1`;
-    if (lipSetting.length > 0) {
-      setLogUserIps(lipSetting[0].value === 'true');
-    } else {
-      setLogUserIps(!!cfg.websrv.log_user_ips);
-    }
-    console.log(`[BOOT] Log User IPs: ${getLogUserIps()}`);
+  // IP logging settings are strictly config-based
+  console.log(`[BOOT] Log User IPs: ${getLogUserIps()}`);
+  console.log(`[BOOT] Hash User IPs: ${getHashUserIps()}`);
 
-    const hipSetting = await db`SELECT value FROM site_settings WHERE key = 'hash_user_ips' LIMIT 1`;
-    if (hipSetting.length > 0) {
-      setHashUserIps(hipSetting[0].value === 'true');
+  // Fetch enable_cleanup, cleanup_start_date, and cleanup_end_date setting
+  try {
+    const ecSetting = await db`SELECT value FROM site_settings WHERE key = 'enable_cleanup' LIMIT 1`;
+    if (ecSetting.length > 0) {
+      setEnableCleanup(ecSetting[0].value === 'true');
     } else {
-      setHashUserIps(!!cfg.websrv.hash_user_ips);
+      setEnableCleanup(!!cfg.websrv.enable_cleanup);
     }
-    console.log(`[BOOT] Hash User IPs: ${getHashUserIps()}`);
+    console.log(`[BOOT] Enable Cleanup: ${getEnableCleanup()}`);
+
+    const startSetting = await db`SELECT value FROM site_settings WHERE key = 'cleanup_start_date' LIMIT 1`;
+    if (startSetting.length > 0) {
+      setCleanupStartDate(startSetting[0].value);
+    }
+    console.log(`[BOOT] Cleanup Start Date: ${getCleanupStartDate()}`);
+
+    const endSetting = await db`SELECT value FROM site_settings WHERE key = 'cleanup_end_date' LIMIT 1`;
+    if (endSetting.length > 0) {
+      setCleanupEndDate(endSetting[0].value);
+    }
+    console.log(`[BOOT] Cleanup End Date: ${getCleanupEndDate()}`);
   } catch (e) {
-    console.warn(`[BOOT] IP logging settings fetch failed:`, e.message);
-    setLogUserIps(!!cfg.websrv.log_user_ips);
-    setHashUserIps(!!cfg.websrv.hash_user_ips);
+    console.warn(`[BOOT] Cleanup settings fetch failed:`, e.message);
+    setEnableCleanup(!!cfg.websrv.enable_cleanup);
   }
 
   // Load bypass_duplicate_check from config.json (static — not a DB setting)
@@ -790,6 +796,9 @@ process.on('uncaughtException', err => {
     enable_profile_description: !!cfg.websrv.enable_profile_description,
     get private_messages() { return getPrivateMessages(); },
     get enable_pdf() { return getEnablePdf(); },
+    get enable_cleanup() { return getEnableCleanup(); },
+    get cleanup_start_date() { return getCleanupStartDate(); },
+    get cleanup_end_date() { return getCleanupEndDate(); },
     matrix_enabled: cfg.clients.find(c => c.type === 'matrix')?.enabled || false,
     ts: Date.now(),
     get default_layout() { return getDefaultLayout(); },

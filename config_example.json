@@ -58,6 +58,8 @@
     "enable_userhall_image_upload": true,
     "abyss_enabled": true,
     "meme_creator": true,
+    "enable_cleanup": false,
+    "cleanup_timeframe_days": 30,
 
     "web_url_upload": true,
     "enable_youtube_upload": true,
