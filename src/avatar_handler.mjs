@@ -137,7 +137,7 @@ export const handleAvatarUpload = async (req, res) => {
 
         // Convert to webp using ImageMagick with coalesce for GIF handling
         try {
-            await execFile('magick', [tmpPath, '-coalesce', '-resize', '256x256^', '-gravity', 'center', '-extent', '256x256', '-quality', '50', finalPath]);
+            await execFile('magick', [tmpPath, '-coalesce', '-resize', '256x256^', '-gravity', 'center', '-background', 'none', '-extent', '256x256', '-quality', '50', finalPath]);
         } catch (err) {
             console.error('[AVATAR HANDLER] Magick error:', err);
             await fs.unlink(tmpPath).catch(() => { });

@@ -101,7 +101,7 @@ export const handleHallImageUpload = async (req, res) => {
         // -coalesce is required for animated GIFs: it composites delta frames into full frames
         // before resizing, preventing heavy artifacts. Output is animated WebP for GIFs.
         try {
-            await execFile('magick', [tmpPath, '-coalesce', '-resize', '600x300^', '-gravity', 'center', '-extent', '600x300', '-quality', '85', finalPath]);
+            await execFile('magick', [tmpPath, '-coalesce', '-resize', '600x300^', '-gravity', 'center', '-background', 'none', '-extent', '600x300', '-quality', '85', finalPath]);
         } catch (err) {
             console.error('[HALL IMG] Magick error:', err.stderr || err.message);
             await fs.unlink(tmpPath).catch(() => {});

@@ -97,7 +97,7 @@ export const handleUserHallImageUpload = async (req, res, slug) => {
 
     // Resize to 600x300 webp
     try {
-      await execFile('magick', [tmpPath, '-coalesce', '-resize', '600x300^', '-gravity', 'center', '-extent', '600x300', '-quality', '85', finalPath]);
+      await execFile('magick', [tmpPath, '-coalesce', '-resize', '600x300^', '-gravity', 'center', '-background', 'none', '-extent', '600x300', '-quality', '85', finalPath]);
     } catch (err) {
       console.error('[USER_HALL_IMG] Magick error:', err.stderr || err.message);
       await fs.unlink(tmpPath).catch(() => {});
