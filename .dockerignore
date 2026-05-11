@@ -23,5 +23,5 @@ tmp/
 README.md
 LICENSE
 
-postgres/
-f0ckm-data/
+postgres
+f0ckm-data
