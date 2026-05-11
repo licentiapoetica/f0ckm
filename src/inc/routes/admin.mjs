@@ -40,7 +40,7 @@ export default (router, tpl) => {
       return fail("Invalid username or password.");
     }
 
-    if (await security.isRateLimited(ip, username, 'login')) {
+    if (await security.isRateLimited(ip, null, 'login')) {
       const msg = "Too many attempts.";
       if (req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'))) {
         return res.writeHead(429, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg }));
