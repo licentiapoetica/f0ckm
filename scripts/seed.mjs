@@ -4,9 +4,9 @@ const SETTINGS = [
   { key: 'motd', value: 'Hello World!' },
   { key: 'manual_approval', value: 'true' },
   { key: 'min_tags', value: '3' },
-  { key: 'registration_open', value: 'true' },
-  { key: 'trusted_uploads', value: '0' },
-  { key: 'about_text', value: 'Check the README.md for more information.' },
+  { key: 'registration_open', value: 'true' }, // this means open reg with email, false would mean open reg with invite token
+  { key: 'trusted_uploads', value: '3' },
+  { key: 'about_text', value: '' },
   { key: 'rules_text', value: '' },
   { key: 'terms_text', value: '' }
 ];
