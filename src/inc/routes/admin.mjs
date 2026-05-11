@@ -36,16 +36,16 @@ export default (router, tpl) => {
       return res.reply({ body: tpl.render("login", { error: msg, theme: req.theme }) });
     };
 
-    if (!username || !password || password.length < 20) {
-      return fail("Invalid username or password.");
-    }
-
     if (await security.isRateLimited(ip, null, 'login')) {
       const msg = "Too many attempts.";
       if (req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'))) {
         return res.writeHead(429, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg }));
       }
       return res.reply({ code: 429, body: msg });
+    }
+
+    if (!username || !password || password.length < 20) {
+      return fail("Invalid username or password.");
     }
 
     const user = await db`
