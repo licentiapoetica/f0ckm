@@ -61,7 +61,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
-      start_interval: 1s
 
   # anubis:
   #   image: ghcr.io/techarohq/anubis:latest
