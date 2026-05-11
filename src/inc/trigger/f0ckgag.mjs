@@ -45,7 +45,7 @@ export default async bot => {
 
       const link = `${cfg.main.url.full}/${row.id}`.replace('http://', 'https://');
       const msg = [
-        link,
+        e.type === 'matrix' ? `ID: ${row.id}` : link,
         ratingStr,
         `user: ${row.username}`,
         `~${lib.formatSize(row.size)}`,
@@ -57,7 +57,7 @@ export default async bot => {
         const color = rating === 'sfw' ? '#00ff00' : (rating === 'nsfw' ? '#ff0000' : '#888888');
         const formattedRating = `<font color="${color}"><b>${rating}</b></font>`;
         const formattedMsg = [
-          link,
+          e.type === 'matrix' ? `ID: ${row.id}` : link,
           formattedRating,
           `user: ${row.username}`,
           `~${lib.formatSize(row.size)}`,
