@@ -443,7 +443,7 @@ process.on('uncaughtException', err => {
     // Hall manager routes are handled by bypass middleware with their own session auth
     if (cfg.websrv.halls_enabled !== false && req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
     // User hall image upload is handled by bypass middleware below
-    if (cfg.websrv.userhalls_enabled !== false && req.url.pathname.match(/^\/api\/v2\/me\/halls\/[^/]+\/image$/)) return;
+    if (cfg.websrv.userhalls_enabled !== false && cfg.websrv.enable_userhall_image_upload !== false && req.url.pathname.match(/^\/api\/v2\/me\/halls\/[^/]+\/image$/)) return;
     if (!validateCsrf(req, res)) return;
   });
 
@@ -544,7 +544,7 @@ process.on('uncaughtException', err => {
 
   // Bypass middleware for user hall image uploads (multipart — raw body needed)
   app.use(async (req, res) => {
-    if (cfg.websrv.userhalls_enabled === false) return;
+    if (cfg.websrv.userhalls_enabled === false || cfg.websrv.enable_userhall_image_upload === false) return;
     const userHallImgMatch = req.url.pathname.match(/^\/api\/v2\/me\/halls\/([^/]+)\/image$/);
     if (userHallImgMatch && req.method === 'POST') {
       console.error('[BOOT] [USER_HALL BYPASS] Image upload:', req.url.pathname);
@@ -733,6 +733,7 @@ process.on('uncaughtException', err => {
     get halls() { return getHalls(); },
     halls_enabled: cfg.websrv.halls_enabled !== false,
     userhalls_enabled: cfg.websrv.userhalls_enabled !== false,
+    enable_userhall_image_upload: cfg.websrv.enable_userhall_image_upload !== false,
     abyss_enabled: cfg.websrv.abyss_enabled !== false,
     smtp_enabled: !!(cfg.smtp && cfg.smtp.enabled && cfg.smtp.mail_reset_password),
     show_background_cfg: cfg.websrv.background !== false,

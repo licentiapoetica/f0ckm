@@ -48,7 +48,7 @@ export const handleUserHallImageUpload = async (req, res, slug) => {
   if (!session) return sendJson(res, { success: false, msg: 'Unauthorized' }, 403);
 
   // CSRF check
-  const token = req.headers['x-csrf-token'];
+  const token = req.headers['x-csrf-token'] || req.url?.qs?.csrf_token;
   if (!token || token !== session.csrf_token) {
     return sendJson(res, { success: false, msg: 'Invalid CSRF token' }, 403);
   }

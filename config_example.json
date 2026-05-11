@@ -52,6 +52,7 @@
     "private_messages": true,
     "halls_enabled": true,
     "userhalls_enabled": true,
+    "enable_userhall_image_upload": true,
     "abyss_enabled": true,
     "meme_creator": true,
 
