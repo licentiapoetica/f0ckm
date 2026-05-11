@@ -605,6 +605,19 @@ window.initUploadForm = (selector) => {
         if (metaCont) metaCont.style.display = 'none';
         form.querySelector('.gps-privacy-warning')?.remove();
         
+        if (file.name) {
+            let baseName = file.name;
+            const lastDotIndex = baseName.lastIndexOf('.');
+            if (lastDotIndex > 0) {
+                baseName = baseName.substring(0, lastDotIndex);
+            }
+            baseName = baseName.trim();
+            if (baseName && !autoTags.includes(baseName)) {
+                autoTags.push(baseName);
+                addMetaSuggestion(baseName);
+            }
+        }
+
         // --- Media Metadata Sync (Hybrid) ---
         const isMedia = file.type.startsWith('video/') || file.type.startsWith('audio/') || file.type.startsWith('image/') ||
             (file.name && /\.(mp4|webm|mp3|ogg|wav|m4a|flac|jpg|jpeg|png|gif|webp|tiff?)$/i.test(file.name));
