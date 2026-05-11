@@ -16,6 +16,11 @@ if (process.env.NODE_ENV === 'production') {
     config.main.development = false;
 }
 
+// Set timezone from config if not already set via environment variable
+if (!process.env.TZ && config.main.timezone) {
+    process.env.TZ = config.main.timezone;
+}
+
 const base = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../");
 const storage = process.env.STORAGE_DIR;
 

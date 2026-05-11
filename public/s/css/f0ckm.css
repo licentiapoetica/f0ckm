@@ -9636,13 +9636,6 @@ body.layout-legacy .navbar-header {
     overflow: visible;
   }
 
-  body.layout-modern>.pagewrapper>#main,
-  body.layout-modern>#main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: normal;
-  }
 
   body.layout-modern:has(.item-layout-container)>.pagewrapper>#main,
   body.layout-modern:has(.item-layout-container)>#main {
@@ -9667,7 +9660,7 @@ body.layout-legacy .navbar-header {
 /* For generic pages in layout-modern, reset #main to plain block flow so children
    fill the full available width — mirrors layout-legacy exactly and prevents any
    flex child centering (e.g. margin:0 auto shrinking content like on /subscriptions). */
-body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)):not(:has(.messages-convo-page))>#main {
+body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)):not(:has(.messages-convo-page))>#main:not(.session-grid) {
   display: block !important;
   width: 100%;
 }

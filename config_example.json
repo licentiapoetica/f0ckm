@@ -16,6 +16,7 @@
     ],
     "invite_secret": "YOUR_SECRET_HERE",
     "hide_comments_from_public": false,
+    "timezone": "UTC",
     "development": true
   },
   "allowedModes": [ "sfw", "nsfw", "untagged", "all", "nsfl" ],

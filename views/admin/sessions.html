@@ -36,11 +36,11 @@
       </div>
       <div class="session-info">
         <span class="label">Created:</span>
-        <span class="value">{{ new Date(s.created_at * 1e3).toLocaleString("de-DE") }}</span>
+        <span class="value">{{ new Date(s.created_at * 1e3).toLocaleString(lang) }}</span>
       </div>
       <div class="session-info">
         <span class="label">Last Used:</span>
-        <span class="value">{{ new Date(s.last_used * 1e3).toLocaleString("de-DE") }}</span>
+        <span class="value">{{ new Date(s.last_used * 1e3).toLocaleString(lang) }}</span>
       </div>
       <div class="session-info">
         <span class="label">Last Action:</span>
