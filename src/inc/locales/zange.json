@@ -212,6 +212,14 @@
     "export_uploads": "Meine Aufladungen",
     "export_favorites": "Meine Favorisierungen",
     "export_preparing": "Vorbereitung wird getroffen...",
+    "export_fetching_data": "Holt die ganze Liste...",
+    "export_processing_files": "Verpackt Dateien: {completed} / {total}",
+    "export_generating_zip": "Paket wird geschnürt...",
+    "export_complete": "Paket fertig!",
+    "export_failed": "Paket kaputt.",
+    "export_select_option": "Bitte wählen Sie etwas zum verpacken aus.",
+    "export_no_data": "Nix da zum verpacken.",
+    "export_failed_alert": "Auf dem Weg gestorben :(",
     "start_export": "Paket schnüren"
   },
   "filter": {

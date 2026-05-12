@@ -213,6 +213,14 @@
     "export_uploads": "My Uploads",
     "export_favorites": "My Favorites",
     "export_preparing": "Preparing...",
+    "export_fetching_data": "Fetching data list...",
+    "export_processing_files": "Processing files: {completed} / {total}",
+    "export_generating_zip": "Generating ZIP file",
+    "export_complete": "Export complete!",
+    "export_failed": "Export failed.",
+    "export_select_option": "Please select at least one option to export.",
+    "export_no_data": "No data found to export.",
+    "export_failed_alert": "Export failed. See console for details.",
     "start_export": "Generate Export (ZIP)"
   },
   "filter": {

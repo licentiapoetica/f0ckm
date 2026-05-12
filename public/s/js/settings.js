@@ -1402,8 +1402,10 @@
     const exportProgressContainer = document.getElementById('export-progress-container');
     const exportProgressBar = document.getElementById('export-progress-bar');
     const exportStatusText = document.getElementById('export-status-text');
+    const exportStatusMsg = document.getElementById('export-status-msg');
     const chkExportUploads = document.getElementById('export_uploads');
     const chkExportFavorites = document.getElementById('export_favorites');
+    const exportAnimatedDots = document.getElementById('export-animated-dots');
 
     if (btnStartExport) {
         btnStartExport.addEventListener('click', async () => {
@@ -1411,14 +1413,14 @@
             const exportFavorites = chkExportFavorites.checked;
 
             if (!exportUploads && !exportFavorites) {
-                alert('Please select at least one option to export.');
+                alert(exportStatusText.dataset.selectOption || 'Please select at least one option to export.');
                 return;
             }
 
             btnStartExport.disabled = true;
             exportProgressContainer.style.display = 'block';
             exportProgressBar.style.width = '0%';
-            exportStatusText.textContent = 'Fetching data list...';
+            exportStatusMsg.textContent = exportStatusText.dataset.fetching || 'Fetching data list...';
 
             try {
                 const res = await fetch('/settings/export-data');
@@ -1433,7 +1435,7 @@
                 }
 
                 if (filesToDownload.length === 0) {
-                    alert('No data found to export.');
+                    alert(exportStatusText.dataset.noData || 'No data found to export.');
                     btnStartExport.disabled = false;
                     exportProgressContainer.style.display = 'none';
                     return;
@@ -1463,7 +1465,10 @@
                         completed++;
                         const percent = Math.round((completed / total) * 100);
                         exportProgressBar.style.width = percent + '%';
-                        exportStatusText.textContent = `Processing files: ${completed} / ${total}`;
+                        const msg = (exportStatusText.dataset.processing || 'Processing files: {completed} / {total}')
+                            .replace('{completed}', completed)
+                            .replace('{total}', total);
+                        exportStatusMsg.textContent = msg;
                         return;
                     }
 
@@ -1478,7 +1483,10 @@
                         completed++;
                         const percent = Math.round((completed / total) * 100);
                         exportProgressBar.style.width = percent + '%';
-                        exportStatusText.textContent = `Processing files: ${completed} / ${total}`;
+                        const msg = (exportStatusText.dataset.processing || 'Processing files: {completed} / {total}')
+                            .replace('{completed}', completed)
+                            .replace('{total}', total);
+                        exportStatusMsg.textContent = msg;
                     }
                 };
 
@@ -1489,7 +1497,8 @@
                     await Promise.all(batch.map(downloadFile));
                 }
 
-                exportStatusText.textContent = 'Generating ZIP file...';
+                exportStatusMsg.textContent = exportStatusText.dataset.generating || 'Generating ZIP file';
+                exportAnimatedDots.style.display = 'inline';
                 const content = await new Promise((resolve, reject) => {
                     const chunks = [];
                     zip.generateInternalStream({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } })
@@ -1504,6 +1513,7 @@
                         })
                         .resume();
                 });
+                exportAnimatedDots.style.display = 'none';
                 
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
@@ -1512,13 +1522,13 @@
                 link.click();
                 document.body.removeChild(link);
 
-                exportStatusText.textContent = 'Export complete!';
+                exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
                 btnStartExport.disabled = false;
             } catch (err) {
                 console.error('Export failed:', err);
-                alert('Export failed. See console for details.');
+                alert(exportStatusText.dataset.failedAlert || 'Export failed. See console for details.');
                 btnStartExport.disabled = false;
-                exportStatusText.textContent = 'Export failed.';
+                exportStatusMsg.textContent = exportStatusText.dataset.failed || 'Export failed.';
             }
         });
     }

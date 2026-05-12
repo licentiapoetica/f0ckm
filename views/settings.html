@@ -278,7 +278,17 @@
           <div class="progress-bar-wrapper" style="height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-bottom: 5px;">
             <div id="export-progress-bar" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.3s;"></div>
           </div>
-          <div id="export-status-text" style="font-size: 0.9em; color: var(--text-muted);">{{ t('settings.export_preparing') || 'Preparing...' }}</div>
+          <div id="export-status-text" 
+               style="font-size: 0.9em; color: var(--text-muted);"
+               data-fetching="{{ t('settings.export_fetching_data') }}"
+               data-processing="{{ t('settings.export_processing_files') }}"
+               data-generating="{{ t('settings.export_generating_zip') }}"
+               data-complete="{{ t('settings.export_complete') }}"
+               data-failed="{{ t('settings.export_failed') }}"
+               data-select-option="{{ t('settings.export_select_option') }}"
+               data-no-data="{{ t('settings.export_no_data') }}"
+               data-failed-alert="{{ t('settings.export_failed_alert') }}"
+          ><span id="export-status-msg">{{ t('settings.export_preparing') || 'Preparing...' }}</span><span class="export-dots" id="export-animated-dots" style="display:none;"><span>.</span><span>.</span><span>.</span></span></div>
         </div>
 
         <button type="button" id="btn-start-export" class="button button-primary">
@@ -387,6 +397,18 @@
       </div>
       @endif
 
+      <style>
+        @keyframes exportDotBounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+          40%            { transform: translateY(-5px); opacity: 1; }
+        }
+        .export-dots span {
+          display: inline-block;
+          animation: exportDotBounce 1.2s infinite ease-in-out;
+        }
+        .export-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .export-dots span:nth-child(3) { animation-delay: 0.4s; }
+      </style>
       <script src="/s/js/jszip.min.js"></script>
       <script src="/s/js/settings.js?v=@mtime(/public/s/js/settings.js)"></script>
     </div>

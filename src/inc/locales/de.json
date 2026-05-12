@@ -213,6 +213,14 @@
     "export_uploads": "Meine Uploads",
     "export_favorites": "Meine Favoriten",
     "export_preparing": "Wird vorbereitet...",
+    "export_fetching_data": "Datenliste wird abgerufen...",
+    "export_processing_files": "Dateien werden verarbeitet: {completed} / {total}",
+    "export_generating_zip": "ZIP-Datei wird generiert",
+    "export_complete": "Export abgeschlossen!",
+    "export_failed": "Export fehlgeschlagen.",
+    "export_select_option": "Bitte wähle mindestens eine Option zum Exportieren aus.",
+    "export_no_data": "Keine Daten zum Exportieren gefunden.",
+    "export_failed_alert": "Export fehlgeschlagen. Details findest du in der Konsole.",
     "start_export": "Export generieren (ZIP)"
   },
   "filter": {

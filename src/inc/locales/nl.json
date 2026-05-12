@@ -213,6 +213,14 @@
     "export_uploads": "Jouw uploads",
     "export_favorites": "Jouw favorieten",
     "export_preparing": "Voorbereiden...",
+    "export_fetching_data": "Gegevenslijst ophalen...",
+    "export_processing_files": "Bestanden verwerken: {completed} / {total}",
+    "export_generating_zip": "ZIP-bestand genereren",
+    "export_complete": "Export voltooid!",
+    "export_failed": "Export mislukt.",
+    "export_select_option": "Selecteer ten minste één optie om te exporteren.",
+    "export_no_data": "Geen gegevens gevonden om te exporteren.",
+    "export_failed_alert": "Export mislukt. Zie console voor details.",
     "start_export": "Export genereren (ZIP)"
   },
   "filter": {
