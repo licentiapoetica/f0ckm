@@ -1492,7 +1492,7 @@
                 exportStatusText.textContent = 'Generating ZIP file...';
                 const content = await new Promise((resolve, reject) => {
                     const chunks = [];
-                    zip.generateInternalStream({ type: 'uint8array', streamFiles: true })
+                    zip.generateInternalStream({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } })
                         .on('data', (chunk) => chunks.push(chunk))
                         .on('error', reject)
                         .on('end', () => {
