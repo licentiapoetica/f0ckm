@@ -44,18 +44,7 @@
         </label>
       </div>
 
-      @if(typeof enable_cleanup_config === "undefined" || enable_cleanup_config !== false)
-      <div class="settings-toggle" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
-        <div>
-          <label style="display: block; font-weight: bold; color: var(--accent);">Enable Cleanup Action</label>
-          <p style="margin: 2px 0 0 0; font-size: 0.8em; color: #aaa;">Enable the automated cleanup system and manager.</p>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="enable_cleanup_toggle" {{ enable_cleanup ? 'checked' : '' }} onchange="saveAdminSettings()">
-          <span class="slider round"></span>
-        </label>
-      </div>
-      @endif
+
 
       @if(registration_web_toggle_enabled)
       <div class="settings-toggle" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
@@ -115,7 +104,6 @@
       const status = document.getElementById('settings-status');
       const approvalToggle = document.getElementById('manual_approval_toggle');
       const registrationToggle = document.getElementById('registration_open_toggle');
-      const cleanupToggle = document.getElementById('enable_cleanup_toggle');
       const minTagsInput = document.getElementById('min_tags_input');
       const trustedUploadsInput = document.getElementById('trusted_uploads_input');
 
@@ -131,7 +119,6 @@
           },
           body: new URLSearchParams({
             manual_approval: approvalToggle.checked ? 'on' : 'off',
-            enable_cleanup: cleanupToggle.checked ? 'on' : 'off',
             ...(registrationToggle ? { registration_open: registrationToggle.checked ? 'on' : 'off' } : {}),
             min_tags: minTagsInput.value,
             trusted_uploads: trustedUploadsInput.value,

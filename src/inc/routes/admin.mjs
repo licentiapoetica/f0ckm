@@ -615,12 +615,10 @@ export default (router, tpl) => {
   router.post(/^\/admin\/settings\/?$/, lib.auth, async (req, res) => {
     const manual_approval = req.post.manual_approval === 'on' ? 'true' : 'false';
     const registration_open = req.post.registration_open === 'on' ? 'true' : 'false';
-    const enable_cleanup = req.post.enable_cleanup === 'on' ? 'true' : 'false';
     const min_tags = isNaN(parseInt(req.post.min_tags)) ? 3 : Math.max(0, parseInt(req.post.min_tags));
     const trusted_uploads = Math.max(0, parseInt(req.post.trusted_uploads) ?? 3);
 
     await db`INSERT INTO site_settings (key, value) VALUES ('manual_approval', ${manual_approval}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-    await db`INSERT INTO site_settings (key, value) VALUES ('enable_cleanup', ${enable_cleanup}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     if (cfg.websrv.open_registration_web_toggle !== false) {
       await db`INSERT INTO site_settings (key, value) VALUES ('registration_open', ${registration_open}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
@@ -631,7 +629,6 @@ export default (router, tpl) => {
     await db`INSERT INTO site_settings (key, value) VALUES ('trusted_uploads', ${trusted_uploads.toString()}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     setManualApproval(manual_approval === 'true');
-    setEnableCleanup(enable_cleanup === 'true');
     setMinTags(min_tags);
     setTrustedUploads(trusted_uploads);
 
@@ -672,15 +669,12 @@ export default (router, tpl) => {
 
   router.post(/^\/admin\/cleanup\/?$/, lib.auth, async (req, res) => {
     try {
-      const enable_cleanup = req.post.enable_cleanup === 'on' ? 'true' : 'false';
       const cleanup_start_date = req.post.cleanup_start_date || '';
       const cleanup_end_date = req.post.cleanup_end_date || '';
 
-      await db`INSERT INTO site_settings (key, value) VALUES ('enable_cleanup', ${enable_cleanup}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
       await db`INSERT INTO site_settings (key, value) VALUES ('cleanup_start_date', ${cleanup_start_date}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
       await db`INSERT INTO site_settings (key, value) VALUES ('cleanup_end_date', ${cleanup_end_date}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
-      setEnableCleanup(enable_cleanup === 'true');
       setCleanupStartDate(cleanup_start_date);
       setCleanupEndDate(cleanup_end_date);
 

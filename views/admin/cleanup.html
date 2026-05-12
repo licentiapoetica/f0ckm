@@ -9,16 +9,7 @@
             <form id="cleanup-form" action="/admin/cleanup" method="POST" onsubmit="event.preventDefault(); saveCleanupSettings(this);">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 
-                <div class="settings-toggle" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <div>
-                        <label style="display: block; font-weight: bold; color: var(--accent); font-size: 1.1em;">Enable Cleanup Action</label>
-                        <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #aaa;">This must be enabled to allow running the manual cleanup process.</p>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="enable_cleanup" id="enable_cleanup_toggle" {{ enable_cleanup ? 'checked' : '' }}>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
+
 
                 <div class="settings-item" style="margin-bottom: 30px;">
                     <label style="display: block; font-weight: bold; color: var(--accent); margin-bottom: 10px;">Cleanup Date Range</label>
@@ -79,12 +70,6 @@
 
             try {
                 const formData = new FormData(form);
-                if (!document.getElementById('enable_cleanup_toggle').checked) {
-                    formData.delete('enable_cleanup');
-                    formData.append('enable_cleanup', 'off');
-                } else {
-                    formData.set('enable_cleanup', 'on');
-                }
 
                 const res = await fetch(form.action, {
                     method: 'POST',
