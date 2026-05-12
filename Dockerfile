@@ -19,6 +19,7 @@ WORKDIR /opt/f0ckm
 COPY . .
 
 RUN npm i
+RUN npm run copy-vendor
 RUN npm run build
 
 ENTRYPOINT ["npm", "run", "start"]

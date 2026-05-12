@@ -14,6 +14,7 @@
     "clean": "node debug/clean.mjs",
     "fix:deleted": "node debug/fix_deleted.mjs",
     "build": "node scripts/build-css.mjs",
+    "copy-vendor": "node scripts/copy-vendor.mjs",
     "seed": "node scripts/seed.mjs",
     "create-admin": "node scripts/create-admin.mjs"
   },
