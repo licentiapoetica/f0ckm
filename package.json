@@ -26,6 +26,7 @@
     "flummpress": "^2.0.5",
     "marked": "^18.0.2",
     "matrix-js-sdk": "^40.3.0-rc.0",
-    "postgres": "^3.3.4"
+    "postgres": "^3.3.4",
+    "jszip": "^3.10.1"
   }
 }

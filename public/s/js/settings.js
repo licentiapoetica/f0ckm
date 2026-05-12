@@ -1483,14 +1483,14 @@
                 };
 
                 // Download in batches to avoid overwhelming the browser/server
-                const batchSize = 5;
+                const batchSize = 3;
                 for (let i = 0; i < filesToDownload.length; i += batchSize) {
                     const batch = filesToDownload.slice(i, i + batchSize);
                     await Promise.all(batch.map(downloadFile));
                 }
 
                 exportStatusText.textContent = 'Generating ZIP file...';
-                const content = await zip.generateAsync({ type: 'blob' });
+                const content = await zip.generateAsync({ type: 'blob', streamFiles: true });
                 
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
