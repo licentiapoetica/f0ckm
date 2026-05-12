@@ -1490,7 +1490,20 @@
                 }
 
                 exportStatusText.textContent = 'Generating ZIP file...';
-                const content = await zip.generateAsync({ type: 'blob', streamFiles: true });
+                const content = await new Promise((resolve, reject) => {
+                    const chunks = [];
+                    zip.generateInternalStream({ type: 'uint8array', streamFiles: true })
+                        .on('data', (chunk) => chunks.push(chunk))
+                        .on('error', reject)
+                        .on('end', () => {
+                            try {
+                                resolve(new Blob(chunks, { type: 'application/zip' }));
+                            } catch (e) {
+                                reject(e);
+                            }
+                        })
+                        .resume();
+                });
                 
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
