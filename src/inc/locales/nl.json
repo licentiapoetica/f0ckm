@@ -207,7 +207,13 @@
     "matrix_instructions": "1. Generate a generic link token below.<br>2. Send <code>!link</code> in the general<br>3. Reply with your token in the bot dm",
     "your_token": "Je Token:",
     "one_time_use": "Valid for one-time use.",
-    "generate_token": "Koppelingstoken Genereren"
+    "generate_token": "Koppelingstoken Genereren",
+    "export_data_title": "Gegevens exporteren",
+    "export_data_desc": "Download een kopie van je gegevens. Dit proces vindt volledig plaats in je browser om je privacy te beschermen en serverbronnen te besparen.",
+    "export_uploads": "Jouw uploads",
+    "export_favorites": "Jouw favorieten",
+    "export_preparing": "Voorbereiden...",
+    "start_export": "Export genereren (ZIP)"
   },
   "filter": {
     "tag_placeholder": "Tag om uit te sluiten",

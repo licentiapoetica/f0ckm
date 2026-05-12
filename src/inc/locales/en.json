@@ -207,7 +207,13 @@
     "matrix_instructions": "1. Generate a generic link token below.<br>2. Send <code>!link</code> in the general<br>3. Reply with your token in the bot dm",
     "your_token": "Your Token:",
     "one_time_use": "Valid for one-time use.",
-    "generate_token": "Generate Link Token"
+    "generate_token": "Generate Link Token",
+    "export_data_title": "Export Data",
+    "export_data_desc": "Download a copy of your data. This process happens entirely in your browser.",
+    "export_uploads": "My Uploads",
+    "export_favorites": "My Favorites",
+    "export_preparing": "Preparing...",
+    "start_export": "Generate Export (ZIP)"
   },
   "filter": {
     "tag_placeholder": "Tag to exclude",

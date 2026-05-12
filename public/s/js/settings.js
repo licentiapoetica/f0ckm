@@ -1397,4 +1397,117 @@
         });
     }
 
+    // ==== Export Data Logic ====
+    const btnStartExport = document.getElementById('btn-start-export');
+    const exportProgressContainer = document.getElementById('export-progress-container');
+    const exportProgressBar = document.getElementById('export-progress-bar');
+    const exportStatusText = document.getElementById('export-status-text');
+    const chkExportUploads = document.getElementById('export_uploads');
+    const chkExportFavorites = document.getElementById('export_favorites');
+
+    if (btnStartExport) {
+        btnStartExport.addEventListener('click', async () => {
+            const exportUploads = chkExportUploads.checked;
+            const exportFavorites = chkExportFavorites.checked;
+
+            if (!exportUploads && !exportFavorites) {
+                alert('Please select at least one option to export.');
+                return;
+            }
+
+            btnStartExport.disabled = true;
+            exportProgressContainer.style.display = 'block';
+            exportProgressBar.style.width = '0%';
+            exportStatusText.textContent = 'Fetching data list...';
+
+            try {
+                const res = await fetch('/settings/export-data');
+                const data = await res.json();
+
+                let filesToDownload = [];
+                if (exportUploads) {
+                    filesToDownload = filesToDownload.concat(data.uploads.map(f => ({ ...f, exportType: 'uploads' })));
+                }
+                if (exportFavorites) {
+                    filesToDownload = filesToDownload.concat(data.favorites.map(f => ({ ...f, exportType: 'favorites' })));
+                }
+
+                if (filesToDownload.length === 0) {
+                    alert('No data found to export.');
+                    btnStartExport.disabled = false;
+                    exportProgressContainer.style.display = 'none';
+                    return;
+                }
+
+                const zip = new JSZip();
+                const uploadsFolder = zip.folder("uploads");
+                const favoritesFolder = zip.folder("favorites");
+
+                const metadata = {
+                    exported_at: new Date().toISOString(),
+                    user: window.f0ckSession?.user,
+                    uploads: exportUploads ? data.uploads : [],
+                    favorites: exportFavorites ? data.favorites : []
+                };
+                zip.file("metadata.json", JSON.stringify(metadata, null, 2));
+
+                const total = filesToDownload.length;
+                let completed = 0;
+
+                const downloadFile = async (fileInfo) => {
+                    const folder = fileInfo.exportType === 'uploads' ? uploadsFolder : favoritesFolder;
+
+                    if (fileInfo.mime === 'video/youtube') {
+                        const ytId = fileInfo.dest.replace(/^yt:/, '');
+                        folder.file(`${fileInfo.id}_youtube_${ytId}.txt`, `https://www.youtube.com/watch?v=${ytId}`);
+                        completed++;
+                        const percent = Math.round((completed / total) * 100);
+                        exportProgressBar.style.width = percent + '%';
+                        exportStatusText.textContent = `Processing files: ${completed} / ${total}`;
+                        return;
+                    }
+
+                    try {
+                        const url = (window.f0ckMediaBase || '/b') + '/' + fileInfo.dest;
+                        const response = await fetch(url);
+                        const blob = await response.blob();
+                        folder.file(`${fileInfo.id}_${fileInfo.dest}`, blob);
+                    } catch (err) {
+                        console.error('Failed to download file:', fileInfo.id, err);
+                    } finally {
+                        completed++;
+                        const percent = Math.round((completed / total) * 100);
+                        exportProgressBar.style.width = percent + '%';
+                        exportStatusText.textContent = `Processing files: ${completed} / ${total}`;
+                    }
+                };
+
+                // Download in batches to avoid overwhelming the browser/server
+                const batchSize = 5;
+                for (let i = 0; i < filesToDownload.length; i += batchSize) {
+                    const batch = filesToDownload.slice(i, i + batchSize);
+                    await Promise.all(batch.map(downloadFile));
+                }
+
+                exportStatusText.textContent = 'Generating ZIP file...';
+                const content = await zip.generateAsync({ type: 'blob' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                exportStatusText.textContent = 'Export complete!';
+                btnStartExport.disabled = false;
+            } catch (err) {
+                console.error('Export failed:', err);
+                alert('Export failed. See console for details.');
+                btnStartExport.disabled = false;
+                exportStatusText.textContent = 'Export failed.';
+            }
+        });
+    }
+
 })();

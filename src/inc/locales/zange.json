@@ -206,7 +206,13 @@
     "matrix_instructions": "1. Erzeugen Sie unten ein allgemeines Verknüpfungskennzeichen.<br>2. Senden Sie <code>!link</code> im Hauptraum<br>3. Antworten Sie mit Ihrem Kennzeichen in der Bot-Direktnachricht",
     "your_token": "Ihr Kennzeichen:",
     "one_time_use": "Gültig für den einmaligen Gebrauch.",
-    "generate_token": "Verknüpfungskennzeichen erzeugen"
+    "generate_token": "Verknüpfungskennzeichen erzeugen",
+    "export_data_title": "Daten hinaustransportieren",
+    "export_data_desc": "Laden Sie eine Kopie Ihrer Daten hinunter. Dieser Vorgang findet vollumfänglich in Ihrem Brauser statt.",
+    "export_uploads": "Meine Aufladungen",
+    "export_favorites": "Meine Favorisierungen",
+    "export_preparing": "Vorbereitung wird getroffen...",
+    "start_export": "Paket schnüren"
   },
   "filter": {
     "tag_placeholder": "Auszuschließendes Etikett",

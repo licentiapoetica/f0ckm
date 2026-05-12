@@ -58,6 +58,25 @@ export default (router, tpl) => {
         }, req)
       });
     });
+    group.get('/export-data', auth, async (req, res) => {
+      const uploads = await db`
+        select id, dest, mime from items 
+        where username = ${req.session.user} and active = true
+        order by id desc
+      `;
+      
+      const favorites = await db`
+        select i.id, i.dest, i.mime from items i
+        join favorites f on f.item_id = i.id
+        where f.user_id = ${+req.session.id} and i.active = true
+        order by f.item_id desc
+      `;
+
+      res.reply({
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uploads, favorites })
+      });
+    });
   });
 
   return router;

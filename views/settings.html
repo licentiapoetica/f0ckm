@@ -257,6 +257,35 @@
         @endif
 
       </div>
+      <h2>{{ t('settings.export_data_title') || 'Export Data' }}</h2>
+      <div class="export-settings-wrapper" style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
+        <p>{{ t('settings.export_data_desc') || 'Download a copy of your data. This process happens entirely in your browser to protect your privacy and save server resources.' }}</p>
+        
+        <div class="setting-item" style="margin-bottom: 15px;">
+          <label class="checkbox-container" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="export_uploads" checked>
+            <span>{{ t('settings.export_uploads') || 'Your Uploads' }}</span>
+          </label>
+        </div>
+        <div class="setting-item" style="margin-bottom: 20px;">
+          <label class="checkbox-container" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="export_favorites" checked>
+            <span>{{ t('settings.export_favorites') || 'Your Favorites' }}</span>
+          </label>
+        </div>
+
+        <div id="export-progress-container" style="display: none; margin-bottom: 20px;">
+          <div class="progress-bar-wrapper" style="height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-bottom: 5px;">
+            <div id="export-progress-bar" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.3s;"></div>
+          </div>
+          <div id="export-status-text" style="font-size: 0.9em; color: var(--text-muted);">{{ t('settings.export_preparing') || 'Preparing...' }}</div>
+        </div>
+
+        <button type="button" id="btn-start-export" class="button button-primary">
+          <i class="fa-solid fa-download" style="margin-right: 5px;"></i> {{ t('settings.start_export') || 'Generate Export (ZIP)' }}
+        </button>
+      </div>
+
       <h2>{{ t('settings.account') }}</h2>
       <div class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
@@ -358,6 +387,7 @@
       </div>
       @endif
 
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
       <script src="/s/js/settings.js?v=@mtime(/public/s/js/settings.js)"></script>
     </div>
   </div>

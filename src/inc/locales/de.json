@@ -207,7 +207,13 @@
     "matrix_instructions": "1. Unten ein allgemeines Link-Token generieren.<br>2. <code>!link</code> im Hauptraum senden<br>3. Token in der Bot-DM eingeben",
     "your_token": "Dein Token:",
     "one_time_use": "Einmalig verwendbar.",
-    "generate_token": "Link-Token generieren"
+    "generate_token": "Link-Token generieren",
+    "export_data_title": "Daten exportieren",
+    "export_data_desc": "Lade eine Kopie deiner Daten herunter. Dieser Vorgang findet vollständig in deinem Browser statt.",
+    "export_uploads": "Meine Uploads",
+    "export_favorites": "Meine Favoriten",
+    "export_preparing": "Wird vorbereitet...",
+    "start_export": "Export generieren (ZIP)"
   },
   "filter": {
     "tag_placeholder": "Tag ausschließen",
