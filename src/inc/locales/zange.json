@@ -214,7 +214,7 @@
     "export_preparing": "Vorbereitung wird getroffen...",
     "export_fetching_data": "Holt die ganze Liste...",
     "export_processing_files": "Verpackt Dateien: {completed} / {total}",
-    "export_generating_zip": "Paket wird geschnürt...",
+    "export_generating_zip": "Paket wird geschnürt",
     "export_complete": "Paket fertig!",
     "export_failed": "Paket kaputt.",
     "export_select_option": "Bitte wählen Sie etwas zum verpacken aus.",
