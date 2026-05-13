@@ -273,6 +273,47 @@ window.initUploadForm = (selector) => {
     // --- URL type detection & Metadata extraction ---
     let metaDebounce = null;
     let lastFetchedUrl = '';
+    // Cache: url -> string[] of suggestion fields (populated by fetchMetadata)
+    const metaCache = new Map();
+
+    // Extracts a flat list of suggestion strings from a /api/v2/meta/fetch response meta object
+    const extractFieldsFromMeta = (meta) => {
+        const fields = [];
+        const push = (v) => { if (v && typeof v === 'string' && v.trim()) fields.push(v.trim()); };
+        const pushArr = (arr) => { if (Array.isArray(arr)) arr.forEach(push); };
+
+        // Title (prefer og_title, strip site name suffix)
+        let bestTitle = meta.og_title || meta.twitter_title || meta.ld_headline || meta.title || null;
+        if (bestTitle && meta.site_name) {
+            const siteRegex = new RegExp(`\\s*[-|·]\\s*${meta.site_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+            bestTitle = bestTitle.replace(siteRegex, '').trim();
+        }
+        push(bestTitle);
+        push(meta.site_name);
+        push(meta.og_desc || meta.description || meta.twitter_desc || meta.ld_desc);
+        push(meta.author || meta.article_author || meta.book_author || meta.music_musician || meta.ld_author || meta.ld_creator);
+        push(meta.profile_name);
+        push(meta.profile_username);
+        pushArr(meta.keywords);
+        pushArr(meta.news_keywords);
+        pushArr(meta.ld_keywords);
+        pushArr(meta.article_tags);
+        push(meta.article_section);
+        push(meta.category);
+        push(meta.genre || meta.ld_genre);
+        push(meta.og_type);
+        pushArr(meta.video_tags);
+        push(meta.music_album);
+        push(meta.music_song);
+        pushArr(meta.book_tags);
+        pushArr(meta.twitter_labels);
+        push(meta.twitter_creator);
+        push(meta.ld_name);
+        push(meta.ld_about);
+        if (meta.price_amount) push(`${meta.price_amount}${meta.price_currency ? ' ' + meta.price_currency : ''}`);
+        push(meta.language);
+        return [...new Set(fields)];
+    };
 
     if (urlInput) {
         const fetchMetadata = async (url) => {
@@ -296,67 +337,10 @@ window.initUploadForm = (selector) => {
                     const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(currentVal)}`);
                     const data = await resp.json();
                     if (data.success && data.meta) {
-                        const meta = data.meta;
-                        
-                        const suggest = (v) => { if (v && typeof v === 'string' && v.trim()) addMetaSuggestion(v.trim()); };
-                        const suggestArr = (arr) => { if (Array.isArray(arr)) arr.forEach(suggest); };
-
-                        // Title (prefer og_title, strip site name suffix)
-                        let bestTitle = meta.og_title || meta.twitter_title || meta.ld_headline || meta.title || null;
-                        if (bestTitle && meta.site_name) {
-                            const siteRegex = new RegExp(`\\s*[-|·]\\s*${meta.site_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                            bestTitle = bestTitle.replace(siteRegex, '').trim();
-                        }
-                        suggest(bestTitle);
-
-                        // Site / source
-                        suggest(meta.site_name);
-
-                        // Description / summary (og or standard — offer as single suggestion)
-                        suggest(meta.og_desc || meta.description || meta.twitter_desc || meta.ld_desc);
-
-                        // Author
-                        suggest(meta.author || meta.article_author || meta.book_author || meta.music_musician || meta.ld_author || meta.ld_creator);
-                        suggest(meta.profile_name);
-                        suggest(meta.profile_username);
-
-                        // Keywords (each separate)
-                        suggestArr(meta.keywords);
-                        suggestArr(meta.news_keywords);
-                        suggestArr(meta.ld_keywords);
-
-                        // Article / content classification
-                        suggestArr(meta.article_tags);
-                        suggest(meta.article_section);
-                        suggest(meta.category);
-                        suggest(meta.genre || meta.ld_genre);
-                        suggest(meta.og_type);
-
-                        // Video tags
-                        suggestArr(meta.video_tags);
-
-                        // Music
-                        suggest(meta.music_album);
-                        suggest(meta.music_song);
-
-                        // Book tags
-                        suggestArr(meta.book_tags);
-
-                        // Twitter labels (e.g. "Rating: 5 stars")
-                        suggestArr(meta.twitter_labels);
-
-                        // Twitter handles
-                        suggest(meta.twitter_creator);
-
-                        // JSON-LD extras
-                        suggest(meta.ld_name);
-                        suggest(meta.ld_about);
-
-                        // Price
-                        if (meta.price_amount) suggest(`${meta.price_amount}${meta.price_currency ? ' ' + meta.price_currency : ''}`);
-
-                        // Language
-                        suggest(meta.language);
+                        const fields = extractFieldsFromMeta(data.meta);
+                        // Cache the fields for instant use when item is committed
+                        metaCache.set(currentVal, fields);
+                        fields.forEach(v => addMetaSuggestion(v));
 
                         urlBadge.innerHTML = '✓ Metadata Fetched';
                         urlBadge.className = 'url-type-badge success';
@@ -685,6 +669,9 @@ window.initUploadForm = (selector) => {
             previewItem.className = 'file-preview-item' + (isUrl ? ' url-item' : '');
             
             let mediaElem;
+            // For URL items: wrap media + badge in a column div
+            let mediaCol = null;
+            let itemBadge = null;
             if (isUrl) {
                 const isYtMatch = item.url.match(ytRegex);
                 if (isYtMatch && window.f0ckEnableYoutubeUpload !== false) {
@@ -697,12 +684,34 @@ window.initUploadForm = (selector) => {
                     mediaElem.allow = "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
                     mediaElem.allowFullscreen = true;
                     mediaElem.style.borderRadius = '4px';
-                    mediaElem.style.pointerEvents = 'auto'; // Ensure we can interact with it
+                    mediaElem.style.pointerEvents = 'auto';
+
+                    // Badge looks like the URL-tab YouTube badge
+                    itemBadge = document.createElement('div');
+                    itemBadge.className = 'url-type-badge youtube';
+                    itemBadge.textContent = '▶ YouTube';
+                    itemBadge.title = window.f0ckI18n?.refetch_metadata || 'Click to re-fetch metadata';
+                    itemBadge.style.display = 'block';
+                    itemBadge.style.cursor = 'pointer';
+                    itemBadge.style.marginTop = '6px';
                 } else {
                     mediaElem = document.createElement('div');
                     mediaElem.className = 'generic-file-icon';
                     mediaElem.innerHTML = '<i class="fa-solid fa-link"></i>';
+
+                    // Badge looks like the URL-tab direct badge
+                    itemBadge = document.createElement('div');
+                    itemBadge.className = 'url-type-badge direct';
+                    itemBadge.textContent = 'URL';
+                    itemBadge.title = window.f0ckI18n?.refetch_metadata || 'Click to re-fetch metadata';
+                    itemBadge.style.display = 'block';
+                    itemBadge.style.cursor = 'pointer';
+                    itemBadge.style.marginTop = '6px';
                 }
+
+                // Wrap media + badge in a column
+                mediaCol = document.createElement('div');
+                mediaCol.className = 'item-media-col';
             } else {
                 const fileExt = file.name.split('.').pop().toLowerCase();
                 
@@ -735,7 +744,16 @@ window.initUploadForm = (selector) => {
                     mediaElem.innerHTML = '<i class="fa-solid fa-file"></i>';
                 }
             }
-            mediaElem.classList.add('preview-media-small');
+            // preview-media-small sizing only applies to standalone (non-col) media
+            if (!mediaCol) {
+                mediaElem.classList.add('preview-media-small');
+            }
+
+            // If URL item: finish building the media column (media + badge below)
+            if (mediaCol) {
+                mediaCol.appendChild(mediaElem);
+                if (itemBadge) mediaCol.appendChild(itemBadge);
+            }
 
             const infoRow = document.createElement('div');
             infoRow.className = 'file-meta-row-small';
@@ -783,7 +801,9 @@ window.initUploadForm = (selector) => {
             }
 
             const fileNameStr = isUrl ? item.url : file.name;
-            const fileSizeStr = isUrl ? 'URL' : formatSize(file.size);
+            const fileSizeStr = isUrl
+                ? ((item.url.match(ytRegex) && window.f0ckEnableYoutubeUpload !== false) ? 'YouTube' : 'URL')
+                : formatSize(file.size);
 
             infoRow.innerHTML = `
                 <div class="file-info-small">
@@ -874,17 +894,98 @@ window.initUploadForm = (selector) => {
 
                 // Trigger Extraction for this item
                 if (isUrl) {
-                    (async () => {
+                    // Helper: populate suggestions for this item from a fields array
+                    const populateSuggestionsFromFields = (fields) => {
+                        fields.forEach(val => addMetaSuggestionToItem(val));
+                    };
+
+                    // The itemBadge IS the refetch button — same badge as the URL tab
+                    const isYt = ytRegex.test(item.url) && window.f0ckEnableYoutubeUpload !== false;
+                    const badgeLabel    = isYt ? '▶ YouTube' : 'URL';
+                    const badgeClass    = isYt ? 'url-type-badge youtube' : 'url-type-badge direct';
+
+                    // Helper: drive the badge through fetching → success → restore
+                    const setBadgeFetching = () => {
+                        if (!itemBadge) return;
+                        itemBadge.innerHTML = '<span class="loading-spinner"></span> Fetching...';
+                        itemBadge.className = 'url-type-badge fetching';
+                        itemBadge.style.display = 'flex';
+                        itemBadge.style.pointerEvents = 'none';
+                    };
+                    const setBadgeSuccess = () => {
+                        if (!itemBadge) return;
+                        itemBadge.innerHTML = '✓ Metadata Fetched';
+                        itemBadge.className = 'url-type-badge success';
+                        itemBadge.style.display = 'block';
+                        setTimeout(() => {
+                            if (itemBadge) {
+                                itemBadge.textContent = badgeLabel;
+                                itemBadge.className = badgeClass;
+                                itemBadge.style.pointerEvents = 'auto';
+                            }
+                        }, 2500);
+                    };
+                    const setBadgeRestored = () => {
+                        if (!itemBadge) return;
+                        itemBadge.textContent = badgeLabel;
+                        itemBadge.className = badgeClass;
+                        itemBadge.style.display = 'block';
+                        itemBadge.style.pointerEvents = 'auto';
+                    };
+
+                    // Helper: fetch metadata for this item
+                    const fetchItemMeta = async (forceFetch = false) => {
+                        if (suggCont) suggCont.style.display = 'flex';
+
+                        // Cache hit → instant, no network call needed
+                        if (!forceFetch && metaCache.has(item.url)) {
+                            populateSuggestionsFromFields(metaCache.get(item.url));
+                            setBadgeSuccess();
+                            return;
+                        }
+
+                        // Dim existing suggestions in-place — no removal, no layout jump
+                        const staleChips = suggCont
+                            ? Array.from(suggCont.querySelectorAll('.item-meta-suggestion'))
+                            : [];
+                        staleChips.forEach(s => { s.style.opacity = '0.3'; s.style.pointerEvents = 'none'; });
+
+                        setBadgeFetching();
                         try {
-                            const resp = await fetch('/api/v2/meta/extract-url?url=' + encodeURIComponent(item.url), {
+                            const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(item.url)}`, {
                                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
                             });
                             const data = await resp.json();
-                            if (data.success && data.fields) {
-                                data.fields.forEach(val => addMetaSuggestionToItem(val));
+                            if (data.success && data.meta) {
+                                const fields = extractFieldsFromMeta(data.meta);
+                                metaCache.set(item.url, fields);
+                                // Now it's safe to clear — new content is ready to fill the space
+                                staleChips.forEach(s => s.remove());
+                                populateSuggestionsFromFields(fields);
+                                setBadgeSuccess();
+                            } else {
+                                // Restore stale chips on failure
+                                staleChips.forEach(s => { s.style.opacity = ''; s.style.pointerEvents = ''; });
+                                setBadgeRestored();
                             }
-                        } catch (e) { console.warn('[URL ITEM META SYNC ERROR]', e.message); }
-                    })();
+                        } catch (e) {
+                            console.warn('[URL ITEM META SYNC ERROR]', e.message);
+                            staleChips.forEach(s => { s.style.opacity = ''; s.style.pointerEvents = ''; });
+                            setBadgeRestored();
+                        }
+                    };
+
+                    // Badge click = re-fetch
+                    if (itemBadge) {
+                        itemBadge.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            metaCache.delete(item.url);
+                            fetchItemMeta(true);
+                        });
+                    }
+
+                    // Populate suggestions (instant if cached, otherwise network)
+                    fetchItemMeta(false);
                 } else {
                     // Add filename as first suggestion
                     if (file.name) {
@@ -931,7 +1032,12 @@ window.initUploadForm = (selector) => {
                 handleFile(); // Rebuild UI
             };
 
-            previewItem.appendChild(mediaElem);
+            // Append media column (URL items) or raw media element (file items)
+            if (mediaCol) {
+                previewItem.appendChild(mediaCol);
+            } else {
+                previewItem.appendChild(mediaElem);
+            }
             previewItem.appendChild(infoRow);
             previewItem.appendChild(removeBtn);
             if (filePreview) filePreview.appendChild(previewItem);
