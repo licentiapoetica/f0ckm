@@ -162,7 +162,7 @@ export default router => {
     group.get(/\/meta\/extract\/item\/(?<id>\d+)$/, lib.loggedin, async (req, res) => {
         const id = req.params.id;
         try {
-            const rows = await db`SELECT dest, mime FROM items WHERE id = ${id}`;
+            const rows = await db`SELECT dest, mime, original_filename FROM items WHERE id = ${id}`;
             const item = rows[0];
             if (!item) return res.json({ success: false, msg: 'Item not found' }, 404);
 
@@ -186,6 +186,14 @@ export default router => {
                 seen.add(val.toLowerCase());
                 results.push(val.substring(0, 255));
             };
+
+            // Original filename is always surfaced first — most useful for tagging
+            if (item.original_filename) {
+                let baseName = item.original_filename;
+                const lastDot = baseName.lastIndexOf('.');
+                if (lastDot > 0) baseName = baseName.substring(0, lastDot);
+                addResult(baseName.trim());
+            }
 
             if (item.mime.startsWith('image/')) {
                 // Use exiftool for images — reads EXIF, IPTC, XMP tags properly

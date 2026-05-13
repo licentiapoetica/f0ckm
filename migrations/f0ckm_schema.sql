@@ -844,7 +844,8 @@ CREATE TABLE public.items (
     has_coverart boolean DEFAULT false,
     is_pinned boolean DEFAULT false,
     is_oc boolean DEFAULT false,
-    xd_score integer DEFAULT 0 NOT NULL
+    xd_score integer DEFAULT 0 NOT NULL,
+    original_filename text
 );
 
 

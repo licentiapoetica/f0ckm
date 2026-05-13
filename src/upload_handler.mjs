@@ -14,6 +14,9 @@ const sendJson = (res, data, code = 200) => {
     res.end(JSON.stringify(data));
 };
 
+// One-time migration: add original_filename column if it doesn't exist
+db`ALTER TABLE items ADD COLUMN IF NOT EXISTS original_filename text`.catch(() => {});
+
 export const handleUpload = async (req, res, self) => {
     // Manual session lookup is required here because this handler is called from a 
     // bypass middleware that runs in parallel with the main session middleware.
@@ -294,6 +297,7 @@ export const handleUpload = async (req, res, self) => {
         const insertChecksum = getBypassDuplicateCheck() ? `${checksum}_bypass_${Date.now()}` : checksum;
 
         // Insert
+        const originalFilename = file.filename || null;
         await db`
           insert into items ${db({
             src: '',
@@ -307,8 +311,9 @@ export const handleUpload = async (req, res, self) => {
             usernetwork: 'web',
             stamp: ~~(Date.now() / 1000),
             active: !manualApproval,
-            is_oc: is_oc
-        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc')
+            is_oc: is_oc,
+            original_filename: originalFilename
+        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'original_filename')
             }
         `;
 
