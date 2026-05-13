@@ -130,9 +130,9 @@ export default (router, tpl) => {
     // anchor= is a specific item ID to include first in the batch (used for hash-based deep links)
     const anchorId = qs.anchor ? parseInt(qs.anchor, 10) : null;
 
-    // MIME filter — SWF excluded unless the server has enable_swf turned on
     const swfMimes = ['application/x-shockwave-flash', 'application/vnd.adobe.flash.movie'];
     const excludeSwfSQL = !cfg.websrv.enable_swf ? db`AND items.mime != ALL(${swfMimes})` : db``;
+    const excludePdfSQL = db`AND items.mime != 'application/pdf'`;
     const mimeParts = (mime || '').split(',').filter(m => ['video', 'audio', 'image'].includes(m));
     const mimeSQL = mimeParts.length > 0
       ? db`AND (${mimeParts.map(m => db`items.mime ilike ${m + '/%'}`).reduce((a, b) => db`${a} OR ${b}`)})`
@@ -211,6 +211,7 @@ export default (router, tpl) => {
           WHERE items.id = ${anchorId}
             AND items.active = true
             AND ${db.unsafe(modeQuery)}
+            ${excludePdfSQL}
             ${!req.session && nsfp ? db`AND NOT EXISTS (SELECT 1 FROM tags_assign WHERE item_id = items.id AND (${db.unsafe(nsfp)}))` : db``}
         `;
         // If the anchor item doesn't pass the rating filter, it's inaccessible to this user.
@@ -227,6 +228,7 @@ export default (router, tpl) => {
               ${db.unsafe(modeQuery)}
               AND items.active = true
               ${excludeSwfSQL}
+              ${excludePdfSQL}
               AND items.id != ${anchorId}
               ${excludeSQL}
               ${mimeSQL}
@@ -249,6 +251,7 @@ export default (router, tpl) => {
             ${db.unsafe(modeQuery)}
             AND items.active = true
             ${excludeSwfSQL}
+            ${excludePdfSQL}
             ${cursorSQL}
             ${excludeSQL}
             ${mimeSQL}
