@@ -229,7 +229,7 @@
 .upload-form.shitpost-mode-active .preview-media-small {
     width: 120px;
     height: 80px;
-    object-fit: cover;
+    object-fit: contain;
     min-height: auto;
 }
 
