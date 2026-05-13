@@ -1481,6 +1481,8 @@
                             for (let i = 0; i < data.length; i++) c = (c >>> 8) ^ crcTable[(c ^ data[i]) & 0xff];
                             return c;
                         }
+                        // Write a 64-bit LE integer; offset tracking stays in Number (safe to 2^53 ~9PB)
+                        function u64(view, pos, val) { view.setBigUint64(pos, BigInt(val), true); }
 
                         let ackResolver = null;
                         self.onmessage = (e) => {
@@ -1502,61 +1504,68 @@
                             const entries = [];
                             let offset = 0;
 
-                            async function writeLocalHeader(nameBuf, crc, size, useDataDescriptor, time, day) {
-                                const h = new Uint8Array(30 + nameBuf.length);
+                            // Local header: 30 bytes fixed + name + 20-byte ZIP64 extra field
+                            // ZIP64 extra: id(2) + dataSize(2) + uncompressedSize(8) + compressedSize(8)
+                            async function writeLocalHeader(nameBuf, crc, size, streaming, time, day) {
+                                const h = new Uint8Array(30 + nameBuf.length + 20);
                                 const v = new DataView(h.buffer);
-                                v.setUint32(0, 0x04034b50, true);
-                                v.setUint16(4, 20, true);
-                                v.setUint16(6, useDataDescriptor ? 0x0008 : 0, true);
-                                v.setUint16(8, 0, true); // STORE
-                                v.setUint16(10, time, true);
-                                v.setUint16(12, day, true);
-                                v.setUint32(14, useDataDescriptor ? 0 : crc, true);
-                                v.setUint32(18, useDataDescriptor ? 0 : size, true);
-                                v.setUint32(22, useDataDescriptor ? 0 : size, true);
+                                v.setUint32(0,  0x04034b50, true); // LFH signature
+                                v.setUint16(4,  45,         true); // version needed: 4.5 (ZIP64)
+                                v.setUint16(6,  streaming ? 0x0008 : 0, true); // flags
+                                v.setUint16(8,  0,          true); // compression: STORE
+                                v.setUint16(10, time,       true);
+                                v.setUint16(12, day,        true);
+                                v.setUint32(14, streaming ? 0 : crc,        true); // CRC-32
+                                v.setUint32(18, 0xffffffff, true); // compressed size  → ZIP64
+                                v.setUint32(22, 0xffffffff, true); // uncompressed size → ZIP64
                                 v.setUint16(26, nameBuf.length, true);
+                                v.setUint16(28, 20, true);         // extra field length
                                 h.set(nameBuf, 30);
-                                const headerLen = h.byteLength; // capture BEFORE transfer
+                                // ZIP64 extra field
+                                const ex = new DataView(h.buffer, 30 + nameBuf.length);
+                                ex.setUint16(0, 0x0001, true);     // ZIP64 extra ID
+                                ex.setUint16(2, 16,     true);     // 2 × uint64
+                                u64(ex, 4,  streaming ? 0 : size); // uncompressed size
+                                u64(ex, 12, streaming ? 0 : size); // compressed size
+                                const len = h.byteLength;
                                 await send(h);
-                                offset += headerLen;
+                                offset += len;
                             }
 
                             async function add(name, dataOrUrl) {
                                 const d = new Date();
                                 const time = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2)) >>> 0;
-                                const day = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) >>> 0;
-                                const nameBuf = new TextEncoder().encode(name);
+                                const day  = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) >>> 0;
+                                const nameBuf     = new TextEncoder().encode(name);
                                 const startOffset = offset;
 
                                 if (typeof dataOrUrl !== 'string') {
-                                    // Static data - known size and CRC upfront, no data descriptor needed
-                                    const data = dataOrUrl;
-                                    const dataSize = data.byteLength; // capture BEFORE transfer
-                                    const crc = crc32buf(data);
+                                    // ── Static (metadata, YouTube stubs) ─────────────────────────
+                                    const data     = dataOrUrl;
+                                    const dataSize = data.byteLength;
+                                    const crc      = crc32buf(data);
                                     await writeLocalHeader(nameBuf, crc, dataSize, false, time, day);
-                                    await send(data); // transfers + neuters data.buffer
+                                    await send(data);
                                     offset += dataSize;
                                     entries.push({ name: nameBuf, size: dataSize, crc, offset: startOffset, time, day, flag: 0 });
                                 } else {
-                                    // Streamed data - use data descriptor (bit 3)
+                                    // ── Streamed (media files) ────────────────────────────────────
                                     await writeLocalHeader(nameBuf, 0, 0, true, time, day);
-                                    
-                                    let size = 0;
-                                    let crcState = 0xffffffff;
+                                    let size = 0, crcState = 0xffffffff;
                                     const ctrl = new AbortController();
-                                    const tid = setTimeout(() => ctrl.abort(), 120000);
+                                    const tid  = setTimeout(() => ctrl.abort(), 120000);
                                     try {
                                         const res = await fetch(dataOrUrl, { signal: ctrl.signal });
                                         if (res.ok && res.body) {
-                                            const reader = res.body.getReader();
-                                            let lastLog = Date.now();
+                                            const reader  = res.body.getReader();
+                                            let lastLog   = Date.now();
                                             while (true) {
                                                 const { done, value } = await reader.read();
                                                 if (done) break;
-                                                crcState = crc32update(crcState, value);
-                                                const chunkLen = value.byteLength; // capture BEFORE transfer
+                                                crcState       = crc32update(crcState, value);
+                                                const chunkLen = value.byteLength; // capture before transfer
                                                 size += chunkLen;
-                                                await send(value); // transfers value.buffer, neutering it
+                                                await send(value);
                                                 offset += chunkLen;
                                                 if (Date.now() - lastLog > 1000) {
                                                     self.postMessage({ type: 'STATUS', msg: 'Streaming: ' + name + ' (' + Math.round(size / 1024 / 1024) + ' MB)' });
@@ -1566,27 +1575,25 @@
                                         }
                                     } catch(err) {
                                         console.error('Export: fetch failed for', name, err.message);
-                                    } finally {
-                                        clearTimeout(tid);
-                                    }
+                                    } finally { clearTimeout(tid); }
 
                                     const crc = (crcState ^ 0xffffffff) >>> 0;
 
-                                    // Data Descriptor
-                                    const dd = new Uint8Array(16);
-                                    new DataView(dd.buffer).setUint32(0, 0x08074b50, true);
-                                    new DataView(dd.buffer).setUint32(4, crc, true);
-                                    new DataView(dd.buffer).setUint32(8, size, true);
-                                    new DataView(dd.buffer).setUint32(12, size, true);
+                                    // ZIP64 Data Descriptor: sig(4) + crc(4) + sizes(8+8) = 24 bytes
+                                    const dd  = new Uint8Array(24);
+                                    const ddv = new DataView(dd.buffer);
+                                    ddv.setUint32(0, 0x08074b50, true); // signature
+                                    ddv.setUint32(4, crc,        true); // CRC-32
+                                    u64(ddv, 8,  size);                 // compressed size (64-bit)
+                                    u64(ddv, 16, size);                 // uncompressed size (64-bit)
                                     await send(dd);
-                                    offset += 16;
+                                    offset += 24;
 
                                     entries.push({ name: nameBuf, size, crc, offset: startOffset, time, day, flag: 0x0008 });
                                 }
                             }
 
                             await add('metadata.json', new TextEncoder().encode(JSON.stringify(metadata, null, 2)));
-
                             for (let i = 0; i < files.length; i++) {
                                 const f = files[i];
                                 self.postMessage({ type: 'STATUS', msg: 'Packing: ' + f.name });
@@ -1594,51 +1601,86 @@
                                 self.postMessage({ type: 'PROGRESS', completed: i + 1 });
                             }
 
-                            // Central Directory
-                            const cdOffset = offset;
-                            let cdSize = 0;
-                            for (const e of entries) cdSize += 46 + e.name.length;
-                            const cd = new Uint8Array(cdSize);
-                            let pos = 0;
+                            // ── Central Directory ─────────────────────────────────────────────
+                            // Each entry: 46 fixed + name + 28-byte ZIP64 extra
+                            // ZIP64 CD extra: id(2)+dataSize(2)+uncompressed(8)+compressed(8)+offset(8)
+                            const cdOffset  = offset;
+                            const cdExtraLen = 28;
+                            let   cdSize    = 0;
+                            for (const e of entries) cdSize += 46 + e.name.length + cdExtraLen;
+                            const cd  = new Uint8Array(cdSize);
+                            let   pos = 0;
                             for (const e of entries) {
                                 const v = new DataView(cd.buffer, pos);
-                                v.setUint32(0, 0x02014b50, true);
-                                v.setUint16(4, 20, true);   // version made by
-                                v.setUint16(6, 20, true);   // version needed
-                                v.setUint16(8, e.flag, true);
-                                v.setUint16(10, 0, true);   // compression: STORE
-                                v.setUint16(12, e.time, true);
-                                v.setUint16(14, e.day, true);
-                                v.setUint32(16, e.crc, true);
-                                v.setUint32(20, e.size, true);
-                                v.setUint32(24, e.size, true);
+                                v.setUint32(0,  0x02014b50, true); // CDH signature
+                                v.setUint16(4,  45,         true); // version made by (4.5)
+                                v.setUint16(6,  45,         true); // version needed (4.5)
+                                v.setUint16(8,  e.flag,     true);
+                                v.setUint16(10, 0,          true); // STORE
+                                v.setUint16(12, e.time,     true);
+                                v.setUint16(14, e.day,      true);
+                                v.setUint32(16, e.crc,      true);
+                                v.setUint32(20, 0xffffffff, true); // compressed size  → ZIP64
+                                v.setUint32(24, 0xffffffff, true); // uncompressed size → ZIP64
                                 v.setUint16(28, e.name.length, true);
-                                v.setUint16(30, 0, true);   // extra field length
-                                v.setUint16(32, 0, true);   // comment length
-                                v.setUint16(34, 0, true);   // disk number start
-                                v.setUint16(36, 0, true);   // internal attributes
-                                v.setUint32(38, 0, true);   // external attributes
-                                v.setUint32(42, e.offset, true);
+                                v.setUint16(30, cdExtraLen, true);
+                                v.setUint16(32, 0, true); // comment length
+                                v.setUint16(34, 0, true); // disk start
+                                v.setUint16(36, 0, true); // internal attrs
+                                v.setUint32(38, 0, true); // external attrs
+                                v.setUint32(42, 0xffffffff, true); // local header offset → ZIP64
                                 cd.set(e.name, pos + 46);
-                                pos += 46 + e.name.length;
+                                const ex = new DataView(cd.buffer, pos + 46 + e.name.length);
+                                ex.setUint16(0, 0x0001,     true); // ZIP64 extra ID
+                                ex.setUint16(2, 24,         true); // 3 × uint64
+                                u64(ex, 4,  e.size);               // uncompressed size
+                                u64(ex, 12, e.size);               // compressed size
+                                u64(ex, 20, e.offset);             // local header offset
+                                pos += 46 + e.name.length + cdExtraLen;
                             }
                             await send(cd);
                             offset += cdSize;
 
-                            // End of Central Directory
+                            // ── ZIP64 End of Central Directory Record (56 bytes) ─────────────
+                            const z64eocd = new Uint8Array(56);
+                            const z64v    = new DataView(z64eocd.buffer);
+                            z64v.setUint32(0,  0x06064b50, true); // signature
+                            u64(z64v, 4,  44);                    // size of this record (after signature + size field)
+                            z64v.setUint16(12, 45, true);         // version made by
+                            z64v.setUint16(14, 45, true);         // version needed
+                            z64v.setUint32(16, 0,  true);         // disk number
+                            z64v.setUint32(20, 0,  true);         // disk with CD start
+                            u64(z64v, 24, entries.length);        // entries this disk
+                            u64(z64v, 32, entries.length);        // total entries
+                            u64(z64v, 40, cdSize);                // CD size
+                            u64(z64v, 48, cdOffset);              // CD offset
+                            await send(z64eocd);
+                            offset += 56;
+
+                            // ── ZIP64 End of Central Directory Locator (20 bytes) ────────────
+                            const z64loc  = new Uint8Array(20);
+                            const z64lv   = new DataView(z64loc.buffer);
+                            z64lv.setUint32(0,  0x07064b50,        true); // signature
+                            z64lv.setUint32(4,  0,                 true); // disk with ZIP64 EOCD
+                            u64(z64lv, 8, cdOffset + cdSize);             // offset of ZIP64 EOCD
+                            z64lv.setUint32(16, 1,                 true); // total disks
+                            await send(z64loc);
+                            offset += 20;
+
+                            // ── Standard EOCD (sentinel values point to ZIP64) ───────────────
                             const eocd = new Uint8Array(22);
-                            const ev = new DataView(eocd.buffer);
-                            ev.setUint32(0, 0x06054b50, true);
-                            ev.setUint16(4, 0, true);   // disk number
-                            ev.setUint16(6, 0, true);   // disk with CD start
-                            ev.setUint16(8, entries.length, true);
-                            ev.setUint16(10, entries.length, true);
-                            ev.setUint32(12, cdSize, true);
-                            ev.setUint32(16, cdOffset, true);
-                            ev.setUint16(20, 0, true);  // comment length
+                            const ev   = new DataView(eocd.buffer);
+                            ev.setUint32(0,  0x06054b50, true); // signature
+                            ev.setUint16(4,  0xffff,     true); // disk number → ZIP64
+                            ev.setUint16(6,  0xffff,     true); // disk with CD → ZIP64
+                            ev.setUint16(8,  0xffff,     true); // entries this disk → ZIP64
+                            ev.setUint16(10, 0xffff,     true); // total entries → ZIP64
+                            ev.setUint32(12, 0xffffffff, true); // CD size → ZIP64
+                            ev.setUint32(16, 0xffffffff, true); // CD offset → ZIP64
+                            ev.setUint16(20, 0,          true); // comment length
                             await send(eocd, true);
 
-                            console.log('[ZIP] Done. Files:', entries.length, 'CD offset:', cdOffset, 'CD size:', cdSize, 'Total:', offset + 22);
+                            console.log('[ZIP64] Done. Files:', entries.length, 'CD offset:', cdOffset, 'Total bytes:', offset + 22);
                         }
                     `;
 
