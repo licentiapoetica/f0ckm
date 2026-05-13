@@ -28,7 +28,7 @@ window.F0ckUpload = class {
         const tagInput = this.form.querySelector('.tag-input');
         if (tagInput) {
             tagInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
                     e.preventDefault();
                     this.addTag(tagInput.value);
                     tagInput.value = '';

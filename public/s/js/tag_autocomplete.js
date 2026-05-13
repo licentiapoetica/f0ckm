@@ -123,7 +123,7 @@ window.TagAutocomplete = (() => {
         const name = document.createElement('span');
         name.className = 'tag-suggestion-name';
         name.textContent = entry.tag;
-
+        
         const meta = document.createElement('span');
         meta.className = 'tag-suggestion-meta';
         const scoreStr = typeof entry.score === 'number' ? entry.score.toFixed(2) : '0.00';
@@ -132,13 +132,36 @@ window.TagAutocomplete = (() => {
         row.appendChild(name);
         row.appendChild(meta);
 
-        // Desktop: mousedown fires before focusout, preventing premature close
-        row.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+        // Partial Selection Support
+        row.addEventListener('mouseup', (ev) => {
+          const sel = window.getSelection?.()?.toString().trim();
+          if (!sel || sel === entry.tag) return;
+          
+          row.addEventListener('click', (e) => e.stopImmediatePropagation(), { once: true, capture: true });
+          ev.stopPropagation();
+          
+          window._showSelTagPopover?.(sel, row, (confirmed) => {
+            window.getSelection?.()?.removeAllRanges();
+            input.value = confirmed;
+            dropdown.style.display = 'none';
+            if (form.requestSubmit) form.requestSubmit();
+            else form.submit();
+          });
+        });
+
+        // Desktop: click listener handles the actual selection
+        row.addEventListener('click', (e) => {
+          const sel = window.getSelection?.()?.toString().trim();
+          if (sel && sel !== entry.tag) {
+             e.preventDefault();
+             e.stopPropagation();
+             return;
+          }
           e.stopPropagation();
           input.value = entry.tag;
           dropdown.style.display = 'none';
-          form.requestSubmit();
+          if (form.requestSubmit) form.requestSubmit();
+          else form.submit();
         });
 
         // Mobile: distinguish tap from scroll using touch distance

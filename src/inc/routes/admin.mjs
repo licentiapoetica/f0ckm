@@ -12,7 +12,7 @@ import cfg from "../config.mjs";
 import security from "../security.mjs";
 import crypto from "crypto";
 import path from "path";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate } from "../settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getEnablePdf, setEnablePdf, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getShitpostMode } from "../settings.mjs";
 
 export default (router, tpl) => {
   router.get(/^\/login(\/)?$/, async (req, res) => {
@@ -285,6 +285,7 @@ export default (router, tpl) => {
         log_user_ips: getLogUserIps(),
         hash_user_ips: getHashUserIps(),
         enable_cleanup: getEnableCleanup(),
+        shitpost_mode: getShitpostMode(),
         enable_cleanup_config: cfg.websrv.enable_cleanup !== false,
         tmp: null
       }, req)
@@ -624,6 +625,7 @@ export default (router, tpl) => {
       await db`INSERT INTO site_settings (key, value) VALUES ('registration_open', ${registration_open}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
       setRegistrationOpen(registration_open === 'true');
     }
+
 
     await db`INSERT INTO site_settings (key, value) VALUES ('min_tags', ${min_tags.toString()}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
     await db`INSERT INTO site_settings (key, value) VALUES ('trusted_uploads', ${trusted_uploads.toString()}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;

@@ -12,6 +12,8 @@ let enable_pdf = false;
 let enable_cleanup = false;
 let cleanup_start_date = '';
 let cleanup_end_date = '';
+export const getShitpostMode = () => !!cfg.websrv.shitpost_mode;
+export const setShitpostMode = (val) => {}; // No-op, strictly config-based
 
 export const getEnableCleanup = () => {
     if (cfg.websrv.enable_cleanup === false) return false;

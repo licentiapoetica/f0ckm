@@ -65,6 +65,7 @@
     "enable_youtube_upload": true,
     "web_meta_extraction": true,
     "bypass_duplicate_check": true,
+    "shitpost_mode": false,
     "protect_files": false,
     "allowed_comment_images": [
       "i.imgur.com",

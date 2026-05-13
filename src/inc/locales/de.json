@@ -61,7 +61,13 @@
     "uploading": "Wird hochgeladen...",
     "pending_approval_patient": "Upload wartet auf Freigabe, bitte haben Sie etwas Geduld",
     "remove_file": "Datei entfernen",
-    "cancel_upload": "Upload abbrechen"
+    "cancel_upload": "Upload abbrechen",
+    "shitpost_success": "{n} Beiträge erfolgreich gepostet!",
+    "shitposting_status": "Wird gepostet",
+    "item_comment_placeholder": "Kommentar (optional)...",
+    "item_tags_placeholder": "Tags...",
+    "btn_add_urls": "URL(s) hinzufügen",
+    "tags_required_shitpost": "Alle Beiträge benötigen Tags"
   },
   "auth": {
     "registering": "Wird registriert...",
@@ -305,6 +311,7 @@
     "enter_url": "URL eingeben",
     "tags_required": "{n} Tag(s) noch erforderlich",
     "select_rating": "SFW oder NSFW auswählen",
+    "select_rating_nsfl": "SFW, NSFW oder NSFL auswählen",
     "embed_youtube": "YouTube-Video einbetten",
     "upload_from_url": "Von URL hochladen",
     "upload": "Hochladen"

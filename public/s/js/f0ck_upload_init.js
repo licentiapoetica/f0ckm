@@ -79,7 +79,7 @@
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
             if (uploader && uploader.handleFile) {
-                const ok = uploader.handleFile(files[0]);
+                const ok = uploader.handleFile(files);
                 if (ok !== false) {
                     showModal();
                 }
@@ -151,12 +151,12 @@
 
             if (targetUploader && targetUploader.handleFile) {
                 if (isUploadPage || isModalOpen) {
-                    targetUploader.handleFile(file);
+                    targetUploader.handleFile([file]);
                     e.preventDefault();
                 } else if (!isTyping) {
                     e.preventDefault();
                     showModal();
-                    targetUploader.handleFile(file);
+                    targetUploader.handleFile([file]);
                 }
             }
             return;

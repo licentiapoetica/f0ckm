@@ -16,7 +16,7 @@ import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps } from "./inc/settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
 import security from "./inc/security.mjs";
@@ -660,6 +660,7 @@ process.on('uncaughtException', err => {
     console.warn(`[BOOT] Trusted Uploads fetch failed:`, e.message);
   }
 
+
   // Set enable_pdf from config (pure config setting)
   setEnablePdf(!!cfg.enable_pdf);
   console.log(`[BOOT] Enable PDF setting: ${getEnablePdf()}`);
@@ -766,6 +767,7 @@ process.on('uncaughtException', err => {
     get registration_open() { return getRegistrationOpen(); },
     registration_web_toggle_enabled: cfg.websrv.open_registration_web_toggle !== false,
     get trusted_uploads() { return getTrustedUploads(); },
+    get shitpost_mode() { return getShitpostMode(); },
     get about_text() { return getAboutText(); },
     get rules_text() { return getRulesText(); },
     get terms_text() { return getTermsText(); },

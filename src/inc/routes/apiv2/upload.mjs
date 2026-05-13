@@ -145,6 +145,57 @@ export default router => {
             return [...new Set(tags)];
         };
 
+        group.get(/\/meta\/extract-url$/, lib.loggedin, async (req, res) => {
+            const url = req.url.qs?.url;
+            if (!url) return res.json({ success: false, msg: 'URL required' }, 400);
+
+            try {
+                const results = [];
+                const seen = new Set();
+                const addResult = (val) => {
+                    if (!val) return;
+                    const clean = String(val).replace(/<[^>]*>/g, '').replace(/[\x00-\x1F\x7F]/g, '').trim();
+                    if (clean && clean.length > 1 && clean.length <= 255 && !seen.has(clean.toLowerCase())) {
+                        seen.add(clean.toLowerCase());
+                        results.push(clean);
+                    }
+                };
+
+                // Add domain and auto-tags
+                const auto = autoTagsFromUrl(url);
+                auto.forEach(t => addResult(t));
+
+                // Try to get title via yt-dlp for supported sites
+                try {
+                    const proxyArgs = (cfg.main.socks && cfg.main.socks !== 'undefined') ? ['--proxy', cfg.main.socks] : [];
+                    const { stdout } = await queue.spawn('yt-dlp', [
+                        ...proxyArgs,
+                        '--get-title',
+                        '--get-description',
+                        '--no-playlist',
+                        '--skip-download',
+                        url
+                    ], { quiet: true, timeout: 5000 });
+                    
+                    if (stdout) {
+                        const lines = stdout.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                        if (lines[0]) addResult(lines[0]); // Title
+                        if (lines[1]) {
+                            // Description often has garbage, take only first line or short snippet
+                            const desc = lines[1].split(/[.\n]/)[0].trim();
+                            if (desc.length > 3) addResult(desc);
+                        }
+                    }
+                } catch (e) {
+                    // Fallback or ignore
+                }
+
+                return res.json({ success: true, fields: results });
+            } catch (err) {
+                return res.json({ success: false, msg: err.message }, 500);
+            }
+        });
+
         group.post(/\/upload-url$/, lib.loggedin, async (req, res) => {
             try {
                 if (!cfg.websrv.web_url_upload) {
@@ -515,7 +566,7 @@ export default router => {
                                 if (rating === 'nsfw' || rating === 'nsfl') await queue.genBlurredThumbnail(itemid, isApprovalRequired);
                             } catch (err) {
                                 const tDir = isApprovalRequired ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
-                                await queue.spawn('magick', ['./mugge.png', path.join(tDir, `${itemid}.webp`)]).catch(() => {});
+                                await queue.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', path.join(tDir, `${itemid}.webp`)]).catch(() => {});
                             }
 
                             const ratingTagId = rating === 'sfw' ? 1 : (rating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));

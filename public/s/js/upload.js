@@ -71,10 +71,19 @@ window.initUploadForm = (selector) => {
     // Dynamically get min tags requirement from DOM
     const minTags = parseInt(form.getAttribute('data-min-tags') || '3');
 
+    const isShitpost = form.classList.contains('shitpost-mode-active') || !!window.f0ckShitpostMode;
     let tags = [];
     let autoTags = []; // Track tags suggested from metadata
-    let selectedFile = null;
+    let selectedFiles = []; // Array of files for shitpost_mode
     let activeMode = 'file'; // 'file' or 'url'
+
+    // If shitpost mode is active, the global rating is hidden and per-item ratings are used.
+    // We must remove the 'required' attribute from global radios to prevent browser from blocking submission.
+    if (isShitpost) {
+        form.querySelectorAll('input[name="rating"]').forEach(r => {
+            r.required = false;
+        });
+    }
 
     // --- Emoji picker for upload comment ---
     const uploadCommentContainer = form.querySelector('.upload-comment-input');
@@ -419,6 +428,31 @@ window.initUploadForm = (selector) => {
                 }
             });
         }
+
+        const btnAddUrls = form.querySelector('.btn-add-urls');
+        if (btnAddUrls) {
+            btnAddUrls.addEventListener('click', () => {
+                const val = urlInput.value.trim();
+                if (!val) return;
+                const lines = val.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+                lines.forEach(url => {
+                    if (/^https?:\/\//i.test(url)) {
+                        if (!selectedFiles.some(item => item.type === 'url' && item.url === url)) {
+                            selectedFiles.push({ 
+                                type: 'url', 
+                                url: url, 
+                                rating: '', 
+                                tags: [], 
+                                comment: '', 
+                                is_oc: false 
+                            });
+                        }
+                    }
+                });
+                urlInput.value = '';
+                handleFile();
+            });
+        }
     }
 
     const formatSize = (bytes) => {
@@ -432,13 +466,52 @@ window.initUploadForm = (selector) => {
     };
 
     const updateSubmitButton = () => {
+        const isShitpost = !!window.f0ckShitpostMode;
         const rating = form.querySelector('input[name="rating"]:checked');
-        const hasRating = rating !== null;
-        const hasTags = tags.length >= minTags;
+        
+        // In Shitpost Mode, ratings are per-item (optional) and tags are optional — just need files
+        const hasRating = (isShitpost && activeMode === 'file') ? true : (rating !== null);
+        
+        let hasTags = true;
+        if (!isShitpost) {
+            hasTags = tags.length >= minTags;
+        }
+        // In shitpost file mode: hasTags is always true (untagged is allowed)
+
+        // Toggle visibility of global rating/comment/tag sections
+        const ratingSec = form.querySelector('.global-rating-section');
+        const commentSec = form.querySelector('.global-comment-section');
+        const tagsSec = form.querySelector('.global-tag-section');
+        const ocSec = form.querySelector('.global-oc-section');
+        const formActions = form.querySelector('.form-actions');
+        if (isShitpost) {
+            if (formActions) {
+                formActions.style.display = activeMode === 'url' ? 'none' : 'block';
+            }
+            const hide = activeMode === 'file';
+            const disp = hide ? 'none' : 'block';
+            
+            if (ratingSec) {
+                ratingSec.style.display = disp;
+                ratingSec.querySelectorAll('input').forEach(i => i.disabled = hide);
+            }
+            if (commentSec) {
+                commentSec.style.display = disp;
+                commentSec.querySelectorAll('textarea').forEach(i => i.disabled = hide);
+            }
+            if (tagsSec) {
+                tagsSec.style.display = disp;
+                tagsSec.querySelectorAll('input').forEach(i => i.disabled = hide);
+            }
+            if (ocSec) {
+                ocSec.style.display = 'none';
+                ocSec.querySelectorAll('input').forEach(i => i.disabled = true);
+            }
+        }
 
         let hasContent = false;
         if (activeMode === 'file') {
-            hasContent = selectedFile !== null;
+            hasContent = selectedFiles.length > 0;
         } else {
             hasContent = urlInput && urlInput.value.trim().length > 0;
         }
@@ -454,13 +527,19 @@ window.initUploadForm = (selector) => {
                         ? (ssrSelectFileText || i18n.select_file || 'Select a file')
                         : (i18n.enter_url   || 'Enter a URL');
                 } else if (!hasTags) {
+                    // non-shitpost only
                     const remaining = minTags - tags.length;
                     const tpl = i18n.tags_required || '{n} more tag{s} required';
                     btnText.textContent = tpl
                         .replace('{n}', remaining)
                         .replace('{s}', remaining !== 1 ? 's' : '');
                 } else if (!hasRating) {
-                    btnText.textContent = i18n.select_rating || 'Select SFW or NSFW';
+                    const nsflEnabled = !!form.querySelector('input[name="rating"][value="nsfl"]');
+                    if (nsflEnabled) {
+                        btnText.textContent = i18n.select_rating_nsfl || 'Select SFW, NSFW or NSFL';
+                    } else {
+                        btnText.textContent = i18n.select_rating || 'Select SFW or NSFW';
+                    }
                 } else {
                     if (activeMode === 'url' && urlInput && ytRegex.test(urlInput.value.trim()) && window.f0ckEnableYoutubeUpload !== false) {
                         btnText.textContent = i18n.embed_youtube    || 'Embed YouTube Video';
@@ -483,71 +562,90 @@ window.initUploadForm = (selector) => {
         }
     };
 
-    const handleFile = (file) => {
-        if (!file) return;
+    const handleFile = (files) => {
+        const isShitpost = !!window.f0ckShitpostMode;
+        
+        // If files were provided, process them (append or replace)
+        if (files && files.length > 0) {
+            const filesToProcess = isShitpost ? Array.from(files) : [files[0]];
+            if (!isShitpost) selectedFiles = []; // Reset for normal mode
 
-        // Note: Allowed mimes still come from a global or container-specific attribute
-        const container = form.closest('.upload-container');
-        const mimesSource = form.getAttribute('data-mimes') || (container ? container.getAttribute('data-mimes') : null);
-        let allowedMimes = [];
-        let allowedExts = [];
-        try {
-            const mimesObj = JSON.parse(mimesSource || '{}');
-            allowedMimes = Object.keys(mimesObj);
-            allowedExts = [...new Set(Object.values(mimesObj))];
-        } catch(e) {
-            // Fallback for modal
-            allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/flac', 'audio/x-flac', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'application/x-shockwave-flash', 'application/vnd.adobe.flash.movie'];
+            for (const file of filesToProcess) {
+                if (!file) continue;
+                
+                // Basic validation (MIME/Extension/Size)
+                const container = form.closest('.upload-container');
+                const mimesSource = form.getAttribute('data-mimes') || (container ? container.getAttribute('data-mimes') : null);
+                let allowedMimes = [];
+                let allowedExts = [];
+                try {
+                    const mimesObj = JSON.parse(mimesSource || '{}');
+                    allowedMimes = Object.keys(mimesObj);
+                    allowedExts = [...new Set(Object.values(mimesObj))];
+                } catch(e) {
+                    allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/flac', 'audio/x-flac', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'application/x-shockwave-flash', 'application/vnd.adobe.flash.movie'];
+                }
+
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                const mimeOk = !file.type || allowedMimes.includes(file.type);
+                const extOk = allowedExts.length > 0 && allowedExts.includes(fileExt);
+
+                if (allowedMimes.length > 0 && !mimeOk && !extOk) {
+                    const errorMsg = `File type ${file.type || '.' + fileExt} is not allowed.`;
+                    if (window.showFlash) window.showFlash(errorMsg, 'error');
+                    else if (statusDiv) { statusDiv.textContent = errorMsg; statusDiv.className = 'upload-status error'; }
+                    continue;
+                }
+
+                const maxBytesAttr = form.getAttribute('data-max-bytes');
+                if (maxBytesAttr) {
+                    const maxBytes = parseInt(maxBytesAttr);
+                    if (file.size > maxBytes) {
+                        const errorMsg = `File is too large: ${formatSize(file.size)} (Limit: ${formatSize(maxBytes)})`;
+                        if (window.showFlash) window.showFlash(errorMsg, 'error');
+                        else if (statusDiv) { statusDiv.textContent = errorMsg; statusDiv.className = 'upload-status error'; }
+                        continue;
+                    }
+                }
+
+                if (!selectedFiles.some(f => (f.file || f).name === file.name && (f.file || f).size === file.size)) {
+                    if (isShitpost) {
+                        selectedFiles.push({ type: 'file', file: file, rating: '', tags: [], comment: '', is_oc: false });
+                    } else {
+                        selectedFiles.push(file); // Legacy single file mode uses raw File
+                    }
+                }
+            }
         }
 
-        // Check by MIME type or by file extension (browsers may report empty/wrong MIME for some formats)
-        const fileExt = file.name.split('.').pop().toLowerCase();
-        const mimeOk = !file.type || allowedMimes.includes(file.type);
-        const extOk = allowedExts.length > 0 && allowedExts.includes(fileExt);
-
-        if (allowedMimes.length > 0 && !mimeOk && !extOk) {
-            const errorMsg = `File type ${file.type || '.' + fileExt} is not allowed.`;
-            if (typeof window.showFlash === 'function') {
-                window.showFlash(errorMsg, 'error');
-            } else {
-                statusDiv.textContent = errorMsg;
-                statusDiv.className = 'upload-status error';
+        // Rebuild UI state
+        if (selectedFiles.length === 0) {
+            if (filePreview) {
+                filePreview.style.display = 'none';
+                filePreview.innerHTML = '';
             }
+            if (dropZonePrompt) dropZonePrompt.style.display = 'block';
+            if (fileInput) {
+                fileInput.value = '';
+                fileInput.style.display = 'inline-block';
+            }
+            updateSubmitButton();
             return false;
         }
 
-        // --- File Size Check ---
-        const maxBytesAttr = form.getAttribute('data-max-bytes');
-        if (maxBytesAttr) {
-            const maxBytes = parseInt(maxBytesAttr);
-            if (file.size > maxBytes) {
-                const errorMsg = `File is too large: ${formatSize(file.size)} (Limit: ${formatSize(maxBytes)})`;
-                if (typeof window.showFlash === 'function') {
-                    window.showFlash(errorMsg, 'error');
-                } else if (statusDiv) {
-                    statusDiv.textContent = errorMsg;
-                    statusDiv.className = 'upload-status error';
-                }
-                updateSubmitButton();
-                return false;
-            }
+        if (dropZonePrompt) dropZonePrompt.style.display = 'none';
+        if (fileInput) fileInput.style.display = 'none';
+        if (filePreview) {
+            filePreview.style.display = 'flex';
+            filePreview.innerHTML = '';
         }
 
-        selectedFile = file;
-        if (fileName) fileName.textContent = file.name;
-        if (fileSize) fileSize.textContent = formatSize(file.size);
-        if (dropZonePrompt) dropZonePrompt.style.display = 'none';
-
-        // Hide input so it doesn't intercept clicks on preview/remove button
-        if (fileInput) fileInput.style.display = 'none';
-
-        if (filePreview) filePreview.style.display = 'flex';
         if (statusDiv) {
             statusDiv.textContent = '';
             statusDiv.className = 'upload-status';
         }
 
-        // Ensure we're on file tab
+        // Force 'file' mode tab UI
         if (activeMode !== 'file' && modeTabs.length > 0) {
             modeTabs.forEach(t => t.classList.remove('active'));
             const fileTab = form.querySelector('.upload-mode-tab[data-mode="file"]');
@@ -557,129 +655,355 @@ window.initUploadForm = (selector) => {
             activeMode = 'file';
         }
 
-        // Media Preview
-        const existingPreview = filePreview ? filePreview.querySelector('.preview-media') : null;
-        if (existingPreview) existingPreview.remove();
-
-        let previewElem;
-        if (file.type.startsWith('image/')) {
-            previewElem = document.createElement('img');
-            previewElem.src = URL.createObjectURL(file);
-        } else if (file.type.startsWith('video/')) {
-            previewElem = document.createElement('video');
-            previewElem.src = URL.createObjectURL(file);
-            previewElem.controls = true;
-            previewElem.autoplay = true;
-            previewElem.muted = true;
-            previewElem.loop = true;
-        } else if (file.type.startsWith('audio/')) {
-            previewElem = document.createElement('audio');
-            previewElem.src = URL.createObjectURL(file);
-            previewElem.controls = true;
-        } else if (file.type === 'application/x-shockwave-flash' || file.type === 'application/vnd.adobe.flash.movie' || fileExt === 'swf') {
-            previewElem = document.createElement('div');
-            previewElem.className = 'generic-file-icon swf-preview-icon';
-            previewElem.innerHTML = '<span style="font-size:2.5em;">⚡</span><br><span style="font-size:0.85em;letter-spacing:0.1em;color:#e040fb;font-weight:bold;">SWF</span>';
-        } else if (file.type === 'application/pdf' || fileExt === 'pdf') {
-            previewElem = document.createElement('div');
-            previewElem.className = 'generic-file-icon pdf-preview-icon';
-            previewElem.innerHTML = '<span style="font-size:2.5em;"><i class="fa-solid fa-file-pdf"></i></span><br><span style="font-size:0.85em;letter-spacing:0.1em;color:#ef5350;font-weight:bold;"></span>';
-        } else {
-            previewElem = document.createElement('div');
-            previewElem.className = 'generic-file-icon';
-            previewElem.innerHTML = '📁';
-        }
-
-        previewElem.classList.add('preview-media');
-        if (filePreview) filePreview.prepend(previewElem);
-
-        // Flash-specific: show custom thumbnail option
-        if (thumbSection) {
-            if (file.type === 'application/x-shockwave-flash' || file.type === 'application/vnd.adobe.flash.movie' || fileExt === 'swf') {
-                thumbSection.style.display = 'block';
-            } else {
-                thumbSection.style.display = 'none';
-                if (thumbInput) thumbInput.value = '';
-            }
-        }
-
-        selectedFile = file;
-        updateSubmitButton();
-        autoTags = []; // Reset auto tags
-
-        // Clear previous metadata suggestions and GPS warning
-        const metaCont = form.querySelector('.meta-suggestions-container');
-        const metaList = form.querySelector('.meta-suggestions-list');
-        if (metaList) metaList.innerHTML = '';
-        if (metaCont) metaCont.style.display = 'none';
-        form.querySelector('.gps-privacy-warning')?.remove();
-        
-        if (file.name) {
-            let baseName = file.name;
-            const lastDotIndex = baseName.lastIndexOf('.');
-            if (lastDotIndex > 0) {
-                baseName = baseName.substring(0, lastDotIndex);
-            }
-            baseName = baseName.trim();
-            if (baseName && !autoTags.includes(baseName)) {
-                autoTags.push(baseName);
-                addMetaSuggestion(baseName);
-            }
-        }
-
-        // --- Media Metadata Sync (Hybrid) ---
-        const isMedia = file.type.startsWith('video/') || file.type.startsWith('audio/') || file.type.startsWith('image/') ||
-            (file.name && /\.(mp4|webm|mp3|ogg|wav|m4a|flac|jpg|jpeg|png|gif|webp|tiff?)$/i.test(file.name));
-        if (isMedia) {
-            const extractTitle = async () => {
-                const chunkSize = file.type.startsWith('image/') ? 512 * 1024 : 4 * 1024 * 1024; // 512KB for images (EXIF at start), 4MB for video
-                const chunk = file.slice(0, chunkSize);
-                const formData = new FormData();
-                formData.append('file', chunk, file.name);
-
-                const status = form.querySelector('.tag-input-container .sync-spinner');
-                if (status) status.classList.add('active');
-
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                    const resp = await fetch('/api/v2/meta/extract-file', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-Token': window.f0ckSession?.csrf_token || document.querySelector('input[name="csrf_token"]')?.value || '',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData,
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                    const data = await resp.json();
-
-                    if (data.success && data.fields && Array.isArray(data.fields)) {
-                        data.fields.forEach(val => {
-                            if (!autoTags.includes(val)) autoTags.push(val);
-                            addMetaSuggestion(val);
-                        });
-                    }
-
-                    // Privacy: GPS data found — offer to strip it
-                    if (data.hasGpsData) {
-                        showGpsPrivacyWarning(file);
-                    }
-                } catch (e) {
-                    console.warn('[TITLE SYNC ERROR]', e.name === 'AbortError' ? 'Timeout' : e.message);
-                } finally {
-                    if (status) status.classList.remove('active');
+        // Build preview items
+        selectedFiles.forEach((item, index) => {
+            const isUrl = isShitpost && item.type === 'url';
+            const file = isUrl ? null : (isShitpost ? item.file : item);
+            const previewItem = document.createElement('div');
+            previewItem.className = 'file-preview-item' + (isUrl ? ' url-item' : '');
+            
+            let mediaElem;
+            if (isUrl) {
+                const isYtMatch = item.url.match(ytRegex);
+                if (isYtMatch && window.f0ckEnableYoutubeUpload !== false) {
+                    const videoId = isYtMatch[1];
+                    mediaElem = document.createElement('iframe');
+                    mediaElem.src = `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=1`;
+                    mediaElem.width = "100%";
+                    mediaElem.height = "100%";
+                    mediaElem.frameBorder = "0";
+                    mediaElem.allow = "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                    mediaElem.allowFullscreen = true;
+                    mediaElem.style.borderRadius = '4px';
+                    mediaElem.style.pointerEvents = 'auto'; // Ensure we can interact with it
+                } else {
+                    mediaElem = document.createElement('div');
+                    mediaElem.className = 'generic-file-icon';
+                    mediaElem.innerHTML = '<i class="fa-solid fa-link"></i>';
                 }
+            } else {
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                
+                if (file.type.startsWith('image/')) {
+                    mediaElem = document.createElement('img');
+                    mediaElem.src = URL.createObjectURL(file);
+                } else if (file.type.startsWith('video/')) {
+                    mediaElem = document.createElement('video');
+                    mediaElem.src = URL.createObjectURL(file);
+                    mediaElem.muted = true;
+                    mediaElem.autoplay = true;
+                    mediaElem.controls = true;
+                    mediaElem.loop = true;
+                } else if (file.type.startsWith('audio/')) {
+                    mediaElem = document.createElement('audio');
+                    mediaElem.src = URL.createObjectURL(file);
+                    mediaElem.controls = true;
+                    mediaElem.style.width = '100%';
+                } else if (file.type === 'application/x-shockwave-flash' || file.type === 'application/vnd.adobe.flash.movie' || fileExt === 'swf') {
+                    mediaElem = document.createElement('div');
+                    mediaElem.className = 'generic-file-icon swf-preview-icon';
+                    mediaElem.innerHTML = '<span style="font-size:1.5em;">⚡</span>';
+                } else if (file.type === 'application/pdf' || fileExt === 'pdf') {
+                    mediaElem = document.createElement('div');
+                    mediaElem.className = 'generic-file-icon pdf-preview-icon';
+                    mediaElem.innerHTML = '<i class="fa-solid fa-file-pdf"></i>';
+                } else {
+                    mediaElem = document.createElement('div');
+                    mediaElem.className = 'generic-file-icon';
+                    mediaElem.innerHTML = '<i class="fa-solid fa-file"></i>';
+                }
+            }
+            mediaElem.classList.add('preview-media-small');
+
+            const infoRow = document.createElement('div');
+            infoRow.className = 'file-meta-row-small';
+            
+            let ratingSwitch = '';
+            let tagsUI = '';
+            let ocUI = '';
+            let commentUI = '';
+            if (isShitpost) {
+                const nsflEnabled = !!form.querySelector('input[name="rating"][value="nsfl"]');
+                ratingSwitch = `
+                    <div class="item-rating-container">
+                        <label class="item-rating-option">
+                            <input type="radio" name="rating_${index}" value="sfw" ${item.rating === 'sfw' ? 'checked' : ''}>
+                            <span class="item-rating-label sfw">SFW</span>
+                        </label>
+                        <label class="item-rating-option">
+                            <input type="radio" name="rating_${index}" value="nsfw" ${item.rating === 'nsfw' ? 'checked' : ''}>
+                            <span class="item-rating-label nsfw">NSFW</span>
+                        </label>
+                        ${nsflEnabled ? `
+                        <label class="item-rating-option">
+                            <input type="radio" name="rating_${index}" value="nsfl" ${item.rating === 'nsfl' ? 'checked' : ''}>
+                            <span class="item-rating-label nsfl">NSFL</span>
+                        </label>
+                        ` : ''}
+                    </div>
+                `;
+
+                const tagsPlaceholder = window.f0ckI18n?.upload_tags_placeholder || 'Tags...';
+                tagsUI = `
+                    <div class="item-tags-container">
+                        <div class="item-tags-list"></div>
+                        <input type="text" class="item-tag-input" placeholder="${window.escapeHtmlUpload(tagsPlaceholder)}" enterkeyhint="done">
+                        <div class="tag-suggestions" style="display:none;"></div>
+                        <div class="item-meta-suggestions" style="display:none; margin-top:5px; font-size:0.7rem; opacity:0.6;"></div>
+                    </div>
+                `;
+
+
+                const commentPlaceholder = window.f0ckI18n?.upload_comment_placeholder || 'Comment (optional)...';
+                commentUI = `
+                    <textarea class="item-comment-input" placeholder="${window.escapeHtmlUpload(commentPlaceholder)}">${window.escapeHtmlUpload(item.comment || '')}</textarea>
+                `;
+            }
+
+            const fileNameStr = isUrl ? item.url : file.name;
+            const fileSizeStr = isUrl ? 'URL' : formatSize(file.size);
+
+            infoRow.innerHTML = `
+                <div class="file-info-small">
+                    <span class="file-name-small" title="${window.escapeHtmlUpload(fileNameStr)}">${window.escapeHtmlUpload(fileNameStr)}</span>
+                    <span class="file-size-small">${fileSizeStr}</span>
+                </div>
+                ${ratingSwitch}
+                ${tagsUI}
+                ${commentUI}
+            `;
+
+            if (isShitpost) {
+                // Handle Rating
+                infoRow.querySelectorAll('.item-rating-option input').forEach(radio => {
+                    radio.onchange = () => { item.rating = radio.value; };
+                });
+
+                // Handle Comment
+                const commentInput = infoRow.querySelector('.item-comment-input');
+                if (commentInput) {
+                    commentInput.oninput = () => { item.comment = commentInput.value; };
+                }
+
+                // Handle Tags
+                const tagList = infoRow.querySelector('.item-tags-list');
+                const tagInput = infoRow.querySelector('.item-tag-input');
+                const tagSuggestions = infoRow.querySelector('.tag-suggestions');
+                const suggCont = infoRow.querySelector('.item-meta-suggestions');
+
+                const renderTags = () => {
+                    if (!tagList) return;
+                    tagList.innerHTML = '';
+                    item.tags.forEach((t, i) => {
+                        const chip = document.createElement('span');
+                        chip.className = 'item-tag-chip';
+                        chip.innerHTML = `${window.escapeHtmlUpload(t)} <span class="item-tag-remove">✕</span>`;
+                        chip.querySelector('.item-tag-remove').onclick = () => {
+                            item.tags.splice(i, 1);
+                            renderTags();
+                            updateSubmitButton();
+                        };
+                        tagList.appendChild(chip);
+                    });
+                };
+                renderTags();
+
+                const addItemTag = (val) => {
+                    val = val.trim().toLowerCase();
+                    if (val && !item.tags.includes(val)) {
+                        item.tags.push(val);
+                        renderTags();
+                        updateSubmitButton();
+                    }
+                };
+
+                // Initialize autocomplete for THIS item
+                if (tagInput && tagSuggestions) {
+                    window.f0ckInitTagAutocomplete(tagInput, tagSuggestions, addItemTag, () => item.tags);
+                }
+
+                // Metadata Suggestions for THIS item
+                const addMetaSuggestionToItem = (val) => {
+                    if (!suggCont) return;
+                    suggCont.style.display = 'flex';
+                    const sugg = document.createElement('div');
+                    sugg.className = 'item-meta-suggestion';
+                    sugg.innerHTML = `<i class="fa fa-plus-circle" style="user-select:none"></i> <span style="user-select:text">${window.escapeHtmlUpload(val)}</span>`;
+                    
+                    sugg.addEventListener('mouseup', (ev) => {
+                        const sel = window.getSelection?.()?.toString().trim();
+                        if (!sel || sel === val) return;
+                        sugg.addEventListener('click', (e) => e.stopImmediatePropagation(), { once: true, capture: true });
+                        ev.stopPropagation();
+                        window._showSelTagPopover?.(sel, sugg, (confirmed) => {
+                            window.getSelection?.()?.removeAllRanges();
+                            addItemTag(confirmed);
+                        });
+                    });
+
+                    sugg.onclick = () => {
+                        addItemTag(val);
+                        sugg.classList.add('selected');
+                        const icon = sugg.querySelector('i');
+                        if (icon) icon.className = 'fa fa-check-circle';
+                    };
+                    suggCont.appendChild(sugg);
+                };
+
+                // Trigger Extraction for this item
+                if (isUrl) {
+                    (async () => {
+                        try {
+                            const resp = await fetch('/api/v2/meta/extract-url?url=' + encodeURIComponent(item.url), {
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            });
+                            const data = await resp.json();
+                            if (data.success && data.fields) {
+                                data.fields.forEach(val => addMetaSuggestionToItem(val));
+                            }
+                        } catch (e) { console.warn('[URL ITEM META SYNC ERROR]', e.message); }
+                    })();
+                } else {
+                    // Add filename as first suggestion
+                    if (file.name) {
+                        let baseName = file.name;
+                        const lastDotIndex = baseName.lastIndexOf('.');
+                        if (lastDotIndex > 0) baseName = baseName.substring(0, lastDotIndex);
+                        baseName = baseName.trim();
+                        if (baseName) addMetaSuggestionToItem(baseName);
+                    }
+
+                    if (files && Array.from(files).includes(file)) {
+                        (async () => {
+                            const chunkSize = (file.type && file.type.startsWith('image/')) ? 512 * 1024 : 4 * 1024 * 1024;
+                            const chunk = file.slice(0, chunkSize);
+                            const formData = new FormData();
+                            formData.append('file', chunk, file.name);
+                            try {
+                                const resp = await fetch('/api/v2/meta/extract-file', {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-Token': window.f0ckSession?.csrf_token || document.querySelector('input[name="csrf_token"]')?.value || '',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
+                                    body: formData
+                                });
+                                const data = await resp.json();
+                                if (data.success && data.fields) {
+                                    data.fields.forEach(val => addMetaSuggestionToItem(val));
+                                }
+                                if (data.hasGpsData) showGpsPrivacyWarning(file);
+                            } catch (e) { console.warn('[ITEM META SYNC ERROR]', e.message); }
+                        })();
+                    }
+                }
+            }
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-remove-small';
+            removeBtn.innerHTML = '✕';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                selectedFiles.splice(index, 1);
+                handleFile(); // Rebuild UI
             };
-            extractTitle();
+
+            previewItem.appendChild(mediaElem);
+            previewItem.appendChild(infoRow);
+            previewItem.appendChild(removeBtn);
+            if (filePreview) filePreview.appendChild(previewItem);
+        });
+
+        // "Add more" button for Shitpost Mode
+        if (isShitpost) {
+            const addMoreItem = document.createElement('div');
+            addMoreItem.className = 'file-preview-item add-more-item';
+            addMoreItem.innerHTML = '<span>Add more</span>';
+            addMoreItem.onclick = () => fileInput && fileInput.click();
+            if (filePreview) filePreview.appendChild(addMoreItem);
         }
 
-        // Custom event for global drag-drop completion
-        form.dispatchEvent(new CustomEvent('fileReady', { detail: { file } }));
+        // Legacy Global Meta Sync (Non-Shitpost Mode)
+        if (!isShitpost && selectedFiles.length > 0 && files && files.length > 0) {
+            const primaryFile = selectedFiles[0];
+            autoTags = [];
+            const metaCont = form.querySelector('.meta-suggestions-container');
+            const metaList = form.querySelector('.meta-suggestions-list');
+            if (metaList) metaList.innerHTML = '';
+            if (metaCont) metaCont.style.display = 'none';
+            form.querySelector('.gps-privacy-warning')?.remove();
+
+            if (primaryFile.name) {
+                let baseName = primaryFile.name;
+                const lastDotIndex = baseName.lastIndexOf('.');
+                if (lastDotIndex > 0) baseName = baseName.substring(0, lastDotIndex);
+                baseName = baseName.trim();
+                if (baseName && !autoTags.includes(baseName)) {
+                    autoTags.push(baseName);
+                    addMetaSuggestion(baseName);
+                }
+            }
+
+            const isMedia = (primaryFile.type && primaryFile.type.startsWith('video/')) || 
+                           (primaryFile.type && primaryFile.type.startsWith('audio/')) || 
+                           (primaryFile.type && primaryFile.type.startsWith('image/')) ||
+                           /\.(mp4|webm|mp3|ogg|wav|m4a|flac|jpg|jpeg|png|gif|webp|tiff?)$/i.test(primaryFile.name);
+            
+            if (isMedia) {
+                const extractTags = async () => {
+                    const chunkSize = (primaryFile.type && primaryFile.type.startsWith('image/')) ? 512 * 1024 : 4 * 1024 * 1024;
+                    const chunk = primaryFile.slice(0, chunkSize);
+                    const formData = new FormData();
+                    formData.append('file', chunk, primaryFile.name);
+                    const status = form.querySelector('.tag-input-container .sync-spinner');
+                    if (status) status.classList.add('active');
+
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000);
+                        const resp = await fetch('/api/v2/meta/extract-file', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-Token': window.f0ckSession?.csrf_token || document.querySelector('input[name="csrf_token"]')?.value || '',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: formData,
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+                        const data = await resp.json();
+                        if (data.success && data.fields) {
+                            data.fields.forEach(val => {
+                                if (!autoTags.includes(val)) {
+                                    autoTags.push(val);
+                                    addMetaSuggestion(val);
+                                }
+                            });
+                        }
+                        if (data.hasGpsData) showGpsPrivacyWarning(primaryFile);
+                    } catch (e) {
+                        console.warn('[META SYNC ERROR]', e.message);
+                    } finally {
+                        if (status) status.classList.remove('active');
+                    }
+                };
+                extractTags();
+            }
+        }
+
+        // Toggle custom thumbnail for single SWF batch
+        if (thumbSection) {
+            const firstItem = selectedFiles[0];
+            const firstFile = (firstItem && firstItem.file) || firstItem;
+            const isSingleSwf = firstFile && selectedFiles.length === 1 && 
+                (firstFile.type === 'application/x-shockwave-flash' || firstFile.type === 'application/vnd.adobe.flash.movie' || (firstFile.name && firstFile.name.endsWith('.swf')));
+            thumbSection.style.display = isSingleSwf ? 'block' : 'none';
+        }
+
+        updateSubmitButton();
+        form.dispatchEvent(new CustomEvent('fileReady', { detail: { files: selectedFiles } }));
+        return true;
     };
 
     if (dropZone) {
@@ -703,19 +1027,19 @@ window.initUploadForm = (selector) => {
         dropZone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
             const files = dt.files;
-            handleFile(files[0]);
+            handleFile(files);
         });
     }
 
     if (fileInput) {
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files));
     }
 
     if (removeFile) {
         removeFile.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            selectedFile = null;
+            selectedFiles = [];
             form.querySelector('.gps-privacy-warning')?.remove();
             if (fileInput) fileInput.value = '';
             if (dropZonePrompt) dropZonePrompt.style.display = 'block';
@@ -825,16 +1149,22 @@ window.initUploadForm = (selector) => {
                 const blob = await resp.blob();
                 const cleanFile = new File([blob], originalFile.name, { type: originalFile.type || blob.type });
 
-                // Replace the selected file so the upload uses the clean version
-                selectedFile = cleanFile;
+                // Replace the selected file in the array so the upload uses the clean version
+                const isShitpost = !!window.f0ckShitpostMode;
+                const idx = selectedFiles.findIndex(f => (f.file || f) === originalFile);
+                if (idx !== -1) {
+                    if (isShitpost && typeof selectedFiles[idx] === 'object') {
+                        selectedFiles[idx].file = cleanFile;
+                    } else {
+                        selectedFiles[idx] = cleanFile;
+                    }
+                }
 
                 warn.innerHTML = `<i class="fa-solid fa-check"></i> <span>GPS data stripped. Location will not be embedded in the uploaded image.</span>`;
                 warn.classList.add('gps-stripped');
-                setTimeout(() => warn.remove(), 4000);
-
-                if (typeof window.showFlash === 'function') window.showFlash('GPS data removed from image', 'success');
-
-            } catch (err) {
+                setTimeout(() => warn.remove(), 5000);
+            } catch (e) {
+                console.warn('[GPS STRIP ERROR]', e.message);
                 stripBtn.disabled = false;
                 stripBtn.textContent = 'Strip GPS data';
                 if (typeof window.showFlash === 'function') window.showFlash('Failed to strip GPS data', 'error');
@@ -904,62 +1234,70 @@ window.initUploadForm = (selector) => {
         });
     };
 
-    let currentFocus = -1;
+    /**
+     * Reusable Tag Autocomplete Logic
+     */
+    window.f0ckInitTagAutocomplete = (tagInput, tagSuggestions, onAdd, getExistingTags) => {
+        if (!tagInput || !tagSuggestions) return;
 
-    const addActive = (x) => {
-        if (!x) return false;
-        removeActive(x);
-        if (currentFocus >= x.length) currentFocus = 0;
-        if (currentFocus < 0) currentFocus = (x.length - 1);
-        x[currentFocus].classList.add("active");
-        x[currentFocus].scrollIntoView({ block: 'nearest' });
-    };
+        let currentFocus = -1;
+        let debounceTimer;
 
-    const removeActive = (x) => {
-        for (let i = 0; i < x.length; i++) {
-            x[i].classList.remove("active");
-        }
-    };
+        const addActive = (x) => {
+            if (!x) return false;
+            removeActive(x);
+            if (currentFocus >= x.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (x.length - 1);
+            x[currentFocus].classList.add("active");
+            x[currentFocus].scrollIntoView({ block: 'nearest' });
+            
+            // Optional: update input value to highlighted tag
+            // const tagName = x[currentFocus].querySelector('.tag-suggestion-name').textContent;
+            // tagInput.value = tagName;
+        };
 
-    if (tagInput) {
+        const removeActive = (x) => {
+            for (let i = 0; i < x.length; i++) {
+                x[i].classList.remove("active");
+            }
+        };
+
         tagInput.addEventListener('keydown', (e) => {
-            const x = tagSuggestions ? tagSuggestions.getElementsByClassName("tag-suggestion-item") : [];
+            const x = tagSuggestions.getElementsByClassName("tag-suggestion-item");
             if (e.key === 'ArrowDown') {
                 currentFocus++;
                 addActive(x);
             } else if (e.key === 'ArrowUp') {
                 currentFocus--;
                 addActive(x);
-            } else if (e.key === 'Enter') {
+            } else if ((e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey && !e.metaKey) {
                 if (currentFocus > -1) {
                     e.preventDefault();
                     if (x && x[currentFocus] && x[currentFocus]._f0ckSelect) {
                         x[currentFocus]._f0ckSelect();
                     }
-                } else if (tagInput.value.trim().length > 0) {
+                } else if (e.key === 'Enter' && tagInput.value.trim().length > 0) {
                     e.preventDefault();
-                    addTag(tagInput.value);
+                    onAdd(tagInput.value);
+                    tagInput.value = '';
                 }
             } else if (e.key === 'Escape') {
-                if (tagSuggestions && tagSuggestions.style.display === 'block') {
+                if (tagSuggestions.style.display === 'block') {
                     e.preventDefault();
                     e.stopPropagation();
                 }
-                if (tagSuggestions) tagSuggestions.style.display = 'none';
+                tagSuggestions.style.display = 'none';
                 currentFocus = -1;
             }
         });
-    }
 
-    let debounceTimer;
-    if (tagInput) {
         tagInput.addEventListener('input', () => {
             clearTimeout(debounceTimer);
             const query = tagInput.value.trim();
             currentFocus = -1;
 
             if (query.length < 1) {
-                if (tagSuggestions) tagSuggestions.style.display = 'none';
+                tagSuggestions.style.display = 'none';
                 return;
             }
 
@@ -968,7 +1306,8 @@ window.initUploadForm = (selector) => {
                     const res = await fetch('/api/v2/tags/suggest?q=' + encodeURIComponent(query));
                     const data = await res.json();
                     if (data.success && data.suggestions && data.suggestions.length > 0) {
-                        const filtered = (data.suggestions || []).filter(s => s && s.tag && !tags.some(t => t.toLowerCase() === s.tag.toLowerCase()));
+                        const existing = getExistingTags();
+                        const filtered = (data.suggestions || []).filter(s => s && s.tag && !existing.some(t => t.toLowerCase() === s.tag.toLowerCase()));
                         let html = '';
                         const maxSuggestions = Math.min(8, filtered.length);
                         for (let i = 0; i < maxSuggestions; i++) {
@@ -981,349 +1320,414 @@ window.initUploadForm = (selector) => {
                                 </div>
                             `;
                         }
-                        window.f0ckDebug('[UPLOAD] Rendering ' + filtered.length + ' suggestions');
-                        if (tagSuggestions) {
+                        
+                        if (maxSuggestions > 0) {
                             tagSuggestions.innerHTML = html;
                             tagSuggestions.style.display = 'block';
 
                             const items = tagSuggestions.querySelectorAll('.tag-suggestion-item');
                             items.forEach((el, idx) => {
-                                const select = (e) => {
-                                    if (e) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
+                                const select = (ev) => {
+                                    if (ev) {
+                                        // Only stop if we actually have a selection (handled in mouseup)
+                                        const sel = window.getSelection?.()?.toString().trim();
+                                        if (sel && sel !== filtered[idx].tag) {
+                                            ev.preventDefault();
+                                            ev.stopPropagation();
+                                            return;
+                                        }
+                                        ev.stopPropagation();
                                     }
-                                    addTag(filtered[idx].tag);
+                                    onAdd(filtered[idx].tag);
+                                    tagInput.value = '';
+                                    tagSuggestions.style.display = 'none';
                                     tagInput.focus();
                                 };
-                                // Desktop: mousedown fires before blur, so dropdown stays open
-                                el.addEventListener('mousedown', select);
-                                // Mobile: use touchend to detect a tap (vs scroll)
+                                
+                                // Partial Selection Support
+                                el.addEventListener('mouseup', (ev) => {
+                                    const sel = window.getSelection?.()?.toString().trim();
+                                    if (!sel || sel === filtered[idx].tag) return;
+                                    
+                                    // Block the immediate click action if we have a selection
+                                    el.addEventListener('click', (e) => e.stopImmediatePropagation(), { once: true, capture: true });
+                                    ev.stopPropagation();
+                                    
+                                    window._showSelTagPopover?.(sel, el, (confirmed) => {
+                                        window.getSelection?.()?.removeAllRanges();
+                                        onAdd(confirmed);
+                                        tagSuggestions.style.display = 'none';
+                                        tagInput.value = '';
+                                        tagInput.focus();
+                                    });
+                                });
+
+                                el.addEventListener('click', select);
+                                
+                                // Mobile support
                                 let touchStartX = 0, touchStartY = 0;
-                                el.addEventListener('touchstart', (e) => {
-                                    touchStartX = e.touches[0].clientX;
-                                    touchStartY = e.touches[0].clientY;
+                                el.addEventListener('touchstart', (ev) => {
+                                    touchStartX = ev.touches[0].clientX;
+                                    touchStartY = ev.touches[0].clientY;
                                 }, { passive: true });
-                                el.addEventListener('touchend', (e) => {
-                                    const dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
-                                    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+                                el.addEventListener('touchend', (ev) => {
+                                    const dx = Math.abs(ev.changedTouches[0].clientX - touchStartX);
+                                    const dy = Math.abs(ev.changedTouches[0].clientY - touchStartY);
                                     if (dx < 10 && dy < 10) {
-                                        select(e);
+                                        select(ev);
                                     }
                                 });
-                                el._f0ckSelect = select; // Store for keyboard use
+                                el._f0ckSelect = select;
                             });
+                        } else {
+                            tagSuggestions.style.display = 'none';
                         }
                     } else {
-                        if (tagSuggestions) tagSuggestions.style.display = 'none';
+                        tagSuggestions.style.display = 'none';
                     }
                 } catch (err) {
                     console.error('[UPLOAD_TAGS] Error fetching suggestions:', err);
-                    if (typeof window.showFlash === 'function') {
-                        window.showFlash('Tag suggestions unavailable', 'error');
-                    }
                 }
             }, 200);
         });
-    }
 
-    // Use mousedown (not click) so item's mousedown fires first on desktop.
-    // Use touchstart for mobile — touchend on the item fires before this touchstart on document.
-    const closeSuggestions = (e) => {
-        if (form.contains(document.body) === false && !document.body.contains(form)) return;
-        if (tagInput && tagSuggestions && !tagInput.contains(e.target) && !tagSuggestions.contains(e.target)) {
-            tagSuggestions.style.display = 'none';
-        }
+        // Close when clicking outside
+        const closeSuggestions = (e) => {
+            if (!tagInput.contains(e.target) && !tagSuggestions.contains(e.target)) {
+                tagSuggestions.style.display = 'none';
+            }
+        };
+        document.addEventListener('mousedown', closeSuggestions);
+        document.addEventListener('touchstart', closeSuggestions, { passive: true });
     };
-    document.addEventListener('mousedown', closeSuggestions);
-    document.addEventListener('touchstart', closeSuggestions, { passive: true });
+
+    if (tagInput && tagSuggestions) {
+        window.f0ckInitTagAutocomplete(tagInput, tagSuggestions, addTag, () => tags);
+    }
 
     form.querySelectorAll('input[name="rating"]').forEach(radio => {
         radio.addEventListener('change', updateSubmitButton);
     });
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    const performUpload = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
 
-        const rating = form.querySelector('input[name="rating"]:checked');
-        if (!rating || tags.length < minTags) return;
+        // If already uploading, don't start again
+        if (submitBtn && submitBtn.disabled && submitBtn.querySelector('.btn-loading')?.style.display === 'inline') {
+            return;
+        }
+
+        const isFileMode = activeMode === 'file';
+
+        const globalRatingEl = form.querySelector('input[name="rating"]:checked');
+
+        // Validation
+        if (isShitpost && isFileMode) {
+            if (selectedFiles.length === 0) {
+                if (window.showFlash) window.showFlash('No files selected', 'error');
+                return;
+            }
+            // No tag or rating requirement in shitpost mode — untagged items are allowed
+        } else {
+            if (!globalRatingEl) {
+                if (window.showFlash) window.showFlash('Please select a rating', 'error');
+                return;
+            }
+            if (tags.length < minTags) {
+                if (window.showFlash) window.showFlash(`At least ${minTags} tags are required`, 'error');
+                return;
+            }
+        }
+
+        const dragModal = form.closest('#upload-drag-modal');
+        const comment = form.querySelector('.upload-comment')?.value.trim() || '';
+        const isOc = form.querySelector('#upload-oc-checkbox')?.checked || false;
+
+        const setBtnLoading = (text) => {
+            if (!submitBtn) return;
+            submitBtn.disabled = true;
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoading = submitBtn.querySelector('.btn-loading');
+            if (btnText) btnText.style.display = 'none';
+            if (btnLoading) {
+                btnLoading.style.display = 'inline';
+                btnLoading.textContent = text;
+            }
+        };
+
+        const restoreBtn = () => {
+            if (!submitBtn) return;
+            submitBtn.disabled = false;
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoading = submitBtn.querySelector('.btn-loading');
+            if (btnText) btnText.style.display = 'inline';
+            if (btnLoading) btnLoading.style.display = 'none';
+        };
 
         if (activeMode === 'url') {
             // --- URL Upload ---
-            const url = urlInput?.value.trim();
-            if (!url) return;
-
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                const btnText = submitBtn.querySelector('.btn-text');
-                const btnLoading = submitBtn.querySelector('.btn-loading');
-                if (btnText) btnText.style.display = 'none';
-                if (btnLoading) {
-                    btnLoading.style.display = 'inline';
-                    btnLoading.textContent = 'Processing...';
-                }
+            let urls = [urlInput?.value.trim()];
+            if (isShitpost && urlInput?.tagName === 'TEXTAREA') {
+                urls = urlInput.value.split('\n').map(u => u.trim()).filter(u => u.length > 0);
             }
+            if (urls.length === 0 || !urls[0]) return;
+
+            setBtnLoading(isShitpost ? `Processing 1/${urls.length}...` : 'Processing...');
             if (statusDiv) {
                 statusDiv.textContent = '';
                 statusDiv.className = 'upload-status';
             }
 
-            try {
-                const resp = await fetch('/api/v2/upload-url', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': window.f0ckSession?.csrf_token || '',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ 
-                        url, 
-                        rating: rating.value, 
-                        tags: tags.join(','),
-                        comment: form.querySelector('.upload-comment')?.value.trim() || '',
-                        is_oc: form.querySelector('#upload-oc-checkbox')?.checked || false
-                    })
-                });
+            let successCount = 0;
+            let lastData = null;
 
-                const text = await resp.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    const statusText = resp.statusText || 'Unknown Error';
-                    throw new Error(`Server returned non-JSON response (Status: ${resp.status} ${statusText})`);
+            for (let i = 0; i < urls.length; i++) {
+                const url = urls[i];
+                if (isShitpost) {
+                    const statusMsg = window.f0ckI18n?.upload_shitposting_status || 'Shitposting';
+                    setBtnLoading(`[${i + 1}/${urls.length}] ${statusMsg}...`);
                 }
 
-                if (data.success) {
-                    const dragModal = form.closest('#upload-drag-modal');
+                try {
+                    const resp = await fetch('/api/v2/upload-url', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token || document.querySelector('input[name="csrf_token"]')?.value || '',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ 
+                            url, 
+                            rating: globalRatingEl.value, 
+                            tags: tags.join(','),
+                            comment: comment,
+                            is_oc: isOc
+                        })
+                    });
 
-                    if (data.pending) {
-                        // For async uploads, don't redirect, just show status and reset
-                        if (dragModal) dragModal.classList.remove('show');
-                        
-                        if (typeof window.flashMessage === 'function') {
-                            window.flashMessage(data.msg || 'Processing in background...');
-                        } else if (typeof window.showFlash === 'function') {
-                            window.showFlash(data.msg || 'Processing in background...', 'info');
+                    const text = await resp.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        const statusText = resp.statusText || 'Unknown Error';
+                        throw new Error(`Server returned non-JSON response (Status: ${resp.status} ${statusText})`);
+                    }
+
+                    if (data.success) {
+                        successCount++;
+                        lastData = data;
+                        if (data.itemid) {
+                            try {
+                                const ts = Date.now();
+                                const busted = JSON.parse(localStorage.getItem('bustedThumbs') || '{}');
+                                busted[data.itemid] = ts;
+                                const keys = Object.keys(busted);
+                                if (keys.length > 50) delete busted[keys[0]];
+                                localStorage.setItem('bustedThumbs', JSON.stringify(busted));
+                            } catch(e) {}
                         }
-                        
-                        if (!dragModal) {
-                            statusDiv.innerHTML = '✓ ' + data.msg;
-                            statusDiv.className = 'upload-status success';
-                        }
-                        
-                        form._f0ckUploader.reset();
+                    } else if (!isShitpost) {
+                        throw new Error(data.msg || 'Upload failed');
+                    }
+                } catch (err) {
+                    console.error('[UPLOAD ERROR]', err);
+                    if (!isShitpost) {
+                        statusDiv.textContent = '✕ ' + err.message;
+                        statusDiv.className = 'upload-status error';
+                        restoreBtn();
                         return;
                     }
+                }
+            }
 
-                    if (dragModal) dragModal.classList.remove('show');
-                    if (window.resetGlobalScrollState) window.resetGlobalScrollState();
-                    if (window.hideAllModals) window.hideAllModals();
-                    form._f0ckUploader.reset();
-                    if (!dragModal) {
-                        statusDiv.innerHTML = '✓ ' + data.msg;
+            if (successCount > 0) {
+                if (dragModal) dragModal.classList.remove('show');
+                if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+                if (window.hideAllModals) window.hideAllModals();
+                
+                form._f0ckUploader.reset();
+                
+                if (isShitpost) {
+                    // Flash message removed as requested
+                } else {
+                    if (!dragModal && statusDiv) {
+                        statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
                         statusDiv.className = 'upload-status success';
                     }
-                    
-                    if (data.itemid) {
-                        try {
-                            const ts = Date.now();
-                            const bustedStr = localStorage.getItem('bustedThumbs');
-                            const busted = bustedStr ? JSON.parse(bustedStr) : {};
-                            busted[data.itemid] = ts;
-                            const keys = Object.keys(busted);
-                            if (keys.length > 50) delete busted[keys[0]];
-                            localStorage.setItem('bustedThumbs', JSON.stringify(busted));
-                        } catch(e) {}
-                    }
-
-                    if (data.manual_approval && typeof window.showFlash === 'function') {
+                    if (lastData?.manual_approval && typeof window.showFlash === 'function') {
                         window.showFlash('Upload awaits approval, please be patient', 'info');
                     }
-                    const navDelay = dragModal ? 0 : 1000;
-                    setTimeout(() => {
-                        if (typeof window.loadPageAjax === 'function') {
-                            window.loadPageAjax('/');
-                        } else {
-                            window.location.href = '/';
-                        }
-                    }, navDelay);
-                } else {
-                    statusDiv.textContent = '✕ ' + (data.msg || 'Upload failed');
-                    statusDiv.className = 'upload-status error';
-                    if (data.repost) {
-                        statusDiv.innerHTML += ' <a href="/' + data.repost + '">View existing</a>';
-                    }
-                    submitBtn.disabled = false;
-                    submitBtn.querySelector('.btn-text').style.display = 'inline';
-                    submitBtn.querySelector('.btn-loading').style.display = 'none';
                 }
-            } catch (err) {
-                console.error('[UPLOAD ERROR]', err);
-                statusDiv.textContent = '✕ Upload failed: ' + err.message;
-                statusDiv.className = 'upload-status error';
-                submitBtn.disabled = false;
-                submitBtn.querySelector('.btn-text').style.display = 'inline';
-                submitBtn.querySelector('.btn-loading').style.display = 'none';
+
+                setTimeout(() => {
+                    if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
+                    else window.location.href = '/';
+                }, dragModal ? 0 : 1000);
+            } else {
+                restoreBtn();
             }
         } else {
             // --- File Upload ---
-            if (!selectedFile) return;
+            if (selectedFiles.length === 0) return;
 
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                const btnText = submitBtn.querySelector('.btn-text');
-                const btnLoading = submitBtn.querySelector('.btn-loading');
-                if (btnText) btnText.style.display = 'none';
-                if (btnLoading) {
-                    btnLoading.style.display = 'inline';
-                    btnLoading.textContent = 'Uploading...';
-                }
-            }
+            setBtnLoading(isShitpost ? `Uploading 1/${selectedFiles.length}...` : 'Uploading...');
             if (progressContainer) progressContainer.style.display = 'flex';
-
-            // Reset status
             if (statusDiv) {
                 statusDiv.textContent = '';
                 statusDiv.className = 'upload-status';
             }
 
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('rating', rating.value);
-            formData.append('tags', tags.join(','));
-            formData.append('is_oc', form.querySelector('#upload-oc-checkbox')?.checked ? 'true' : 'false');
+            let successCount = 0;
+            let lastData = null;
 
-            // Add custom thumbnail if provided (only for SWF files)
-            if (thumbInput && thumbInput.files && thumbInput.files[0]) {
-                formData.append('thumbnail', thumbInput.files[0]);
-            }
-            const commentEl = form.querySelector('.upload-comment');
-            if (commentEl && commentEl.value.trim()) {
-                formData.append('comment', commentEl.value.trim());
-            }
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const item = selectedFiles[i];
+                const isUrlItem = isShitpost && item.type === 'url';
+                const file = !isUrlItem ? (isShitpost ? item.file : item) : null;
+                const fileRating = isShitpost ? item.rating : (globalRatingEl ? globalRatingEl.value : 'sfw');
+                const fileTags = isShitpost ? item.tags : tags;
+                const fileComment = isShitpost ? item.comment : comment;
 
-            try {
-                const xhr = new XMLHttpRequest();
+                if (isShitpost) {
+                    const statusMsg = window.f0ckI18n?.upload_shitposting_status || 'Shitposting';
+                    setBtnLoading(`[${i + 1}/${selectedFiles.length}] ${statusMsg}...`);
+                }
 
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        if (progressFill) progressFill.style.width = percent + '%';
-                        if (progressText) progressText.textContent = percent + '%';
-                    }
-                });
+                const formData = new FormData();
+                if (isUrlItem) {
+                    formData.append('url', item.url);
+                } else {
+                    formData.append('file', file);
+                }
+                formData.append('rating', fileRating);
+                formData.append('tags', fileTags.join(','));
+                formData.append('is_oc', (isShitpost ? item.is_oc : isOc) ? 'true' : 'false');
+                if (isShitpost) formData.append('is_shitpost', 'true');
 
-                xhr.onload = () => {
-                    let res;
-                    try {
-                        res = JSON.parse(xhr.responseText);
-                    } catch(e) {
-                        if (xhr.status === 413) {
-                            res = { success: false, msg: 'File too large (rejected by proxy)' };
+                // Add custom thumbnail if provided (only for single SWF files)
+                if (selectedFiles.length === 1 && thumbInput && thumbInput.files && thumbInput.files[0]) {
+                    formData.append('thumbnail', thumbInput.files[0]);
+                }
+                
+                // Send the specific comment for this file
+                if (fileComment) {
+                    formData.append('comment', fileComment);
+                }
+
+                try {
+                    const res = await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.upload.addEventListener('progress', (e) => {
+                            if (e.lengthComputable) {
+                                const percent = Math.round((e.loaded / e.total) * 100);
+                                if (progressFill) progressFill.style.width = percent + '%';
+                                if (progressText) progressText.textContent = (isShitpost ? `[${i+1}/${selectedFiles.length}] ` : '') + percent + '%';
+                            }
+                        });
+
+                        xhr.onload = () => {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                resolve(data);
+                            } catch(e) {
+                                let msg = 'Server error';
+                                if (xhr.status === 413) msg = 'File too large';
+                                try {
+                                    const errData = JSON.parse(xhr.responseText);
+                                    if (errData.msg) msg = errData.msg;
+                                } catch(e2) {}
+                                reject(new Error(msg));
+                            }
+                        };
+                        xhr.onerror = () => reject(new Error('Connection error'));
+                        const endpoint = isUrlItem ? '/api/v2/upload-url' : '/api/v2/upload';
+                        xhr.open('POST', endpoint);
+                        const csrf = window.f0ckSession?.csrf_token || document.querySelector('input[name="csrf_token"]')?.value || '';
+                        xhr.setRequestHeader('X-CSRF-Token', csrf);
+                        
+                        if (isUrlItem) {
+                            xhr.setRequestHeader('Content-Type', 'application/json');
+                            xhr.send(JSON.stringify({
+                                url: item.url,
+                                rating: fileRating,
+                                tags: fileTags.join(','),
+                                is_oc: (isShitpost ? item.is_oc : isOc),
+                                comment: fileComment
+                            }));
                         } else {
-                            res = { success: false, msg: 'Internal server error (invalid JSON)' };
-                            console.error('[UPLOAD ERROR] Failed to parse response:', xhr.responseText);
+                            xhr.send(formData);
                         }
-                    }
+                    });
 
                     if (res.success) {
-                        const dragModal = form.closest('#upload-drag-modal');
-                        if (dragModal) dragModal.classList.remove('show');
-                        form._f0ckUploader.reset();
-                        if (!dragModal && statusDiv) {
-                            statusDiv.innerHTML = '✓ ' + res.msg;
-                            statusDiv.className = 'upload-status success';
-                        }
-                        
+                        successCount++;
+                        lastData = res;
                         if (res.itemid) {
                             try {
                                 const ts = Date.now();
-                                const bustedStr = localStorage.getItem('bustedThumbs');
-                                const busted = bustedStr ? JSON.parse(bustedStr) : {};
+                                const busted = JSON.parse(localStorage.getItem('bustedThumbs') || '{}');
                                 busted[res.itemid] = ts;
                                 const keys = Object.keys(busted);
                                 if (keys.length > 50) delete busted[keys[0]];
                                 localStorage.setItem('bustedThumbs', JSON.stringify(busted));
                             } catch(e) {}
                         }
-
-                        if (res.manual_approval && typeof window.showFlash === 'function') {
-                            window.showFlash('Upload awaits approval', 'info');
-                        }
-                        const navDelay = dragModal ? 0 : 1000;
-                        setTimeout(() => {
-                            if (typeof window.loadPageAjax === 'function') {
-                                window.loadPageAjax('/');
-                            } else {
-                                window.location.href = '/';
-                            }
-                        }, navDelay);
-                    } else {
-                        if (statusDiv) {
-                            statusDiv.textContent = '✕ ' + res.msg;
-                            statusDiv.className = 'upload-status error';
-                            if (res.repost) {
-                                statusDiv.innerHTML += ' <a href="/' + res.repost + '">View existing</a>';
-                            }
-                        }
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            const btnText = submitBtn.querySelector('.btn-text');
-                            const btnLoading = submitBtn.querySelector('.btn-loading');
-                            if (btnText) btnText.style.display = 'inline';
-                            if (btnLoading) btnLoading.style.display = 'none';
-                        }
-                        if (progressContainer) progressContainer.style.display = 'none';
+                    } else if (!isShitpost) {
+                        throw new Error(res.msg || 'Upload failed');
                     }
-                };
-
-                xhr.onerror = () => {
-                    if (statusDiv) {
-                        statusDiv.textContent = '✕ Upload failed. The connection was reset or interrupted.';
+                } catch (err) {
+                    console.error('[UPLOAD ERROR]', err);
+                    if (!isShitpost) {
+                        statusDiv.textContent = '✕ ' + err.message;
                         statusDiv.className = 'upload-status error';
+                        if (progressContainer) progressContainer.style.display = 'none';
+                        restoreBtn();
+                        return;
                     }
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        const btnText = submitBtn.querySelector('.btn-text');
-                        const btnLoading = submitBtn.querySelector('.btn-loading');
-                        if (btnText) btnText.style.display = 'inline';
-                        if (btnLoading) btnLoading.style.display = 'none';
-                    }
-                    if (progressContainer) progressContainer.style.display = 'none';
-                };
-
-                xhr.open('POST', '/api/v2/upload');
-                xhr.setRequestHeader('X-CSRF-Token', window.f0ckSession?.csrf_token || '');
-                xhr.send(formData);
-
-            } catch (err) {
-                console.error(err);
-                if (statusDiv) {
-                    statusDiv.textContent = '✕ Upload failed: ' + err.message;
-                    statusDiv.className = 'upload-status error';
                 }
-                if (submitBtn) submitBtn.disabled = false;
+            }
+
+            if (successCount > 0) {
+                if (dragModal) dragModal.classList.remove('show');
+                form._f0ckUploader.reset();
+                if (isShitpost) {
+                    // Flash message removed as requested
+                } else if (!dragModal && statusDiv) {
+                    statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
+                    statusDiv.className = 'upload-status success';
+                }
+
+                setTimeout(() => {
+                    if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
+                    else window.location.href = '/';
+                }, dragModal ? 0 : 1000);
+            } else {
+                restoreBtn();
+                if (progressContainer) progressContainer.style.display = 'none';
             }
         }
-    });
+    };
 
+    form.addEventListener('submit', performUpload);
     updateSubmitButton();
     
     // Return an object with methods to control the form externally if needed
     form._f0ckUploader = {
         handleFile: handleFile,
+        performUpload: performUpload,
         reset: () => {
             form.reset();
             tags = [];
-            selectedFile = null;
+            selectedFiles = [];
             if (tagsList) tagsList.innerHTML = '';
             if (tagsHidden) tagsHidden.value = '';
             if (fileInput) fileInput.style.display = 'inline-block';
             if (dropZonePrompt) dropZonePrompt.style.display = 'block';
-            if (filePreview) filePreview.style.display = 'none';
-            const media = filePreview?.querySelector('.preview-media');
-            if (media) media.remove();
+            if (filePreview) {
+                filePreview.style.display = "none";
+                filePreview.innerHTML = "";
+            }
             if (urlInput) urlInput.value = '';
             if (urlBadge) urlBadge.style.display = 'none';
             if (progressContainer) { progressContainer.style.display = 'none'; }
@@ -1365,19 +1769,45 @@ window.initUploadForm = (selector) => {
         }
     };
 
-    // --- Keyboard Shortcuts ---
-    // Control+Enter to Submit
-    form.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-            if (submitBtn && !submitBtn.disabled) {
-                e.preventDefault();
-                submitBtn.click();
-            }
-        }
-    });
-
     return form._f0ckUploader;
 };
+
+// Global Keyboard Shortcut: Ctrl+Enter
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey)) return;
+
+    // 1. Try the element that currently has focus
+    // 2. Fall back to the modal form if it's visible
+    // 3. Fall back to any visible upload form on the page
+    let targetForm = document.activeElement?.closest('.upload-form');
+
+    if (!targetForm || !targetForm._f0ckUploader) {
+        const modal = document.getElementById('upload-drag-modal');
+        if (modal && modal.classList.contains('show')) {
+            targetForm = modal.querySelector('.upload-form');
+        }
+    }
+
+    if (!targetForm || !targetForm._f0ckUploader) {
+        targetForm = document.querySelector('.upload-form');
+    }
+
+    if (!targetForm || !targetForm._f0ckUploader) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const uploader = targetForm._f0ckUploader;
+    const isShitpost = targetForm.classList.contains('shitpost-mode-active') || !!window.f0ckShitpostMode;
+    const isUrlTab = targetForm.querySelector('.upload-mode-tab[data-mode="url"]')?.classList.contains('active');
+
+    if (isShitpost && isUrlTab) {
+        const btnAddUrls = targetForm.querySelector('.btn-add-urls');
+        if (btnAddUrls) btnAddUrls.click();
+    } else {
+        uploader.performUpload();
+    }
+});
 
 // Global multi-instance auto-init
 window.autoInitUploadForms = () => {

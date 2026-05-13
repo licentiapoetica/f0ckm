@@ -79,21 +79,27 @@ export const handleUpload = async (req, res, self) => {
 
         const is_oc = (parts.is_oc === 'true' || parts.is_oc === '1');
 
+        const is_shitpost = (parts.is_shitpost === 'true' || parts.is_shitpost === '1');
+
         if (!file || !file.data) {
             return sendJson(res, { success: false, msg: 'No file provided' }, 400);
         }
 
-        if (!rating || !['sfw', 'nsfw', 'nsfl'].includes(rating)) {
+        // In shitpost mode, rating is optional — null means no rating tag is assigned (truly untagged)
+        const effectiveRating = (rating && ['sfw', 'nsfw', 'nsfl'].includes(rating)) ? rating : (is_shitpost ? null : null);
+
+        if (!is_shitpost && !effectiveRating) {
             return sendJson(res, { success: false, msg: 'Rating (sfw/nsfw/nsfl) is required' }, 400);
         }
 
-        if (rating === 'nsfl' && !cfg.enable_nsfl) {
+        if (effectiveRating === 'nsfl' && !cfg.enable_nsfl) {
             return sendJson(res, { success: false, msg: 'NSFL mode is currently disabled' }, 400);
         }
 
         const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0 && !['sfw', 'nsfw', 'nsfl'].includes(t.toLowerCase())) : [];
         const minTags = getMinTags();
-        if (tags.length < minTags) {
+        // In shitpost mode, tags are optional — items without tags enter as untagged
+        if (!is_shitpost && tags.length < minTags) {
             return sendJson(res, { success: false, msg: `At least ${minTags} tags are required` }, 400);
         }
 
@@ -363,7 +369,7 @@ export const handleUpload = async (req, res, self) => {
         }
 
         // Generate blurred thumbnail for NSFW/NSFL
-        if (rating === 'nsfw' || rating === 'nsfl') {
+        if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
             await queue.genBlurredThumbnail(itemid, isPending);
         }
 
@@ -382,11 +388,13 @@ export const handleUpload = async (req, res, self) => {
             }
         }
 
-        // Tags
-        const ratingTagId = rating === 'sfw' ? 1 : (rating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
-        await db`
-          insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: req.session.id })}
-        `;
+        // Tags — rating tag only assigned if a rating was selected
+        if (effectiveRating) {
+            const ratingTagId = effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
+            await db`
+              insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: req.session.id })}
+            `;
+        }
 
         for (const tagName of tags) {
             let tagRow = await db`
@@ -476,7 +484,7 @@ export const handleUpload = async (req, res, self) => {
                 if (actualMime.startsWith('audio')) {
                     await moveSafe(path.join(cfg.paths.pending, 'ca', `${itemid}.webp`), coverDest);
                 }
-                if (rating === 'nsfw' || rating === 'nsfl') {
+                if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
                     await moveSafe(path.join(cfg.paths.pending, 't', `${itemid}_blur.webp`), blurDest);
                 }
             }
@@ -508,7 +516,7 @@ export const handleUpload = async (req, res, self) => {
             }
 
             // Ensure blurred thumbnail exists if needed
-            if (rating === 'nsfw' || rating === 'nsfl') {
+            if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
                 const tDir = isPending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
                 const blurPath = path.join(tDir, `${itemid}_blur.webp`);
                 const blurExists = await fs.access(blurPath).then(() => true).catch(() => false);
@@ -555,7 +563,7 @@ export const handleUpload = async (req, res, self) => {
                         mime: actualMime,
                         username: req.session.user,
                         display_name: req.session.display_name || null,
-                        tag_id: rating === 'sfw' ? 1 : (rating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3)),
+                        tag_id: effectiveRating ? (effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3))) : 0,
                         is_oc: !!is_oc
                     })})`;
                 } catch (err) {

@@ -253,6 +253,16 @@ export default new class queue {
     const tmpFile = path.join(os.tmpdir(), itemid + '.png');
     const tmpJpg = path.join(os.tmpdir(), itemid + '.jpg');
 
+    // Resolve real path if it's a symlink (important for reposts)
+    let sourcePath = path.join(bDir, filename);
+    try {
+        const lstat = await fs.promises.lstat(sourcePath);
+        if (lstat.isSymbolicLink()) {
+            sourcePath = await fs.promises.realpath(sourcePath);
+            console.log(`[QUEUE] Resolved symlink for thumbnailing: ${filename} -> ${sourcePath}`);
+        }
+    } catch (e) {}
+
     if (mime === 'video/youtube') {
       const videoId = filename.startsWith('yt:') ? filename.split(':')[1] : null;
       if (videoId) {
@@ -271,7 +281,7 @@ export default new class queue {
     else if (mime.startsWith('video/') || mime == 'image/gif') {
       const seeks = ['20%', '40%', '60%', '80%'];
       for (const seek of seeks) {
-        await this.spawn('ffmpegthumbnailer', ['-i', path.join(bDir, filename), '-s', '1024', '-t', seek, '-o', tmpFile]);
+        await this.spawn('ffmpegthumbnailer', ['-i', sourcePath, '-s', '1024', '-t', seek, '-o', tmpFile]);
         try {
           const { stdout } = await this.spawn('magick', [tmpFile, '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:']);
           if (parseFloat(stdout.trim()) > 0.05) break; 
@@ -279,9 +289,10 @@ export default new class queue {
       }
     }
     else if (mime.startsWith('image/') && mime != 'image/gif')
-      await this.spawn('magick', [path.join(bDir, filename) + '[0]', tmpFile]);
+      await this.spawn('magick', [sourcePath + '[0]', tmpFile]);
     else if (mime.startsWith('audio/')) {
       let coverExtracted = false;
+      this._lastCoverExtracted = false; // Reset state for this call
       if (link.match(/soundcloud/)) {
         const proxyArgs = (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '') ? ['--proxy', cfg.main.socks.includes('://') ? cfg.main.socks : `socks5h://${cfg.main.socks}`] : [];
         let cover = (await this.spawn('yt-dlp', [...proxyArgs, '-f', 'bv*[height<=720]+ba/b[height<=720] / wv*+ba/w', '--get-thumbnail', link])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
@@ -301,7 +312,7 @@ export default new class queue {
         }
         if (!coverExtracted) {
           try {
-            await this.spawn('ffmpeg', ['-i', path.join(bDir, filename), '-an', '-vcodec', 'copy', '-frames:v', '1', '-update', '1', tmpJpg]);
+            await this.spawn('ffmpeg', ['-i', sourcePath, '-an', '-vcodec', 'copy', '-frames:v', '1', '-update', '1', tmpJpg]);
             const size = (await fs.promises.stat(tmpJpg)).size;
             if (size > 0) {
               await this.spawn('magick', [tmpJpg, tmpFile]);
@@ -313,7 +324,7 @@ export default new class queue {
       } else {
         // Try extracting embedded cover art (video stream in audio file)
         try {
-          await this.spawn('ffmpeg', ['-i', path.join(bDir, filename), '-an', '-vcodec', 'copy', '-frames:v', '1', '-update', '1', tmpJpg]);
+          await this.spawn('ffmpeg', ['-i', sourcePath, '-an', '-vcodec', 'copy', '-frames:v', '1', '-update', '1', tmpJpg]);
           const size = (await fs.promises.stat(tmpJpg)).size;
           if (size > 0) {
             await this.spawn('magick', [tmpJpg, tmpFile]);
@@ -367,7 +378,7 @@ export default new class queue {
           '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4',
           '-dLastPage=1',
           '-sOutputFile=' + tmpFile,
-          path.join(bDir, filename)
+          sourcePath
         ]);
       } catch (err) {
         console.warn(`[QUEUE] PDF extraction failed for ${itemid}, using fallback icon.`);

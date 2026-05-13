@@ -61,7 +61,11 @@
     "uploading": "Wird aufladiert...",
     "pending_approval_patient": "Die Ladung harrt der Absegnung, bitte haben Sie Geduld",
     "remove_file": "Datei entfernen",
-    "cancel_upload": "Aufladierung abbrechen"
+    "cancel_upload": "Aufladierung abbrechen",
+    "shitpost_success": "{n} Fetzen erfolgreich gepfeffert!",
+    "shitposting_status": "Wird gepfeffert",
+    "item_comment_placeholder": "Senf dazugeben (optional)...",
+    "item_tags_placeholder": "Etiketten..."
   },
   "auth": {
     "registering": "Registrierung wird in die Wege geleitet...",

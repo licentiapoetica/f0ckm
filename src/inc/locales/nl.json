@@ -61,7 +61,13 @@
     "uploading": "Uploaden...",
     "pending_approval_patient": "Upload wacht op goedkeuring, even geduld alstublieft",
     "remove_file": "Bestand Verwijderen",
-    "cancel_upload": "Upload Annuleren"
+    "cancel_upload": "Upload Annuleren",
+    "shitpost_success": "{n} items succesvol gepost!",
+    "shitposting_status": "Lekker shitposten",
+    "item_comment_placeholder": "Opmerking (optioneel)...",
+    "item_tags_placeholder": "Etiketten...",
+    "btn_add_urls": "URL(s) toevoegen",
+    "tags_required_shitpost": "Alle items hebben tags nodig"
   },
   "auth": {
     "registering": "Registreren...",
@@ -305,6 +311,7 @@
     "enter_url": "Voer een URL in",
     "tags_required": "{n} extra tag{s} vereist",
     "select_rating": "Selecteer SFW of NSFW",
+    "select_rating_nsfl": "Selecteer SFW, NSFW of NSFL",
     "embed_youtube": "YouTube-video Insluiten",
     "upload_from_url": "Uploaden via URL",
     "upload": "Uploaden"

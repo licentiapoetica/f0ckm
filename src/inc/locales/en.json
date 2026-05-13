@@ -43,6 +43,7 @@
     "url_tab_yt": "URL / YouTube",
     "url_placeholder": "Paste a URL to download...",
     "url_placeholder_yt": "Paste a URL or YouTube link...",
+    "url_placeholder_shitpost": "Paste multiple URLs here (one per line)...",
     "drop_here": "Drop your file here",
     "admin_boost": "Admin Boost",
     "custom_thumbnail": "Custom Thumbnail",
@@ -61,7 +62,13 @@
     "uploading": "Uploading...",
     "pending_approval_patient": "Upload awaits approval, please be patient",
     "remove_file": "Remove File",
-    "cancel_upload": "Cancel Upload"
+    "cancel_upload": "Cancel Upload",
+    "shitpost_success": "Successfully shitposted {n} items!",
+    "shitposting_status": "Shitposting",
+    "item_comment_placeholder": "Comment (optional)...",
+    "item_tags_placeholder": "Tags...",
+    "btn_add_urls": "Add URL(s)",
+    "tags_required_shitpost": "All items need tags"
   },
   "auth": {
     "registering": "Registering...",
@@ -305,6 +312,7 @@
     "enter_url": "Enter a URL",
     "tags_required": "{n} more tag{s} required",
     "select_rating": "Select SFW or NSFW",
+    "select_rating_nsfl": "Select SFW, NSFW or NSFL",
     "embed_youtube": "Embed YouTube Video",
     "upload_from_url": "Upload from URL",
     "upload": "Upload"

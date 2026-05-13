@@ -5134,9 +5134,9 @@ div.posts>a[data-mode="nsfl"]>p::before {
   background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(227, 7, 7, 0) 85%, rgb(231, 3, 3) 100%);
 }
 
-div.posts>a[data-mode="null"]>p:before {
-  background-color: #dcd512;
-  /* untagged */
+div.posts > a[data-mode="null"] > p::before {
+  background: #000000;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(63, 196, 61, 0) 85%, rgb(244, 222, 0) 100%);
 }
 
 div#footbar {
