@@ -1499,30 +1499,76 @@
 
                 exportStatusMsg.textContent = exportStatusText.dataset.generating || 'Generating ZIP file';
                 exportAnimatedDots.style.display = 'inline';
-                const content = await new Promise((resolve, reject) => {
-                    const chunks = [];
-                    zip.generateInternalStream({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } })
-                        .on('data', (chunk) => chunks.push(chunk))
-                        .on('error', reject)
-                        .on('end', () => {
-                            try {
-                                resolve(new Blob(chunks, { type: 'application/zip' }));
-                            } catch (e) {
-                                reject(e);
-                            }
-                        })
-                        .resume();
-                });
-                exportAnimatedDots.style.display = 'none';
-                
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
 
-                exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
+                const zipOptions = { 
+                    type: 'uint8array', 
+                    compression: 'STORE' // Media is already compressed, STORE saves massive CPU/RAM
+                };
+
+                // Try Direct-to-Disk saving if supported (Chrome/Edge/Opera)
+                // This bypasses RAM entirely for the final file construction.
+                if ('showSaveFilePicker' in window) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`,
+                            types: [{
+                                description: 'ZIP Archive',
+                                accept: { 'application/zip': ['.zip'] },
+                            }],
+                        });
+                        
+                        const writable = await handle.createWritable();
+                        await new Promise((resolve, reject) => {
+                            zip.generateInternalStream(zipOptions)
+                                .on('data', async (chunk) => {
+                                    try {
+                                        await writable.write(chunk);
+                                    } catch (e) {
+                                        reject(e);
+                                    }
+                                })
+                                .on('error', reject)
+                                .on('end', resolve)
+                                .resume();
+                        });
+                        await writable.close();
+                        
+                        exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
+                    } catch (e) {
+                        if (e.name === 'AbortError') {
+                            exportStatusMsg.textContent = 'Export cancelled.';
+                        } else {
+                            throw e;
+                        }
+                    }
+                } else {
+                    // Fallback: Original Blob method (uses RAM)
+                    const content = await new Promise((resolve, reject) => {
+                        const chunks = [];
+                        zip.generateInternalStream(zipOptions)
+                            .on('data', (chunk) => chunks.push(chunk))
+                            .on('error', reject)
+                            .on('end', () => {
+                                try {
+                                    resolve(new Blob(chunks, { type: 'application/zip' }));
+                                } catch (e) {
+                                    reject(e);
+                                }
+                            })
+                            .resume();
+                    });
+                    
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
+                }
+                
+                exportAnimatedDots.style.display = 'none';
                 btnStartExport.disabled = false;
             } catch (err) {
                 console.error('Export failed:', err);

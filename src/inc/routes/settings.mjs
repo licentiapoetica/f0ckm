@@ -49,6 +49,7 @@ export default (router, tpl) => {
           email: user?.email || '',
           joined: user?.created_at || null,
           enable_swf: cfg.enable_swf,
+          enable_data_export: cfg.websrv.enable_data_export,
           session: (req.session && req.session.user) ? { ...req.session } : false,
           page_meta: {
             title: 'settings',
@@ -59,6 +60,10 @@ export default (router, tpl) => {
       });
     });
     group.get('/export-data', auth, async (req, res) => {
+      if (!cfg.websrv.enable_data_export) {
+        res.status(403).reply({ body: 'Export disabled' });
+        return;
+      }
       const uploads = await db`
         select id, dest, mime from items 
         where username = ${req.session.user} and active = true
