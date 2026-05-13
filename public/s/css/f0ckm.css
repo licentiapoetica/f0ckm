@@ -3310,6 +3310,7 @@ div.posts {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  grid-auto-flow: dense;
   justify-items: center;
   grid-gap: 5px;
   margin: 0;
