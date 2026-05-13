@@ -225,7 +225,7 @@ const gateLoginInjection = `
   var _sb = '';
   document.addEventListener('keydown', function(e) {
     _sb += e.key.toLowerCase();
-    if (_sb.endsWith('premiumhumor')) { openLoginGate('login'); _sb = ''; }
+    if (_sb.endsWith('foobarbaz')) { openLoginGate('login'); _sb = ''; }
     if (_sb.length > 12) _sb = _sb.slice(-12);
   });
 </script>
@@ -233,7 +233,7 @@ const gateLoginInjection = `
 
 
 // Text injected into the "What can I do?" section
-const gateSignInButton = `Please try again in a few minutes.`;
+const gateSignInButton = `You know what to do.`;
 
 
 
