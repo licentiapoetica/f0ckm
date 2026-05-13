@@ -115,7 +115,7 @@ export default (router, tpl) => {
             from "user" 
             where "login" = ${username.toLowerCase()} 
                or "user" = ${username}
-               or ("email" is not null and "email" = ${email})
+               ${email ? db`or ("email" is not null and "email" = ${email})` : db``}
         `;
         
         if (existing.length > 0) {

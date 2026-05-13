@@ -22,12 +22,13 @@
   "license": "MIT",
   "dependencies": {
     "@ruffle-rs/ruffle": "0.2.0-nightly.2026.4.21",
+    "cloudflare-error-page": "^0.1.0",
     "cuffeo": "git+https://git.lat/kibi/scuffeo.git",
     "flumm-fetch": "^1.0.1",
     "flummpress": "^2.0.5",
+    "jszip": "^3.10.1",
     "marked": "^18.0.2",
     "matrix-js-sdk": "^40.3.0-rc.0",
-    "postgres": "^3.3.4",
-    "jszip": "^3.10.1"
+    "postgres": "^3.3.4"
   }
 }

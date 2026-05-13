@@ -21,13 +21,252 @@ import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
 import security from "./inc/security.mjs";
 
-const nginx502 = `<html>
+import { createRequire } from 'module';
+const _require = createRequire(import.meta.url);
+
+// ─── Private Society Gate ────────────────────────────────────────────────────
+// Powered by the cloudflare-error-page package.
+// Each request gets a fresh page with a unique Ray ID + current UTC timestamp.
+//
+// Customise the visible text and status icons here:
+const gateOptions = {
+  title:      'Bad Gateway',
+  error_code: '502',
+  what_happened: "There is an internal server error on Cloudflare&#39;s network.",
+  // what_can_i_do is injected dynamically below (Sign in button)
+
+  error_source: 'host',
+
+  browser_status: {
+    status:      'ok',
+    location:    'You',
+    name:        'Browser',
+    status_text: 'Working',
+  },
+  cloudflare_status: {
+    status:      'ok',
+    location:    'Frankfurt',
+    name:        'Cloudflare',
+    status_text: 'Working',
+  },
+  host_status: {
+    status:      'error',
+    location:    'Website',
+    name:        'Host',
+    status_text: 'Error',
+  },
+
+  more_information: {
+    hidden: false,
+    text:   'cloudflare.com',
+    link:   '',
+    for:    'more information',
+  },
+  perf_sec_by: { text: '', link: '' },
+};
+
+// Fallback when the package isn't installed
+const nginx502Fallback = `<html>
 <head><title>502 Bad Gateway</title></head>
 <body bgcolor="white">
 <center><h1>502 Bad Gateway</h1></center>
 <hr><center>nginx</center>
 </body>
 </html>`;
+
+// Login + Register modal injected before </body>
+const gateLoginInjection = `
+<div id="hot-corner" style="position:fixed;bottom:0;left:0;width:20px;height:20px;z-index:9999;"></div>
+
+<div id="gate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#f0f0f0;border:1px solid #999;color:#404040;border-radius:0;box-shadow:4px 4px 8px rgba(0,0,0,0.25);font-family:system-ui,-apple-system,sans-serif;padding:28px 32px;min-width:340px;max-width:94vw;width:360px;position:relative;">
+    <button id="gate-modal-close" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:22px;color:#666;cursor:pointer;line-height:1;">&times;</button>
+
+    <!-- Login View -->
+    <div id="gate-login-view">
+      <form id="gate-login-form" novalidate style="display:flex;flex-direction:column;gap:10px;">
+        <h2 style="text-align:center;margin:0 0 14px;font-size:1.2em;font-weight:600;color:#222;">Sign in</h2>
+        <div id="gate-login-error" style="display:none;background:#fde8e8;border:1px solid #e0a0a0;color:#bd2426;padding:7px 10px;font-size:13px;text-align:center;"></div>
+        <input type="text" name="username" placeholder="Username or email" autocomplete="off" required
+          style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
+        <input type="password" name="password" placeholder="Password" autocomplete="off" required
+          style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
+        <label style="font-size:12px;color:#555;display:flex;align-items:center;gap:6px;"><input type="checkbox" name="kmsi" style="margin:0;"> Stay signed in</label>
+        <button type="submit" id="gate-login-btn" style="background:#0051c3;color:white;border:none;padding:9px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;"
+          onmouseover="this.style.background='#003681'" onmouseout="if(!this.disabled)this.style.background='#0051c3'">Sign in</button>
+        <p style="text-align:center;font-size:0.85em;margin:6px 0 0;color:#555;">
+          No account? <a href="#" id="gate-to-register" style="color:#0051c3;text-decoration:underline;">Register</a>
+        </p>
+      </form>
+    </div>
+
+    <!-- Register View -->
+    <div id="gate-register-view" style="display:none;">
+      <form id="gate-register-form" novalidate style="display:flex;flex-direction:column;gap:10px;">
+        <h2 style="text-align:center;margin:0 0 14px;font-size:1.2em;font-weight:600;color:#222;">Create account</h2>
+        <div id="gate-register-error" style="display:none;background:#fde8e8;border:1px solid #e0a0a0;color:#bd2426;padding:7px 10px;font-size:13px;text-align:center;"></div>
+        <div id="gate-register-ok" style="display:none;background:#e8fde8;border:1px solid #a0e0a0;color:#2a7a2a;padding:7px 10px;font-size:13px;text-align:center;"></div>
+        <input type="text" name="username" placeholder="Username" autocomplete="off" required
+          style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
+        <input type="password" name="password" placeholder="Password (min. 20 characters)" autocomplete="off" required minlength="20"
+          style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
+        <input type="password" name="password_confirm" placeholder="Confirm password" autocomplete="off" required minlength="20"
+          style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
+        <input type="text" name="token" placeholder="Invite token" autocomplete="off"
+          style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
+        <input type="text" name="email_confirm_field" style="display:none !important;" tabindex="-1" autocomplete="off" />
+        <button type="submit" id="gate-register-btn" style="background:#0051c3;color:white;border:none;padding:9px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;"
+          onmouseover="this.style.background='#003681'" onmouseout="if(!this.disabled)this.style.background='#0051c3'">Create account</button>
+        <p style="text-align:center;font-size:0.85em;margin:6px 0 0;color:#555;">
+          <a href="#" id="gate-to-login" style="color:#0051c3;text-decoration:underline;">Back to sign in</a>
+        </p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openLoginGate(view) {
+    var m = document.getElementById('gate-modal');
+    if (!m) return;
+    m.style.display = 'flex';
+    gateShowView(view || 'login');
+  }
+  function gateShowView(view) {
+    document.getElementById('gate-login-view').style.display    = view === 'login'    ? '' : 'none';
+    document.getElementById('gate-register-view').style.display = view === 'register' ? '' : 'none';
+  }
+  function gateSetError(id, msg) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = msg ? '' : 'none';
+  }
+  function gateSetBtn(id, loading) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.style.opacity = loading ? '0.65' : '1';
+    btn.style.cursor = loading ? 'default' : 'pointer';
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('gate-modal');
+    var close = document.getElementById('gate-modal-close');
+    if (close) close.onclick = function() { modal.style.display = 'none'; };
+    if (modal) modal.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+
+    document.getElementById('gate-to-register').onclick = function(e) { e.preventDefault(); gateShowView('register'); };
+    document.getElementById('gate-to-login').onclick    = function(e) { e.preventDefault(); gateShowView('login'); };
+
+    var hc = document.getElementById('hot-corner');
+    if (hc) hc.onclick = function() { openLoginGate('login'); };
+
+    // ── Login form ──────────────────────────────────────────────────────────
+    document.getElementById('gate-login-form').onsubmit = function(e) {
+      e.preventDefault();
+      gateSetError('gate-login-error', '');
+      gateSetBtn('gate-login-btn', true);
+      var fd = new FormData(this);
+      var body = new URLSearchParams(fd).toString();
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: body
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.success === false) {
+          gateSetError('gate-login-error', d.msg || 'Login failed.');
+          gateSetBtn('gate-login-btn', false);
+        } else {
+          // success — server set the cookie, reload to enter the site
+          window.location.reload();
+        }
+      })
+      .catch(function() {
+        // On redirect (301) fetch follows it — if the redirect lands on '/' we reload
+        window.location.reload();
+      });
+    };
+
+    // ── Register form ───────────────────────────────────────────────────────
+    document.getElementById('gate-register-form').onsubmit = function(e) {
+      e.preventDefault();
+      gateSetError('gate-register-error', '');
+      gateSetError('gate-register-ok', '');
+      gateSetBtn('gate-register-btn', true);
+      var fd = new FormData(this);
+      var body = new URLSearchParams(fd).toString();
+      fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: body
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        gateSetBtn('gate-register-btn', false);
+        if (d.success === false) {
+          gateSetError('gate-register-error', d.msg || 'Registration failed.');
+        } else {
+          document.getElementById('gate-register-ok').textContent = d.msg || 'Account created! You can now sign in.';
+          document.getElementById('gate-register-ok').style.display = '';
+          document.getElementById('gate-register-form').reset();
+          setTimeout(function() { gateShowView('login'); }, 2000);
+        }
+      })
+      .catch(function() {
+        gateSetBtn('gate-register-btn', false);
+        gateSetError('gate-register-error', 'An error occurred. Please try again.');
+      });
+    };
+  });
+
+  var _sb = '';
+  document.addEventListener('keydown', function(e) {
+    _sb += e.key.toLowerCase();
+    if (_sb.endsWith('premiumhumor')) { openLoginGate('login'); _sb = ''; }
+    if (_sb.length > 12) _sb = _sb.slice(-12);
+  });
+</script>
+`;
+
+
+// Text injected into the "What can I do?" section
+const gateSignInButton = `Please try again in a few minutes.`;
+
+
+
+let _cfRender = null;
+try {
+  _cfRender = _require('cloudflare-error-page').render;
+  console.log('[BOOT] cloudflare-error-page loaded — gate pages generated dynamically per request');
+} catch (e) {
+  console.warn('[BOOT] cloudflare-error-page not installed, falling back to plain nginx 502:', e.message);
+}
+
+// Called on every gated request — produces a fresh page with unique Ray ID + timestamp
+function buildGatePage() {
+  if (!_cfRender) return nginx502Fallback;
+  let html = _cfRender({ ...gateOptions, what_can_i_do: gateSignInButton });
+  // Make the second 'a' in "Bad Gateway" a secret click trigger
+  html = html.replace(
+    '<span class="inline-block">Bad Gateway</span>',
+    '<span class="inline-block">Bad Gatew<span id="secret-letter" style="cursor:text;" onclick="openLoginGate(\'login\')">a</span>y</span>'
+  );
+  html = html.replace('</body>', gateLoginInjection + '\n</body>');
+  return html;
+}
+
+// nginx502 === null signals "dynamic cloudflare mode" to the middleware below
+const nginx502 = (cfg.websrv.private_society && cfg.websrv.private_society_gate === 'cloudflare')
+  ? null
+  : nginx502Fallback;
+
+if (nginx502 === null) console.log('[BOOT] Private society gate: Cloudflare dynamic mode');
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 
 const origLog = console.log;
 
@@ -229,7 +468,7 @@ process.on('uncaughtException', err => {
       return;
     if (req.url.pathname.match(/^\/(b|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
       if (cfg.websrv.private_society && !req.cookies?.session) {
-        res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502);
+        res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
         req.url.pathname = '/private_society_media_bypass';
         return;
       }
@@ -419,7 +658,13 @@ process.on('uncaughtException', err => {
         }
         // For page requests, return 502 Bad Gateway for all paths except homepage (which shows the gate)
         if (req.url.pathname !== '/') {
-          res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502);
+          res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
+          req.url.pathname = '/private_society_bypass';
+          return;
+        }
+        // Homepage: in cloudflare dynamic mode serve gate directly; otherwise fall through to template
+        if (nginx502 === null) {
+          res.writeHead(502, { 'Content-Type': 'text/html' }).end(buildGatePage());
           req.url.pathname = '/private_society_bypass';
           return;
         }
@@ -783,6 +1028,7 @@ process.on('uncaughtException', err => {
     development: cfg.main.development || false,
     show_mime_picker: cfg.websrv.show_mime_picker !== false,
     private_society: cfg.websrv.private_society || false,
+    private_society_gate: cfg.websrv.private_society_gate || '',
     show_content_warning: cfg.websrv.show_content_warning !== false,
     web_url_upload: !!cfg.websrv.web_url_upload,
     enable_youtube_upload: cfg.websrv.enable_youtube_upload !== false,
