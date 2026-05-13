@@ -67,7 +67,8 @@
     "item_comment_placeholder": "Opmerking (optioneel)...",
     "item_tags_placeholder": "Etiketten...",
     "btn_add_urls": "URL(s) toevoegen",
-    "tags_required_shitpost": "Alle items hebben tags nodig"
+    "tags_required_shitpost": "Alle items hebben tags nodig",
+    "url_queued_background": "URL wordt op de achtergrond verwerkt."
   },
   "auth": {
     "registering": "Registreren...",

@@ -1687,9 +1687,9 @@ window.initUploadForm = (selector) => {
                         successCount++;
                         lastData = res;
                         if (res.pending) {
-                            // Background URL download — show toast using server's message
+                            // Background URL download — show i18n toast
                             if (typeof window.flashMessage === 'function') {
-                                window.flashMessage(res.msg, 4000, 'info');
+                                window.flashMessage(window.f0ckI18n?.upload_url_queued_background || res.msg, 4000, 'info');
                             }
                         }
                         if (res.itemid) {

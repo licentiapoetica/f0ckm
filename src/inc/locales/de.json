@@ -67,7 +67,8 @@
     "item_comment_placeholder": "Kommentar (optional)...",
     "item_tags_placeholder": "Tags...",
     "btn_add_urls": "URL(s) hinzufügen",
-    "tags_required_shitpost": "Alle Beiträge benötigen Tags"
+    "tags_required_shitpost": "Alle Beiträge benötigen Tags",
+    "url_queued_background": "URL Verarbeitung im Hintergrund gestartet."
   },
   "auth": {
     "registering": "Wird registriert...",

@@ -65,7 +65,10 @@
     "shitpost_success": "{n} Fetzen erfolgreich gepfeffert!",
     "shitposting_status": "Wird gepfeffert",
     "item_comment_placeholder": "Senf dazugeben (optional)...",
-    "item_tags_placeholder": "Etiketten..."
+    "item_tags_placeholder": "Etiketten...",
+    "btn_add_urls": "Elfe hinzufügen",
+    "tags_required_shitpost": "Alle Fetzen brauchen Etiketten",
+    "url_queued_background": "Elfen-Hintergrundverarbeitung gestartet."
   },
   "auth": {
     "registering": "Registrierung wird in die Wege geleitet...",
