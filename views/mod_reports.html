@@ -3,27 +3,78 @@
 <div class="pagewrapper">
 <div id="main">
     <style>
-    .mod-reports-table .btn, .mod-reports-table button {
-        border-radius: 0 !important;
-    }
-</style>
+        .mod-reports-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            color: var(--white);
+        }
+        .mod-reports-table th {
+            padding: 15px;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: #888;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .mod-reports-table tr {
+            transition: all 0.2s ease;
+        }
+        .mod-reports-table tbody tr {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .mod-reports-table tbody tr:hover:not(.expanded-report) {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .mod-reports-table td {
+            padding: 15px;
+            vertical-align: middle;
+        }
+        .mod-reports-table .btn, .mod-reports-table button, .btn-modern {
+            border-radius: 4px !important;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 16px;
+            border: 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-modern {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-modern:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .btn-success { background: #28a745 !important; color: #fff !important; }
+        .btn-danger { background: #dc3545 !important; color: #fff !important; }
+        .btn-warning { background: #ffc107 !important; color: #000 !important; }
+        .btn-secondary { background: #6c757d !important; color: #fff !important; }
+    </style>
 
     <div class="container mod-reports-page">
-        <h1>User Reports</h1>
-        <hr>
-        <div class="row" style="margin-bottom: 20px;">
-            <div class="col-md-12">
-                <select id="report-status-filter" class="form-control" style="width: 200px; display: inline-block;">
-                    <option value="pending">Pending</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-                <button class="btn btn-secondary" onclick="loadReports(1)">Refresh</button>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; gap: 20px; flex-wrap: wrap;">
+            <div>
+                <h2 style="margin: 0; font-weight: 800; letter-spacing: -0.5px;">User Reports</h2>
+                <p style="color: #888; margin: 5px 0 0 0;">Review and resolve content flags from the community.</p>
             </div>
         </div>
+        <div style="margin-bottom: 25px; display: flex; gap: 10px; align-items: center;">
+            <select id="report-status-filter" style="width: 180px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 8px 12px; outline: none; cursor: pointer;">
+                <option value="pending">Pending</option>
+                <option value="resolved">Resolved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn-modern" onclick="loadReports(1)">Refresh</button>
+        </div>
 
-        <div class="table-responsive">
-            <table class="table table-striped table-dark">
+        <div class="table-responsive" style="border: none;">
+            <table class="mod-reports-table responsive-table">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -71,9 +122,9 @@ window.loadReports = async function(page = 1) {
             data.reports.forEach(r => {
                 let targetHtml = '';
                 if (r.comment_id) {
-                    targetHtml += 'Comment: <a href="#" onclick="window.expandItem(event, ' + r.id + ')">#' + r.comment_id + '</a> (Click to expand)';
+                    targetHtml += 'Comment: <a href="#" onclick="window.expandItem(event, ' + r.id + ')">#' + r.comment_id + '</a>';
                 } else if (r.resolved_item_id) {
-                    targetHtml += 'Item: <a href="#" onclick="window.expandItem(event, ' + r.id + ')">#' + r.resolved_item_id + '</a> (Click to expand)';
+                    targetHtml += 'Item: <a href="#" onclick="window.expandItem(event, ' + r.id + ')">#' + r.resolved_item_id + '</a>';
                 } else if (r.reported_user_name) {
                     targetHtml += 'User: <a href="/user/' + r.reported_user_name + '">' + r.reported_user_name + '</a>';
                 }
@@ -87,12 +138,12 @@ window.loadReports = async function(page = 1) {
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = 
-                    '<td>' + r.id + '</td>' +
-                    '<td><a href="/user/' + r.reporter_name + '">' + r.reporter_name + '</a></td>' +
-                    '<td>' + targetHtml + '</td>' +
-                    '<td>' + r.reason + '</td>' +
-                    '<td>' + new Date(r.created_at).toLocaleString() + '</td>' +
-                    '<td>' + actionHtml + '</td>';
+                    '<td data-label="ID">' + r.id + '</td>' +
+                    '<td data-label="Reporter"><a href="/user/' + r.reporter_name + '" style="color: var(--accent); font-weight: bold;">' + r.reporter_name + '</a></td>' +
+                    '<td data-label="Target">' + targetHtml + '</td>' +
+                    '<td data-label="Reason"><span style="opacity: 0.8;">' + r.reason + '</span></td>' +
+                    '<td data-label="Date"><span style="font-size: 0.85rem; color: #888;">' + new Date(r.created_at).toLocaleString() + '</span></td>' +
+                    '<td data-label="Actions">' + actionHtml + '</td>';
                 tbody.appendChild(tr);
             });
 
@@ -100,11 +151,11 @@ window.loadReports = async function(page = 1) {
             pag.innerHTML = '';
             if (data.pages > 1) {
                 if (data.page > 1) {
-                    pag.innerHTML += '<button class="btn btn-sm btn-secondary" onclick="window.loadReports(' + (data.page - 1) + ')">Prev</button> ';
+                    pag.innerHTML += '<button class="btn-modern" style="margin-right: 5px;" onclick="window.loadReports(' + (data.page - 1) + ')">Prev</button> ';
                 }
-                pag.innerHTML += 'Page ' + data.page + ' of ' + data.pages + ' ';
+                pag.innerHTML += '<span style="font-size: 0.85rem; color: #888; margin: 0 10px;">Page ' + data.page + ' of ' + data.pages + '</span>';
                 if (data.page < data.pages) {
-                    pag.innerHTML += '<button class="btn btn-sm btn-secondary" onclick="window.loadReports(' + (data.page + 1) + ')">Next</button>';
+                    pag.innerHTML += '<button class="btn-modern" style="margin-left: 5px;" onclick="window.loadReports(' + (data.page + 1) + ')">Next</button>';
                 }
             }
         } else {
@@ -206,12 +257,12 @@ window.expandItem = function(e, id) {
     let buttonsHtml = '';
     // Delete Video button only for direct Video reports
     if (isItem && !isComment) {
-        buttonsHtml += '<button class="btn btn-sm btn-danger" style="padding: 6px 15px;" onclick="window.adminDeleteItem(' + r.resolved_item_id + ')">Delete Item</button>';
+        buttonsHtml += '<button class="btn btn-danger" onclick="window.adminDeleteItem(' + r.resolved_item_id + ')">Delete Item</button>';
     }
     if (isComment) {
-        buttonsHtml += '<button class="btn btn-sm btn-danger" style="padding: 6px 15px;" onclick="window.adminDeleteComment(' + r.comment_id + ')">Delete Comment</button>';
+        buttonsHtml += '<button class="btn btn-danger" onclick="window.adminDeleteComment(' + r.comment_id + ')">Delete Comment</button>';
         if (r.resolved_item_id) {
-            buttonsHtml += '<a href="/' + r.resolved_item_id + '" class="btn btn-sm btn-info" style="padding: 6px 15px; text-decoration: none; color: white; border: 1px solid #0dcaf0;" target="_blank">View Video</a>';
+            buttonsHtml += '<a href="/' + r.resolved_item_id + '" class="btn btn-info" style="text-decoration: none; color: white;" target="_blank">View Video</a>';
         }
     }
 
@@ -220,9 +271,9 @@ window.expandItem = function(e, id) {
         // Only show punitive actions if viewer is admin OR reported user is NOT an admin
         if (isAdmin || !r.reported_user_is_admin) {
             const warnLabel = isItem ? 'Warn Uploader' : (isComment ? 'Warn Commenter' : 'Warn User');
-            buttonsHtml += '<button class="btn btn-sm btn-warning" style="padding: 6px 15px;" onclick="window.modWarnUser(' + r.reported_user_id + ')">' + warnLabel + ' (' + r.reported_user_name + ')</button>';
+            buttonsHtml += '<button class="btn btn-warning" onclick="window.modWarnUser(' + r.reported_user_id + ')">' + warnLabel + ' (' + r.reported_user_name + ')</button>';
             const banLabel = isItem ? 'Ban Uploader' : (isComment ? 'Ban Commenter' : 'Ban User');
-            buttonsHtml += '<button class="btn btn-sm btn-danger" style="padding: 6px 15px;" onclick="window.adminBanUser(' + r.reported_user_id + ')">' + banLabel + ' (' + r.reported_user_name + ')</button>';
+            buttonsHtml += '<button class="btn btn-danger" onclick="window.adminBanUser(' + r.reported_user_id + ')">' + banLabel + ' (' + r.reported_user_name + ')</button>';
         } else {
             buttonsHtml += '<span style="color:var(--gray); font-style: italic; opacity:0.8; margin-left: 10px;">(Admin Protection Active)</span>';
         }
@@ -231,14 +282,14 @@ window.expandItem = function(e, id) {
     }
 
     expTr.innerHTML = 
-        '<td colspan="6" style="background: rgba(0,0,0,0.3); border-left: 3px solid var(--accent); padding: 20px;">' +
+        '<td colspan="6" style="background: rgba(255,255,255,0.01); border-left: 4px solid var(--accent); padding: 30px; box-shadow: inset 0 0 20px rgba(0,0,0,0.4);">' +
             '<div style="display: flex; gap: 40px; align-items: center;">' +
                 previewHtml +
                 '<div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">' +
                     '<div style="font-weight: bold; opacity: 1; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1.5px; margin-bottom: 5px;">Moderation Action:</div>' +
                     '<div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">' +
                         buttonsHtml +
-                        '<button class="btn btn-sm btn-secondary" style="border: 1px solid #555; padding: 6px 15px;" onclick="window.modWarnUser(' + r.reporter_id + ')">Warn Reporter (' + r.reporter_name + ')</button>' +
+                        '<button class="btn btn-secondary" onclick="window.modWarnUser(' + r.reporter_id + ')">Warn Reporter (' + r.reporter_name + ')</button>' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -285,7 +336,7 @@ window.adminDeleteItem = function(id) {
 };
 
 window.modWarnUser = function(userId) {
-    window.ModAction.confirm('Warn User ID ' + userId, 'A live notification will be sent to the user via SSE.', async (reason) => {
+    window.ModAction.confirm('Warn User ID ' + userId, '', async (reason) => {
         const params = new URLSearchParams();
         params.append('user_id', userId);
         params.append('reason', reason);
