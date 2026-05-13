@@ -2701,7 +2701,31 @@
       const el = document.createElement('div');
       el.className = 'scroll-tag-sugg-item'; el.dataset.idx = i;
       el.innerHTML = `<i class="fa-solid fa-tag" style="font-size:.65rem;color:rgba(255,255,255,.3)"></i>${esc(r.tag)}<span class="scroll-tag-sugg-count">${r.uses ?? ''}</span>`;
-      el.addEventListener('mousedown', e => { e.preventDefault(); addTagInput.value = r.tag; closeSugg(); });
+      
+      el.addEventListener('mouseup', (ev) => {
+        const sel = window.getSelection?.()?.toString().trim();
+        if (!sel || sel === r.tag) return;
+        el.addEventListener('click', (e) => e.stopImmediatePropagation(), { once: true, capture: true });
+        ev.stopPropagation();
+        window._showSelTagPopover?.(sel, el, (confirmed) => {
+          window.getSelection?.()?.removeAllRanges();
+          addTagInput.value = confirmed;
+          closeSugg();
+          submitTag();
+        });
+      });
+
+      el.addEventListener('click', e => { 
+        const sel = window.getSelection?.()?.toString().trim();
+        if (sel && sel !== r.tag) {
+           e.preventDefault();
+           e.stopPropagation();
+           return;
+        }
+        addTagInput.value = r.tag; 
+        closeSugg(); 
+        submitTag();
+      });
       addTagSuggBox.appendChild(el);
     });
     addTagSuggBox.classList.add('show');

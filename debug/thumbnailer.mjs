@@ -15,6 +15,10 @@ const exec = cmd => new Promise((resolve, reject) => {
 const _args = process.argv.slice(2);
 const _itemid = +_args[0] || 0;
 
+// Thumb size: 512px for high-quality dynamic thumbnails
+const THUMB_SIZE = 512;
+const THUMB_SPEC = `${THUMB_SIZE}x${THUMB_SIZE}`;
+
 // Ensure temp and output directories exist
 if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true });
 if (!fs.existsSync('./public/t')) fs.mkdirSync('./public/t', { recursive: true });
@@ -36,7 +40,7 @@ for(let item of items) {
     if(mime.startsWith('video/') || mime == 'image/gif') {
       const seeks = ['20%', '40%', '60%', '80%'];
       for (const seek of seeks) {
-        await exec(`ffmpegthumbnailer -i./public/b/${filename} -s1024 -t ${seek} -o./tmp/${itemid}.png`);
+        await exec(`ffmpegthumbnailer -i./public/b/${filename} -s${THUMB_SIZE} -t ${seek} -o./tmp/${itemid}.png`);
         try {
           const { stdout } = await exec(`magick "./tmp/${itemid}.png" -colorspace Gray -format "%[fx:mean]" info:`);
           if (parseFloat(stdout.trim()) > 0.05) break; 
@@ -72,12 +76,11 @@ for(let item of items) {
       }
     }
 
-    await exec(`magick "./tmp/${itemid}.png" -resize "128x128^" -gravity center -crop 128x128+0+0 +repage ./public/t/${itemid}.webp`);
+    await exec(`magick "./tmp/${itemid}.png" -resize "${THUMB_SPEC}^" -gravity center -crop ${THUMB_SPEC}+0+0 +repage ./public/t/${itemid}.webp`);
     await fs.promises.unlink(`./tmp/${itemid}.png`).catch(err => {});
     await fs.promises.unlink(`./tmp/${itemid}.jpg`).catch(err => {});
   } catch(err) {
     console.error(`Failed to generate thumbnail for ${itemid}:`, err.message);
-    // await exec(`magick ./mugge.png ./public/t/${itemid}.webp`);
   }
   console.log(`current: ${itemid} (${count} / ${total})`);
   count++;

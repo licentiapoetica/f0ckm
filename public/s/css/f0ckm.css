@@ -9290,6 +9290,13 @@ div.posts>a.thumb.has-notif p::after {
   overflow: hidden;
 }
 
+/* ===== Dynamic Thumbnail Sizes ===== */
+/* Size tier 2: 2×2 grid cells */
+div.posts > a.thumb[data-size="2"] {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
 .thumb>.preview-video {
   position: absolute;
   top: 0;

@@ -29,12 +29,15 @@ if (args.length === 0) {
     process.exit(0);
 }
 
+const THUMB_SIZE = 512;
+console.log(`[regen] Thumb size: ${THUMB_SIZE}px\n`);
+
 const regen = async (item) => {
     const { id, dest, mime, src } = item;
     console.log(`[${id}] Regenerating: ${dest} (${mime})`);
 
     try {
-        await queue.genThumbnail(dest, mime, id, src || '', false);
+        await queue.genThumbnail(dest, mime, id, src || '', false, THUMB_SIZE);
 
         if (mime.startsWith('audio/') && queue._lastCoverExtracted) {
             await db`UPDATE items SET has_coverart = TRUE WHERE id = ${id}`;

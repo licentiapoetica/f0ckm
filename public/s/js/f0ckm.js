@@ -6518,6 +6518,7 @@ class NotificationSystem {
     thumb.dataset.ext = data.mime.split('/')[1].replace('youtube', 'yt').toUpperCase();
     thumb.dataset.mode = mode;
     thumb.dataset.bg = `/t/${data.id}.webp`;
+    thumb.dataset.size = '1'; // New items start with no contributions → tier 1
     thumb.style.backgroundImage = `url('/t/${data.id}.webp')`;
     thumb.style.opacity = '0';
     thumb.style.transform = 'scale(0.9)';

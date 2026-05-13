@@ -224,7 +224,13 @@ export default {
         ${user_id ? db`EXISTS (SELECT 1 FROM notifications WHERE user_id = ${user_id} AND item_id = items.id AND is_read = false) as has_notification,` : db`false as has_notification,`}
         (case when min(ta.tag_id) = 1 then 'SFW' when min(ta.tag_id) = 2 then 'NSFW' else 'NSFL' end) as tag,
         min(ta.tag_id) as tag_id,
-        max(uo.display_name) as display_name
+        max(uo.display_name) as display_name,
+        ${cfg.websrv.enable_dynamic_thumbs ? db`
+        (
+          (SELECT count(*) FROM favorites WHERE item_id = items.id) +
+          (SELECT count(*) FROM comments WHERE item_id = items.id AND is_deleted = false)
+        ) as contribution
+        ` : db`0 as contribution`}
       from items
       left join "user" author_u on author_u.user = items.username
       left join user_options uo on uo.user_id = author_u.id
@@ -253,6 +259,19 @@ export default {
       offset ${newerThan ? 0 : offset}
       limit ${eps}
     `;
+
+    // Compute thumb_size tier from contribution score (only meaningful when dynamic thumbs enabled)
+    if (cfg.websrv.enable_dynamic_thumbs) {
+      for (const row of rows) {
+        const c = Number(row.contribution) || 0;
+        row.thumb_size = c >= 5 ? 2 : 1;
+      }
+    } else {
+      for (const row of rows) {
+        row.thumb_size = 1;
+      }
+    }
+
 
     const cheat = [];
     // Increase range for better context

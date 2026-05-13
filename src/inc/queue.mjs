@@ -246,12 +246,22 @@ export default new class queue {
     `)[0].id;
   };
 
-  async genThumbnail(filename, mime, itemid, link, pending = false) {
+  /**
+   * Returns the optimal thumbnail size in pixels for a given contribution score tier.
+   * Tier 1 = default 1x1 (512px), Tier 2 = 2x2 (512px — same source, larger display)
+   */
+  getThumbSize(tier) {
+    return 512; // Always generate at 512px for crisp display at any size
+  }
+
+  async genThumbnail(filename, mime, itemid, link, pending = false, size = 512) {
     const bDir = pending ? path.join(cfg.paths.pending, 'b') : cfg.paths.b;
     const tDir = pending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
     const cDir = pending ? path.join(cfg.paths.pending, 'ca') : cfg.paths.ca;
     const tmpFile = path.join(os.tmpdir(), itemid + '.png');
     const tmpJpg = path.join(os.tmpdir(), itemid + '.jpg');
+    const thumbSize = (size && size > 128) ? size : 128;
+    const thumbSpec = `${thumbSize}x${thumbSize}`;
 
     // Resolve real path if it's a symlink (important for reposts)
     let sourcePath = path.join(bDir, filename);
@@ -266,22 +276,37 @@ export default new class queue {
     if (mime === 'video/youtube') {
       const videoId = filename.startsWith('yt:') ? filename.split(':')[1] : null;
       if (videoId) {
-        const thumbUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-        try {
-          const curlArgs = ['-s', '-L', thumbUrl, '-o', tmpFile];
-          if (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '') {
-            curlArgs.push('--proxy', cfg.main.socks.includes('://') ? cfg.main.socks : `socks5h://${cfg.main.socks}`);
+        // Try quality tiers from highest to lowest. maxresdefault may not exist for all videos
+        // (YouTube returns a 120×90 placeholder), so we check file size before accepting.
+        const thumbQualities = ['maxresdefault', 'sddefault', 'hqdefault'];
+        const proxyArgs = (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '')
+          ? ['--proxy', cfg.main.socks.includes('://') ? cfg.main.socks : `socks5h://${cfg.main.socks}`]
+          : [];
+        let fetched = false;
+        for (const quality of thumbQualities) {
+          const thumbUrl = `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
+          try {
+            await this.spawn('curl', ['-s', '-L', thumbUrl, '-o', tmpFile, ...proxyArgs]);
+            const stat = await fs.promises.stat(tmpFile).catch(() => null);
+            // maxresdefault placeholder is ~1.3KB; real thumbnails are much larger
+            if (stat && stat.size > 5000) {
+              fetched = true;
+              break;
+            }
+          } catch (err) {
+            // try next quality
           }
-          await this.spawn('curl', curlArgs);
-        } catch (err) {
-          console.error(`[QUEUE] YouTube thumbnail extraction failed for ${itemid}:`, err);
+        }
+        if (!fetched) {
+          console.error(`[QUEUE] YouTube thumbnail extraction failed for ${itemid}: all quality levels failed or returned placeholder`);
         }
       }
     }
     else if (mime.startsWith('video/') || mime == 'image/gif') {
+      const ffThumbSize = Math.max(thumbSize, 512);
       const seeks = ['20%', '40%', '60%', '80%'];
       for (const seek of seeks) {
-        await this.spawn('ffmpegthumbnailer', ['-i', sourcePath, '-s', '1024', '-t', seek, '-o', tmpFile]);
+        await this.spawn('ffmpegthumbnailer', ['-i', sourcePath, '-s', String(ffThumbSize), '-t', seek, '-o', tmpFile]);
         try {
           const { stdout } = await this.spawn('magick', [tmpFile, '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:']);
           if (parseFloat(stdout.trim()) > 0.05) break; 
@@ -338,7 +363,7 @@ export default new class queue {
         const audioFallback = path.join(cfg.paths.s, 'img', 'audio.webp');
         await fs.promises.copyFile(audioFallback, tmpFile).catch(async () => {
           // If copy fails, fall back to generated placeholder
-          await this.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', '-gravity', 'center', '-fill', '#666', '-pointsize', '40', '-annotate', '0', '♪', tmpFile]).catch(() => {});
+          await this.spawn('magick', ['-size', thumbSpec, 'xc:#1a1a1a', '-gravity', 'center', '-fill', '#666', '-pointsize', '40', '-annotate', '0', '♪', tmpFile]).catch(() => {});
         });
       }
       // Store extraction result for caller
@@ -361,7 +386,7 @@ export default new class queue {
       }
       if (!usedCustom) {
         await this.spawn('magick', [
-          '-size', '256x256', 'xc:#1a1a2e',
+          '-size', thumbSpec, 'xc:#1a1a2e',
           '-gravity', 'center',
           '-fill', '#e040fb',
           '-pointsize', '48',
@@ -386,7 +411,7 @@ export default new class queue {
         await fs.promises.copyFile(pdfFallback, tmpFile).catch(async () => {
           // If the asset is missing, generate a red PDF-style placeholder matching the user's reference
           await this.spawn('magick', [
-            '-size', '256x256', 'xc:#d32f2f', // Professional PDF Red
+            '-size', thumbSpec, 'xc:#d32f2f', // Professional PDF Red
             '-gravity', 'center',
             '-fill', 'white',
             '-pointsize', '60',
@@ -397,11 +422,12 @@ export default new class queue {
       }
     }
 
-    await this.spawn('magick', [tmpFile, '-resize', '128x128^', '-gravity', 'center', '-crop', '128x128+0+0', '+repage', path.join(tDir, itemid + '.webp')]);
+    await this.spawn('magick', [tmpFile, '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', path.join(tDir, itemid + '.webp')]);
     await fs.promises.unlink(tmpFile).catch(_ => { });
     await fs.promises.unlink(tmpJpg).catch(_ => { });
     return true;
   };
+
 
   async genBlurredThumbnail(itemid, pending = false) {
     const tDir = pending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;

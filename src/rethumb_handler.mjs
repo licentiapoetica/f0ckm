@@ -125,9 +125,10 @@ export const handleRethumbUpload = async (req, res, itemId) => {
         // Generate the thumbnail
         const tDir = item.active ? cfg.paths.t : path.join(cfg.paths.pending, 't');
         const finalPath = path.join(tDir, `${item.id}.webp`);
+        const thumbSpec = '512x512';
 
         try {
-            await execFile('magick', [tmpPath, '-coalesce', '-resize', '128x128^', '-gravity', 'center', '-crop', '128x128+0+0', '+repage', finalPath]);
+            await execFile('magick', [tmpPath, '-coalesce', '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', finalPath]);
             
             // Check if item contains NSFW or NSFL tag
             const tags = await db`

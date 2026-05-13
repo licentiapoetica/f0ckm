@@ -335,6 +335,7 @@ export const handleUpload = async (req, res, self) => {
         let thumbProcessed = false;
 
         // Custom Thumbnail for Flash
+        const dynThumbSize = 512;
         if (actualMime === 'application/x-shockwave-flash' || actualMime === 'application/vnd.adobe.flash.movie') {
             if (parts.thumbnail && parts.thumbnail.data && parts.thumbnail.data.length > 0) {
                 try {
@@ -344,7 +345,7 @@ export const handleUpload = async (req, res, self) => {
                     const tDir = isPending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
                     const thumbDest = path.join(tDir, `${itemid}.webp`);
                     
-                    await queue.spawn('magick', [thumbTmp, '-resize', '128x128^', '-gravity', 'center', '-crop', '128x128+0+0', '+repage', thumbDest]);
+                    await queue.spawn('magick', [thumbTmp, '-resize', `${dynThumbSize}x${dynThumbSize}^`, '-gravity', 'center', '-crop', `${dynThumbSize}x${dynThumbSize}+0+0`, '+repage', thumbDest]);
                     await fs.unlink(thumbTmp).catch(() => {});
                     thumbProcessed = true;
                     console.log(`[UPLOAD] Custom thumbnail processed for Flash item ${itemid}`);
@@ -356,7 +357,7 @@ export const handleUpload = async (req, res, self) => {
 
         try {
             if (!thumbProcessed) {
-                await queue.genThumbnail(filename, actualMime, itemid, '', isPending);
+            await queue.genThumbnail(filename, actualMime, itemid, '', isPending, dynThumbSize);
             }
             
             if (actualMime.startsWith('audio/') && queue._lastCoverExtracted) {
@@ -369,7 +370,7 @@ export const handleUpload = async (req, res, self) => {
                 const tPath = !isPending
                     ? path.join(cfg.paths.t, itemid + '.webp')
                     : path.join(cfg.paths.pending, 't', itemid + '.webp');
-                await queue.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', tPath]).catch(() => {});
+                await queue.spawn('magick', ['-size', `${dynThumbSize}x${dynThumbSize}`, 'xc:#1a1a1a', tPath]).catch(() => {});
             }
         }
 
@@ -510,7 +511,7 @@ export const handleUpload = async (req, res, self) => {
                 const thumbExists = await fs.access(thumbPath).then(() => true).catch(() => false);
 
                 if (!thumbExists) {
-                    await queue.genThumbnail(filename, actualMime, itemid, '', isPending);
+                    await queue.genThumbnail(filename, actualMime, itemid, '', isPending, 512);
                 }
                 
                 if (actualMime.startsWith('audio/') && queue._lastCoverExtracted) {

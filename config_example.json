@@ -68,6 +68,7 @@
     "bypass_duplicate_check": true,
     "shitpost_mode": false,
     "protect_files": false,
+    "enable_dynamic_thumbs": false,
     "allowed_comment_images": [
       "i.imgur.com",
       "tenor.com",
