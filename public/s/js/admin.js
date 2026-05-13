@@ -352,7 +352,7 @@
           currentBtn.setAttribute('title', title);
           currentBtn.classList.toggle('active', newState);
         }
-        window.flashMessage(newState ? 'ITEM PINNED' : 'ITEM UNPINNED');
+        window.flashMessage(newState ? (window.f0ckI18n?.item_pinned || 'ITEM PINNED') : (window.f0ckI18n?.item_unpinned || 'ITEM UNPINNED'));
       } else {
         alert('Error: ' + res.msg);
       }
