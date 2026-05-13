@@ -31,14 +31,32 @@ export const parseMultipart = (buffer, boundary) => {
         const body = segment.slice(headerEnd + 4);
 
         const nameMatch = headers.match(/name="([^"]+)"/);
-        const filenameMatch = headers.match(/filename="([^"]+)"/);
+
+        // Robust filename extraction:
+        // 1. RFC 5987: filename*=UTF-8''encoded-name (used by modern browsers for non-ASCII)
+        // 2. Standard: filename="name" (ASCII)
+        // 3. Fallback: filename=name (unquoted)
+        let extractedFilename = null;
+        const filenameStarMatch = headers.match(/filename\*\s*=\s*[Uu][Tt][Ff]-8''([^\r\n;]+)/i);
+        if (filenameStarMatch) {
+            try { extractedFilename = decodeURIComponent(filenameStarMatch[1].trim()); } catch (e) { extractedFilename = filenameStarMatch[1].trim(); }
+        } else {
+            const filenameQuotedMatch = headers.match(/filename="((?:[^"\\]|\\.)*)"/);
+            if (filenameQuotedMatch) {
+                extractedFilename = filenameQuotedMatch[1].replace(/\\(.)/g, '$1');
+            } else {
+                const filenameUnquotedMatch = headers.match(/filename=([^\r\n;]+)/);
+                if (filenameUnquotedMatch) extractedFilename = filenameUnquotedMatch[1].trim();
+            }
+        }
+
         const contentTypeMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
 
         if (nameMatch) {
             const name = nameMatch[1];
-            if (filenameMatch) {
+            if (extractedFilename !== null) {
                 parts[name] = {
-                    filename: filenameMatch[1],
+                    filename: extractedFilename,
                     contentType: contentTypeMatch ? contentTypeMatch[1] : 'application/octet-stream',
                     data: body
                 };
