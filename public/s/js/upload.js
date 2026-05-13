@@ -831,7 +831,7 @@ window.initUploadForm = (selector) => {
                 renderTags();
 
                 const addItemTag = (val) => {
-                    val = val.trim().toLowerCase();
+                    val = val.trim();
                     if (val && !item.tags.includes(val)) {
                         item.tags.push(val);
                         renderTags();
