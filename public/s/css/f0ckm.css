@@ -6162,7 +6162,8 @@ button#togglebg {
 }
 
 .fader-in {
-  opacity: 0.4 !important;
+  /*opacity: 0.4 !important;*/ /* default */
+  opacity: 0.1 !important; /* darker */
 }
 
 .fader-out {
