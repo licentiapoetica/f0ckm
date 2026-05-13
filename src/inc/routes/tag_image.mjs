@@ -26,12 +26,17 @@ export async function regenerateTagImage(tag, mode) {
     }
 
     const items = await db`
-      SELECT i.id
-      FROM items i
-      JOIN tags_assign ta ON ta.item_id = i.id
-      JOIN tags t ON t.id = ta.tag_id
-      ${modeFilter}
-      WHERE (t.tag = ${tag} OR t.normalized = ${tag}) AND i.active = true
+      SELECT id FROM (
+        SELECT i.id
+        FROM items i
+        JOIN tags_assign ta ON ta.item_id = i.id
+        JOIN tags t ON t.id = ta.tag_id
+        ${modeFilter}
+        WHERE (t.tag = ${tag} OR t.normalized = ${tag}) 
+          AND i.active = true 
+          AND i.is_deleted = false
+        LIMIT 100
+      ) pool
       ORDER BY RANDOM()
       LIMIT 3
     `;
@@ -139,16 +144,20 @@ function generateFallbackSvg(tag) {
 }
 
 export default (router, tpl) => {
-  router.get(/^\/tag_image\/(?<tag>.+)$/, async (req, res) => {
+  router.get(/^\/tag_image\/(?<tag>[^?]+)$/, async (req, res) => {
     const tag = decodeURIComponent(req.params.tag);
 
-    // Parse query parameters
+    // Parse query parameters robustly
     let query = {};
-    if (typeof req.url === 'string') {
-      const parsedUrl = url.parse(req.url, true);
-      query = parsedUrl.query;
-    } else {
-      query = req.url.qs || {};
+    try {
+      if (typeof req.url === 'string') {
+        const parsedUrl = url.parse(req.url, true);
+        query = parsedUrl.query;
+      } else if (req.url && req.url.qs) {
+        query = req.url.qs;
+      }
+    } catch (e) {
+      console.error('[TAG_IMAGE] Query parse failed:', e);
     }
 
     const mode = query.m ? parseInt(query.m) : (req.mode ?? 0);
@@ -163,7 +172,8 @@ export default (router, tpl) => {
           'Content-Type': 'image/webp',
           'Cache-Control': `public, max-age=${CACHE_MAX_AGE}`
         });
-        return res.end(await fs.readFile(cachePath));
+        const content = await fs.readFile(cachePath);
+        return res.end(content);
       }
     } catch (e) {
       // Cache miss, proceed to generation
@@ -172,11 +182,16 @@ export default (router, tpl) => {
     // Generate on-demand
     const generated = await regenerateTagImage(tag, mode);
     if (generated) {
-      res.writeHead(200, {
-        'Content-Type': 'image/webp',
-        'Cache-Control': `public, max-age=${CACHE_MAX_AGE}`
-      });
-      return res.end(await fs.readFile(generated));
+      try {
+        const content = await fs.readFile(generated);
+        res.writeHead(200, {
+          'Content-Type': 'image/webp',
+          'Cache-Control': `public, max-age=${CACHE_MAX_AGE}`
+        });
+        return res.end(content);
+      } catch (err) {
+        console.error(`[TAG_IMAGE] Failed to read generated file ${generated}:`, err);
+      }
     }
 
     // Fallback to deterministic SVG

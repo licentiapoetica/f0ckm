@@ -227,7 +227,7 @@ process.on('uncaughtException', err => {
       return;
     if (req.url.pathname === '/manifest.json' || req.url.pathname === '/sw.js')
       return;
-    if (req.url.pathname.match(/^\/(b|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
+    if (req.url.pathname.match(/^\/(b|t|ca|a|memes|tag_image)\//) || req.url.pathname.startsWith('/s/emojis/')) {
       if (cfg.websrv.private_society && !req.cookies?.session) {
         res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502);
         req.url.pathname = '/private_society_media_bypass';
@@ -409,7 +409,7 @@ process.on('uncaughtException', err => {
 
     // Private Society gate — require login for all content when enabled
     if (cfg.websrv.private_society && !req.session) {
-      const publicPaths = /^\/(s|login|logout|register|activate|forgot-password|reset-password|banned|api\/v2\/auth|manifest\.json|sw\.js|robots\.txt|favicon\.(ico|png|gif)|s\/img\/duck-icon-(192|512)\.png)(\/.*)?$/;
+      const publicPaths = /^\/(s|tag_image|login|logout|register|activate|forgot-password|reset-password|banned|api\/v2\/auth|manifest\.json|sw\.js|robots\.txt|favicon\.(ico|png|gif)|s\/img\/duck-icon-(192|512)\.png)(\/.*)?$/;
       if (!publicPaths.test(req.url.pathname)) {
         // For AJAX requests, return 502 so it looks like the backend is down
         if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
