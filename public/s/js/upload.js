@@ -2011,10 +2011,17 @@ window.initUploadForm = (selector) => {
 document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey)) return;
 
+    // If the focused element is a textarea or input that is NOT inside an upload form,
+    // do not interfere — it belongs to comments, chat, or another feature.
+    const active = document.activeElement;
+    if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) {
+        if (!active.closest('.upload-form')) return;
+    }
+
     // 1. Try the element that currently has focus
     // 2. Fall back to the modal form if it's visible
     // 3. Fall back to any visible upload form on the page
-    let targetForm = document.activeElement?.closest('.upload-form');
+    let targetForm = active?.closest('.upload-form');
 
     if (!targetForm || !targetForm._f0ckUploader) {
         const modal = document.getElementById('upload-drag-modal');
