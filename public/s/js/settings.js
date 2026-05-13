@@ -1426,13 +1426,26 @@
                 const res = await fetch('/settings/export-data');
                 const data = await res.json();
 
-                let filesToDownload = [];
-                if (exportUploads) {
-                    filesToDownload = filesToDownload.concat(data.uploads.map(f => ({ ...f, exportType: 'uploads' })));
+                const zip = new JSZip();
+                const uploadsFolder = zip.folder("uploads");
+                const favoritesFolder = zip.folder("favorites");
+
+                // Use a Map to deduplicate downloads by ID while tracking multiple target folders
+                const fileMap = new Map();
+                if (chkExportUploads.checked) {
+                    data.uploads.forEach(u => {
+                        if (!fileMap.has(u.id)) fileMap.set(u.id, { ...u, folders: [] });
+                        fileMap.get(u.id).folders.push(uploadsFolder);
+                    });
                 }
-                if (exportFavorites) {
-                    filesToDownload = filesToDownload.concat(data.favorites.map(f => ({ ...f, exportType: 'favorites' })));
+                if (chkExportFavorites.checked) {
+                    data.favorites.forEach(f => {
+                        if (!fileMap.has(f.id)) fileMap.set(f.id, { ...f, folders: [] });
+                        fileMap.get(f.id).folders.push(favoritesFolder);
+                    });
                 }
+
+                const filesToDownload = Array.from(fileMap.values());
 
                 if (filesToDownload.length === 0) {
                     alert(exportStatusText.dataset.noData || 'No data found to export.');
@@ -1440,10 +1453,6 @@
                     exportProgressContainer.style.display = 'none';
                     return;
                 }
-
-                const zip = new JSZip();
-                const uploadsFolder = zip.folder("uploads");
-                const favoritesFolder = zip.folder("favorites");
 
                 const metadata = {
                     exported_at: new Date().toISOString(),
@@ -1457,18 +1466,14 @@
                 let completed = 0;
 
                 const downloadFile = async (fileInfo) => {
-                    const folder = fileInfo.exportType === 'uploads' ? uploadsFolder : favoritesFolder;
-
                     if (fileInfo.mime === 'video/youtube') {
                         const ytId = fileInfo.dest.replace(/^yt:/, '');
-                        folder.file(`${fileInfo.id}_youtube_${ytId}.txt`, `https://www.youtube.com/watch?v=${ytId}`);
+                        const content = `https://www.youtube.com/watch?v=${ytId}`;
+                        const fileName = `${fileInfo.id}_youtube_${ytId}.txt`;
+                        fileInfo.folders.forEach(folder => folder.file(fileName, content));
+                        
                         completed++;
-                        const percent = Math.round((completed / total) * 100);
-                        exportProgressBar.style.width = percent + '%';
-                        const msg = (exportStatusText.dataset.processing || 'Processing files: {completed} / {total}')
-                            .replace('{completed}', completed)
-                            .replace('{total}', total);
-                        exportStatusMsg.textContent = msg;
+                        updateProgress();
                         return;
                     }
 
@@ -1476,18 +1481,24 @@
                         const url = (window.f0ckMediaBase || '/b') + '/' + fileInfo.dest;
                         const response = await fetch(url);
                         const blob = await response.blob();
-                        folder.file(`${fileInfo.id}_${fileInfo.dest}`, blob);
+                        
+                        const fileName = `${fileInfo.id}_${fileInfo.dest}`;
+                        fileInfo.folders.forEach(folder => folder.file(fileName, blob));
                     } catch (err) {
                         console.error('Failed to download file:', fileInfo.id, err);
                     } finally {
                         completed++;
-                        const percent = Math.round((completed / total) * 100);
-                        exportProgressBar.style.width = percent + '%';
-                        const msg = (exportStatusText.dataset.processing || 'Processing files: {completed} / {total}')
-                            .replace('{completed}', completed)
-                            .replace('{total}', total);
-                        exportStatusMsg.textContent = msg;
+                        updateProgress();
                     }
+                };
+
+                const updateProgress = () => {
+                    const percent = Math.round((completed / total) * 100);
+                    exportProgressBar.style.width = percent + '%';
+                    const msg = (exportStatusText.dataset.processing || 'Processing files: {completed} / {total}')
+                        .replace('{completed}', completed)
+                        .replace('{total}', total);
+                    exportStatusMsg.textContent = msg;
                 };
 
                 // Download in batches to avoid overwhelming the browser/server
@@ -1502,10 +1513,12 @@
 
                 const zipOptions = { 
                     type: 'uint8array', 
-                    compression: 'STORE'
+                    compression: 'STORE',
+                    zip64: true // CRITICAL: Required for exports larger than 4GB
                 };
 
                 if ('showSaveFilePicker' in window) {
+                    let writer;
                     try {
                         const handle = await window.showSaveFilePicker({
                             suggestedName: `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`,
@@ -1516,24 +1529,27 @@
                         });
                         
                         const writable = await handle.createWritable();
+                        writer = writable.getWriter();
                         
-                        // Create a ReadableStream from JSZip's internal stream
-                        const readable = new ReadableStream({
-                            start(controller) {
-                                zip.generateInternalStream(zipOptions)
-                                    .on('data', (chunk) => controller.enqueue(chunk))
-                                    .on('error', (err) => controller.error(err))
-                                    .on('end', () => controller.close())
-                                    .resume();
-                            }
+                        const internalStream = zip.generateInternalStream(zipOptions);
+                        
+                        await new Promise((resolve, reject) => {
+                            internalStream.on('data', (chunk) => {
+                                // Use pause/resume to handle backpressure and ensure sequential writes
+                                internalStream.pause();
+                                writer.write(chunk).then(() => {
+                                    internalStream.resume();
+                                }).catch(reject);
+                            })
+                            .on('error', reject)
+                            .on('end', resolve)
+                            .resume();
                         });
-
-                        await readable.pipeTo(writable);
-                        // No need for writable.close() after pipeTo if it's handled, but createWritable's stream usually needs it.
-                        // Actually pipeTo(writable) closes the destination by default.
                         
+                        await writer.close();
                         exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
                     } catch (e) {
+                        if (writer) await writer.abort().catch(() => {});
                         if (e.name === 'AbortError') {
                             exportStatusMsg.textContent = 'Export cancelled.';
                         } else {
