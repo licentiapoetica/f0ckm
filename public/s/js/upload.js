@@ -325,6 +325,20 @@ window.initUploadForm = (selector) => {
 
             lastFetchedUrl = currentVal;
 
+            // In shitpost mode: fetch silently (cache only, badge stays hidden)
+            if (isShitpost) {
+                try {
+                    const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(currentVal)}`);
+                    const data = await resp.json();
+                    if (data.success && data.meta) {
+                        const fields = extractFieldsFromMeta(data.meta);
+                        metaCache.set(currentVal, fields);
+                        fields.forEach(v => addMetaSuggestion(v));
+                    }
+                } catch (e) { console.error('[META FETCH ERROR]', e); }
+                return;
+            }
+
             if (urlBadge) {
                 const originalText = urlBadge.textContent;
                 const originalClass = urlBadge.className;
@@ -376,8 +390,8 @@ window.initUploadForm = (selector) => {
                 return;
             }
 
-            // Update badge for URL type
-            if (urlBadge) {
+            // Update badge for URL type (non-shitpost only)
+            if (urlBadge && !isShitpost) {
                 if (ytRegex.test(val) && window.f0ckEnableYoutubeUpload !== false) {
                     urlBadge.textContent = '▶ YouTube';
                     urlBadge.className = 'url-type-badge youtube';
@@ -425,7 +439,7 @@ window.initUploadForm = (selector) => {
             handleFile();
         });
 
-        if (urlBadge) {
+        if (urlBadge && !isShitpost) {
             urlBadge.addEventListener('click', () => {
                 const val = urlInput.value.trim();
                 if (val && /^https?:\/\//i.test(val)) {
@@ -643,7 +657,8 @@ window.initUploadForm = (selector) => {
         if (fileInput) fileInput.style.display = 'none';
         if (filePreview) {
             filePreview.style.display = 'flex';
-            filePreview.innerHTML = '';
+            // Do NOT clear innerHTML here — existing rendered items stay in place.
+            // Only new (un-rendered) items will be appended below.
         }
 
         if (statusDiv) {
@@ -661,8 +676,9 @@ window.initUploadForm = (selector) => {
             activeMode = 'file';
         }
 
-        // Build preview items
+        // Build preview items — skip items already rendered (append-only)
         selectedFiles.forEach((item, index) => {
+            if (item._rendered) return; // already in DOM, don't touch it
             const isUrl = isShitpost && item.type === 'url';
             const file = isUrl ? null : (isShitpost ? item.file : item);
             const previewItem = document.createElement('div');
@@ -1028,9 +1044,26 @@ window.initUploadForm = (selector) => {
             removeBtn.innerHTML = '✕';
             removeBtn.onclick = (e) => {
                 e.stopPropagation();
-                selectedFiles.splice(index, 1);
-                handleFile(); // Rebuild UI
+                // Remove by reference (index may have shifted after prior removals)
+                const idx = selectedFiles.indexOf(item);
+                if (idx !== -1) selectedFiles.splice(idx, 1);
+                item._rendered = false;
+                previewItem.remove();
+
+                if (selectedFiles.length === 0) {
+                    // Reset to empty state
+                    if (filePreview) { filePreview.style.display = 'none'; filePreview.innerHTML = ''; }
+                    if (dropZonePrompt) dropZonePrompt.style.display = 'block';
+                    if (fileInput) { fileInput.value = ''; fileInput.style.display = 'inline-block'; }
+                } else {
+                    // Ensure the "Add more" button is still last
+                    const addMoreEl = filePreview?.querySelector('.add-more-item');
+                    if (addMoreEl) filePreview.appendChild(addMoreEl);
+                }
+                updateSubmitButton();
             };
+
+            item._rendered = true;
 
             // Append media column (URL items) or raw media element (file items)
             if (mediaCol) {
@@ -1043,13 +1076,16 @@ window.initUploadForm = (selector) => {
             if (filePreview) filePreview.appendChild(previewItem);
         });
 
-        // "Add more" button for Shitpost Mode
-        if (isShitpost) {
-            const addMoreItem = document.createElement('div');
-            addMoreItem.className = 'file-preview-item add-more-item';
-            addMoreItem.innerHTML = `<span>${window.f0ckI18n?.upload_add_more || 'Add more'}</span>`;
-            addMoreItem.onclick = () => fileInput && fileInput.click();
-            if (filePreview) filePreview.appendChild(addMoreItem);
+        // "Add more" button for Shitpost Mode — reuse existing or create once, always move to end
+        if (isShitpost && filePreview) {
+            let addMoreItem = filePreview.querySelector('.add-more-item');
+            if (!addMoreItem) {
+                addMoreItem = document.createElement('div');
+                addMoreItem.className = 'file-preview-item add-more-item';
+                addMoreItem.innerHTML = `<span>${window.f0ckI18n?.upload_add_more || 'Add more'}</span>`;
+                addMoreItem.onclick = () => fileInput && fileInput.click();
+            }
+            filePreview.appendChild(addMoreItem); // moves it to end if already present
         }
 
         // Legacy Global Meta Sync (Non-Shitpost Mode)

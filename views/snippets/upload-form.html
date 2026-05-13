@@ -24,6 +24,7 @@
                 <!-- Preview Container -->
                 <div class="file-preview" style="display: none;">
                     <!-- Video will be injected here via JS -->
+                    @if(!shitpost_mode)
                     <div class="file-meta-row">
                         <div class="file-info">
                             <span class="file-name"></span>
@@ -31,6 +32,7 @@
                         </div>
                         <button type="button" class="btn-remove" title="{{ t('upload.remove_file') }}">✕</button>
                     </div>
+                    @endif
                 </div>
             </div>
         </div>
