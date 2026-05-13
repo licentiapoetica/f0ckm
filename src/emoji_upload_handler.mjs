@@ -4,6 +4,16 @@ import lib from "./inc/lib.mjs";
 import cfg from "./inc/config.mjs";
 import { parseMultipart, collectBody } from "./inc/multipart.mjs";
 import path from "path";
+import { fileURLToPath } from "url";
+import { execFile as _execFile } from "child_process";
+import { promisify } from "util";
+
+const execFile = promisify(_execFile);
+
+// Custom IM policy that raises list-length from 128 → 65536 to handle large animated GIFs.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MAGICK_POLICY_PATH = path.resolve(__dirname, '../config/magick-policy');
+const magickEnv = { ...process.env, MAGICK_CONFIGURE_PATH: MAGICK_POLICY_PATH };
 
 const sendJson = (res, data, code = 200) => {
     res.writeHead(code, { 'Content-Type': 'application/json' });
@@ -70,20 +80,37 @@ export const handleEmojiUpload = async (req, res) => {
 
         const file = parts.file;
         if (file && file.data && file.data.length > 0) {
+            const randSuffix = Math.random().toString(36).substring(7);
             const extMatch = file.filename.match(/\.([a-z0-9]+)$/i);
-            const ext = extMatch ? extMatch[1].toLowerCase() : 'png';
-            const filename = `${name}_${Math.random().toString(36).substring(7)}.${ext}`;
+            const originalExt = extMatch ? extMatch[1].toLowerCase() : 'png';
 
-            // Emojis go to public/s/emojis
-            const filePath = path.join(cfg.paths.emojis, filename);
-            console.error(`[BOOT] [EMOJI HANDLER] Writing file to: ${filePath} (Size: ${file.data.length})`);
-            await fs.writeFile(filePath, file.data);
-            
+            const webpFilename = `${name}_${randSuffix}.webp`;
+            const webpPath = path.join(cfg.paths.emojis, webpFilename);
+
+            if (originalExt === 'webp') {
+                // Already WebP — write directly
+                console.error(`[BOOT] [EMOJI HANDLER] Writing WebP directly to: ${webpPath} (Size: ${file.data.length})`);
+                await fs.writeFile(webpPath, file.data);
+            } else {
+                // Write original to a temp file, then convert to WebP via magick
+                const tmpFilename = `${name}_${randSuffix}_tmp.${originalExt}`;
+                const tmpPath = path.join(cfg.paths.emojis, tmpFilename);
+                console.error(`[BOOT] [EMOJI HANDLER] Writing temp file: ${tmpPath} (Size: ${file.data.length})`);
+                await fs.writeFile(tmpPath, file.data);
+                try {
+                    // -coalesce handles animated GIFs; quality 80 = lossy WebP (good visual quality, ~50-70% smaller than GIF)
+                    await execFile('magick', [tmpPath, '-coalesce', '-quality', '80', webpPath], { env: magickEnv });
+                    console.error(`[BOOT] [EMOJI HANDLER] Converted to WebP: ${webpPath}`);
+                } finally {
+                    await fs.unlink(tmpPath).catch(() => {});
+                }
+            }
+
             // Verify write
-            const exists = (await fs.stat(filePath)).size > 0;
-            if (!exists) throw new Error("File write verification failed");
-            
-            url = `/s/emojis/${filename}`;
+            const stat = await fs.stat(webpPath);
+            if (!stat || stat.size === 0) throw new Error("File write/conversion verification failed");
+
+            url = `/s/emojis/${webpFilename}`;
         }
 
         if (!url) {

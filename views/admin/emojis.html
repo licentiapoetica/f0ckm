@@ -24,6 +24,12 @@
             </div>
         </div>
 
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button id="reconvert-webp" class="btn-upload" style="width: auto; padding: 7px 18px; border: 1px solid var(--nav-border-color); background: var(--bg); color: var(--white); cursor: pointer;">
+                Reconvert All to WebP
+            </button>
+            <span id="reconvert-status" style="font-size: 0.85em; opacity: 0.8;"></span>
+        </div>
 
         <div id="emoji-list" class="emoji-grid">
             <!-- Populated by JS -->
@@ -123,6 +129,39 @@
 
             const btnAddEmoji = document.getElementById('add-emoji');
             if (btnAddEmoji) btnAddEmoji.addEventListener('click', addEmoji);
+
+            // Reconvert all emojis to WebP
+            const reconvertEmojis = async () => {
+                const btn = document.getElementById('reconvert-webp');
+                const status = document.getElementById('reconvert-status');
+                if (!btn || !status) return;
+                if (!confirm('Reconvert all non-WebP emojis to WebP? This will delete the originals.')) return;
+
+                btn.disabled = true;
+                status.textContent = '\u23F3 Converting\u2026';
+
+                try {
+                    const csrf = '{{ csrf_token }}';
+                    const res = await fetch('/api/v2/admin/emojis/reconvert', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf, 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        status.textContent = '\u2705 Done \u2014 converted: ' + result.converted + ', skipped: ' + result.skipped + ', errors: ' + result.errors;
+                        if (result.converted > 0) loadEmojis();
+                    } else {
+                        status.textContent = '\u274C Failed: ' + (result.message || 'Unknown error');
+                    }
+                } catch (err) {
+                    status.textContent = '\u274C Error: ' + err.message;
+                } finally {
+                    btn.disabled = false;
+                }
+            };
+
+            const btnReconvert = document.getElementById('reconvert-webp');
+            if (btnReconvert) btnReconvert.addEventListener('click', reconvertEmojis);
             
             // Live Update Listener (SSE dispatched via f0ckm.js)
             document.addEventListener('f0ck:emojis_updated', loadEmojis);
