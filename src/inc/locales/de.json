@@ -43,6 +43,7 @@
     "url_tab_yt": "URL / YouTube",
     "url_placeholder": "URL zum Herunterladen einfügen...",
     "url_placeholder_yt": "URL oder YouTube-Link einfügen...",
+    "url_placeholder_shitpost": "URL einfügen",
     "drop_here": "Datei hier fallen lassen oder auswählen",
     "admin_boost": "Admin-Boost",
     "custom_thumbnail": "Eigenes Vorschaubild",
@@ -68,7 +69,8 @@
     "item_tags_placeholder": "Tags...",
     "btn_add_urls": "URL(s) hinzufügen",
     "tags_required_shitpost": "Alle Beiträge benötigen Tags",
-    "url_queued_background": "URL Verarbeitung im Hintergrund gestartet."
+    "url_queued_background": "URL Verarbeitung im Hintergrund gestartet.",
+    "add_more": "Mehr hinzufügen"
   },
   "auth": {
     "registering": "Wird registriert...",

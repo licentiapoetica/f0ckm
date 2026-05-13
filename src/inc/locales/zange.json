@@ -43,6 +43,7 @@
     "url_tab_yt": "Elfen / DuRöhre",
     "url_placeholder": "Fügen Sie eine Elfe zum Hinunterladieren ein...",
     "url_placeholder_yt": "Fügen Sie eine Netz-Elfe oder eine DuRöhrenelfe ein",
+    "url_placeholder_shitpost": "Hier Elfe pastieren",
     "drop_here": "Legen Sie Ihre Datei hier ab",
     "admin_boost": "Administrator-Verstärkung",
     "custom_thumbnail": "Benutzerdefiniertes Vorschaubild",
@@ -62,13 +63,14 @@
     "pending_approval_patient": "Die Ladung harrt der Absegnung, bitte haben Sie Geduld",
     "remove_file": "Datei entfernen",
     "cancel_upload": "Aufladierung abbrechen",
-    "shitpost_success": "{n} Fetzen erfolgreich gepfeffert!",
-    "shitposting_status": "Wird gepfeffert",
-    "item_comment_placeholder": "Senf dazugeben (optional)...",
+    "shitpost_success": "{n} erfolgreich pfostiert!",
+    "shitposting_status": "Wird pfostiert",
+    "item_comment_placeholder": "Fügen Sie Ihrer Aufladierung doch einen Kommentar hinzu...",
     "item_tags_placeholder": "Etiketten...",
     "btn_add_urls": "Elfe hinzufügen",
     "tags_required_shitpost": "Alle Fetzen brauchen Etiketten",
-    "url_queued_background": "Elfen-Hintergrundverarbeitung gestartet."
+    "url_queued_background": "Elfen-Hintergrundverarbeitung gestartet.",
+    "add_more": "Meer hinzufügen"
   },
   "auth": {
     "registering": "Registrierung wird in die Wege geleitet...",

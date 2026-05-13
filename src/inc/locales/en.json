@@ -69,7 +69,8 @@
     "item_tags_placeholder": "Tags...",
     "btn_add_urls": "Add URL(s)",
     "tags_required_shitpost": "All items need tags",
-    "url_queued_background": "URL processing started in background."
+    "url_queued_background": "URL processing started in background.",
+    "add_more": "Add more"
   },
   "auth": {
     "registering": "Registering...",

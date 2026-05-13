@@ -43,6 +43,7 @@
     "url_tab_yt": "URL / YouTube",
     "url_placeholder": "Plak een URL om te downloaden...",
     "url_placeholder_yt": "Plak een URL of YouTube-link...",
+    "url_placeholder_shitpost": "Plak hier een URL",
     "drop_here": "Sleep je bestand hierheen",
     "admin_boost": "Admin Boost",
     "custom_thumbnail": "Aangepaste Thumbnail",
@@ -68,7 +69,8 @@
     "item_tags_placeholder": "Etiketten...",
     "btn_add_urls": "URL(s) toevoegen",
     "tags_required_shitpost": "Alle items hebben tags nodig",
-    "url_queued_background": "URL wordt op de achtergrond verwerkt."
+    "url_queued_background": "URL wordt op de achtergrond verwerkt.",
+    "add_more": "Meer toevoegen"
   },
   "auth": {
     "registering": "Registreren...",

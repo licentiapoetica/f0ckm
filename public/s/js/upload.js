@@ -941,7 +941,7 @@ window.initUploadForm = (selector) => {
         if (isShitpost) {
             const addMoreItem = document.createElement('div');
             addMoreItem.className = 'file-preview-item add-more-item';
-            addMoreItem.innerHTML = '<span>Add more</span>';
+            addMoreItem.innerHTML = `<span>${window.f0ckI18n?.upload_add_more || 'Add more'}</span>`;
             addMoreItem.onclick = () => fileInput && fileInput.click();
             if (filePreview) filePreview.appendChild(addMoreItem);
         }

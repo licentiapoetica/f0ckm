@@ -41,9 +41,9 @@
             <div class="url-input-container">
                 @if(shitpost_mode)
                 <div class="url-shitpost-container" style="display: flex; flex-direction: column; gap: 6px;">
-                    <input type="url" id="url-upload-input" name="url" placeholder="Paste or type a URL..." autocomplete="off" style="width: 100%;">
+                    <input type="url" id="url-upload-input" name="url" placeholder="{{ t('upload.url_placeholder_shitpost') }}" autocomplete="off" style="width: 100%;">
                     <button type="button" class="btn-add-urls">
-                        <i class="fa-solid fa-plus-circle"></i> Add
+                        <i class="fa-solid fa-plus-circle"></i> {{ t('common.add') }}
                     </button>
                 </div>
                 @else
