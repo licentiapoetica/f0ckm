@@ -1166,8 +1166,53 @@
     user-select: text !important;
 }
 
+.item-comment-container {
+    position: relative;
+    width: 100%;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
 .item-comment-input {
     min-height: 60px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Actions bar sits below the textarea, left-aligned */
+.item-comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.item-emoji-trigger {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 2px 7px;
+    line-height: 1.4;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.item-emoji-trigger:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Picker pops up above the actions row */
+.item-comment-container .item-emoji-picker,
+.item-comment-container .emoji-picker {
+    position: relative;
+    bottom: calc(100% + 4px);
+    left: 0;
+    z-index: 10000;
 }
 
 /* Media column wrapper for URL items in shitpost mode:

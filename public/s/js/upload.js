@@ -76,6 +76,63 @@ window.initUploadForm = (selector) => {
     let autoTags = []; // Track tags suggested from metadata
     let selectedFiles = []; // Array of files for shitpost_mode
     let activeMode = 'file'; // 'file' or 'url'
+    // Shared emoji cache for per-item pickers (fetched once, reused by all items)
+    let _emojiCache = null;
+    let _emojiCachePromise = null;
+    const getEmojis = () => {
+        if (_emojiCache) return Promise.resolve(_emojiCache);
+        if (_emojiCachePromise) return _emojiCachePromise;
+        _emojiCachePromise = fetch('/api/v2/emojis')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.emojis) {
+                    _emojiCache = {};
+                    data.emojis.forEach(e => { _emojiCache[e.name] = e.url; });
+                }
+                return _emojiCache || {};
+            })
+            .catch(() => ({}));
+        return _emojiCachePromise;
+    };
+    const setupItemEmojiPicker = (textarea, triggerBtn) => {
+        // Always use standalone picker for per-item comments
+        let picker = null;
+        triggerBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (picker) {
+                picker.style.display = picker.style.display === 'none' ? '' : 'none';
+                return;
+            }
+            const emojis = await getEmojis();
+            if (!emojis || !Object.keys(emojis).length) return;
+            picker = document.createElement('div');
+            picker.className = 'emoji-picker item-emoji-picker';
+            Object.keys(emojis).forEach(name => {
+                const img = document.createElement('img');
+                img.src = emojis[name];
+                img.title = `:${name}:`;
+                img.loading = 'lazy';
+                img.onerror = () => { img.style.display = 'none'; };
+                img.onclick = (ev) => {
+                    ev.stopPropagation();
+                    textarea.value += ` :${name}: `;
+                    textarea.dispatchEvent(new Event('input'));
+                    textarea.focus();
+                };
+                picker.appendChild(img);
+            });
+            const container = triggerBtn.closest('.item-comment-container');
+            container.appendChild(picker);
+            const closeHandler = (ev) => {
+                if (!picker.contains(ev.target) && ev.target !== triggerBtn) {
+                    picker.style.display = 'none';
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeHandler), 0);
+        });
+    };
 
     // If shitpost mode is active, the global rating is hidden and per-item ratings are used.
     // We must remove the 'required' attribute from global radios to prevent browser from blocking submission.
@@ -812,7 +869,12 @@ window.initUploadForm = (selector) => {
 
                 const commentPlaceholder = window.f0ckI18n?.upload_comment_placeholder || 'Comment (optional)...';
                 commentUI = `
-                    <textarea class="item-comment-input" placeholder="${window.escapeHtmlUpload(commentPlaceholder)}">${window.escapeHtmlUpload(item.comment || '')}</textarea>
+                    <div class="item-comment-container">
+                        <textarea class="item-comment-input" placeholder="${window.escapeHtmlUpload(commentPlaceholder)}">${window.escapeHtmlUpload(item.comment || '')}</textarea>
+                        <div class="item-comment-actions">
+                            <button type="button" class="item-emoji-trigger" title="Emoji">&#x263A;</button>
+                        </div>
+                    </div>
                 `;
             }
 
@@ -839,8 +901,10 @@ window.initUploadForm = (selector) => {
 
                 // Handle Comment
                 const commentInput = infoRow.querySelector('.item-comment-input');
+                const emojiTrigger = infoRow.querySelector('.item-emoji-trigger');
                 if (commentInput) {
                     commentInput.oninput = () => { item.comment = commentInput.value; };
+                    if (emojiTrigger) setupItemEmojiPicker(commentInput, emojiTrigger);
                 }
 
                 // Handle Tags
