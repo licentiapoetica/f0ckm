@@ -125,7 +125,6 @@ export default {
     
     // Support multiple MIME types (comma separated)
     const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash', 'pdf'].includes(m));
-    const excludePdfSQL = !mimeParts.includes('pdf') ? db`and items.mime != 'application/pdf'` : db``;
     const mimeSQL = mimeParts.length > 0
       ? db`and (${mimeParts.map(m => m === 'flash'
           ? (flashMimes.length > 0
@@ -198,7 +197,6 @@ export default {
         ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         ${newerThan ? db`and items.id > ${newerThan}` : db``}
         ${xdFilter}
-        ${excludePdfSQL}
     `;
     const total = Number(totalRows[0].total);
 
@@ -250,7 +248,6 @@ export default {
         ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         ${newerThan ? db`and items.id > ${newerThan}` : db``}
         ${xdFilter}
-        ${excludePdfSQL}
       group by items.id
       order by ${random ? db`random()` : db`items.is_pinned desc, items.id desc`}
       offset ${newerThan ? 0 : offset}
@@ -320,7 +317,6 @@ export default {
     const mime = (rawMime ?? "");
     const itemid = rawItemid ? +rawItemid : null;
     const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash', 'pdf'].includes(m));
-    const excludePdfSQL = !mimeParts.includes('pdf') ? db`and items.mime != 'application/pdf'` : db``;
     const mimeSQL = mimeParts.length > 0
       ? db`and (${mimeParts.map(m => m === 'flash'
           ? (flashMimes.length > 0
@@ -390,7 +386,6 @@ export default {
             ${mimeSQL}
             ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
             ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
-            ${excludePdfSQL}
         `;
     };
 
@@ -669,7 +664,6 @@ export default {
 
     // Support multiple MIME types (comma separated)
     const mimeParts = (mime || "").split(',').filter(m => ['video', 'audio', 'image', 'flash', 'pdf'].includes(m));
-    const excludePdfSQL = !mimeParts.includes('pdf') ? db`and items.mime != 'application/pdf'` : db``;
     const mimeSQL = mimeParts.length > 0
       ? db`and (${mimeParts.map(m => m === 'flash'
           ? (flashMimes.length > 0
@@ -704,7 +698,6 @@ export default {
           ${mimeSQL}
           ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
         group by items.id
-        ${excludePdfSQL}
         order by random()
         limit 1
       `;
@@ -748,7 +741,6 @@ export default {
           ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         group by items.id, tags.tag
-        ${excludePdfSQL}
         order by random()
         limit 1
       `;
@@ -767,7 +759,6 @@ export default {
           ${mimeSQL}
           ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
-          ${excludePdfSQL}
         order by random()
         limit 1
       `;
@@ -783,7 +774,6 @@ export default {
           and items.active = true
           ${mimeSQL}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
-          ${excludePdfSQL}
         order by random()
         limit 1
       `;
@@ -809,7 +799,6 @@ export default {
           ${checkFilter ? db`AND filter_ta.tag_id IS NULL` : db``}
           ${excludedTags.length > 0 ? db`AND NOT EXISTS (SELECT 1 FROM tags_assign WHERE item_id = items.id AND tag_id = ANY(${excludedTags}::int[]))` : db``}
           ${!useTagIdOpt ? db`AND ${db.unsafe(modequery)}` : db``}
-          ${excludePdfSQL}
         ORDER BY random()
         LIMIT 1
       `;
