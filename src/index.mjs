@@ -246,9 +246,21 @@ try {
 }
 
 // Called on every gated request — produces a fresh page with unique Ray ID + timestamp
-function buildGatePage() {
+// Accepts an optional request object to inject the visitor's real IP into the footer reveal.
+function buildGatePage(req) {
   if (!_cfRender) return nginx502Fallback;
+
   let html = _cfRender({ ...gateOptions, what_can_i_do: gateSignInButton });
+
+  // Inject real visitor IP into the footer "Your IP: [Click to reveal]" span
+  if (req) {
+    const visitorIp = security.getRealIP(req);
+    html = html.replace(
+      '<span class="hidden" id="cf-footer-ip">1.1.1.1</span>',
+      `<span class="hidden" id="cf-footer-ip">${visitorIp}</span>`
+    );
+  }
+
   // Make the second 'a' in "Bad Gateway" a secret click trigger
   html = html.replace(
     '<span class="inline-block">Bad Gateway</span>',
@@ -468,7 +480,7 @@ process.on('uncaughtException', err => {
       return;
     if (req.url.pathname.match(/^\/(b|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
       if (cfg.websrv.private_society && !req.cookies?.session) {
-        res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
+        res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage(req));
         req.url.pathname = '/private_society_media_bypass';
         return;
       }
@@ -658,13 +670,13 @@ process.on('uncaughtException', err => {
         }
         // For page requests, return 502 Bad Gateway for all paths except homepage (which shows the gate)
         if (req.url.pathname !== '/') {
-          res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
+          res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage(req));
           req.url.pathname = '/private_society_bypass';
           return;
         }
         // Homepage: in cloudflare dynamic mode serve gate directly; otherwise fall through to template
         if (nginx502 === null) {
-          res.writeHead(200, { 'Content-Type': 'text/html' }).end(buildGatePage());
+          res.writeHead(200, { 'Content-Type': 'text/html' }).end(buildGatePage(req));
           req.url.pathname = '/private_society_bypass';
           return;
         }
