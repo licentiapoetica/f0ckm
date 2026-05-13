@@ -9271,14 +9271,20 @@ div.posts>a.thumb.has-notif:hover::after {
   visibility: visible !important;
 }
 
+/* Stretch the <p> to fill the entire thumb so p::after is always centered */
+div.posts>a.thumb.has-notif p {
+  position: absolute !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 div.posts>a.thumb.has-notif p::after {
   content: "!" !important;
-  position: absolute !important;
-  bottom: 10px !important;
-  left: 0 !important;
-  width: 100% !important;
-  text-align: center !important;
-  transform: none !important;
+  position: static !important;
   color: var(--accent) !important;
   font-size: 40px !important;
   font-weight: 900 !important;
