@@ -11353,7 +11353,7 @@ span.gchat-post-card--loading {
   justify-content: center;
   margin: 20px;
   grid-template-rows: 1fr;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto;
   gap: 5px;
 }
 
