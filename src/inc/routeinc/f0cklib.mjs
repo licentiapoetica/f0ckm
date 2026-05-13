@@ -260,8 +260,12 @@ export default {
       limit ${eps}
     `;
 
-    // Compute thumb_size tier from contribution score (only meaningful when dynamic thumbs enabled)
-    if (cfg.websrv.enable_dynamic_thumbs) {
+    // Dynamic thumb sizing: only on the unfiltered main feed.
+    // Profile pages, tag searches, halls, favorites, mime filters all use tier 1 (1×1).
+    const isMainFeed = cfg.websrv.enable_dynamic_thumbs
+      && !rawUser && !rawTag && !rawHall && !rawUserHall && !rawMime && !fav;
+
+    if (isMainFeed) {
       for (const row of rows) {
         const c = Number(row.contribution) || 0;
         row.thumb_size = c >= 5 ? 2 : 1;

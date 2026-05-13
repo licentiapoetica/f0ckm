@@ -9275,8 +9275,10 @@ div.posts>a.thumb.has-notif p::after {
   content: "!" !important;
   position: absolute !important;
   bottom: 10px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  left: 0 !important;
+  width: 100% !important;
+  text-align: center !important;
+  transform: none !important;
   color: var(--accent) !important;
   font-size: 40px !important;
   font-weight: 900 !important;
