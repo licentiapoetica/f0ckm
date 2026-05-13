@@ -1502,11 +1502,9 @@
 
                 const zipOptions = { 
                     type: 'uint8array', 
-                    compression: 'STORE' // Media is already compressed, STORE saves massive CPU/RAM
+                    compression: 'STORE'
                 };
 
-                // Try Direct-to-Disk saving if supported (Chrome/Edge/Opera)
-                // This bypasses RAM entirely for the final file construction.
                 if ('showSaveFilePicker' in window) {
                     try {
                         const handle = await window.showSaveFilePicker({
@@ -1518,26 +1516,28 @@
                         });
                         
                         const writable = await handle.createWritable();
-                        await new Promise((resolve, reject) => {
-                            zip.generateInternalStream(zipOptions)
-                                .on('data', async (chunk) => {
-                                    try {
-                                        await writable.write(chunk);
-                                    } catch (e) {
-                                        reject(e);
-                                    }
-                                })
-                                .on('error', reject)
-                                .on('end', resolve)
-                                .resume();
+                        
+                        // Create a ReadableStream from JSZip's internal stream
+                        const readable = new ReadableStream({
+                            start(controller) {
+                                zip.generateInternalStream(zipOptions)
+                                    .on('data', (chunk) => controller.enqueue(chunk))
+                                    .on('error', (err) => controller.error(err))
+                                    .on('end', () => controller.close())
+                                    .resume();
+                            }
                         });
-                        await writable.close();
+
+                        await readable.pipeTo(writable);
+                        // No need for writable.close() after pipeTo if it's handled, but createWritable's stream usually needs it.
+                        // Actually pipeTo(writable) closes the destination by default.
                         
                         exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
                     } catch (e) {
                         if (e.name === 'AbortError') {
                             exportStatusMsg.textContent = 'Export cancelled.';
                         } else {
+                            console.error('Streaming export failed:', e);
                             throw e;
                         }
                     }
