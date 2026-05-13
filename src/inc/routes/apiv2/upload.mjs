@@ -202,20 +202,25 @@ export default router => {
                     return res.json({ success: false, msg: 'URL uploads are disabled' }, 403);
                 }
 
-                const { url: inputUrl, rating, tags: tagsRaw, comment, is_oc } = req.post || {};
+                const { url: inputUrl, rating, tags: tagsRaw, comment, is_oc, is_shitpost } = req.post || {};
 
                 if (!inputUrl || !inputUrl.trim()) {
                     return res.json({ success: false, msg: 'URL is required' }, 400);
                 }
-                if (!rating || !['sfw', 'nsfw', 'nsfl'].includes(rating)) {
+
+                // In shitpost mode rating is optional; null = no rating tag assigned
+                const effectiveRating = (rating && ['sfw', 'nsfw', 'nsfl'].includes(rating)) ? rating : (is_shitpost ? null : null);
+
+                if (!is_shitpost && !effectiveRating) {
                     return res.json({ success: false, msg: 'Rating (sfw/nsfw/nsfl) is required' }, 400);
                 }
-                if (rating === 'nsfl' && !cfg.enable_nsfl) {
+                if (effectiveRating === 'nsfl' && !cfg.enable_nsfl) {
                     return res.json({ success: false, msg: 'NSFL mode is currently disabled' }, 400);
                 }
                 const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0 && !['sfw', 'nsfw', 'nsfl'].includes(t.toLowerCase())) : [];
                 const minTags = getMinTags();
-                if (tags.length < minTags) {
+                // In shitpost mode tags are optional
+                if (!is_shitpost && tags.length < minTags) {
                     return res.json({ success: false, msg: `At least ${minTags} tag${minTags !== 1 ? 's' : ''} required` }, 400);
                 }
 
@@ -287,11 +292,13 @@ export default router => {
                         await queue.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', '-gravity', 'center', '-fill', '#666', '-pointsize', '20', '-annotate', '0', 'YouTube', path.join(tDir, `${itemid}.webp`)]).catch(() => {});
                     }
 
-                    // Assign rating tag
-                    const ratingTagId = rating === 'sfw' ? 1 : (rating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
-                    await db`insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: req.session.id })} on conflict do nothing`;
-                    if (rating === 'nsfw' || rating === 'nsfl') {
-                        await queue.genBlurredThumbnail(itemid, isApprovalRequired).catch(() => {});
+                    // Assign rating tag (only if a rating was selected)
+                    if (effectiveRating) {
+                        const ratingTagId = effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
+                        await db`insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: req.session.id })} on conflict do nothing`;
+                        if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
+                            await queue.genBlurredThumbnail(itemid, isApprovalRequired).catch(() => {});
+                        }
                     }
 
                     // Assign user tags + auto-tags
@@ -563,14 +570,17 @@ export default router => {
 
                             try {
                                 await queue.genThumbnail(filename, mime, itemid, url, isApprovalRequired);
-                                if (rating === 'nsfw' || rating === 'nsfl') await queue.genBlurredThumbnail(itemid, isApprovalRequired);
+                                if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') await queue.genBlurredThumbnail(itemid, isApprovalRequired);
                             } catch (err) {
                                 const tDir = isApprovalRequired ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
                                 await queue.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', path.join(tDir, `${itemid}.webp`)]).catch(() => {});
                             }
 
-                            const ratingTagId = rating === 'sfw' ? 1 : (rating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
-                            await db`insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: session.id })}`;
+                            // Assign rating tag (only if a rating was selected)
+                            if (effectiveRating) {
+                                const ratingTagId = effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
+                                await db`insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: session.id })}`;
+                            }
                             const autoTags = autoTagsFromUrl(url);
                             const allTags = [...new Set([...tags, ...autoTags])];
                             for (const tagName of allTags) {
@@ -594,7 +604,7 @@ export default router => {
                                         mime: mime,
                                         username: session.user,
                                         display_name: session.display_name || null,
-                                        tag_id: rating === 'sfw' ? 1 : (rating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3)),
+                                        tag_id: effectiveRating ? (effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3))) : 0,
                                         is_oc: !!is_oc
                                     })})`;
                                 } catch (err) {

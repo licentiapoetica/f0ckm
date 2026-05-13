@@ -419,6 +419,28 @@ window.initUploadForm = (selector) => {
             updateSubmitButton();
         });
 
+        // In shitpost mode: auto-commit each pasted URL to the list immediately
+        urlInput.addEventListener('paste', (e) => {
+            if (!isShitpost) return;
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text');
+            const lines = pasted.split(/[\n\r]+/).map(u => u.trim()).filter(u => /^https?:\/\//i.test(u));
+            if (!lines.length) {
+                // Not a URL — let the browser insert it normally into the input
+                urlInput.value = pasted.trim();
+                urlInput.dispatchEvent(new Event('input'));
+                return;
+            }
+            lines.forEach(url => {
+                if (!selectedFiles.some(item => item.type === 'url' && item.url === url)) {
+                    selectedFiles.push({ type: 'url', url, rating: '', tags: [], comment: '', is_oc: false });
+                }
+            });
+            urlInput.value = '';
+            if (urlBadge) urlBadge.style.display = 'none';
+            handleFile();
+        });
+
         if (urlBadge) {
             urlBadge.addEventListener('click', () => {
                 const val = urlInput.value.trim();
@@ -429,30 +451,30 @@ window.initUploadForm = (selector) => {
             });
         }
 
+        // Add URL button (shitpost mode) — commits the typed/pasted URL to the list
+        const addUrlFn = () => {
+            const val = urlInput.value.trim();
+            if (!val || !/^https?:\/\//i.test(val)) return;
+            if (!selectedFiles.some(item => item.type === 'url' && item.url === val)) {
+                selectedFiles.push({ type: 'url', url: val, rating: '', tags: [], comment: '', is_oc: false });
+            }
+            urlInput.value = '';
+            if (urlBadge) urlBadge.style.display = 'none';
+            handleFile();
+        };
+
         const btnAddUrls = form.querySelector('.btn-add-urls');
         if (btnAddUrls) {
-            btnAddUrls.addEventListener('click', () => {
-                const val = urlInput.value.trim();
-                if (!val) return;
-                const lines = val.split('\n').map(u => u.trim()).filter(u => u.length > 0);
-                lines.forEach(url => {
-                    if (/^https?:\/\//i.test(url)) {
-                        if (!selectedFiles.some(item => item.type === 'url' && item.url === url)) {
-                            selectedFiles.push({ 
-                                type: 'url', 
-                                url: url, 
-                                rating: '', 
-                                tags: [], 
-                                comment: '', 
-                                is_oc: false 
-                            });
-                        }
-                    }
-                });
-                urlInput.value = '';
-                handleFile();
+            btnAddUrls.addEventListener('click', addUrlFn);
+        }
+
+        // Also commit on Enter key inside the URL input in shitpost mode
+        if (isShitpost) {
+            urlInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); addUrlFn(); }
             });
         }
+
     }
 
     const formatSize = (bytes) => {
@@ -1653,7 +1675,8 @@ window.initUploadForm = (selector) => {
                                 rating: fileRating,
                                 tags: fileTags.join(','),
                                 is_oc: (isShitpost ? item.is_oc : isOc),
-                                comment: fileComment
+                                comment: fileComment,
+                                is_shitpost: isShitpost ? true : undefined
                             }));
                         } else {
                             xhr.send(formData);
@@ -1663,6 +1686,12 @@ window.initUploadForm = (selector) => {
                     if (res.success) {
                         successCount++;
                         lastData = res;
+                        if (res.pending) {
+                            // Background URL download — show toast using server's message
+                            if (typeof window.flashMessage === 'function') {
+                                window.flashMessage(res.msg, 4000, 'info');
+                            }
+                        }
                         if (res.itemid) {
                             try {
                                 const ts = Date.now();

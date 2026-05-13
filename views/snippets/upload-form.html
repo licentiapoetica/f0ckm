@@ -40,10 +40,10 @@
         <div class="upload-mode-content" id="mode-url" style="display: none;">
             <div class="url-input-container">
                 @if(shitpost_mode)
-                <div class="url-shitpost-container">
-                    <textarea id="url-upload-input" name="url" placeholder="{{ t('upload.url_placeholder_shitpost') || 'Paste multiple URLs here (one per line)...' }}" autocomplete="off" style="width: 100%; min-height: 100px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; border-radius: 4px; resize: vertical;"></textarea>
+                <div class="url-shitpost-container" style="display: flex; flex-direction: column; gap: 6px;">
+                    <input type="url" id="url-upload-input" name="url" placeholder="Paste or type a URL..." autocomplete="off" style="width: 100%;">
                     <button type="button" class="btn-add-urls">
-                        <i class="fa-solid fa-plus-circle"></i> {{ t('upload.btn_add_urls') }}
+                        <i class="fa-solid fa-plus-circle"></i> Add
                     </button>
                 </div>
                 @else
