@@ -1426,22 +1426,18 @@
                 const res = await fetch('/settings/export-data');
                 const data = await res.json();
 
-                const zip = new JSZip();
-                const uploadsFolder = zip.folder("uploads");
-                const favoritesFolder = zip.folder("favorites");
-
                 // Use a Map to deduplicate downloads by ID while tracking multiple target folders
                 const fileMap = new Map();
                 if (chkExportUploads.checked) {
                     data.uploads.forEach(u => {
                         if (!fileMap.has(u.id)) fileMap.set(u.id, { ...u, folders: [] });
-                        fileMap.get(u.id).folders.push(uploadsFolder);
+                        fileMap.get(u.id).folders.push('uploads');
                     });
                 }
                 if (chkExportFavorites.checked) {
                     data.favorites.forEach(f => {
                         if (!fileMap.has(f.id)) fileMap.set(f.id, { ...f, folders: [] });
-                        fileMap.get(f.id).folders.push(favoritesFolder);
+                        fileMap.get(f.id).folders.push('favorites');
                     });
                 }
 
@@ -1460,139 +1456,279 @@
                     uploads: exportUploads ? data.uploads : [],
                     favorites: exportFavorites ? data.favorites : []
                 };
-                zip.file("metadata.json", JSON.stringify(metadata, null, 2));
 
-                const total = filesToDownload.length;
-                let completed = 0;
+                // STREAMING PATH (all browsers): Web Worker + Service Worker
+                exportStatusMsg.textContent = exportStatusText.dataset.fetching || 'Preparing export...';
+                exportAnimatedDots.style.display = 'inline';
+                const siteDomain = (exportStatusText.dataset.domain || 'f0ckm').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const exportDate = new Date().toISOString().split('T')[0];
+                const suggestedFileName = `${siteDomain}_export_${exportDate}.zip`;
 
-                const downloadFile = async (fileInfo) => {
-                    if (fileInfo.mime === 'video/youtube') {
-                        const ytId = fileInfo.dest.replace(/^yt:/, '');
-                        const content = `https://www.youtube.com/watch?v=${ytId}`;
-                        const fileName = `${fileInfo.id}_youtube_${ytId}.txt`;
-                        fileInfo.folders.forEach(folder => folder.file(fileName, content));
-                        
-                        completed++;
-                        updateProgress();
+                    
+                    const workerCode = `
+                        const crcTable = new Uint32Array(256);
+                        for (let i = 0; i < 256; i++) {
+                            let c = i;
+                            for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+                            crcTable[i] = c;
+                        }
+                        function crc32buf(data) {
+                            let c = 0xffffffff;
+                            for (let i = 0; i < data.length; i++) c = (c >>> 8) ^ crcTable[(c ^ data[i]) & 0xff];
+                            return (c ^ 0xffffffff) >>> 0;
+                        }
+                        function crc32update(c, data) {
+                            for (let i = 0; i < data.length; i++) c = (c >>> 8) ^ crcTable[(c ^ data[i]) & 0xff];
+                            return c;
+                        }
+
+                        let ackResolver = null;
+                        self.onmessage = (e) => {
+                            if (e.data.type === 'START') {
+                                runExport(e.data.files, e.data.metadata).catch(err => {
+                                    console.error('Worker global error:', err);
+                                });
+                            } else if (e.data.type === 'ACK') {
+                                if (ackResolver) { const r = ackResolver; ackResolver = null; r(); }
+                            }
+                        };
+
+                        async function send(chunk, done = false) {
+                            self.postMessage({ type: 'CHUNK', chunk, done }, chunk ? [chunk.buffer] : []);
+                            return new Promise(r => { ackResolver = r; });
+                        }
+
+                        async function runExport(files, metadata) {
+                            const entries = [];
+                            let offset = 0;
+
+                            async function writeLocalHeader(nameBuf, crc, size, useDataDescriptor, time, day) {
+                                const h = new Uint8Array(30 + nameBuf.length);
+                                const v = new DataView(h.buffer);
+                                v.setUint32(0, 0x04034b50, true);
+                                v.setUint16(4, 20, true);
+                                v.setUint16(6, useDataDescriptor ? 0x0008 : 0, true);
+                                v.setUint16(8, 0, true); // STORE
+                                v.setUint16(10, time, true);
+                                v.setUint16(12, day, true);
+                                v.setUint32(14, useDataDescriptor ? 0 : crc, true);
+                                v.setUint32(18, useDataDescriptor ? 0 : size, true);
+                                v.setUint32(22, useDataDescriptor ? 0 : size, true);
+                                v.setUint16(26, nameBuf.length, true);
+                                h.set(nameBuf, 30);
+                                const headerLen = h.byteLength; // capture BEFORE transfer
+                                await send(h);
+                                offset += headerLen;
+                            }
+
+                            async function add(name, dataOrUrl) {
+                                const d = new Date();
+                                const time = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2)) >>> 0;
+                                const day = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) >>> 0;
+                                const nameBuf = new TextEncoder().encode(name);
+                                const startOffset = offset;
+
+                                if (typeof dataOrUrl !== 'string') {
+                                    // Static data - known size and CRC upfront, no data descriptor needed
+                                    const data = dataOrUrl;
+                                    const dataSize = data.byteLength; // capture BEFORE transfer
+                                    const crc = crc32buf(data);
+                                    await writeLocalHeader(nameBuf, crc, dataSize, false, time, day);
+                                    await send(data); // transfers + neuters data.buffer
+                                    offset += dataSize;
+                                    entries.push({ name: nameBuf, size: dataSize, crc, offset: startOffset, time, day, flag: 0 });
+                                } else {
+                                    // Streamed data - use data descriptor (bit 3)
+                                    await writeLocalHeader(nameBuf, 0, 0, true, time, day);
+                                    
+                                    let size = 0;
+                                    let crcState = 0xffffffff;
+                                    const ctrl = new AbortController();
+                                    const tid = setTimeout(() => ctrl.abort(), 120000);
+                                    try {
+                                        const res = await fetch(dataOrUrl, { signal: ctrl.signal });
+                                        if (res.ok && res.body) {
+                                            const reader = res.body.getReader();
+                                            let lastLog = Date.now();
+                                            while (true) {
+                                                const { done, value } = await reader.read();
+                                                if (done) break;
+                                                crcState = crc32update(crcState, value);
+                                                const chunkLen = value.byteLength; // capture BEFORE transfer
+                                                size += chunkLen;
+                                                await send(value); // transfers value.buffer, neutering it
+                                                offset += chunkLen;
+                                                if (Date.now() - lastLog > 1000) {
+                                                    self.postMessage({ type: 'STATUS', msg: 'Streaming: ' + name + ' (' + Math.round(size / 1024 / 1024) + ' MB)' });
+                                                    lastLog = Date.now();
+                                                }
+                                            }
+                                        }
+                                    } catch(err) {
+                                        console.error('Export: fetch failed for', name, err.message);
+                                    } finally {
+                                        clearTimeout(tid);
+                                    }
+
+                                    const crc = (crcState ^ 0xffffffff) >>> 0;
+
+                                    // Data Descriptor
+                                    const dd = new Uint8Array(16);
+                                    new DataView(dd.buffer).setUint32(0, 0x08074b50, true);
+                                    new DataView(dd.buffer).setUint32(4, crc, true);
+                                    new DataView(dd.buffer).setUint32(8, size, true);
+                                    new DataView(dd.buffer).setUint32(12, size, true);
+                                    await send(dd);
+                                    offset += 16;
+
+                                    entries.push({ name: nameBuf, size, crc, offset: startOffset, time, day, flag: 0x0008 });
+                                }
+                            }
+
+                            await add('metadata.json', new TextEncoder().encode(JSON.stringify(metadata, null, 2)));
+
+                            for (let i = 0; i < files.length; i++) {
+                                const f = files[i];
+                                self.postMessage({ type: 'STATUS', msg: 'Packing: ' + f.name });
+                                await add(f.name, f.content ? new TextEncoder().encode(f.content) : f.url);
+                                self.postMessage({ type: 'PROGRESS', completed: i + 1 });
+                            }
+
+                            // Central Directory
+                            const cdOffset = offset;
+                            let cdSize = 0;
+                            for (const e of entries) cdSize += 46 + e.name.length;
+                            const cd = new Uint8Array(cdSize);
+                            let pos = 0;
+                            for (const e of entries) {
+                                const v = new DataView(cd.buffer, pos);
+                                v.setUint32(0, 0x02014b50, true);
+                                v.setUint16(4, 20, true);   // version made by
+                                v.setUint16(6, 20, true);   // version needed
+                                v.setUint16(8, e.flag, true);
+                                v.setUint16(10, 0, true);   // compression: STORE
+                                v.setUint16(12, e.time, true);
+                                v.setUint16(14, e.day, true);
+                                v.setUint32(16, e.crc, true);
+                                v.setUint32(20, e.size, true);
+                                v.setUint32(24, e.size, true);
+                                v.setUint16(28, e.name.length, true);
+                                v.setUint16(30, 0, true);   // extra field length
+                                v.setUint16(32, 0, true);   // comment length
+                                v.setUint16(34, 0, true);   // disk number start
+                                v.setUint16(36, 0, true);   // internal attributes
+                                v.setUint32(38, 0, true);   // external attributes
+                                v.setUint32(42, e.offset, true);
+                                cd.set(e.name, pos + 46);
+                                pos += 46 + e.name.length;
+                            }
+                            await send(cd);
+                            offset += cdSize;
+
+                            // End of Central Directory
+                            const eocd = new Uint8Array(22);
+                            const ev = new DataView(eocd.buffer);
+                            ev.setUint32(0, 0x06054b50, true);
+                            ev.setUint16(4, 0, true);   // disk number
+                            ev.setUint16(6, 0, true);   // disk with CD start
+                            ev.setUint16(8, entries.length, true);
+                            ev.setUint16(10, entries.length, true);
+                            ev.setUint32(12, cdSize, true);
+                            ev.setUint32(16, cdOffset, true);
+                            ev.setUint16(20, 0, true);  // comment length
+                            await send(eocd, true);
+
+                            console.log('[ZIP] Done. Files:', entries.length, 'CD offset:', cdOffset, 'CD size:', cdSize, 'Total:', offset + 22);
+                        }
+                    `;
+
+                    const streamId = Math.random().toString(36).substring(2);
+                    const streamUrl = `/api/v2/export/stream?id=${streamId}&filename=${encodeURIComponent(suggestedFileName)}`;
+                    const worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+                    
+                    // The SW must be controlling this page to intercept /api/v2/export/stream.
+                    // .controller is null after hard refresh — in that case, reload once.
+                    const sw = navigator.serviceWorker.controller;
+                    if (!sw) {
+                        worker.terminate();
+                        exportStatusMsg.textContent = 'Reloading to activate Service Worker...';
+                        setTimeout(() => location.reload(), 500);
                         return;
                     }
 
-                    try {
-                        const url = (window.f0ckMediaBase || '/b') + '/' + fileInfo.dest;
-                        const response = await fetch(url);
-                        const blob = await response.blob();
-                        
-                        const fileName = `${fileInfo.id}_${fileInfo.dest}`;
-                        fileInfo.folders.forEach(folder => folder.file(fileName, blob));
-                    } catch (err) {
-                        console.error('Failed to download file:', fileInfo.id, err);
-                    } finally {
-                        completed++;
-                        updateProgress();
-                    }
-                };
+                     // Use location.href instead of <a> click - Chrome sometimes bypasses
+                     // the Service Worker for <a download> requests, causing a 404.
+                     // A navigation request always goes through the SW. Since the response has
+                     // Content-Disposition: attachment, the browser downloads without navigating away.
+                     window.location.href = streamUrl;
 
-                const updateProgress = () => {
-                    const percent = Math.round((completed / total) * 100);
-                    exportProgressBar.style.width = percent + '%';
-                    const msg = (exportStatusText.dataset.processing || 'Processing files: {completed} / {total}')
-                        .replace('{completed}', completed)
-                        .replace('{total}', total);
-                    exportStatusMsg.textContent = msg;
-                };
+                    worker.onmessage = async (msg) => {
+                        const data = msg.data;
+                        if (data.type === 'PROGRESS') {
+                            const percent = Math.round((data.completed / filesToDownload.length) * 100);
+                            exportProgressBar.style.width = percent + '%';
+                            if (data.completed === filesToDownload.length) {
+                                exportStatusMsg.textContent = exportStatusText.dataset.generating || 'Finalizing archive...';
+                            }
+                        } else if (data.type === 'STATUS') {
+                             exportStatusMsg.textContent = data.msg + '...';
+                        } else if (data.type === 'CHUNK') {
+                            const channel = new MessageChannel();
+                            const ackPromise = new Promise((resolve) => {
+                                const timeout = setTimeout(() => resolve({ type: 'TIMEOUT' }), 15000);
+                                channel.port1.onmessage = (msg) => { clearTimeout(timeout); resolve(msg.data); };
+                            });
 
-                // Download in batches to avoid overwhelming the browser/server
-                const batchSize = 3;
-                for (let i = 0; i < filesToDownload.length; i += batchSize) {
-                    const batch = filesToDownload.slice(i, i + batchSize);
-                    await Promise.all(batch.map(downloadFile));
-                }
+                            sw.postMessage({ type: 'EXPORT_CHUNK', id: streamId, chunk: data.chunk, done: data.done }, data.chunk ? [channel.port2, data.chunk.buffer] : [channel.port2]);
+                            
+                            const response = await ackPromise;
+                            if (response.type === 'ERROR') console.warn('Export: SW error', response.error);
+                            
+                            worker.postMessage({ type: 'ACK' });
+                            
+                            if (data.done) { 
+                                exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!'; 
+                                setTimeout(() => worker.terminate(), 1000);
+                            }
+                        }
+                    };
 
-                exportStatusMsg.textContent = exportStatusText.dataset.generating || 'Generating ZIP file';
-                exportAnimatedDots.style.display = 'inline';
+                    const origin = window.location.origin;
+                    const mediaBase = window.f0ckMediaBase || '/b';
+                    const workerFiles = [];
+                    for (const f of filesToDownload) {
+                        const folderNames = f.folders && f.folders.length > 0 ? f.folders : ['files'];
 
-                const zipOptions = { 
-                    type: 'uint8array', 
-                    compression: 'STORE',
-                    zip64: true // CRITICAL: Required for exports larger than 4GB
-                };
+                        const filename = f.mime === 'video/youtube'
+                            ? `${f.id}_youtube_${f.dest.replace(/^yt:/, '')}.txt`
+                            : `${f.id}_${f.dest}`;
 
-                if ('showSaveFilePicker' in window) {
-                    let writer;
-                    try {
-                        const handle = await window.showSaveFilePicker({
-                            suggestedName: `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`,
-                            types: [{
-                                description: 'ZIP Archive',
-                                accept: { 'application/zip': ['.zip'] },
-                            }],
-                        });
-                        
-                        const writable = await handle.createWritable();
-                        writer = writable.getWriter();
-                        
-                        const internalStream = zip.generateInternalStream(zipOptions);
-                        
-                        await new Promise((resolve, reject) => {
-                            internalStream.on('data', (chunk) => {
-                                // Use pause/resume to handle backpressure and ensure sequential writes
-                                internalStream.pause();
-                                writer.write(chunk).then(() => {
-                                    internalStream.resume();
-                                }).catch(reject);
-                            })
-                            .on('error', reject)
-                            .on('end', resolve)
-                            .resume();
-                        });
-                        
-                        await writer.close();
-                        exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
-                    } catch (e) {
-                        if (writer) await writer.abort().catch(() => {});
-                        if (e.name === 'AbortError') {
-                            exportStatusMsg.textContent = 'Export cancelled.';
-                        } else {
-                            console.error('Streaming export failed:', e);
-                            throw e;
+                        const content = f.mime === 'video/youtube'
+                            ? `https://www.youtube.com/watch?v=${f.dest.replace(/^yt:/, '')}`
+                            : null;
+
+                        const absoluteUrl = content ? null : new URL(mediaBase + '/' + f.dest, origin).href;
+
+                        for (const folder of folderNames) {
+                            workerFiles.push(content
+                                ? { name: `${folder}/${filename}`, content }
+                                : { name: `${folder}/${filename}`, url: absoluteUrl }
+                            );
                         }
                     }
-                } else {
-                    // Fallback: Original Blob method (uses RAM)
-                    const content = await new Promise((resolve, reject) => {
-                        const chunks = [];
-                        zip.generateInternalStream(zipOptions)
-                            .on('data', (chunk) => chunks.push(chunk))
-                            .on('error', reject)
-                            .on('end', () => {
-                                try {
-                                    resolve(new Blob(chunks, { type: 'application/zip' }));
-                                } catch (e) {
-                                    reject(e);
-                                }
-                            })
-                            .resume();
-                    });
-                    
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(content);
-                    link.download = `f0ckm_export_${new Date().toISOString().split('T')[0]}.zip`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    
-                    exportStatusMsg.textContent = exportStatusText.dataset.complete || 'Export complete!';
-                }
+
+                    worker.postMessage({ type: 'START', files: workerFiles, metadata });
                 
                 exportAnimatedDots.style.display = 'none';
                 btnStartExport.disabled = false;
             } catch (err) {
                 console.error('Export failed:', err);
-                alert(exportStatusText.dataset.failedAlert || 'Export failed. See console for details.');
+                alert(exportStatusText.dataset.failedAlert || 'Export failed.');
                 btnStartExport.disabled = false;
                 exportStatusMsg.textContent = exportStatusText.dataset.failed || 'Export failed.';
             }
         });
     }
+
 
 })();

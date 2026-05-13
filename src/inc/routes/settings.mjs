@@ -50,6 +50,7 @@ export default (router, tpl) => {
           joined: user?.created_at || null,
           enable_swf: cfg.enable_swf,
           enable_data_export: cfg.websrv.enable_data_export,
+          site_domain: cfg.main.url.domain,
           session: (req.session && req.session.user) ? { ...req.session } : false,
           page_meta: {
             title: 'settings',
