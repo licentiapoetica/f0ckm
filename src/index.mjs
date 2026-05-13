@@ -468,7 +468,7 @@ process.on('uncaughtException', err => {
       return;
     if (req.url.pathname.match(/^\/(b|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
       if (cfg.websrv.private_society && !req.cookies?.session) {
-        res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
+        res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
         req.url.pathname = '/private_society_media_bypass';
         return;
       }
@@ -658,13 +658,13 @@ process.on('uncaughtException', err => {
         }
         // For page requests, return 502 Bad Gateway for all paths except homepage (which shows the gate)
         if (req.url.pathname !== '/') {
-          res.writeHead(502, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
+          res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage());
           req.url.pathname = '/private_society_bypass';
           return;
         }
         // Homepage: in cloudflare dynamic mode serve gate directly; otherwise fall through to template
         if (nginx502 === null) {
-          res.writeHead(502, { 'Content-Type': 'text/html' }).end(buildGatePage());
+          res.writeHead(200, { 'Content-Type': 'text/html' }).end(buildGatePage());
           req.url.pathname = '/private_society_bypass';
           return;
         }
