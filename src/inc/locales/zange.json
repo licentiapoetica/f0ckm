@@ -405,8 +405,9 @@
   "sidebar": {
     "loading_activity": "Aktivität wird geladen...",
     "view": "Ansehen",
-    "read_more": "mehr lesen",
-    "see_less": "weniger sehen"
+    "read_more": "mehr sehen",
+    "see_less": "weniger sehen",
+    "show_full_comment": "Kommentar vollständig ausklappen"
   },
   "subscriptions": {
     "title": "Meine Abonnements",

@@ -404,7 +404,8 @@
     "loading_activity": "Aktivität wird geladen...",
     "view": "Ansehen",
     "read_more": "mehr sehen",
-    "see_less": "weniger anzeigen"
+    "see_less": "weniger anzeigen",
+    "show_full_comment": "ganzen Kommentar anzeigen"
   },
   "subscriptions": {
     "title": "Meine Abonnements",

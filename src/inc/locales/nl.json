@@ -404,7 +404,8 @@
     "loading_activity": "Activiteit laden...",
     "view": "Bekijken",
     "read_more": "lees meer",
-    "see_less": "zie minder"
+    "see_less": "zie minder",
+    "show_full_comment": "volledig commentaar tonen"
   },
   "subscriptions": {
     "title": "Mijn Abonnementen",

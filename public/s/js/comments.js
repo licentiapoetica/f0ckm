@@ -1367,7 +1367,7 @@ class CommentSystem {
     }
 
     // Maximum characters to fully render in the item view per comment
-    static get ITEM_VIEW_MAX_CHARS() { return 10000; }
+    static get ITEM_VIEW_MAX_CHARS() { return 2000; }
 
     renderCommentContent(content, commentId = null, bypassTruncation = false) {
         if (!content) return '';
@@ -1638,7 +1638,8 @@ class CommentSystem {
             }
 
             if (truncated) {
-                md += `<span class="item-comment-truncated-notice">… <button class="load-full-comment-btn" type="button">show full comment</button></span>`;
+                const btnLabel = (window.f0ckI18n?.sidebar_show_full_comment) || 'show full comment';
+                md += `<span class="item-comment-truncated-notice"><button class="load-full-comment-btn" type="button">${btnLabel}</button></span>`;
             }
 
             return md;
@@ -1646,7 +1647,8 @@ class CommentSystem {
             console.error('Markdown error:', e);
             let fallback = this.escapeHtml(content);
             if (truncated) {
-                fallback += ` <span class="item-comment-truncated-notice">… <button class="load-full-comment-btn" type="button">show full comment</button></span>`;
+                const btnLabel = (window.f0ckI18n?.sidebar_show_full_comment) || 'show full comment';
+                fallback += ` <span class="item-comment-truncated-notice"><button class="load-full-comment-btn" type="button">${btnLabel}</button></span>`;
             }
             return fallback;
         }
