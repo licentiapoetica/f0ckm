@@ -8,9 +8,10 @@
     const usernameEl = document.querySelector("a#a_username");
     return {
       postid: +idLink.innerText,
-      // Prefer data-username (raw DB username) over innerText (may be a display name)
-      poster: (usernameEl?.dataset?.username || '').trim() || usernameEl?.innerText?.trim() || null,
-      authorId: usernameEl?.dataset?.authorId || null,
+      // data-username holds the raw DB username; data-author-id holds the user's numeric ID.
+      // Never fall back to innerText — it may be a display name or the literal string 'unknown'.
+      poster: (usernameEl?.dataset?.username || '').trim() || null,
+      authorId: (usernameEl?.dataset?.authorId || '').trim() || null,
       tags: [...inner.querySelectorAll(".badge")].map(t => t.innerText.slice(0, -2))
     };
   };

@@ -232,7 +232,7 @@ export default {
         ) as contribution
         ` : db`0 as contribution`}
       from items
-      left join "user" author_u on author_u.user = items.username
+      left join "user" author_u on author_u."user" = items.username or author_u.login = items.username
       left join user_options uo on uo.user_id = author_u.id
       left join tags_assign on tags_assign.item_id = items.id
       left join tags on tags.id = tags_assign.tag_id
@@ -434,7 +434,7 @@ export default {
       from items
       left join favorites on favorites.item_id = items.id
       left join "user" fav_u on fav_u.id = favorites.user_id
-      left join "user" author_u on author_u.user = items.username
+      left join "user" author_u on author_u."user" = items.username or author_u.login = items.username
       left join "user_options" uo on uo.user_id = author_u.id
       ${user_id ? db`left join user_video_views uvv on uvv.video_id = items.id and uvv.user_id = ${user_id}` : db``}
       where
