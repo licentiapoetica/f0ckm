@@ -1,3 +1,8 @@
+// Safe wrapper — window.f0ckDebug may not be defined yet when this file first executes
+// (comments.js loads before the footer script block that sets window.f0ckDebug).
+// Calling through this helper defers the lookup to invocation time, not parse time.
+const _f0ckDebug = (...args) => (typeof window.f0ckDebug === 'function' ? window.f0ckDebug(...args) : void 0);
+
 class CommentSystem {
     constructor() {
         this.container = document.getElementById('comments-container');
@@ -62,11 +67,11 @@ class CommentSystem {
             return;
         }
         if (this.container.dataset.commentSystemInit) {
-            window.f0ckDebug('[CommentSystem] Already initialized for this container');
+            _f0ckDebug('[CommentSystem] Already initialized for this container');
             return;
         }
         this.container.dataset.commentSystemInit = 'true';
-        window.f0ckDebug('[CommentSystem] Initializing for item:', this.itemId);
+        _f0ckDebug('[CommentSystem] Initializing for item:', this.itemId);
 
         this.loadComments();
         this.setupGlobalListeners();
@@ -190,7 +195,7 @@ class CommentSystem {
             this.stabilizationObserver.disconnect();
         }
         this.stopStabilization();
-        window.f0ckDebug('[CommentSystem] Instance destroyed');
+        _f0ckDebug('[CommentSystem] Instance destroyed');
     }
 
     async loadEmojis() {
@@ -212,7 +217,7 @@ class CommentSystem {
                     this.customEmojis[e.name] = e.url;
                 });
                 CommentSystem.emojiCache = this.customEmojis;
-                window.f0ckDebug('Loaded Emojis:', this.customEmojis);
+                _f0ckDebug('Loaded Emojis:', this.customEmojis);
 
                 // Preload images to prevent NS Binding Aborted errors
                 this.preloadEmojiImages();
@@ -265,7 +270,7 @@ class CommentSystem {
     // ...
 
     renderEmoji(match, name) {
-        // window.f0ckDebug('Rendering Emoji:', name, this.customEmojis ? this.customEmojis[name] : 'No list');
+        // _f0ckDebug('Rendering Emoji:', name, this.customEmojis ? this.customEmojis[name] : 'No list');
         if (this.customEmojis && this.customEmojis[name]) {
             return `<img src="${this.customEmojis[name]}" style="height:60px;vertical-align:middle;" alt="${name}">`;
         }
@@ -374,7 +379,7 @@ class CommentSystem {
 
         // However, if we ARE currently loading comments from server, skip re-render.
         if (this.initialLoadDone === false && this.lastData.length === 0) {
-            window.f0ckDebug('[CommentSystem] Live comment skipped - initial comments load in progress.');
+            _f0ckDebug('[CommentSystem] Live comment skipped - initial comments load in progress.');
             return;
         }
 
@@ -599,7 +604,7 @@ class CommentSystem {
                 // 1. Early Bail-out: If data is bit-for-bit identical, do nothing.
                 // This is the primary defense against tab-switch reloads when nothing changed.
                 if (preserveScroll && this._isDeeplyIdentical(data.comments, data.user_id, data.is_subscribed)) {
-                    window.f0ckDebug('[CommentSystem] Sync: Data identical, bailing early to protect media.');
+                    _f0ckDebug('[CommentSystem] Sync: Data identical, bailing early to protect media.');
                     this.restoreState(state);
                     this.preservingScroll = false;
                     return;
@@ -607,7 +612,7 @@ class CommentSystem {
 
                 // 2. Reconciliation: If data changed but we want to preserve media.
                 if (preserveScroll && this.lastData && this.lastData.length > 0) {
-                    window.f0ckDebug('[CommentSystem] Sync: Data changed, reconciling DOM.');
+                    _f0ckDebug('[CommentSystem] Sync: Data changed, reconciling DOM.');
                     this.reconcile(data.comments, data.user_id, data.is_subscribed);
                     this.initialLoadDone = true;
                     this.restoreState(state);
@@ -715,7 +720,7 @@ class CommentSystem {
                     this.startStabilization(id);
                 }
             } else if (retries > 0) {
-                window.f0ckDebug(`[CommentSystem] Scroll target #c${id} not found, retrying... (${retries} left)`);
+                _f0ckDebug(`[CommentSystem] Scroll target #c${id} not found, retrying... (${retries} left)`);
                 setTimeout(() => this.scrollToComment(id, retries - 1), 200);
             }
         };
@@ -739,7 +744,7 @@ class CommentSystem {
                 const scrollKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ', 'Home', 'End'];
                 if (!scrollKeys.includes(e.key)) return;
             }
-            window.f0ckDebug(`[CommentSystem] Stabilization aborted due to ${e.type}`);
+            _f0ckDebug(`[CommentSystem] Stabilization aborted due to ${e.type}`);
             this.isUserInteracting = true;
             this.stopStabilization();
         };
@@ -762,7 +767,7 @@ class CommentSystem {
             
             // If it shifted more than 10px (e.g. media loaded), re-scroll
             if (diff > 10 && checks < maxChecks) {
-                window.f0ckDebug(`[CommentSystem] Layout shift detected (${Math.round(diff)}px), re-stabilizing scroll...`);
+                _f0ckDebug(`[CommentSystem] Layout shift detected (${Math.round(diff)}px), re-stabilizing scroll...`);
                 this.scrollToComment(id, 0, true);
                 lastTop = currentEl.getBoundingClientRect().top;
             }
@@ -1236,7 +1241,7 @@ class CommentSystem {
                 // Check for edits or state changes using robust data-attributes
                 const contentEl = el.querySelector('.comment-content');
                 if (contentEl && contentEl.dataset.raw !== incoming.content) {
-                    window.f0ckDebug(`[CommentSystem] Reconcile: Updating content for #c${id}`);
+                    _f0ckDebug(`[CommentSystem] Reconcile: Updating content for #c${id}`);
                     contentEl.innerHTML = this.renderCommentContent(incoming.content, incoming.id);
                     contentEl.dataset.raw = incoming.content;
                 }
@@ -1260,7 +1265,7 @@ class CommentSystem {
                 const idStr = String(c.id);
                 if (document.getElementById('c' + idStr)) return;
 
-                window.f0ckDebug(`[CommentSystem] Reconcile: Injecting new flat comment #c${idStr}`);
+                _f0ckDebug(`[CommentSystem] Reconcile: Injecting new flat comment #c${idStr}`);
                 const html = this.renderComment(c, currentUserId, false, true);
                 const tmp = document.createElement('div');
                 tmp.innerHTML = html;
@@ -1322,7 +1327,7 @@ class CommentSystem {
                 let el = document.getElementById('c' + idStr);
 
                 if (!el) {
-                    window.f0ckDebug(`[CommentSystem] Reconcile: Injecting new comment #c${idStr}`);
+                    _f0ckDebug(`[CommentSystem] Reconcile: Injecting new comment #c${idStr}`);
                     const html = this.renderComment(c, currentUserId, isReply);
                     const tmp = document.createElement('div');
                     tmp.innerHTML = html;
@@ -1957,7 +1962,7 @@ class CommentSystem {
     }
 
     setupDelegatedEvents() {
-        window.f0ckDebug('[DEBUG] Setting up delegated events for container:', this.container);
+        _f0ckDebug('[DEBUG] Setting up delegated events for container:', this.container);
         if (!this.container) return;
 
         // Ctrl+Enter to submit comment
@@ -1985,7 +1990,7 @@ class CommentSystem {
 
         // Single Click Listener for Everything
         this.container.addEventListener('click', async (e) => {
-            window.f0ckDebug('[DEBUG] Click on container:', e.target);
+            _f0ckDebug('[DEBUG] Click on container:', e.target);
             const target = e.target;
 
 
@@ -2503,7 +2508,7 @@ class CommentSystem {
                     retryCount++;
                     // Randomized exponential backoff
                     const delay = Math.min(1000 * Math.pow(1.5, retryCount) + (Math.random() * 1000), 10000);
-                    window.f0ckDebug(`[CommentSystem] Retrying in ${Math.round(delay)}ms...`);
+                    _f0ckDebug(`[CommentSystem] Retrying in ${Math.round(delay)}ms...`);
                     setTimeout(attemptSubmit, delay);
                 } else {
                     alert('Failed to send comment after multiple attempts. Please check your connection.');

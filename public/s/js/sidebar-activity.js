@@ -435,6 +435,42 @@
         }
     });
 
+    const SIDEBAR_SKELETON_COUNT = 15;
+
+    const showSkeletons = () => {
+        const container = document.getElementById('sidebar-activity-container');
+        if (!container) return;
+        const variants = [
+            `<div class="skeleton-line skeleton-text-long"></div>
+             <div class="skeleton-line skeleton-text-medium"></div>
+             <div class="skeleton-line skeleton-text-short"></div>`,
+            `<div class="skeleton-line skeleton-text-long"></div>
+             <div class="skeleton-line skeleton-text-short"></div>`,
+            `<div class="skeleton-line skeleton-text-medium"></div>
+             <div class="skeleton-line skeleton-text-long"></div>
+             <div class="skeleton-line skeleton-text-short"></div>`,
+            `<div class="skeleton-line skeleton-text-long"></div>
+             <div class="skeleton-line skeleton-text-medium"></div>`,
+            `<div class="skeleton-line skeleton-text-short"></div>
+             <div class="skeleton-line skeleton-text-long"></div>`,
+        ];
+        let html = '';
+        for (let i = 0; i < SIDEBAR_SKELETON_COUNT; i++) {
+            html += `
+            <div class="sidebar-skeleton-item">
+              <div class="skeleton-header">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-meta">
+                  <div class="skeleton-line skeleton-name"></div>
+                  <div class="skeleton-line skeleton-time"></div>
+                </div>
+              </div>
+              ${variants[i % 5]}
+            </div>`;
+        }
+        container.innerHTML = html;
+    };
+
     const renderFromCache = () => {
         const container = document.getElementById('sidebar-activity-container');
         if (!container || window._sidebarActivityCache.length === 0) return false;
@@ -461,9 +497,13 @@
         if (!container || loading) return;
         
         const hasCache = renderFromCache();
+        // If no cache and not silent: show skeletons while we fetch.
+        // On the very first page load the server-rendered skeletons are already there;
+        // on subsequent loads (e.g. mode change) we inject them programmatically.
         if (!hasCache && !silent) {
-            container.innerHTML = '<div class="loading">Loading activity...</div>';
+            showSkeletons();
         }
+
 
         loading = true;
         currentPage = 1;
@@ -484,13 +524,13 @@
                 renderFromCache();
                 // Also check after a delay to account for image/emoji loading shifts
                 setTimeout(checkOverflow, 500);
-            } else if (container.innerHTML.includes('loading')) {
+            } else if (!hasCache) {
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No recent activity.</div>';
                 hasMore = false;
             }
         } catch (e) {
             console.error("Sidebar Activity: Failed to load activity", e);
-            if (container.innerHTML.includes('loading')) {
+            if (!hasCache) {
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">Failed to load.</div>';
             }
             hasMore = false;
@@ -498,6 +538,7 @@
             loading = false;
         }
     };
+
 
     const loadMoreActivity = async () => {
         const container = document.getElementById('sidebar-activity-container');

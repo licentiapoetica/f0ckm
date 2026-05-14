@@ -1992,6 +1992,79 @@ body.sidebar-right-hidden .global-sidebar-right {
   margin-bottom: 4px;
 }
 
+/* ─── Sidebar Skeleton Loader ─────────────────────────────────────────────── */
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+
+.sidebar-skeleton-item {
+  padding: 8px 5px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-skeleton-item:last-child {
+  border-bottom: none;
+}
+
+.skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.skeleton-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Shared shimmer base */
+.skeleton-avatar,
+.skeleton-line {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.10) 40%,
+    rgba(255,255,255,0.04) 80%
+  );
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: 3px;
+}
+
+.skeleton-avatar {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.skeleton-line {
+  height: 10px;
+}
+
+.skeleton-name  { width: 55%; }
+.skeleton-time  { width: 35%; height: 8px; opacity: 0.65; }
+
+.skeleton-text-long   { width: 90%; margin-bottom: 6px; }
+.skeleton-text-medium { width: 70%; margin-bottom: 6px; }
+.skeleton-text-short  { width: 45%; margin-bottom: 0; }
+
+/* Stagger the shimmer phase so each item feels alive individually (cycles every 5) */
+.sidebar-skeleton-item:nth-child(5n+2) .skeleton-avatar,
+.sidebar-skeleton-item:nth-child(5n+2) .skeleton-line { animation-delay: 0.2s; }
+.sidebar-skeleton-item:nth-child(5n+3) .skeleton-avatar,
+.sidebar-skeleton-item:nth-child(5n+3) .skeleton-line { animation-delay: 0.4s; }
+.sidebar-skeleton-item:nth-child(5n+4) .skeleton-avatar,
+.sidebar-skeleton-item:nth-child(5n+4) .skeleton-line { animation-delay: 0.6s; }
+.sidebar-skeleton-item:nth-child(5n+5) .skeleton-avatar,
+.sidebar-skeleton-item:nth-child(5n+5) .skeleton-line { animation-delay: 0.8s; }
+
 /* Mobile Stacking for Legacy Mode (max-width: 999px) */
 @media (max-width: 999px) {
   .item-layout-container {
@@ -6222,6 +6295,23 @@ button#togglebg {
 .posts.grid-transition a:not(.anim-boxshadow) {
   animation: none;
 }
+
+/* ─── Posts Grid Skeleton: shimmer on real items while thumbnail loads ─────── */
+div.posts > a.lazy-thumb:not(.loaded) {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.10) 40%,
+    rgba(255,255,255,0.04) 80%
+  );
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Stagger shimmer phases so items feel alive individually */
+div.posts > a.lazy-thumb:not(.loaded):nth-child(3n+2) { animation-delay: 0.2s; }
+div.posts > a.lazy-thumb:not(.loaded):nth-child(3n+3) { animation-delay: 0.4s; }
+
 
 /* Make individual item entry subtler and faster for infinite scroll */
 @keyframes fadeInFX {
