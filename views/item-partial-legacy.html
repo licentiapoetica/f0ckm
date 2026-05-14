@@ -81,7 +81,7 @@
                     <div class="user-infobox-info">
                         <div class="user-infobox-header">
                             <div class="user-infobox-username-container">
-                                <a href="/user/{{ (item.username || '').toLowerCase() }}" tooltip="ID: {{ item.author_id }}" class="user-infobox-username">{!! item.author_display_name || item.username !!}</a>
+                                <a id="a_username" data-username="{{ item.username || '' }}" data-author-id="{{ item.author_id || '' }}" href="/user/{{ (item.username || '').toLowerCase() }}" tooltip="ID: {{ item.author_id }}" class="user-infobox-username">{!! item.author_display_name || item.username !!}</a>
                             </div>
                             <span class="user-infobox-timestamp"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
                         </div>
