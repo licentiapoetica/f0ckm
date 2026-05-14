@@ -865,6 +865,10 @@ html[theme="4d"] {
   background: black;
 }
 
+html[theme="4d"] #my-video {
+  background: var(--black);
+}
+
 /* xd */
 
 html[theme="xd"] {
@@ -921,6 +925,10 @@ html[theme="xd"] .index-sidebar-right,
 html[theme="xd"] .global-sidebar-right {
   background: #131313 !important;
   border-left: 2px solid var(--nav-border-color) !important;
+}
+
+html[theme="xd"] #my-video {
+  background: var(--black);
 }
 
 /* f0ck95 - v2 (theme '95') */
