@@ -673,7 +673,7 @@
             updateUIFromSettings();
 
             if (typeof window.flashMessage === 'function') {
-                window.flashMessage(`Flash Yank ${settings.enabled ? 'enabled' : 'disabled'}`, 2000, settings.enabled ? 'success' : 'error');
+                window.flashMessage(`Flash Yank ${settings.enabled ? 'enabled' : 'disabled'}`, 2000, settings.enabled ? 'success' : 'success');
             }
         });
     }
