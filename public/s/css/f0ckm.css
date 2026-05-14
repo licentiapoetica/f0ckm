@@ -3359,6 +3359,7 @@ div.posts>a:not(.notif-item)::after {
   text-align: center;
   font-family: vcr;
   text-transform: uppercase;
+  word-break: break-word;
 }
 
 div.posts>a:not(.notif-item):hover::after,
