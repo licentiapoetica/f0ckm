@@ -2612,6 +2612,12 @@ class CommentSystem {
                         this.syncSubscribeButton(true);
                     }
 
+                    // Update xD score badge immediately from the POST response —
+                    // faster and more reliable than waiting for the SSE NOTIFY.
+                    if (typeof json.xd_score === 'number' && typeof window.updateXdBadgeFromScore === 'function') {
+                        window.updateXdBadgeFromScore(this.itemId, json.xd_score);
+                    }
+
                     this._silentSync();
                     this._finishSubmit(submitBtn, originalBtnHtml, parentId);
                 } else {

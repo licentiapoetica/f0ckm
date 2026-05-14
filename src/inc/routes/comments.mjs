@@ -445,6 +445,7 @@ export default (router, tpl) => {
                 body: JSON.stringify({ 
                     success: true, 
                     comment: newComment[0],
+                    xd_score: xdRow?.xd_score ?? null,
                     is_new_subscription
                 })
             });
