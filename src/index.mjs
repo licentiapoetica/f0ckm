@@ -266,6 +266,11 @@ function buildGatePage(req) {
     '<span class="inline-block">Bad Gateway</span>',
     '<span class="inline-block">Bad Gatew<span id="secret-letter" style="cursor:text;" onclick="openLoginGate(\'login\')">a</span>y</span>'
   );
+  // Patch the <title> to include the domain — matches real Cloudflare behaviour
+  html = html.replace(
+    '<title>502: Bad Gateway</title>',
+    `<title>${cfg.main.url.domain} | 502: Bad gateway</title>`
+  );
   html = html.replace('</body>', gateLoginInjection + '\n</body>');
   return html;
 }
