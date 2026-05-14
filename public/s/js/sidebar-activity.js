@@ -86,13 +86,16 @@
         }
     };
 
+    // Maximum characters to render in the sidebar per comment
+    const SIDEBAR_CONTENT_TRUNCATE = 200;
+
     const renderCommentContent = (content, commentId = null, itemId = null) => {
         if (!content) return '';
 
-        // Anti-recursion / Performance safeguard for extremely long comments
-        if (content.length > 50000) {
-            console.warn('Sidebar Activity: Comment too long, skipping markdown');
-            return `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 0; background: none; border: none; font-size: inherit; color: inherit;">${escapeHtml(content)}</pre>`;
+        // Truncate extremely long comments before any processing to keep the sidebar
+        // fast and the DOM lean, regardless of markdown / regex complexity.
+        if (content.length > SIDEBAR_CONTENT_TRUNCATE) {
+            content = content.substring(0, SIDEBAR_CONTENT_TRUNCATE) + '\u2026';
         }
 
         if (typeof marked === 'undefined') {

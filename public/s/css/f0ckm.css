@@ -1925,6 +1925,32 @@ body.sidebar-right-hidden .global-sidebar-right {
   /* Hidden by default, shown via JS if overflow detected */
 }
 
+
+.item-comment-truncated-notice {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.load-full-comment-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: opacity 0.15s;
+}
+
+.load-full-comment-btn:hover {
+  opacity: 1;
+}
+
 /* Avatar in sidebar activity */
 .sidebar-avatar-link {
   flex-shrink: 0;
@@ -7885,6 +7911,7 @@ span.badge.badge-current {
 .sidebar-video-link:hover {
   text-decoration: underline;
 }
+
 
 .sidebar-comment-img.emoji {
   width: auto;

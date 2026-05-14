@@ -461,7 +461,7 @@ class CommentSystem {
 
         const contentEl = el.querySelector('.comment-content');
         if (contentEl) {
-            contentEl.innerHTML = this.renderCommentContent(data.content);
+            contentEl.innerHTML = this.renderCommentContent(data.content, data.comment_id);
 
             // Flash effect to draw attention
             el.classList.remove('new-item-fade');
@@ -1237,7 +1237,7 @@ class CommentSystem {
                 const contentEl = el.querySelector('.comment-content');
                 if (contentEl && contentEl.dataset.raw !== incoming.content) {
                     window.f0ckDebug(`[CommentSystem] Reconcile: Updating content for #c${id}`);
-                    contentEl.innerHTML = this.renderCommentContent(incoming.content);
+                    contentEl.innerHTML = this.renderCommentContent(incoming.content, incoming.id);
                     contentEl.dataset.raw = incoming.content;
                 }
                 
@@ -1366,14 +1366,17 @@ class CommentSystem {
         syncLevel(roots, list, false);
     }
 
-    renderCommentContent(content) {
+    // Maximum characters to fully render in the item view per comment
+    static get ITEM_VIEW_MAX_CHARS() { return 10000; }
+
+    renderCommentContent(content, commentId = null, bypassTruncation = false) {
         if (!content) return '';
-        
-        // Anti-recursion / Performance safeguard for extremely long comments
-        if (content.length > 50000) {
-            console.warn('Comment too long, skipping markdown for performance');
-            // Use native escaping and <pre> to avoid all regex/marked overhead for huge strings
-            return `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 0; background: none; border: none; font-size: inherit; color: inherit;">${this.escapeHtml(content)}</pre>`;
+
+        // Truncate extremely long comments before any processing
+        let truncated = false;
+        if (!bypassTruncation && content.length > CommentSystem.ITEM_VIEW_MAX_CHARS) {
+            content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS);
+            truncated = true;
         }
 
         if (typeof marked === 'undefined') {
@@ -1633,10 +1636,19 @@ class CommentSystem {
             if (window.Sanitizer && typeof Sanitizer.clean === 'function') {
                 md = Sanitizer.clean(md);
             }
+
+            if (truncated) {
+                md += `<span class="item-comment-truncated-notice">… <button class="load-full-comment-btn" type="button">show full comment</button></span>`;
+            }
+
             return md;
         } catch (e) {
             console.error('Markdown error:', e);
-            return this.escapeHtml(content);
+            let fallback = this.escapeHtml(content);
+            if (truncated) {
+                fallback += ` <span class="item-comment-truncated-notice">… <button class="load-full-comment-btn" type="button">show full comment</button></span>`;
+            }
+            return fallback;
         }
     }
     
@@ -1722,7 +1734,7 @@ class CommentSystem {
         const isPinned = comment.is_pinned;
 
         // Add @mention prefix if this is a reply to a reply
-        const content = isDeleted ? '<span class="deleted-msg">[deleted]</span>' : this.renderCommentContent(comment.content);
+        const content = isDeleted ? '<span class="deleted-msg">[deleted]</span>' : this.renderCommentContent(comment.content, comment.id);
         const date = new Date(comment.created_at).toLocaleString();
 
         // Admin buttons
@@ -2006,6 +2018,19 @@ class CommentSystem {
             if (target.matches('.cancel-reply')) {
                 const form = target.closest('.reply-input');
                 if (form) form.remove();
+                return;
+            }
+
+            // Load full comment (expand truncated)
+            const loadFullBtn = target.closest('.load-full-comment-btn');
+            if (loadFullBtn) {
+                const contentEl = loadFullBtn.closest('.comment-content');
+                if (contentEl) {
+                    const fullContent = contentEl.dataset.raw;
+                    if (fullContent) {
+                        contentEl.innerHTML = this.renderCommentContent(fullContent, null, true);
+                    }
+                }
                 return;
             }
 
