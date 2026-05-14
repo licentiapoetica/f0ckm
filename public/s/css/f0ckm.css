@@ -4497,7 +4497,7 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
 
 @media(max-height: 755px) {
   .embed-responsive-16by9::before {
-    padding-top: 42.25%;
+    padding-top: 45.25%;
   }
 }
 
