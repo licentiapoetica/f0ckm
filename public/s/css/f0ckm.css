@@ -1933,7 +1933,8 @@ body.sidebar-right-hidden .global-sidebar-right {
   color: #666;
 }
 
-.load-full-comment-btn {
+.load-full-comment-btn,
+.collapse-comment-btn {
   background: none;
   border: none;
   padding: 0;
@@ -1947,7 +1948,8 @@ body.sidebar-right-hidden .global-sidebar-right {
   transition: opacity 0.15s;
 }
 
-.load-full-comment-btn:hover {
+.load-full-comment-btn:hover,
+.collapse-comment-btn:hover {
   opacity: 1;
 }
 
@@ -2298,6 +2300,27 @@ body.layout-modern .item-sidebar-left .tag-controls {
   cursor: pointer;
   border-radius: 0;
 }
+
+.char-counter {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: monospace;
+  margin-right: auto;
+  align-self: center;
+  transition: color 0.2s ease, font-weight 0.2s ease;
+  user-select: none;
+}
+
+.char-counter.near-limit {
+  color: #e6a817;
+  font-weight: bold;
+}
+
+.char-counter.at-limit {
+  color: #e84040;
+  font-weight: bold;
+}
+
 
 .comments-list {
   display: flex;
@@ -4995,7 +5018,6 @@ body[type='login'] {
   background: none;
   border: none;
   color: var(--white);
-  font-size: 20px;
   cursor: pointer;
   margin-right: 5px;
   padding: 0 5px;

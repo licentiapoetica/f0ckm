@@ -261,6 +261,11 @@ export default (router, tpl) => {
             return res.reply({ body: JSON.stringify({ success: false, message: "Empty comment" }) });
         }
 
+        const maxLen = cfg.main.comment_max_length;
+        if (maxLen !== null && maxLen !== undefined && content.length > maxLen) {
+            return res.reply({ code: 400, body: JSON.stringify({ success: false, message: `Comment too long (max ${maxLen} characters)` }) });
+        }
+
         try {
             // Check if thread is locked (admins and mods can still post)
             if (!req.session.admin && !req.session.is_moderator) {
@@ -393,12 +398,16 @@ export default (router, tpl) => {
             // Notify for live updates
             // Fetch the trigger-updated xd_score from the DB (trigger runs synchronously before we get here)
             const [xdRow] = await db`SELECT xd_score FROM items WHERE id = ${item_id}`;
+            // Truncate body to 500 chars: PostgreSQL NOTIFY has an 8000-byte hard limit.
+            // Large comments would silently drop the notification. The client fetches
+            // the full content via _silentSync; the NOTIFY only needs to trigger the update.
+            const notifyBody = content.length > 500 ? content.substring(0, 500) + '…' : content;
             const livePayload = {
                 type: 'comment',
                 id: commentId,
                 item_id: item_id,
                 parent_id: parent_id || null,
-                body: content,
+                body: notifyBody,
                 username: req.session.user,
                 user_id: req.session.id,
                 avatar: req.session.avatar,
@@ -418,7 +427,7 @@ export default (router, tpl) => {
                 user_id: req.session.id,
                 item_id: item_id,
                 type: 'comment',
-                body: content,
+                body: notifyBody,
                 id: commentId
             }));
 

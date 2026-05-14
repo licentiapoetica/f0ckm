@@ -3,10 +3,12 @@
  * Protects against XSS by stripping disallowed tags and attributes.
  */
 class Sanitizer {
-    // F-009 Security: Removed form elements (textarea, button, input, label, select, option)
-    // to prevent phishing via user-generated content (comments, DMs, chat).
+    // F-009 Security: Removed most form elements (textarea, input, label, select, option)
+    // to prevent phishing via user-generated content. 'button' is allowed because our own
+    // UI injects <button> elements (e.g. load-full-comment-btn) inside comment content;
+    // buttons cannot execute scripts and click handlers are class-based on a controlled container.
     // Style attribute is kept for admin-authored MOTD content.
-    static ALLOWED_TAGS = ['span', 'img', 'a', 'br', 'b', 'i', 'strong', 'em', 'blockquote', 'pre', 'code', 'div', 'p', 'hr', 'ul', 'ol', 'li', 'svg', 'polyline', 'path', 'line', 'rect', 'circle', 'g', 'defs', 'symbol', 'use', 'polygon', 'ellipse', 'lineargradient', 'radialgradient', 'stop', 'clippath', 'mask', 'iframe', 'video', 'audio'];
+    static ALLOWED_TAGS = ['span', 'img', 'a', 'br', 'b', 'i', 'strong', 'em', 'blockquote', 'pre', 'code', 'div', 'p', 'hr', 'ul', 'ol', 'li', 'svg', 'polyline', 'path', 'line', 'rect', 'circle', 'g', 'defs', 'symbol', 'use', 'polygon', 'ellipse', 'lineargradient', 'radialgradient', 'stop', 'clippath', 'mask', 'iframe', 'video', 'audio', 'button'];
     static ALLOWED_ATTRS = ['class', 'style', 'src', 'href', 'alt', 'title', 'target', 'width', 'height', 'placeholder', 'readonly', 'disabled', 'value', 'name', 'id', 'type', 'data-parent', 'data-id', 'data-username', 'xmlns', 'viewbox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'points', 'x1', 'y1', 'x2', 'y2', 'd', 'transform', 'rx', 'ry', 'x', 'y', 'offset', 'stop-color', 'stop-opacity', 'fill-rule', 'clip-rule', 'cx', 'cy', 'r', 'fill-opacity', 'stroke-opacity', 'preserveaspectratio', 'vector-effect', 'pointer-events', 'allowfullscreen', 'frameborder', 'allow', 'referrerpolicy', 'rel', 'controls', 'loop', 'muted', 'playsinline', 'preload', 'tooltip', 'flow'];
     static DISALLOWED_URL_SCHEMES = ['javascript:', 'data:', 'vbscript:'];
 

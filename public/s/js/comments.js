@@ -369,8 +369,23 @@ class CommentSystem {
         // 1. Check if comment belongs to this item
         if (parseInt(data.item_id) !== parseInt(this.itemId)) return;
 
-        // 2. Check for duplicates (if we just posted it ourselves)
-        if (document.getElementById('c' + data.id)) return;
+        // 2. Check for duplicates (if we just posted it ourselves via optimistic insert).
+        //    Even on early return, ensure the button is present if body was truncated.
+        if (document.getElementById('c' + data.id)) {
+            if (data.body && data.body.endsWith('\u2026')) {
+                console.log('[handleLiveComment] duplicate+truncated, ensuring button for', data.id);
+                const el = document.getElementById('c' + data.id);
+                const contentEl = el?.querySelector('.comment-content');
+                if (contentEl && !contentEl.querySelector('.load-full-comment-btn')) {
+                    const btnLabel = (window.f0ckI18n?.sidebar_show_full_comment) || 'show full comment';
+                    contentEl.insertAdjacentHTML('beforeend',
+                        `<span class="item-comment-truncated-notice"><button class="load-full-comment-btn" type="button">${btnLabel}</button></span>`
+                    );
+                }
+                this._patchLiveCommentContent(data.id);
+            }
+            return;
+        }
 
         // 3. Robustness check: If we don't have lastData, initialize it.
         if (!this.lastData) {
@@ -447,6 +462,51 @@ class CommentSystem {
                 el.classList.add('new-item-fade');
             }
         }, 100);
+
+        // 7. The NOTIFY body is capped at 500 chars to stay under PostgreSQL's 8KB limit.
+        //    If the body was truncated, immediately show the "show full comment" button
+        //    and then fetch + patch the real full content asynchronously.
+        if (data.body && data.body.endsWith('\u2026')) {
+            console.log('[handleLiveComment] body truncated, patching comment', data.id);
+            const el = document.getElementById('c' + data.id);
+            if (el) {
+                const contentEl = el.querySelector('.comment-content');
+                if (contentEl && !contentEl.querySelector('.load-full-comment-btn')) {
+                    const btnLabel = (window.f0ckI18n?.sidebar_show_full_comment) || 'show full comment';
+                    contentEl.insertAdjacentHTML('beforeend',
+                        `<span class="item-comment-truncated-notice"><button class="load-full-comment-btn" type="button">${btnLabel}</button></span>`
+                    );
+                }
+            }
+            this._patchLiveCommentContent(data.id);
+        }
+    }
+
+    async _patchLiveCommentContent(commentId) {
+        try {
+            const res = await fetch(`/api/comment/${commentId}`);
+            if (!res.ok) return;
+            const json = await res.json();
+            if (!json.success || !json.comment) return;
+
+            const fullContent = json.comment.content;
+            const el = document.getElementById('c' + commentId);
+            if (!el) return;
+
+            const contentEl = el.querySelector('.comment-content');
+            if (!contentEl) return;
+
+            // Update in-memory data so future reconciles use the full content
+            if (this.lastData) {
+                const cached = this.lastData.find(c => String(c.id) === String(commentId));
+                if (cached) cached.content = fullContent;
+            }
+
+            contentEl.dataset.raw = this.escapeHtml(fullContent);
+            contentEl.innerHTML = this.renderCommentContent(fullContent, commentId);
+        } catch (e) {
+            _f0ckDebug('[CommentSystem] _patchLiveCommentContent failed:', e);
+        }
     }
 
     handleLiveEdit(data) {
@@ -968,8 +1028,12 @@ class CommentSystem {
             const author = openerEl.dataset.display || openerEl.dataset.username || 'System';
             const contentEl = body.querySelector('.comment-content');
             if (contentEl) {
+                const LINE_MAX = 200;
                 const rawText = (contentEl.dataset.raw || '').trim();
-                const lines = rawText.split('\n');
+                // Preserve all lines but cap any single line exceeding LINE_MAX chars
+                const lines = rawText.split('\n').map(line =>
+                    line.length > LINE_MAX ? line.substring(0, LINE_MAX) + '\u2026' : line
+                );
                 const quote = `>>${id} \n>${author}\n${lines.map(line => `>${line}`).join('\n')}\n`;
 
                 if (isNew) {
@@ -1380,7 +1444,7 @@ class CommentSystem {
         // Truncate extremely long comments before any processing
         let truncated = false;
         if (!bypassTruncation && content.length > CommentSystem.ITEM_VIEW_MAX_CHARS) {
-            content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS);
+            content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS) + '\u2026';
             truncated = true;
         }
 
@@ -1642,6 +1706,8 @@ class CommentSystem {
                 md = Sanitizer.clean(md);
             }
 
+            // Append the "show full comment" button AFTER sanitization — the sanitizer
+            // whitelist strips <button> elements for XSS safety, but this button is ours.
             if (truncated) {
                 const btnLabel = (window.f0ckI18n?.sidebar_show_full_comment) || 'show full comment';
                 md += `<span class="item-comment-truncated-notice"><button class="load-full-comment-btn" type="button">${btnLabel}</button></span>`;
@@ -1841,10 +1907,16 @@ class CommentSystem {
         const placeholder = i18n.write_comment || 'Write a comment...';
         const postLabel   = i18n.post           || 'Post';
         const cancelLabel = i18n.cancel         || 'Cancel';
+        const maxLen = window.f0ckSession?.comment_max_length;
+        const maxLenAttr = (maxLen !== null && maxLen !== undefined) ? ` maxlength="${maxLen}"` : '';
+        const counter = (maxLen !== null && maxLen !== undefined)
+            ? `<span class="char-counter" data-max="${maxLen}">0 / ${maxLen}</span>`
+            : '';
         return `
             <div class="comment-input ${parentId ? 'reply-input' : 'main-input'}" ${parentId ? `data-parent="${parentId}"` : ''}>
-                <textarea placeholder="${placeholder}"></textarea>
+                <textarea placeholder="${placeholder}"${maxLenAttr}></textarea>
                 <div class="input-actions">
+                    ${counter}
                     ${parentId ? `<button class="cancel-reply">${cancelLabel}</button>` : ''}
                     <button class="submit-comment">${postLabel}</button>
                 </div>
@@ -1980,6 +2052,25 @@ class CommentSystem {
             }
         });
 
+        // Live character counter (only active when comment_max_length is set)
+        this.container.addEventListener('input', (e) => {
+            const textarea = e.target.closest('.comment-input textarea');
+            if (!textarea) return;
+            const counter = textarea.closest('.comment-input')?.querySelector('.char-counter');
+            if (!counter) return;
+            const max = parseInt(counter.dataset.max, 10);
+            // Exclude quoted lines (starting with '>') from the count —
+            // quoted context is capped at 200 chars and shouldn't eat into the user's limit.
+            const nonQuotedLen = textarea.value
+                .split('\n')
+                .filter(line => !line.startsWith('>'))
+                .join('\n')
+                .length;
+            counter.textContent = `${nonQuotedLen} / ${max}`;
+            counter.classList.toggle('near-limit', nonQuotedLen >= max * 0.9);
+            counter.classList.toggle('at-limit',   nonQuotedLen >= max);
+        });
+
         // Single Change Listener for Sort
         this.container.addEventListener('change', (e) => {
             if (e.target.id === 'comment-sort') {
@@ -2036,6 +2127,24 @@ class CommentSystem {
                     const fullContent = contentEl.dataset.raw;
                     if (fullContent) {
                         contentEl.innerHTML = this.renderCommentContent(fullContent, null, true);
+                        // Append "see less" button after full content
+                        const seeLessLabel = (window.f0ckI18n?.sidebar_see_less) || 'see less';
+                        contentEl.insertAdjacentHTML('beforeend',
+                            `<span class="item-comment-truncated-notice"><button class="collapse-comment-btn" type="button">${seeLessLabel}</button></span>`
+                        );
+                    }
+                }
+                return;
+            }
+
+            // Collapse full comment back to truncated view
+            const collapseBtn = target.closest('.collapse-comment-btn');
+            if (collapseBtn) {
+                const contentEl = collapseBtn.closest('.comment-content');
+                if (contentEl) {
+                    const fullContent = contentEl.dataset.raw;
+                    if (fullContent) {
+                        contentEl.innerHTML = this.renderCommentContent(fullContent, null, false);
                     }
                 }
                 return;
@@ -2353,6 +2462,11 @@ class CommentSystem {
                         if (formRow) formRow.remove();
                     } else {
                         if (textarea) textarea.value = '';
+                        const counter = wrap.querySelector('.char-counter');
+                        if (counter) {
+                            counter.textContent = `0 / ${counter.dataset.max}`;
+                            counter.classList.remove('near-limit', 'at-limit');
+                        }
                     }
 
                     // Notify the right sidebar that a new comment was posted (silent refresh)
@@ -2453,6 +2567,7 @@ class CommentSystem {
                                 const commentEl = tmp.firstElementChild;
                                 if (commentEl) {
                                     repliesEl.appendChild(commentEl);
+                                    this._ensureTruncationButton(commentEl, newComment.content);
                                     requestAnimationFrame(() => {
                                         commentEl.classList.add('comment-entering', 'new-item-fade');
                                         commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2482,6 +2597,7 @@ class CommentSystem {
                                     } else {
                                         list.appendChild(commentEl);
                                     }
+                                    this._ensureTruncationButton(commentEl, newComment.content);
                                     requestAnimationFrame(() => {
                                         commentEl.classList.add('comment-entering', 'new-item-fade');
                                         commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2520,6 +2636,30 @@ class CommentSystem {
         attemptSubmit();
     }
 
+    // Defensive: ensure the "show full comment" button is present in a rendered comment
+    // element whenever the raw content exceeds ITEM_VIEW_MAX_CHARS. Called after every
+    // optimistic DOM insert to guarantee the button regardless of rendering path.
+    _ensureTruncationButton(commentEl, rawContent) {
+        console.log('[ensureBtn] called, rawContent.length:', rawContent?.length, 'threshold:', CommentSystem.ITEM_VIEW_MAX_CHARS);
+        if (!rawContent || rawContent.length <= CommentSystem.ITEM_VIEW_MAX_CHARS) {
+            console.log('[ensureBtn] below threshold, skipping');
+            return;
+        }
+        const contentEl = commentEl.querySelector('.comment-content');
+        if (!contentEl) { console.log('[ensureBtn] no .comment-content found'); return; }
+        if (contentEl.querySelector('.load-full-comment-btn')) {
+            console.log('[ensureBtn] button already present');
+            return;
+        }
+        console.log('[ensureBtn] injecting button');
+        const btnLabel = (window.f0ckI18n?.sidebar_show_full_comment) || 'show full comment';
+        contentEl.insertAdjacentHTML('beforeend',
+            `<span class="item-comment-truncated-notice"><button class="load-full-comment-btn" type="button">${btnLabel}</button></span>`
+        );
+        contentEl.dataset.raw = rawContent;
+        console.log('[ensureBtn] done, button in DOM:', !!contentEl.querySelector('.load-full-comment-btn'));
+    }
+
     _finishSubmit(btn, originalHtml, parentId) {
         if (btn) {
             btn.classList.remove('loading');
@@ -2531,6 +2671,7 @@ class CommentSystem {
             this.isMainSubmitting = false;
         }
     }
+
 
     // Silently fetch fresh comment data from the server and update lastData
     // without touching the DOM — used after optimistic inserts to stay in sync.
@@ -2874,7 +3015,7 @@ class CommentSystem {
         };
 
         const trigger = document.createElement('button');
-        trigger.innerText = '☺';
+        trigger.innerHTML = '<i class="fa-regular fa-face-smile"></i>';
         trigger.className = 'emoji-trigger';
 
         const actions = container.querySelector('.input-actions');
@@ -2905,15 +3046,16 @@ class CommentSystem {
                 }
                 textarea.focus();
             });
-            actions.prepend(trigger);
-            actions.prepend(spoilerBtn);
+            const submitBtn = actions.querySelector('.submit-comment');
+            actions.insertBefore(trigger, submitBtn);
+            actions.insertBefore(spoilerBtn, trigger);
             if (this.isAdmin) {
                 const lockBtn = document.createElement('button');
                 lockBtn.id = 'lock-thread-btn';
                 lockBtn.title = this.isLocked ? 'Unlock Thread' : 'Lock Thread';
                 lockBtn.innerHTML = this.isLocked ? this.icons.lock : this.icons.unlock;
                 lockBtn.className = 'admin-lock-btn';
-                actions.prepend(lockBtn);
+                actions.insertBefore(lockBtn, spoilerBtn);
             }
 
             // Create picker once and cache it

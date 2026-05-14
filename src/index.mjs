@@ -1066,6 +1066,7 @@ process.on('uncaughtException', err => {
     allow_language_change: cfg.websrv.allow_language_change !== false,
     enable_xd_score: !!cfg.websrv.enable_xd_score,
     enable_dynamic_thumbs: !!cfg.websrv.enable_dynamic_thumbs,
+    comment_max_length: cfg.main.comment_max_length ?? null,
     enable_swf: !!cfg.websrv.enable_swf,
     enable_danmaku: cfg.websrv.enable_danmaku !== false,
     enable_global_chat: !!cfg.websrv.enable_global_chat,

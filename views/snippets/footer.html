@@ -138,7 +138,7 @@
 @endif
 @if(private_society && !session)
 <script>
-  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, development: @if(development) true @else false @endif };
+  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }}, development: @if(development) true @else false @endif };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   (() => {
     const loginModal = document.getElementById('login-modal');
@@ -405,6 +405,7 @@
     receive_user_notifications: @if(session)@if(session.receive_user_notifications !== false) true @else false @endif@else true @endif,
     do_not_disturb: @if(session && session.do_not_disturb) true @else false @endif,
     comment_display_mode: {{ comment_display_mode }},
+    comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }},
     development: @if(development) true @else false @endif
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
