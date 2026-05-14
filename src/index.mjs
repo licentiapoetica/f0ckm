@@ -51,7 +51,7 @@ const gateOptions = {
   },
   host_status: {
     status:      'error',
-    location:    'Website',
+    location:    cfg.main.url.domain,
     name:        'Host',
     status_text: 'Error',
   },
