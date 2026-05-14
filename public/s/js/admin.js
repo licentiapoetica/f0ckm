@@ -9,7 +9,8 @@
     return {
       postid: +idLink.innerText,
       // Prefer data-username (raw DB username) over innerText (may be a display name)
-      poster: usernameEl?.dataset?.username || usernameEl?.innerText?.trim() || null,
+      poster: (usernameEl?.dataset?.username || '').trim() || usernameEl?.innerText?.trim() || null,
+      authorId: usernameEl?.dataset?.authorId || null,
       tags: [...inner.querySelectorAll(".badge")].map(t => t.innerText.slice(0, -2))
     };
   };
@@ -217,15 +218,18 @@
     }
     const ctx = getContext();
     if (!ctx) return;
-    const { postid, poster } = ctx;
+    const { postid, poster, authorId } = ctx;
 
     if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
 
     const i18n = window.f0ckI18n || {};
     const confirmTitle = i18n.item_delete_title || 'Delete Item';
+    const posterStr = poster
+      ? (authorId ? `${poster} (${authorId})` : poster)
+      : 'unknown';
     const confirmMsg = (i18n.item_delete_confirm || 'Are you sure you want to delete item {id} by {user}?')
       .replace('{id}', postid)
-      .replace('{user}', poster || 'unknown');
+      .replace('{user}', posterStr);
 
     ModAction.confirm(confirmTitle, confirmMsg, async (reason) => {
       // Flag immediately so the SSE delete_item handler skips navigation

@@ -96,7 +96,7 @@
 
                     <a href="/{{ item.id }}" class="id-link" @if(user_alternative_infobox)style="display:none"@endif>{{ item.id }}</a>
                     @if(item.src.short)@if(!user_alternative_infobox) — @endif<a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a>@endif
-                    @if(session && !user_alternative_infobox) — [<a id="a_username" data-username="{!! item.username || '' !!}" href="/user/{{ (item.username || '').toLowerCase() }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
+                    @if(session && !user_alternative_infobox) — [<a id="a_username" data-username="{{ item.username || '' }}" data-author-id="{{ item.author_id || '' }}" href="/user/{{ (item.username || '').toLowerCase() }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
                     @if(item.is_oc)@if(!user_alternative_infobox || item.src.short) — @endif<span class="oc-badge" tooltip="Original Content">OC</span>@endif
                 </span>
                 @if(!user_alternative_infobox) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span> — @endif
