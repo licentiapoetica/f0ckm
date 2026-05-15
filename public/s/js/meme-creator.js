@@ -362,8 +362,14 @@
                 const blob = await new Promise(resolve => uploadCanvas.toBlob(resolve, 'image/jpeg', 0.95));
                 const formData = new FormData();
                 formData.append('file', blob, `meme-${Date.now()}.jpg`);
-                const defaultTags = document.getElementById('tags').value || 'meme';
-                const autoTag = window.memeTemplate ? window.memeTemplate.name : '';
+                const decodeHTMLEntities = (text) => {
+                    const textArea = document.createElement('textarea');
+                    textArea.innerHTML = text;
+                    return textArea.value;
+                };
+
+                const defaultTags = decodeHTMLEntities(document.getElementById('tags').value || 'meme');
+                const autoTag = window.memeTemplate ? decodeHTMLEntities(window.memeTemplate.name) : '';
                 const tags = `${defaultTags}, ${autoTag}`;
 
                 formData.append('rating', 'sfw');
