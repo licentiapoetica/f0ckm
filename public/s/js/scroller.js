@@ -1363,8 +1363,9 @@
     const _i = window.f0ckI18n || {};
     actions.innerHTML = `
       <button class="js-speed-hold-btn" aria-hidden="true" tabindex="-1"
-        style="width:46px;height:46px;background:none;border:none;padding:0;
-               cursor:pointer;opacity:0;pointer-events:all;flex-shrink:0;"
+        style="position:absolute; bottom:100%; left:-10px; right:-10px; height:100vh;
+               background:none; border:none; padding:0; cursor:pointer; opacity:0;
+               pointer-events:all; flex-shrink:0;"
         title=""></button>
       ${window.scrollerLoggedIn ? `
       <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="${_i.favourite || 'Favourite'} (double-tap)">
@@ -1446,6 +1447,8 @@
           speedActive = false;
           const media = slide.querySelector('video') || slide.querySelector('audio');
           if (media) media.playbackRate = 1;
+          const ind = document.getElementById('speed-indicator');
+          if (ind) ind.classList.remove('show');
         }
       };
 
@@ -1455,7 +1458,11 @@
         speedTimer = setTimeout(() => {
           speedActive = true;
           const media = slide.querySelector('video') || slide.querySelector('audio');
-          if (media) media.playbackRate = 2;
+          if (media) {
+            media.playbackRate = 2;
+            const ind = document.getElementById('speed-indicator');
+            if (ind) ind.classList.add('show');
+          }
         }, 150);
       }, { passive: true });
     }
