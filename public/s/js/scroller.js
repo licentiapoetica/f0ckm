@@ -1362,6 +1362,10 @@
     const actions = document.createElement('div'); actions.className = 'scroll-actions';
     const _i = window.f0ckI18n || {};
     actions.innerHTML = `
+      <button class="js-speed-hold-btn" aria-hidden="true" tabindex="-1"
+        style="width:46px;height:46px;background:none;border:none;padding:0;
+               cursor:pointer;opacity:0;pointer-events:all;flex-shrink:0;"
+        title=""></button>
       ${window.scrollerLoggedIn ? `
       <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="${_i.favourite || 'Favourite'} (double-tap)">
         <div class="scroll-btn-icon"><i class="${item.is_faved ? 'fa-solid' : 'fa-regular'} fa-heart"></i></div>
@@ -1427,16 +1431,46 @@
 
     setupTapOverlay(slide);
 
+    // ── Invisible speed-hold button (sits above the heart in the actions column) ──
+    const speedHoldBtn = actions.querySelector('.js-speed-hold-btn');
+    if (speedHoldBtn) {
+      let speedTimer  = null;
+      let speedActive = false;
+
+      const endSpeed = () => {
+        clearTimeout(speedTimer);
+        speedTimer = null;
+        document.removeEventListener('pointerup',    endSpeed);
+        document.removeEventListener('pointercancel',endSpeed);
+        if (speedActive) {
+          speedActive = false;
+          const media = slide.querySelector('video') || slide.querySelector('audio');
+          if (media) media.playbackRate = 1;
+        }
+      };
+
+      speedHoldBtn.addEventListener('pointerdown', () => {
+        document.addEventListener('pointerup',    endSpeed, { once: true });
+        document.addEventListener('pointercancel',endSpeed, { once: true });
+        speedTimer = setTimeout(() => {
+          speedActive = true;
+          const media = slide.querySelector('video') || slide.querySelector('audio');
+          if (media) media.playbackRate = 2;
+        }, 150);
+      }, { passive: true });
+    }
+
     const favBtn = actions.querySelector('.js-fav-btn');
     if (favBtn) {
       let favLastClick = 0;
       favBtn.addEventListener('click', () => {
         const now = Date.now();
-        if (now - favLastClick < DOUBLE_DELAY) return; // ignore rapid double-click
+        if (now - favLastClick < DOUBLE_DELAY) return;
         favLastClick = now;
         toggleFav(slide);
       });
     }
+
     actions.querySelector('.js-comments-btn').addEventListener('click', () => {
       const slide = actions.closest('.scroll-slide');
       const id = slide?.dataset.localId || item.id;
