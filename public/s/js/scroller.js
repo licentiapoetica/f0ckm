@@ -1336,7 +1336,11 @@
         }</div>`
       : '';
     meta.innerHTML = `
-      <div class="scroll-meta-inner">
+      <div class="scroll-meta-inner" style="position:relative;">
+        <button class="js-speed-hold-btn js-meta-speed-btn" aria-hidden="true" tabindex="-1"
+          style="position:absolute; bottom:100%; left:-16px; width:100px; height:100vh;
+                 background:none; border:none; padding:0; cursor:pointer; opacity:0;
+                 pointer-events:all;"></button>
         ${badgesHtml}
         <div class="scroll-meta-top">
           <a href="/user/${esc(item.username)}" class="scroll-user-link">
@@ -1431,28 +1435,29 @@
     slide.appendChild(pBar);
 
     setupTapOverlay(slide);
+    // ── Hold-to-2× speed logic (shared by multiple triggers) ──
+    let speedTimer   = null;
+    let speedActive  = false;
+    let speedEndedAt = 0;
 
-    // ── Invisible speed-hold button (sits above the heart in the actions column) ──
-    const speedHoldBtn = actions.querySelector('.js-speed-hold-btn');
-    if (speedHoldBtn) {
-      let speedTimer  = null;
-      let speedActive = false;
+    const endSpeed = () => {
+      clearTimeout(speedTimer);
+      speedTimer = null;
+      document.removeEventListener('pointerup',    endSpeed);
+      document.removeEventListener('pointercancel',endSpeed);
+      if (speedActive) {
+        speedActive  = false;
+        speedEndedAt = Date.now();
+        const media = slide.querySelector('video') || slide.querySelector('audio');
+        if (media) media.playbackRate = 1;
+        const ind = document.getElementById('speed-indicator');
+        if (ind) ind.classList.remove('show');
+      }
+    };
 
-      const endSpeed = () => {
-        clearTimeout(speedTimer);
-        speedTimer = null;
-        document.removeEventListener('pointerup',    endSpeed);
-        document.removeEventListener('pointercancel',endSpeed);
-        if (speedActive) {
-          speedActive = false;
-          const media = slide.querySelector('video') || slide.querySelector('audio');
-          if (media) media.playbackRate = 1;
-          const ind = document.getElementById('speed-indicator');
-          if (ind) ind.classList.remove('show');
-        }
-      };
-
-      speedHoldBtn.addEventListener('pointerdown', () => {
+    const wireSpeedHold = (el) => {
+      if (!el) return;
+      el.addEventListener('pointerdown', () => {
         document.addEventListener('pointerup',    endSpeed, { once: true });
         document.addEventListener('pointercancel',endSpeed, { once: true });
         speedTimer = setTimeout(() => {
@@ -1465,7 +1470,11 @@
           }
         }, 150);
       }, { passive: true });
-    }
+    };
+
+    wireSpeedHold(actions.querySelector('.js-speed-hold-btn'));
+    wireSpeedHold(slide.querySelector('.js-meta-speed-btn'));
+
 
     const favBtn = actions.querySelector('.js-fav-btn');
     if (favBtn) {
@@ -1504,13 +1513,14 @@
     if (rehostBtn) rehostBtn.addEventListener('click', () => rehostItem(item, rehostBtn));
 
     // Rating cycle — always wire the click; server enforces mod auth via 403
-    const ratingBadge = slide.querySelector('.scroll-rating[data-item-id]');
-    if (ratingBadge) {
-      if (window.scrollerIsMod || item.local_id) ratingBadge.classList.add('can-cycle');
-      ratingBadge.addEventListener('click', async e => {
+    const rBadge = slide.querySelector('.scroll-rating[data-item-id]');
+    if (rBadge) {
+      if (window.scrollerIsMod || item.local_id) rBadge.classList.add('can-cycle');
+      rBadge.addEventListener('click', async e => {
+        if (Date.now() - speedEndedAt < 200) return; // ignore click if we just ended a speed-hold
         e.stopPropagation();
-        const slideEl = ratingBadge.closest('.scroll-slide');
-        const id = slideEl?.dataset.localId || ratingBadge.dataset.itemId;
+        const slideEl = rBadge.closest('.scroll-slide');
+        const id = slideEl?.dataset.localId || rBadge.dataset.itemId;
         if (!id || isNaN(id)) { showShareToast('Rehost first to change rating'); return; }
         try {
           const resp = await fetch(`/api/v2/tags/${id}/cycle-rating`, {
@@ -1519,9 +1529,9 @@
           });
           const data = await resp.json();
           if (data.success) {
-            ratingBadge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
-            ratingBadge.textContent = data.rating_label;
-            ratingBadge.dataset.rating = data.rating_class;
+            rBadge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
+            rBadge.textContent = data.rating_label;
+            rBadge.dataset.rating = data.rating_class;
           }
         } catch {}
       });
