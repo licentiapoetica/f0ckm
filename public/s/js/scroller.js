@@ -1336,11 +1336,7 @@
         }</div>`
       : '';
     meta.innerHTML = `
-      <div class="scroll-meta-inner" style="position:relative;">
-        <button class="js-speed-hold-btn js-meta-speed-btn" aria-hidden="true" tabindex="-1"
-          style="position:absolute; bottom:100%; left:-16px; width:100px; height:100vh;
-                 background:none; border:none; padding:0; cursor:pointer; opacity:0;
-                 pointer-events:all;"></button>
+      <div class="scroll-meta-inner">
         ${badgesHtml}
         <div class="scroll-meta-top">
           <a href="/user/${esc(item.username)}" class="scroll-user-link">
@@ -1366,11 +1362,6 @@
     const actions = document.createElement('div'); actions.className = 'scroll-actions';
     const _i = window.f0ckI18n || {};
     actions.innerHTML = `
-      <button class="js-speed-hold-btn" aria-hidden="true" tabindex="-1"
-        style="position:absolute; bottom:100%; left:-10px; right:-10px; height:100vh;
-               background:none; border:none; padding:0; cursor:pointer; opacity:0;
-               pointer-events:all; flex-shrink:0;"
-        title=""></button>
       ${window.scrollerLoggedIn ? `
       <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="${_i.favourite || 'Favourite'} (double-tap)">
         <div class="scroll-btn-icon"><i class="${item.is_faved ? 'fa-solid' : 'fa-regular'} fa-heart"></i></div>
@@ -1408,6 +1399,31 @@
       </a>`}
     `;
     slide.appendChild(actions);
+
+    // ── Speed-hold zones (Direct children of slide for maximum reliability) ──
+    // Right zone (above actions)
+    const rightSpeedZone = document.createElement('button');
+    rightSpeedZone.className = 'js-speed-hold-btn';
+    rightSpeedZone.setAttribute('aria-hidden', 'true');
+    rightSpeedZone.tabIndex = -1;
+    Object.assign(rightSpeedZone.style, {
+      position: 'absolute', right: '0', bottom: '0', width: '80px', height: '100vh',
+      background: 'none', border: 'none', padding: '0', cursor: 'pointer', opacity: '0',
+      pointerEvents: 'all', touchAction: 'none', zIndex: '5'
+    });
+    slide.appendChild(rightSpeedZone);
+
+    // Left zone (above meta)
+    const leftSpeedZone = document.createElement('button');
+    leftSpeedZone.className = 'js-speed-hold-btn';
+    leftSpeedZone.setAttribute('aria-hidden', 'true');
+    leftSpeedZone.tabIndex = -1;
+    Object.assign(leftSpeedZone.style, {
+      position: 'absolute', left: '0', bottom: '0', width: '100px', height: '100vh',
+      background: 'none', border: 'none', padding: '0', cursor: 'pointer', opacity: '0',
+      pointerEvents: 'all', touchAction: 'none', zIndex: '5'
+    });
+    slide.appendChild(leftSpeedZone);
 
     // In left-hand mode, inject 4chan action buttons into this slide's actions
     if (leftHandEnabled) {
@@ -1472,8 +1488,8 @@
       }, { passive: true });
     };
 
-    wireSpeedHold(actions.querySelector('.js-speed-hold-btn'));
-    wireSpeedHold(slide.querySelector('.js-meta-speed-btn'));
+    wireSpeedHold(rightSpeedZone);
+    wireSpeedHold(leftSpeedZone);
 
 
     const favBtn = actions.querySelector('.js-fav-btn');
