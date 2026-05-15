@@ -1407,7 +1407,7 @@
     rightSpeedZone.setAttribute('aria-hidden', 'true');
     rightSpeedZone.tabIndex = -1;
     Object.assign(rightSpeedZone.style, {
-      position: 'absolute', right: '0', bottom: '0', width: '80px', height: '100vh',
+      position: 'absolute', right: '0', bottom: '0', width: '40px', height: '100vh',
       background: 'none', border: 'none', padding: '0', cursor: 'pointer', opacity: '0',
       pointerEvents: 'all', touchAction: 'none', zIndex: '5'
     });
@@ -1419,7 +1419,7 @@
     leftSpeedZone.setAttribute('aria-hidden', 'true');
     leftSpeedZone.tabIndex = -1;
     Object.assign(leftSpeedZone.style, {
-      position: 'absolute', left: '0', bottom: '0', width: '20px', height: '100vh',
+      position: 'absolute', left: '0', bottom: '0', width: '40px', height: '100vh',
       background: 'none', border: 'none', padding: '0', cursor: 'pointer', opacity: '0',
       pointerEvents: 'all', touchAction: 'none', zIndex: '5'
     });
