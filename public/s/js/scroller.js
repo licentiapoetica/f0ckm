@@ -1165,7 +1165,7 @@
   }
 
   // ── Tap overlay + double-tap ──────────────────────────────────────────────
-  function setupTapOverlay(slide) {
+  function setupTapOverlay(slide, getSpeedEndedAt) {
     const tapEl = slide.querySelector('.tap-overlay');
     const icon  = slide.querySelector('.tap-pause-icon');
     if (!tapEl) return;
@@ -1175,6 +1175,7 @@
     let lastDoubleTapAt = 0;
 
     const handleTap = (e) => {
+      if (getSpeedEndedAt && Date.now() - getSpeedEndedAt() < 250) return;
       const now = Date.now();
       if (lastTapSlide === slide && now - lastTapTime < DOUBLE_DELAY) {
         // Double tap
@@ -1450,7 +1451,7 @@
     pBar.innerHTML = '<div class="scroll-progress-fill"></div><div class="scroll-progress-thumb"></div>';
     slide.appendChild(pBar);
 
-    setupTapOverlay(slide);
+    setupTapOverlay(slide, () => speedEndedAt);
     // ── Hold-to-2× speed logic (shared by multiple triggers) ──
     let speedTimer   = null;
     let speedActive     = false;
@@ -1477,10 +1478,10 @@
         if (ind) ind.classList.remove('show');
       }
     };
-
-    const wireSpeedHold = (el) => {
+    const wireSpeedHold = (el, onlyMouse = false) => {
       if (!el) return;
-      el.addEventListener('pointerdown', () => {
+      el.addEventListener('pointerdown', (e) => {
+        if (onlyMouse && e.pointerType !== 'mouse') return;
         document.addEventListener('pointerup',    endSpeed, { once: true });
         document.addEventListener('pointercancel',endSpeed, { once: true });
         speedTimer = setTimeout(() => {
@@ -1501,6 +1502,8 @@
 
     wireSpeedHold(rightSpeedZone);
     wireSpeedHold(leftSpeedZone);
+    // On desktop, holding anywhere (mouse) triggers speed hold
+    wireSpeedHold(slide.querySelector('.tap-overlay'), true);
 
 
     const favBtn = actions.querySelector('.js-fav-btn');
