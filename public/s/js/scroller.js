@@ -1419,7 +1419,7 @@
     leftSpeedZone.setAttribute('aria-hidden', 'true');
     leftSpeedZone.tabIndex = -1;
     Object.assign(leftSpeedZone.style, {
-      position: 'absolute', left: '0', bottom: '0', width: '100px', height: '100vh',
+      position: 'absolute', left: '0', bottom: '0', width: '40px', height: '100vh',
       background: 'none', border: 'none', padding: '0', cursor: 'pointer', opacity: '0',
       pointerEvents: 'all', touchAction: 'none', zIndex: '5'
     });
