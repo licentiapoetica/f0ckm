@@ -186,6 +186,20 @@ window.cancelAnimFrame = (function () {
         }, { rootMargin: '300px 0px', threshold: 0.01 });
     }
 
+    // Nudge lazy loading on tab switch to prevent stuck skeletons in inactive tabs
+    if (!window._lazyVisibilityBound) {
+        window._lazyVisibilityBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && typeof window.initLazyLoading === 'function') {
+                // Clear observation state for pending items to force re-observation
+                document.querySelectorAll('.lazy-thumb:not(.loaded)').forEach(t => {
+                    delete t.dataset.lazyObserved;
+                });
+                window.initLazyLoading();
+            }
+        });
+    }
+
     document.querySelectorAll('.lazy-thumb').forEach(thumb => {
         if (!thumb.dataset.lazyObserved) {
             thumb.dataset.lazyObserved = 'true';
@@ -6543,6 +6557,11 @@ class NotificationSystem {
       thumb.style.opacity = '1';
       thumb.style.transform = 'scale(1)';
     });
+
+    // Refresh lazy loading for the newly added item
+    if (typeof window.initLazyLoading === 'function') {
+        window.initLazyLoading();
+    }
   }
 
   handleActivity(data) {
