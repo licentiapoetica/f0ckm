@@ -2700,6 +2700,8 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 -- PostgreSQL database dump complete
 --
 
+SET search_path TO public;
+
 -- Migration to add user_ips table for historical IP logging
 CREATE TABLE IF NOT EXISTS user_ips (
     id SERIAL PRIMARY KEY,

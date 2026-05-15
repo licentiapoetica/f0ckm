@@ -11,15 +11,21 @@
     "adminmultiplier": 3.5,
     "upload_limit": 300,
     "ignored": [
-        "example.net",
-        "example.org"
+      "example.net",
+      "example.org"
     ],
     "invite_secret": "YOUR_SECRET_HERE",
     "hide_comments_from_public": false,
     "timezone": "UTC",
     "development": true
   },
-  "allowedModes": [ "sfw", "nsfw", "untagged", "all", "nsfl" ],
+  "allowedModes": [
+    "sfw",
+    "nsfw",
+    "untagged",
+    "all",
+    "nsfl"
+  ],
   "enable_pdf": false,
   "enable_nsfl": false,
   "nsfl_tag_id": 4,
@@ -29,7 +35,9 @@
     "video"
   ],
   "nsfp": [
-    2,3,4
+    2,
+    3,
+    4
   ],
   "websrv": {
     "port": "1337",
@@ -40,16 +48,16 @@
     "background": true,
     "log_user_ips": false,
     "hash_user_ips": true,
-
     "description": "Example Description",
-    "themes": [ "amoled" ],
+    "themes": [
+      "amoled"
+    ],
     "theme": "amoled",
     "default_layout": "legacy",
     "custom_favicon": "/s/img/favicon.gif",
     "custom_brand_image": [],
     "show_koepfe": false,
     "koepfe": [],
-
     "enable_global_chat": true,
     "enable_danmaku": true,
     "private_messages": true,
@@ -61,7 +69,6 @@
     "enable_cleanup": false,
     "enable_data_export": true,
     "cleanup_timeframe_days": 30,
-
     "web_url_upload": true,
     "enable_youtube_upload": true,
     "web_meta_extraction": true,
@@ -75,7 +82,6 @@
       "giphy.com"
     ],
     "show_mime_picker": true,
-
     "embed_youtube_in_comments": true,
     "show_content_warning": true,
     "default_comment_display_mode": 1,
@@ -90,12 +96,10 @@
     "user_alternative_infobox": false,
     "enable_swf": false,
     "swf_thumb": "/s/img/swf.png",
-
     "open_registration": true,
     "open_registration_web_toggle": false,
     "private_society": false,
     "private_society_gate": "cloudflare",
-
     "paths": {
       "images": "/b",
       "thumbnails": "/t",
@@ -104,50 +108,54 @@
       "memes": "/memes"
     }
   },
-"clients": [{
-  "type": "tg",
-  "enabled": false,
-  "token": "",
-  "pollrate": 1001
-},
-{
-  "type": "matrix",
-  "enabled": false,
-  "baseUrl": "https://matrix.org",
-  "token": "",
-  "userId": "@user:matrix.org",
-  "channels": [],
-  "upload_channel_id": "",
-  "notification_channel_id": ""
-},
-{
-  "type": "irc",
-  "enabled": false,
-  "network": "example",
-  "host": "irc.example.net",
-  "port": 6697,
-  "ssl": true,
-  "selfSigned": true,
-  "sasl": false,
-  "nickname": "bot",
-  "username": "bot",
-  "password": "",
-  "realname": "bot",
-  "channels": [
-    "#example"
-  ]
-}],
-"sql": {
-  "host": "localhost",
-  "port": 5432,
-  "user": "db_user",
-  "password": "db_password",
-  "database": "db_name",
-  "multipleStatements": true,
-  "max": 50
-},
-"admins": [{}],
-"mimes": {
+  "clients": [
+    {
+      "type": "tg",
+      "enabled": false,
+      "token": "",
+      "pollrate": 1001
+    },
+    {
+      "type": "matrix",
+      "enabled": false,
+      "baseUrl": "https://matrix.org",
+      "token": "",
+      "userId": "@user:matrix.org",
+      "channels": [],
+      "upload_channel_id": "",
+      "notification_channel_id": ""
+    },
+    {
+      "type": "irc",
+      "enabled": false,
+      "network": "example",
+      "host": "irc.example.net",
+      "port": 6697,
+      "ssl": true,
+      "selfSigned": true,
+      "sasl": false,
+      "nickname": "bot",
+      "username": "bot",
+      "password": "",
+      "realname": "bot",
+      "channels": [
+        "#example"
+      ]
+    }
+  ],
+  "sql": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "f0ckm",
+    "password": "f0ckm",
+    "database": "f0ckm",
+    "multipleStatements": true,
+    "max": 50
+  },
+  "admins": [
+    {}
+  ],
+  "mimes": {
     "image/png": "png",
     "video/webm": "webm",
     "image/gif": "gif",
@@ -170,16 +178,16 @@
     "application/x-shockwave-flash": "swf",
     "application/vnd.adobe.flash.movie": "swf",
     "application/pdf": "pdf"
-},
-"apis": {},
-"smtp": {
-  "enabled": false,
-  "host": "smtp.example.com",
-  "port": 465,
-  "secure": true,
-  "user": "smtp_user",
-  "password": "smtp_password",
-  "from": "admin@example.com",
-  "mail_reset_password": false
-}
+  },
+  "apis": {},
+  "smtp": {
+    "enabled": false,
+    "host": "smtp.example.com",
+    "port": 465,
+    "secure": true,
+    "user": "smtp_user",
+    "password": "smtp_password",
+    "from": "admin@example.com",
+    "mail_reset_password": false
+  }
 }
