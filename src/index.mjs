@@ -689,20 +689,6 @@ process.on('uncaughtException', err => {
     }
   });
 
-  // Internal auth check for Nginx auth_request (protects files served by Nginx)
-  app.use(async (req, res) => {
-    if (req.url.pathname === '/api/internal/auth-check') {
-      const isProtected = getProtectFiles() || cfg.websrv.private_society;
-      if (isProtected && !req.session) {
-        res.writeHead(401).end('Unauthorized');
-      } else {
-        res.writeHead(200).end('OK');
-      }
-      req.url.pathname = '/auth_check_bypass';
-      return;
-    }
-  });
-
   // CSRF validation helper — used by route handlers that have already populated req.session
   // NOTE: Cannot be used in flummpress app.use() middlewares for upload/avatar bypass handlers
   //       because flummpress runs ALL middlewares in parallel (Promise.all), so the session
