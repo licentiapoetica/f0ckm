@@ -1453,8 +1453,9 @@
     setupTapOverlay(slide);
     // ── Hold-to-2× speed logic (shared by multiple triggers) ──
     let speedTimer   = null;
-    let speedActive  = false;
-    let speedEndedAt = 0;
+    let speedActive     = false;
+    let speedEndedAt    = 0;
+    let wasPausedByHold = false;
 
     const endSpeed = () => {
       clearTimeout(speedTimer);
@@ -1465,7 +1466,13 @@
         speedActive  = false;
         speedEndedAt = Date.now();
         const media = slide.querySelector('video') || slide.querySelector('audio');
-        if (media) media.playbackRate = 1;
+        if (media) {
+          media.playbackRate = 1;
+          if (wasPausedByHold) {
+            media.pause();
+            wasPausedByHold = false;
+          }
+        }
         const ind = document.getElementById('speed-indicator');
         if (ind) ind.classList.remove('show');
       }
@@ -1480,6 +1487,10 @@
           speedActive = true;
           const media = slide.querySelector('video') || slide.querySelector('audio');
           if (media) {
+            if (media.paused) {
+              wasPausedByHold = true;
+              media.play().catch(() => {});
+            }
             media.playbackRate = 2;
             const ind = document.getElementById('speed-indicator');
             if (ind) ind.classList.add('show');
