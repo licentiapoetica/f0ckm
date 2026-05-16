@@ -2302,7 +2302,7 @@ class CommentSystem {
             }
 
             // Cancel Reply
-            if (target.matches('.cancel-reply')) {
+            if (target.closest('.cancel-reply')) {
                 const form = target.closest('.reply-input');
                 if (form) form.remove();
                 return;
