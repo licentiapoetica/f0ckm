@@ -235,7 +235,25 @@ export const handleCommentUpload = async (req, res) => {
                 }
             }
 
-            const ext = cfg.mimes[actualMime] || 'bin';
+            let ext = cfg.mimes[actualMime] || 'bin';
+
+            // Convert GIF → animated WebP to save disk space
+            if (actualMime === 'image/gif') {
+                const webpTmpPath = tmpPath.replace(/\.tmp$/, '.webp');
+                try {
+                    await queue.spawn('magick', [tmpPath, '-coalesce', '-quality', '80', webpTmpPath]);
+                    // Replace the temp file with the converted one
+                    await fs.unlink(tmpPath).catch(() => {});
+                    await fs.rename(webpTmpPath, tmpPath);
+                    actualMime = 'image/webp';
+                    ext = 'webp';
+                    console.log(`[COMMENT_UPLOAD] Converted GIF → WebP: ${file.filename}`);
+                } catch (e) {
+                    console.warn(`[COMMENT_UPLOAD] GIF→WebP conversion failed, keeping original:`, e.message);
+                    await fs.unlink(webpTmpPath).catch(() => {});
+                }
+            }
+
             const filename = `${uuid}.${ext}`;
 
             // SHA-256 checksum
