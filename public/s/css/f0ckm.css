@@ -4393,7 +4393,6 @@ span.placeholder {
 .embed-responsive.is-expanded img#f0ck-image {
   position: static !important;
   height: auto !important;
-  width: auto !important;
   max-width: 100% !important;
   max-height: 100% !important;
 }
