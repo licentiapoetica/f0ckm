@@ -1242,3 +1242,22 @@
 .item-media-col .url-type-badge {
     flex-shrink: 0;
 }
+
+@media (max-width: 600px) {
+    .upload-form.shitpost-mode-active .file-preview-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+
+    .upload-form.shitpost-mode-active .preview-media-small,
+    .upload-form.shitpost-mode-active .item-media-col {
+        width: 100% !important;
+        flex: 0 0 auto;
+        min-height: auto;
+    }
+
+    .upload-form.shitpost-mode-active .item-media-col iframe {
+        height: 200px;
+    }
+}
