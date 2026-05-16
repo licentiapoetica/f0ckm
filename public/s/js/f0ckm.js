@@ -6902,7 +6902,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (userPrefEl && window['motd_dismissed']) showPref = false;
 
     if (typeof marked !== 'undefined') {
-      const rendered = marked.parseInline(escHTML(motd || '').replace(/\\/g, '\\\\').replace(/_/g, '\\_'));
+      let mdSafe = escHTML(motd || '');
+      const bs = String.fromCharCode(92);
+      // Fix the shruggie specifically since markdown eats it
+      // Match ¯\_(ツ)_/¯ or ¯_(ツ)_/¯
+      const pattern = new RegExp('¯' + bs + bs + '?_\\(ツ\\)_/¯', 'g');
+      mdSafe = mdSafe.replace(pattern, '¯' + bs + bs + bs + '_(ツ)' + bs + '_/¯');
+      const rendered = marked.parseInline(mdSafe);
       displays.forEach((display, i) => {
         if (display) {
           if (dataStores[i]) dataStores[i].innerText = motd;
