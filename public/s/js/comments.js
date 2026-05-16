@@ -2120,7 +2120,7 @@ class CommentSystem {
 
             for (const file of fileInput.files) {
                 if (file.size > maxSize) {
-                    alert((i18n.file_too_large || 'File too large') + `: ${file.name}`);
+                    if (window.flashMessage) window.flashMessage((i18n.file_too_large || 'File too large') + `: ${file.name}`, 3000, 'error');
                     continue;
                 }
                 const fd = new FormData();
@@ -2201,12 +2201,12 @@ class CommentSystem {
                     } else {
                         textarea.value = textarea.value.replace(placeholder, '');
                         if (previewItem) previewItem.remove();
-                        alert('Upload error: ' + (json.msg || 'Unknown error'));
+                        if (window.flashMessage) window.flashMessage(json.msg || 'Upload error', 3000, 'error');
                     }
                 } catch (err) {
                     textarea.value = textarea.value.replace(placeholder, '');
                     if (previewItem) previewItem.remove();
-                    alert('Upload failed: ' + err.message);
+                    if (window.flashMessage) window.flashMessage('Upload failed: ' + err.message, 3000, 'error');
                 }
             }
             fileInput.value = '';
