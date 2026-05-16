@@ -144,6 +144,8 @@
     "disable_autoplay_hint": "Prevent videos and audio from playing automatically",
     "disable_swiping": "Disable Swiping",
     "disable_swiping_hint": "Disable swipe-to-navigate on mobile devices",
+    "image_expand_on_click": "Expand images inline on click",
+    "image_expand_on_click_hint": "Instead of opening the scroll zoom modal, clicking an image will expand it to full size within the page.",
     "enable_bg_blur": "Enable Background blur",
     "enable_bg_blur_hint": "Show blurred background on items",
     "render_emojis": "Render emojis in quote replies",

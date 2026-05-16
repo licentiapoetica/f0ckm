@@ -873,7 +873,7 @@ html[theme="4d"] #my-video {
 
 html[theme="xd"] {
   --accent: #17786a;
-  --accent-rgb: 31,178,176;
+  --accent-rgb: 31, 178, 176;
   --bg: #0c0c0c;
   --black: #000;
   --white: #fff;
@@ -882,12 +882,12 @@ html[theme="xd"] {
   --nav-brand-border: inset 1px #242424;
   --nav-brand-bg: #171717;
   --motd-bg: #101010;
-  --navigation-links-bg: rgb(32,32,32);
-  --navigation-links-background-linear-gradient: rgba(0,0,0,.12),rgba(0,0,0,0);
-  --navigation-links-border-color: rgba(0,0,0,.8) rgba(0,0,0,.65) rgba(0,0,0,.5);
-  --navigation-links-box-shadow: rgba(255,255,255,.05);
-  --nav-link-background-linear-gradient: rgba(255,255,255,.04),rgba(255,255,255,0);
-  --nav-link-box-shadow: inset 0 0 0 1px rgba(255,255,255,.04),inset 0 0px rgba(255,255,255,.04),inset 0 0px rgba(0,0,0,.15),0 0px 0px rgba(0,0,0,.1);
+  --navigation-links-bg: rgb(32, 32, 32);
+  --navigation-links-background-linear-gradient: rgba(0, 0, 0, .12), rgba(0, 0, 0, 0);
+  --navigation-links-border-color: rgba(0, 0, 0, .8) rgba(0, 0, 0, .65) rgba(0, 0, 0, .5);
+  --navigation-links-box-shadow: rgba(255, 255, 255, .05);
+  --nav-link-background-linear-gradient: rgba(255, 255, 255, .04), rgba(255, 255, 255, 0);
+  --nav-link-box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), inset 0 0px rgba(255, 255, 255, .04), inset 0 0px rgba(0, 0, 0, .15), 0 0px 0px rgba(0, 0, 0, .1);
   --nav-link-hover-bg: #333;
   --nav-border-color: #3b3b3c;
   --dropdown-bg: #232323;
@@ -895,11 +895,11 @@ html[theme="xd"] {
   --nav-brand-font: 'VCR';
   --font: monospace;
   --pagination-background: #171717;
-  --pagination-box-shadow: inset 0 0 0 1px rgba(255,255,255,.04),inset 0 0px rgba(255,255,255,.04),inset 0 0px rgba(0,0,0,.15),0 0px 0px rgba(0,0,0,.1);
-  --pagination-anchor-box-shadow: inset 0 0 0 1px rgba(255,255,255,.04),inset 0 1px rgba(255,255,255,.04),inset 0 -1px rgba(0,0,0,.15),0 1px 1px rgba(0,0,0,.1);
+  --pagination-box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), inset 0 0px rgba(255, 255, 255, .04), inset 0 0px rgba(0, 0, 0, .15), 0 0px 0px rgba(0, 0, 0, .1);
+  --pagination-anchor-box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), inset 0 1px rgba(255, 255, 255, .04), inset 0 -1px rgba(0, 0, 0, .15), 0 1px 1px rgba(0, 0, 0, .1);
   --pagination-background-hover: #333;
-  --pagination-border-color: rgba(0,0,0,.8) rgba(0,0,0,.65) rgba(0,0,0,.5);
-  --metadata-bg: rgba(34,34,34,0.8);
+  --pagination-border-color: rgba(0, 0, 0, .8) rgba(0, 0, 0, .65) rgba(0, 0, 0, .5);
+  --metadata-bg: rgba(34, 34, 34, 0.8);
   --badge-bg: #131313;
   --posts-meta-bg: #000000b8;
   --badge-sfw: #68a728;
@@ -912,7 +912,7 @@ html[theme="xd"] {
   --img-border-width: 0;
   --img-border-color: #363636;
   --maximize_button: #1fb2b0;
-  --bg-gradient: linear-gradient(0deg,rgba(0,0,0,0.94) 0%,rgb(6,6,6) 10%,rgb(43,43,43) 100%);
+  --bg-gradient: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 0%, rgb(6, 6, 6) 10%, rgb(43, 43, 43) 100%);
 }
 
 html[theme="xd"] .motd-container {
@@ -920,8 +920,8 @@ html[theme="xd"] .motd-container {
   border-bottom: 1px solid var(--nav-border-color);
 }
 
-html[theme="xd"] .item-sidebar-right, 
-html[theme="xd"] .index-sidebar-right, 
+html[theme="xd"] .item-sidebar-right,
+html[theme="xd"] .index-sidebar-right,
 html[theme="xd"] .global-sidebar-right {
   background: #131313 !important;
   border-left: 2px solid var(--nav-border-color) !important;
@@ -1724,7 +1724,8 @@ body.sidebar-right-hidden .global-sidebar-right {
     display: grid;
     grid-template-rows: auto auto auto;
     justify-items: center;
-    align-content: baseline; /*with center the layout shifts when item has favs, with baseline it stays consistent and expands to the bottom cleanly */
+    align-content: baseline;
+    /*with center the layout shifts when item has favs, with baseline it stays consistent and expands to the bottom cleanly */
     overflow: visible;
     padding: 20px;
     min-height: 0;
@@ -1997,8 +1998,13 @@ body.sidebar-right-hidden .global-sidebar-right {
 /* ─── Sidebar Skeleton Loader ─────────────────────────────────────────────── */
 
 @keyframes skeleton-shimmer {
-  0%   { background-position: -300px 0; }
-  100% { background-position: 300px 0; }
+  0% {
+    background-position: -300px 0;
+  }
+
+  100% {
+    background-position: 300px 0;
+  }
 }
 
 .sidebar-skeleton-item {
@@ -2028,12 +2034,10 @@ body.sidebar-right-hidden .global-sidebar-right {
 /* Shared shimmer base */
 .skeleton-avatar,
 .skeleton-line {
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.10) 40%,
-    rgba(255,255,255,0.04) 80%
-  );
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.10) 40%,
+      rgba(255, 255, 255, 0.04) 80%);
   background-size: 600px 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
   border-radius: 3px;
@@ -2050,22 +2054,51 @@ body.sidebar-right-hidden .global-sidebar-right {
   height: 10px;
 }
 
-.skeleton-name  { width: 55%; }
-.skeleton-time  { width: 35%; height: 8px; opacity: 0.65; }
+.skeleton-name {
+  width: 55%;
+}
 
-.skeleton-text-long   { width: 90%; margin-bottom: 6px; }
-.skeleton-text-medium { width: 70%; margin-bottom: 6px; }
-.skeleton-text-short  { width: 45%; margin-bottom: 0; }
+.skeleton-time {
+  width: 35%;
+  height: 8px;
+  opacity: 0.65;
+}
+
+.skeleton-text-long {
+  width: 90%;
+  margin-bottom: 6px;
+}
+
+.skeleton-text-medium {
+  width: 70%;
+  margin-bottom: 6px;
+}
+
+.skeleton-text-short {
+  width: 45%;
+  margin-bottom: 0;
+}
 
 /* Stagger the shimmer phase so each item feels alive individually (cycles every 5) */
 .sidebar-skeleton-item:nth-child(5n+2) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+2) .skeleton-line { animation-delay: 0.2s; }
+.sidebar-skeleton-item:nth-child(5n+2) .skeleton-line {
+  animation-delay: 0.2s;
+}
+
 .sidebar-skeleton-item:nth-child(5n+3) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+3) .skeleton-line { animation-delay: 0.4s; }
+.sidebar-skeleton-item:nth-child(5n+3) .skeleton-line {
+  animation-delay: 0.4s;
+}
+
 .sidebar-skeleton-item:nth-child(5n+4) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+4) .skeleton-line { animation-delay: 0.6s; }
+.sidebar-skeleton-item:nth-child(5n+4) .skeleton-line {
+  animation-delay: 0.6s;
+}
+
 .sidebar-skeleton-item:nth-child(5n+5) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+5) .skeleton-line { animation-delay: 0.8s; }
+.sidebar-skeleton-item:nth-child(5n+5) .skeleton-line {
+  animation-delay: 0.8s;
+}
 
 /* Mobile Stacking for Legacy Mode (max-width: 999px) */
 @media (max-width: 999px) {
@@ -3677,7 +3710,8 @@ ul.navbar-nav li.nav-item {
   content: "" !important;
   } */
 
-  .fa-solid.fa-angle-up, .fa-regular.fa-image {
+  .fa-solid.fa-angle-up,
+  .fa-regular.fa-image {
     margin-right: 5px;
   }
 
@@ -4342,6 +4376,26 @@ span.placeholder {
   width: 100%;
   max-width: 100%;
   object-fit: contain;
+}
+
+/* Inline image expansion */
+.embed-responsive.is-expanded::before {
+  display: none !important;
+}
+
+.embed-responsive.is-expanded {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.embed-responsive.is-expanded .embed-responsive-image,
+.embed-responsive.is-expanded a#elfe,
+.embed-responsive.is-expanded img#f0ck-image {
+  position: static !important;
+  height: auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 a#elfe {
@@ -5265,7 +5319,7 @@ div.posts>a[data-mode="nsfl"]>p::before {
   background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(227, 7, 7, 0) 85%, rgb(231, 3, 3) 100%);
 }
 
-div.posts > a[data-mode="null"] > p::before {
+div.posts>a[data-mode="null"]>p::before {
   background: #000000;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(63, 196, 61, 0) 85%, rgb(244, 222, 0) 100%);
 }
@@ -6292,8 +6346,10 @@ button#togglebg {
 }
 
 .fader-in {
-  /*opacity: 0.4 !important;*/ /* default */
-  opacity: 0.1 !important; /* darker */
+  /*opacity: 0.4 !important;*/
+  /* default */
+  opacity: 0.1 !important;
+  /* darker */
 }
 
 .fader-out {
@@ -6319,20 +6375,23 @@ button#togglebg {
 }
 
 /* ─── Posts Grid Skeleton: shimmer on real items while thumbnail loads ─────── */
-div.posts > a.lazy-thumb:not(.loaded) {
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.10) 40%,
-    rgba(255,255,255,0.04) 80%
-  );
+div.posts>a.lazy-thumb:not(.loaded) {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.10) 40%,
+      rgba(255, 255, 255, 0.04) 80%);
   background-size: 600px 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
 /* Stagger shimmer phases so items feel alive individually */
-div.posts > a.lazy-thumb:not(.loaded):nth-child(3n+2) { animation-delay: 0.2s; }
-div.posts > a.lazy-thumb:not(.loaded):nth-child(3n+3) { animation-delay: 0.4s; }
+div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+2) {
+  animation-delay: 0.2s;
+}
+
+div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+3) {
+  animation-delay: 0.4s;
+}
 
 
 /* Make individual item entry subtler and faster for infinite scroll */
@@ -9450,7 +9509,7 @@ div.posts>a.thumb.has-notif p::after {
 
 /* ===== Dynamic Thumbnail Sizes ===== */
 /* Size tier 2: 2×2 grid cells */
-div.posts > a.thumb[data-size="2"] {
+div.posts>a.thumb[data-size="2"] {
   grid-column: span 2;
   grid-row: span 2;
 }
@@ -13668,58 +13727,68 @@ body.scroller-active #gchat-reopen-bubble {
   }
 }
 
-#nav-meme-link, #nav-upload-link {
+#nav-meme-link,
+#nav-upload-link {
   white-space: nowrap;
 }
+
 /* --- Admin IP History Styles --- */
 .admin-ips-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px;
-    color: var(--white);
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  color: var(--white);
 }
+
 .admin-ips-table th {
-    padding: 15px;
-    text-align: left;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 1px;
-    color: #888;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 15px;
+  text-align: left;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  color: #888;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 .admin-ips-table tr {
-    transition: all 0.2s ease;
+  transition: all 0.2s ease;
 }
+
 .admin-ips-table tbody tr {
-    background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.02);
 }
+
 .admin-ips-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
+
 .admin-ips-table td {
-    padding: 15px;
-    vertical-align: middle;
+  padding: 15px;
+  vertical-align: middle;
 }
+
 .ip-badge {
-    font-family: monospace;
-    padding: 4px 10px;
-    background: rgba(var(--accent-rgb, 153, 255, 0), 0.1);
-    border: 1px solid rgba(var(--accent-rgb, 153, 255, 0), 0.2);
-    color: var(--accent);
-    border-radius: 4px;
-    font-size: 0.9rem;
-    word-break: break-all;
-    display: inline-block;
-    max-width: 100%;
+  font-family: monospace;
+  padding: 4px 10px;
+  background: rgba(var(--accent-rgb, 153, 255, 0), 0.1);
+  border: 1px solid rgba(var(--accent-rgb, 153, 255, 0), 0.2);
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  word-break: break-all;
+  display: inline-block;
+  max-width: 100%;
 }
+
 .date-cell {
-    font-size: 0.85rem;
-    color: #aaa;
+  font-size: 0.85rem;
+  color: #aaa;
 }
+
 .date-label {
-    display: block;
-    font-size: 0.7rem;
-    color: #666;
-    text-transform: uppercase;
-    margin-bottom: 2px;
+  display: block;
+  font-size: 0.7rem;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 2px;
 }

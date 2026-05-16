@@ -711,6 +711,14 @@
         });
     }
 
+    const imageExpandToggle = document.getElementById('image_expand_toggle');
+    if (imageExpandToggle) {
+        imageExpandToggle.checked = localStorage.getItem('imageExpandOnClick') !== 'false';
+        imageExpandToggle.addEventListener('change', () => {
+            localStorage.setItem('imageExpandOnClick', imageExpandToggle.checked);
+        });
+    }
+
     // Background Blur Toggle
     const backgroundToggle = document.getElementById('show_background_toggle');
     if (backgroundToggle) {

@@ -110,6 +110,13 @@
             </label>
             <small class="text-muted" style="margin-left: 25px;">{{ t('settings.scroll_nav_hint') }}</small>
           </div>
+          <div class="setting-item" style="margin-bottom: 15px;">
+            <label for="image_expand_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="image_expand_toggle">
+              <span>{{ t('settings.image_expand_on_click') || 'Expand images inline on click' }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.image_expand_on_click_hint') || 'Instead of opening the scroll zoom modal, clicking an image will expand it to full size within the page.' }}</small>
+          </div>
           <div class="setting-item" style="margin-top: 15px;">
             <label for="disable_autoplay_toggle"
               style="cursor: pointer; display: flex; align-items: center; gap: 10px;">

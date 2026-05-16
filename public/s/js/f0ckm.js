@@ -7822,7 +7822,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const elfe = e.target.closest('#elfe');
       if (elfe) {
         e.preventDefault();
-        openImageModal(elfe.href);
+        const expandOnClick = localStorage.getItem('imageExpandOnClick') !== 'false';
+        if (expandOnClick) {
+            const wrapper = elfe.closest('.embed-responsive');
+            if (wrapper) {
+                wrapper.classList.toggle('is-expanded');
+            }
+        } else {
+            openImageModal(elfe.href);
+        }
       }
     });
   };

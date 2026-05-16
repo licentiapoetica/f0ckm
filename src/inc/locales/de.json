@@ -144,6 +144,8 @@
     "disable_autoplay_hint": "Verhindert die automatische Wiedergabe von Videos und Audio",
     "disable_swiping": "Wischen deaktivieren",
     "disable_swiping_hint": "Navigation per Wischen auf Mobilgeräten deaktivieren",
+    "image_expand_on_click": "Bilder beim Klicken inline erweitern",
+    "image_expand_on_click_hint": "Anstatt das Scroll-Zoom-Modal zu öffnen, wird ein Bild beim Klicken innerhalb der Seite auf volle Größe erweitert.",
     "enable_bg_blur": "Hintergrundunschärfe aktivieren",
     "enable_bg_blur_hint": "Unscharfen Hintergrund bei Beiträgen anzeigen",
     "render_emojis": "Emojis in Zitatantworten anzeigen",

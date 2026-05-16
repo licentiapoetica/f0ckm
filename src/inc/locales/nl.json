@@ -144,6 +144,8 @@
     "disable_autoplay_hint": "Voorkomen dat video's en audio automatisch worden afgespeeld",
     "disable_swiping": "Swipen uitschakelen",
     "disable_swiping_hint": "Swipe-to-navigate uitschakelen op mobiele apparaten",
+    "image_expand_on_click": "Afbeeldingen inline vergroten bij klikken",
+    "image_expand_on_click_hint": "In plaats van de scroll-zoom-modal te openen, wordt een afbeelding bij klikken vergroot tot volledige grootte binnen de pagina.",
     "enable_bg_blur": "Achtergrondvervaging inschakelen",
     "enable_bg_blur_hint": "Vervaagde achtergrond tonen bij items",
     "render_emojis": "Emoji's weergeven in antwoorden",
