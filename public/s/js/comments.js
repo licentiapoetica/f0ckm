@@ -2118,6 +2118,19 @@ class CommentSystem {
             const i18n = window.f0ckI18n || {};
             const removeLabel = i18n.remove_file || 'Remove file';
 
+            const maxAttachments = session.fileupload_comments_max || 5;
+            const currentCount = previewArea ? previewArea.querySelectorAll('.cf-preview-item').length : 0;
+            const slotsLeft = maxAttachments - currentCount;
+
+            if (fileInput.files.length > slotsLeft) {
+                if (window.flashMessage) window.flashMessage(
+                    `Maximum ${maxAttachments} attachments per comment exceeded`,
+                    3000, 'error'
+                );
+                fileInput.value = '';
+                return;
+            }
+
             for (const file of fileInput.files) {
                 if (file.size > maxSize) {
                     if (window.flashMessage) window.flashMessage((i18n.file_too_large || 'File too large') + `: ${file.name}`, 3000, 'error');
@@ -2127,6 +2140,14 @@ class CommentSystem {
                 fd.append('file', file);
                 const csrf = session.csrf_token || '';
                 const uploadingText = i18n.uploading_file || 'Uploading...';
+                const submitBtn = wrap.querySelector('.submit-comment');
+
+                // Track pending uploads
+                wrap._pendingUploads = (wrap._pendingUploads || 0) + 1;
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('uploading');
+                }
 
                 // Insert placeholder at cursor position
                 const cursorPos = textarea.selectionStart;
@@ -2207,6 +2228,16 @@ class CommentSystem {
                     textarea.value = textarea.value.replace(placeholder, '');
                     if (previewItem) previewItem.remove();
                     if (window.flashMessage) window.flashMessage('Upload failed: ' + err.message, 3000, 'error');
+                } finally {
+                    // Decrement pending uploads
+                    wrap._pendingUploads = Math.max(0, (wrap._pendingUploads || 1) - 1);
+                    if (wrap._pendingUploads === 0) {
+                        const submitBtn = wrap.querySelector('.submit-comment');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.classList.remove('uploading');
+                        }
+                    }
                 }
             }
             fileInput.value = '';
@@ -2565,6 +2596,7 @@ class CommentSystem {
 
         if (!text.trim()) return;
         if (submitBtn.classList.contains('loading')) return;
+        if (wrap._pendingUploads > 0) return;
 
         // Start loading state
         submitBtn.classList.add('loading');

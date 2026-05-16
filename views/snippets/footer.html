@@ -410,6 +410,7 @@
     allow_fileupload_comments: @if(allow_fileupload_comments) true @else false @endif,
     fileupload_comments_multifile: @if(fileupload_comments_multifile) true @else false @endif,
     fileupload_comments_size: {{ fileupload_comments_size }},
+    fileupload_comments_max: {{ fileupload_comments_max }},
     fileupload_comments_mode: "{{ fileupload_comments_mode }}"
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};

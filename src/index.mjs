@@ -1094,6 +1094,7 @@ process.on('uncaughtException', err => {
     allow_fileupload_comments: cfg.websrv.allow_fileupload_comments || false,
     fileupload_comments_multifile: cfg.websrv.fileupload_comments_multifile || false,
     fileupload_comments_size: cfg.websrv.fileupload_comments_size || (10 * 1024 * 1024),
+    fileupload_comments_max: cfg.websrv.fileupload_comments_max || 5,
     fileupload_comments_mode: cfg.websrv.fileupload_comments_mode || 'attachment',
 
     get fonts() {
