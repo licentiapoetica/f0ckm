@@ -2305,6 +2305,7 @@ body.layout-modern .item-sidebar-left .tag-controls {
   justify-content: flex-end;
   align-items: center;
   gap: 5px;
+  flex-wrap: wrap;
 }
 
 .submit-comment {
@@ -2364,8 +2365,8 @@ body.layout-modern .item-sidebar-left .tag-controls {
 
 .comment-attach-btn {
   background: none;
-  border: 1px solid var(--nav-border-color);
-  color: #888;
+  border: none;
+  color: var(--white);
   cursor: pointer;
   padding: 4px 8px;
   display: flex;
@@ -2373,11 +2374,6 @@ body.layout-modern .item-sidebar-left .tag-controls {
   justify-content: center;
   transition: color 0.15s, border-color 0.15s;
   font-size: 14px;
-}
-
-.comment-attach-btn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 .comment-file-preview {
@@ -5220,10 +5216,6 @@ body[type='login'] {
   padding: 0 5px;
   vertical-align: middle;
   transition: text-shadow 0.2s;
-}
-
-.emoji-trigger:hover {
-  text-shadow: 0 0 8px var(--accent);
 }
 
 .spoiler-trigger {
