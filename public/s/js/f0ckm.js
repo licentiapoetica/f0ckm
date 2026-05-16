@@ -7831,6 +7831,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             openImageModal(elfe.href);
         }
+        return;
+      }
+
+      // Comment embedded images → open in image modal
+      const commentImg = e.target.closest('.comment-content img, .comment-attachments img');
+      if (commentImg) {
+        e.preventDefault();
+        e.stopPropagation();
+        openImageModal(commentImg.src);
       }
     });
   };

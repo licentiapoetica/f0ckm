@@ -128,7 +128,8 @@
             const hostsRegexPart = allowedHosts.join('|');
             // "Safe non-whitespace" stops at protocol boundaries so concatenated URLs aren't merged.
             const safeS = `(?:(?!https?:\\/\\/)\\S)`;
-            const imageRegex = new RegExp(`(?<![\\(\\[])((?:https?:\\/\\/)?(?:${hostsRegexPart})(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
+            const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?<!\\S)(?=\\/[a-zA-Z0-9_\\-]))`;
+            const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
             const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
 
             const renderer = new marked.Renderer();

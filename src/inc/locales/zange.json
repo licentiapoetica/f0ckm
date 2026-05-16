@@ -308,7 +308,11 @@
   "comments": {
     "write_comment": "Schreiben Sie doch einen Kommentar...",
     "post": "Pfostieren",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "attach_file": "Datei anflanschen",
+    "uploading_file": "Wird aufladiert...",
+    "remove_file": "Datei entfernen",
+    "file_too_large": "Datei zu voluminös"
   },
   "upload_btn": {
     "select_file": "Datei auswählen",

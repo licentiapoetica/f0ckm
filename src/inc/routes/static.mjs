@@ -9,6 +9,11 @@ export default (router, tpl) => {
   });
 
   router.static({
+    dir: cfg.paths.c,
+    route: /^\/c\//
+  });
+
+  router.static({
     dir: cfg.paths.emojis,
     route: /^\/s\/emojis\//
   });

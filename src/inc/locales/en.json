@@ -309,7 +309,11 @@
   "comments": {
     "write_comment": "Write a comment...",
     "post": "Post",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "attach_file": "Attach file",
+    "uploading_file": "Uploading...",
+    "remove_file": "Remove file",
+    "file_too_large": "File too large"
   },
   "upload_btn": {
     "select_file": "Select a file",

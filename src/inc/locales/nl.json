@@ -309,7 +309,11 @@
   "comments": {
     "write_comment": "Schrijf een opmerking...",
     "post": "Plaatsen",
-    "cancel": "Annuleren"
+    "cancel": "Annuleren",
+    "attach_file": "Bestand bijvoegen",
+    "uploading_file": "Uploaden...",
+    "remove_file": "Bestand verwijderen",
+    "file_too_large": "Bestand te groot"
   },
   "upload_btn": {
     "select_file": "Selecteer een bestand",

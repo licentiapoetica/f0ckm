@@ -581,6 +581,48 @@ ALTER SEQUENCE public.comments_id_seq OWNED BY public.comments.id;
 
 
 --
+-- Name: comment_files; Type: TABLE; Schema: public; Owner: f0ckm
+--
+
+CREATE TABLE public.comment_files (
+    id integer NOT NULL,
+    comment_id integer,
+    user_id integer NOT NULL,
+    dest character varying(40) NOT NULL,
+    mime character varying(100) NOT NULL,
+    size integer NOT NULL,
+    checksum character varying(255) NOT NULL,
+    phash text,
+    original_filename text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.comment_files OWNER TO f0ckm;
+
+--
+-- Name: comment_files_id_seq; Type: SEQUENCE; Schema: public; Owner: f0ckm
+--
+
+CREATE SEQUENCE public.comment_files_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.comment_files_id_seq OWNER TO f0ckm;
+
+--
+-- Name: comment_files_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: f0ckm
+--
+
+ALTER SEQUENCE public.comment_files_id_seq OWNED BY public.comment_files.id;
+
+
+--
 -- Name: custom_emojis; Type: TABLE; Schema: public; Owner: f0ckm
 --
 

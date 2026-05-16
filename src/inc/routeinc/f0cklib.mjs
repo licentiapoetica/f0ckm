@@ -861,6 +861,31 @@ export default {
                 CASE WHEN ${sort !== 'new'} THEN c.created_at END ASC,
                 CASE WHEN ${sort === 'new'} THEN c.created_at END DESC
         `;
+
+      // Fetch comment file attachments
+      if (comments.length > 0) {
+        const commentIds = comments.map(c => c.id);
+        try {
+          const files = await db`
+            SELECT id, comment_id, dest, mime, size, original_filename
+            FROM comment_files
+            WHERE comment_id = ANY(${commentIds}::int[])
+            ORDER BY id ASC
+          `;
+          const filesMap = new Map();
+          for (const f of files) {
+            if (!filesMap.has(f.comment_id)) filesMap.set(f.comment_id, []);
+            filesMap.get(f.comment_id).push(f);
+          }
+          for (const c of comments) {
+            c.files = filesMap.get(c.id) || [];
+          }
+        } catch (e) {
+          // Table might not exist yet, gracefully degrade
+          for (const c of comments) c.files = [];
+        }
+      }
+
       console.log(`[${new Date().toISOString()}] [GETCOMMENTS] Fetched ${comments.length} comments for item ${itemId} in ${Date.now() - tStart}ms`);
 
       // Process mentions (now includes embeds)
@@ -886,6 +911,20 @@ export default {
             LIMIT 1
         `;
       if (!comment.length) return null;
+
+      // Fetch comment file attachments
+      try {
+        const files = await db`
+          SELECT id, comment_id, dest, mime, size, original_filename
+          FROM comment_files
+          WHERE comment_id = ${id}
+          ORDER BY id ASC
+        `;
+        comment[0].files = files;
+      } catch (e) {
+        comment[0].files = [];
+      }
+
       return process ? (await processMentions(comment))[0] : comment[0];
     } catch (e) {
       console.error('[F0CKLIB] Error fetching comment:', e);

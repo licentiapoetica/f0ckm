@@ -45,6 +45,7 @@ const resolvePath = (defaultRel) => {
 config.paths = {
     a: resolvePath('public/a'),
     b: resolvePath('public/b'),
+    c: resolvePath('public/c'),
     t: resolvePath('public/t'),
     ca: resolvePath('public/ca'),
     s: path.join(base, 'public/s'),

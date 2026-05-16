@@ -406,7 +406,11 @@
     do_not_disturb: @if(session && session.do_not_disturb) true @else false @endif,
     comment_display_mode: {{ comment_display_mode }},
     comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }},
-    development: @if(development) true @else false @endif
+    development: @if(development) true @else false @endif,
+    allow_fileupload_comments: @if(allow_fileupload_comments) true @else false @endif,
+    fileupload_comments_multifile: @if(fileupload_comments_multifile) true @else false @endif,
+    fileupload_comments_size: {{ fileupload_comments_size }},
+    fileupload_comments_mode: "{{ fileupload_comments_mode }}"
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   window.f0ckI18n = {
@@ -550,7 +554,12 @@
     chat_expand: "{{ t('chat.expand') }}",
     chat_slow_down: "{{ t('chat.slow_down') }}",
     chat_error_send: "{{ t('chat.error_send') }}",
-    chat_network_error: "{{ t('chat.network_error') }}"
+    chat_network_error: "{{ t('chat.network_error') }}",
+    // comment file upload
+    attach_file: "{{ t('comments.attach_file') }}",
+    uploading_file: "{{ t('comments.uploading_file') }}",
+    remove_file: "{{ t('comments.remove_file') }}",
+    file_too_large: "{{ t('comments.file_too_large') }}"
   };
 </script>
 <script src="/s/js/f0ckm.js?v={{ ts }}"></script>

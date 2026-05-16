@@ -309,7 +309,11 @@
   "comments": {
     "write_comment": "Kommentar schreiben...",
     "post": "Abschnalzen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "attach_file": "Datei anhängen",
+    "uploading_file": "Wird hochgeladen...",
+    "remove_file": "Datei entfernen",
+    "file_too_large": "Datei zu groß"
   },
   "upload_btn": {
     "select_file": "Datei auswählen",

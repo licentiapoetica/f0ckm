@@ -1858,6 +1858,7 @@ class CommentSystem {
                         <a href="#c${comment.id}" class="comment-time timeago" title="${fullDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
                     </div>
                     <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
+                    ${this.renderCommentAttachments(comment.files)}
                     <div class="comment-footer">
                         <div class="comment-footer-right">
                             <div class="comment-actions">
@@ -1901,22 +1902,46 @@ class CommentSystem {
         return div.innerHTML;
     }
 
+    renderCommentAttachments(files) {
+        if (!files || files.length === 0) return '';
+        const items = files.map(f => {
+            const url = `/c/${f.dest}`;
+            if (f.mime.startsWith('image/')) {
+                return `<a href="${url}" target="_blank" class="cf-attachment cf-image"><img src="${url}" alt="${this.escapeHtml(f.original_filename || 'image')}" loading="lazy"></a>`;
+            } else if (f.mime.startsWith('video/')) {
+                return `<div class="cf-attachment cf-video"><video src="${url}" controls preload="metadata"></video></div>`;
+            } else if (f.mime.startsWith('audio/')) {
+                return `<div class="cf-attachment cf-audio"><audio src="${url}" controls preload="metadata"></audio></div>`;
+            }
+            return '';
+        }).join('');
+        return items ? `<div class="comment-attachments">${items}</div>` : '';
+    }
 
     renderInput(parentId = null) {
         const i18n = window.f0ckI18n || {};
+        const session = window.f0ckSession || {};
         const placeholder = i18n.write_comment || 'Write a comment...';
         const postLabel = i18n.post || 'Post';
         const cancelLabel = i18n.cancel || 'Cancel';
-        const maxLen = window.f0ckSession?.comment_max_length;
+        const attachLabel = i18n.attach_file || 'Attach file';
+        const maxLen = session.comment_max_length;
         const maxLenAttr = (maxLen !== null && maxLen !== undefined) ? ` maxlength="${maxLen}"` : '';
         const counter = (maxLen !== null && maxLen !== undefined)
             ? `<span class="char-counter" data-max="${maxLen}">0 / ${maxLen}</span>`
             : '';
+        const fileUploadEnabled = session.logged_in && session.allow_fileupload_comments;
+        const multiFile = session.fileupload_comments_multifile;
+        const attachBtn = fileUploadEnabled
+            ? `<button class="comment-attach-btn" title="${attachLabel}" type="button"><i class="fa-solid fa-paperclip"></i></button><input type="file" class="comment-file-input" accept="image/*,video/*,audio/*" ${multiFile ? 'multiple' : ''} style="display:none;">`
+            : '';
         return `
             <div class="comment-input ${parentId ? 'reply-input' : 'main-input'}" ${parentId ? `data-parent="${parentId}"` : ''}>
                 <textarea placeholder="${placeholder}"${maxLenAttr}></textarea>
+                <div class="comment-file-preview"></div>
                 <div class="input-actions">
                     ${counter}
+                    ${attachBtn}
                     ${parentId ? `<button class="cancel-reply" title="${cancelLabel}"><i class="fa-solid fa-xmark"></i></button>` : ''}
                     <button class="submit-comment">${postLabel}</button>
                 </div>
@@ -2080,6 +2105,113 @@ class CommentSystem {
         });
 
         // Single Click Listener for Everything
+        this.container.addEventListener('change', async (e) => {
+            if (!e.target.matches('.comment-file-input')) return;
+            const fileInput = e.target;
+            const wrap = fileInput.closest('.comment-input');
+            if (!wrap) return;
+            const textarea = wrap.querySelector('textarea');
+            if (!textarea) return;
+            const previewArea = wrap.querySelector('.comment-file-preview');
+            const session = window.f0ckSession || {};
+            const maxSize = session.fileupload_comments_size || (10 * 1024 * 1024);
+            const i18n = window.f0ckI18n || {};
+            const removeLabel = i18n.remove_file || 'Remove file';
+
+            for (const file of fileInput.files) {
+                if (file.size > maxSize) {
+                    alert((i18n.file_too_large || 'File too large') + `: ${file.name}`);
+                    continue;
+                }
+                const fd = new FormData();
+                fd.append('file', file);
+                const csrf = session.csrf_token || '';
+                const uploadingText = i18n.uploading_file || 'Uploading...';
+
+                // Insert placeholder at cursor position
+                const cursorPos = textarea.selectionStart;
+                const before = textarea.value.substring(0, cursorPos);
+                const after = textarea.value.substring(textarea.selectionEnd);
+                const placeholder = `[${uploadingText} ${file.name}]`;
+                const sep = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
+                textarea.value = before + sep + placeholder + after;
+
+                // Show uploading preview
+                let previewItem = null;
+                if (previewArea) {
+                    previewItem = document.createElement('div');
+                    previewItem.className = 'cf-preview-item cf-uploading';
+                    const spinner = document.createElement('i');
+                    spinner.className = 'fa-solid fa-spinner fa-spin';
+                    previewItem.appendChild(spinner);
+                    const nameEl = document.createElement('span');
+                    nameEl.className = 'cf-filename';
+                    nameEl.textContent = file.name;
+                    previewItem.appendChild(nameEl);
+                    previewArea.appendChild(previewItem);
+                }
+
+                try {
+                    const res = await fetch('/api/v2/comments/upload', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf },
+                        body: fd
+                    });
+                    const json = await res.json();
+                    if (json.success && json.files && json.files.length > 0) {
+                        const fileData = json.files[0];
+                        const url = `/c/${fileData.dest}`;
+                        textarea.value = textarea.value.replace(placeholder, url);
+
+                        // Update preview with actual thumbnail
+                        if (previewItem) {
+                            previewItem.classList.remove('cf-uploading');
+                            previewItem.dataset.url = url;
+                            previewItem.dataset.fileId = fileData.id;
+                            previewItem.innerHTML = '';
+
+                            if (fileData.mime.startsWith('image/')) {
+                                const img = document.createElement('img');
+                                img.src = url;
+                                img.loading = 'lazy';
+                                previewItem.appendChild(img);
+                            } else if (fileData.mime.startsWith('video/')) {
+                                const vid = document.createElement('video');
+                                vid.src = url;
+                                vid.muted = true;
+                                vid.preload = 'metadata';
+                                previewItem.appendChild(vid);
+                            } else {
+                                const icon = document.createElement('i');
+                                icon.className = 'fa-solid fa-music';
+                                previewItem.appendChild(icon);
+                            }
+
+                            const nameEl = document.createElement('span');
+                            nameEl.className = 'cf-filename';
+                            nameEl.textContent = file.name;
+                            previewItem.appendChild(nameEl);
+
+                            const removeBtn = document.createElement('button');
+                            removeBtn.className = 'cf-remove-btn';
+                            removeBtn.title = removeLabel;
+                            removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                            previewItem.appendChild(removeBtn);
+                        }
+                    } else {
+                        textarea.value = textarea.value.replace(placeholder, '');
+                        if (previewItem) previewItem.remove();
+                        alert('Upload error: ' + (json.msg || 'Unknown error'));
+                    }
+                } catch (err) {
+                    textarea.value = textarea.value.replace(placeholder, '');
+                    if (previewItem) previewItem.remove();
+                    alert('Upload failed: ' + err.message);
+                }
+            }
+            fileInput.value = '';
+        });
+
         this.container.addEventListener('click', async (e) => {
             _f0ckDebug('[DEBUG] Click on container:', e.target);
             const target = e.target;
@@ -2102,6 +2234,32 @@ class CommentSystem {
                     } else {
                         this.container.scrollIntoView({ behavior: 'smooth', block: 'end' });
                     }
+                }
+                return;
+            }
+
+            // Attach file button
+            if (target.matches('.comment-attach-btn') || target.closest('.comment-attach-btn')) {
+                const wrap = target.closest('.comment-input');
+                const fileInput = wrap?.querySelector('.comment-file-input');
+                if (fileInput) fileInput.click();
+                return;
+            }
+
+            // Remove file preview + strip URL from textarea
+            if (target.matches('.cf-remove-btn') || target.closest('.cf-remove-btn')) {
+                const previewItem = target.closest('.cf-preview-item');
+                if (previewItem) {
+                    const url = previewItem.dataset.url;
+                    if (url) {
+                        const wrap = previewItem.closest('.comment-input');
+                        const textarea = wrap?.querySelector('textarea');
+                        if (textarea) {
+                            // Remove the URL and any surrounding newline
+                            textarea.value = textarea.value.replace(new RegExp('\\n?' + url.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&') + '\\n?'), '\n').replace(/^\n|\n$/g, '');
+                        }
+                    }
+                    previewItem.remove();
                 }
                 return;
             }
@@ -2467,6 +2625,8 @@ class CommentSystem {
                             counter.textContent = `0 / ${counter.dataset.max}`;
                             counter.classList.remove('near-limit', 'at-limit');
                         }
+                        const fpArea = wrap.querySelector('.comment-file-preview');
+                        if (fpArea) fpArea.innerHTML = '';
                     }
 
                     // Notify the right sidebar that a new comment was posted (silent refresh)

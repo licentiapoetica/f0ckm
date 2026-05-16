@@ -16,6 +16,7 @@ import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
+import { handleCommentUpload } from "./comment_upload_handler.mjs";
 import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
@@ -345,7 +346,7 @@ process.on('uncaughtException', err => {
 
   // Ensure storage directories exist
   const initDirs = [
-    cfg.paths.a, cfg.paths.b, cfg.paths.t, cfg.paths.ca, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
+    cfg.paths.a, cfg.paths.b, cfg.paths.c, cfg.paths.t, cfg.paths.ca, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
     path.join(cfg.paths.pending, 'b'), path.join(cfg.paths.pending, 't'), path.join(cfg.paths.pending, 'ca'),
     path.join(cfg.paths.deleted, 'b'), path.join(cfg.paths.deleted, 't'), path.join(cfg.paths.deleted, 'ca')
   ];
@@ -483,7 +484,7 @@ process.on('uncaughtException', err => {
       return;
     if (req.url.pathname === '/manifest.json' || req.url.pathname === '/sw.js')
       return;
-    if (req.url.pathname.match(/^\/(b|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
+    if (req.url.pathname.match(/^\/(b|c|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
       if (cfg.websrv.private_society && !req.cookies?.session) {
         res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage(req));
         req.url.pathname = '/private_society_media_bypass';
@@ -710,7 +711,7 @@ process.on('uncaughtException', err => {
   // because the session middleware will have completed by the time router callbacks execute.
   app.use(async (req, res) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
-    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta'].includes(req.url.pathname)) return;
+    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta', '/api/v2/comments/upload'].includes(req.url.pathname)) return;
     // Hall manager routes are handled by bypass middleware with their own session auth
     if (cfg.websrv.halls_enabled !== false && req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
     // User hall image upload is handled by bypass middleware below
@@ -822,6 +823,14 @@ process.on('uncaughtException', err => {
       const { handleUserHallImageUpload } = await import('./user_hall_image_handler.mjs');
       await handleUserHallImageUpload(req, res, decodeURIComponent(userHallImgMatch[1]));
       req.url.pathname = '/handled_user_hall_img_bypass';
+    }
+  });
+
+  // Bypass middleware for comment file uploads (multipart — needs raw body)
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/comments/upload') {
+      await handleCommentUpload(req, res);
+      req.url.pathname = '/handled_comment_upload_bypass';
     }
   });
 
@@ -1082,6 +1091,10 @@ process.on('uncaughtException', err => {
     allowed_comment_images_json: JSON.stringify(cfg.websrv.allowed_comment_images || []),
     paths_images: cfg.websrv.paths?.images || '/b',
     default_comment_display_mode: cfg.websrv.default_comment_display_mode || 0,
+    allow_fileupload_comments: cfg.websrv.allow_fileupload_comments || false,
+    fileupload_comments_multifile: cfg.websrv.fileupload_comments_multifile || false,
+    fileupload_comments_size: cfg.websrv.fileupload_comments_size || (10 * 1024 * 1024),
+    fileupload_comments_mode: cfg.websrv.fileupload_comments_mode || 'attachment',
 
     get fonts() {
       try {

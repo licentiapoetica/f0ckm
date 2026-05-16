@@ -290,6 +290,26 @@ export default (router, tpl) => {
 
             const commentId = parseInt(newComment[0].id, 10);
 
+            // Link uploaded files to this comment (if any)
+            const fileIdsRaw = body.file_ids || '';
+            if (fileIdsRaw) {
+                const fileIds = fileIdsRaw.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
+                if (fileIds.length > 0) {
+                    try {
+                        // Only link files that belong to this user and aren't already linked
+                        await db`
+                            UPDATE comment_files
+                            SET comment_id = ${commentId}
+                            WHERE id = ANY(${fileIds}::int[])
+                            AND user_id = ${req.session.id}
+                            AND comment_id IS NULL
+                        `;
+                    } catch (err) {
+                        console.error('[COMMENTS] Failed to link files to comment:', err);
+                    }
+                }
+            }
+
             // Notify Subscribers (excluding the author)
             // 1. Get subscribers (active only)
             const subscribers = await db`SELECT user_id FROM comment_subscriptions WHERE item_id = ${item_id} AND is_subscribed = true`;
