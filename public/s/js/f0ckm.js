@@ -6902,7 +6902,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (userPrefEl && window['motd_dismissed']) showPref = false;
 
     if (typeof marked !== 'undefined') {
-      const rendered = marked.parseInline(escHTML(motd || ''));
+      const rendered = marked.parseInline(escHTML(motd || '').replace(/\\/g, '\\\\'));
       displays.forEach((display, i) => {
         if (display) {
           if (dataStores[i]) dataStores[i].innerText = motd;
