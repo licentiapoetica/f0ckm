@@ -12,21 +12,21 @@ class CommentSystem {
         this.isLocked = this.container ? this.container.dataset.isLocked === 'true' : false;
         this.displayMode = window.f0ckSession?.comment_display_mode || 0; // 0=Tree, 1=Linear
         this.sort = (document.body.classList.contains('layout-legacy') || document.body.classList.contains('legacy-view')) ? 'old' : 'new';
-        
+
         // Linear mode usually implies chronological order (4chan style)
         if (this.displayMode === 1) this.sort = 'old';
 
         this.customEmojis = CommentSystem.emojiCache || {};
 
         this.icons = {
-            reply:  `<i class="fa-solid fa-reply"></i>`,
-            pin:    `<i class="fa-solid fa-thumbtack"></i>`,
-            unpin:  `<i class="fa-solid fa-thumbtack"></i>`,
-            edit:   `<i class="fa-solid fa-pen"></i>`,
+            reply: `<i class="fa-solid fa-reply"></i>`,
+            pin: `<i class="fa-solid fa-thumbtack"></i>`,
+            unpin: `<i class="fa-solid fa-thumbtack"></i>`,
+            edit: `<i class="fa-solid fa-pen"></i>`,
             delete: `<i class="fa-solid fa-trash"></i>`,
-            link:   `<i class="fa-solid fa-link"></i>`,
+            link: `<i class="fa-solid fa-link"></i>`,
             pinned: `<i class="fa-solid fa-thumbtack"></i>`,
-            lock:   `<i class="fa-solid fa-lock"></i>`,
+            lock: `<i class="fa-solid fa-lock"></i>`,
             unlock: `<i class="fa-solid fa-lock-open"></i>`
         };
 
@@ -94,7 +94,7 @@ class CommentSystem {
             const rect = container.getBoundingClientRect();
             // Detect if we are at the bottom of the comments section
             const isAtBottom = rect.bottom < window.innerHeight + 100;
-            
+
             if (isAtBottom) {
                 btn.classList.add('is-at-bottom');
                 btn.setAttribute('title', 'Scroll to top');
@@ -107,9 +107,9 @@ class CommentSystem {
         this.scrollHandler = updateBtn;
         window.addEventListener('scroll', this.scrollHandler, { passive: true });
         this.scrollListenerAdded = true;
-        
+
         // Dynamic detection after potential renders
-        this.scrollTimer = setInterval(this.scrollHandler, 1000); 
+        this.scrollTimer = setInterval(this.scrollHandler, 1000);
     }
 
     /**
@@ -143,7 +143,7 @@ class CommentSystem {
         // Stale-check: only compare player element (not mediaEl — SyntheticClock is always new)
         if (window.danmakuInstance) {
             const stale = window.danmakuInstance.player !== playerEl
-                       || !document.contains(window.danmakuInstance.player);
+                || !document.contains(window.danmakuInstance.player);
             if (stale) {
                 window.danmakuInstance.destroy();
                 window.danmakuInstance = null;
@@ -355,9 +355,9 @@ class CommentSystem {
                     try {
                         targetEl.setSelectionRange(state.focused.start, state.focused.end);
                     } catch (e) {
-                         // Fallback to end if range is invalid
-                         const len = targetEl.value.length;
-                         targetEl.setSelectionRange(len, len);
+                        // Fallback to end if range is invalid
+                        const len = targetEl.value.length;
+                        targetEl.setSelectionRange(len, len);
                     }
                 }
             }
@@ -402,8 +402,8 @@ class CommentSystem {
         const comment = {
             id: data.id,
             item_id: data.item_id,
-            parent_id: data.parent_id || null, 
-            content: data.body, 
+            parent_id: data.parent_id || null,
+            content: data.body,
             created_at: data.created_at,
             username: data.username,
             user_id: data.user_id,
@@ -428,7 +428,7 @@ class CommentSystem {
                 data.username_color || null
             );
         }
-        
+
         // Update backlinks for live comment
         if (data.body) {
             const matches = data.body.matchAll(/(?<!\w)>>(\d+)/g);
@@ -632,10 +632,10 @@ class CommentSystem {
 
         try {
             const res = await fetch(`/api/comments/${this.itemId}?sort=${this.sort}`);
-            
+
             // If server is restarting (502/503), res.ok will be false.
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
-            
+
             const data = await res.json();
 
             if (data.success) {
@@ -660,7 +660,7 @@ class CommentSystem {
                 const savedHash = (preserveScroll && window.location.hash.startsWith('#c'))
                     ? window.location.hash
                     : null;
-                
+
                 // 1. Early Bail-out: If data is bit-for-bit identical, do nothing.
                 // This is the primary defense against tab-switch reloads when nothing changed.
                 if (preserveScroll && this._isDeeplyIdentical(data.comments, data.user_id, data.is_subscribed)) {
@@ -676,7 +676,7 @@ class CommentSystem {
                     this.reconcile(data.comments, data.user_id, data.is_subscribed);
                     this.initialLoadDone = true;
                     this.restoreState(state);
-                    
+
                     if (scrollToId) {
                         this.preservingScroll = false;
                         this.scrollToComment(scrollToId);
@@ -770,7 +770,7 @@ class CommentSystem {
                 document.querySelectorAll('.comment-highlighted').forEach(c => c.classList.remove('comment-highlighted'));
                 document.querySelectorAll('.comment-entering').forEach(c => c.classList.remove('comment-entering'));
                 document.querySelectorAll('.new-item-fade').forEach(c => c.classList.remove('new-item-fade'));
-                
+
                 // Always smooth-scroll so there's no jarring jump
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 el.classList.add('comment-highlighted');
@@ -793,7 +793,7 @@ class CommentSystem {
     startStabilization(id) {
         this.stopStabilization(); // Clear any existing
         this.isUserInteracting = false;
-        
+
         const el = document.getElementById(`c${id}`);
         if (!el) return;
 
@@ -821,17 +821,17 @@ class CommentSystem {
             if (this.isUserInteracting || this.preservingScroll) return;
             const currentEl = document.getElementById(`c${id}`);
             if (!currentEl) return;
-            
+
             const currentTop = currentEl.getBoundingClientRect().top;
             const diff = Math.abs(currentTop - lastTop);
-            
+
             // If it shifted more than 10px (e.g. media loaded), re-scroll
             if (diff > 10 && checks < maxChecks) {
                 _f0ckDebug(`[CommentSystem] Layout shift detected (${Math.round(diff)}px), re-stabilizing scroll...`);
                 this.scrollToComment(id, 0, true);
                 lastTop = currentEl.getBoundingClientRect().top;
             }
-            
+
             checks++;
             if (checks < maxChecks) {
                 this.stabilizationTimer = setTimeout(checkShift, 200);
@@ -839,7 +839,7 @@ class CommentSystem {
         };
 
         this.stabilizationTimer = setTimeout(checkShift, 200);
-        
+
         // Also use ResizeObserver for immediate reaction to content loading
         if (window.ResizeObserver) {
             this.stabilizationObserver = new ResizeObserver(() => {
@@ -856,7 +856,7 @@ class CommentSystem {
                 }, 100);
             });
             this.stabilizationObserver.observe(this.container);
-            
+
             // Disconnect after 5 seconds to save resources
             setTimeout(() => this.stopStabilization(), 5000);
         }
@@ -875,7 +875,7 @@ class CommentSystem {
             this.boundStopStabilization = null;
         }
     }
-    
+
     async showCommentPreview(link, event) {
         if (this.previewCloseTimer) {
             clearTimeout(this.previewCloseTimer);
@@ -884,7 +884,7 @@ class CommentSystem {
 
         const targetId = link.dataset.id;
         let targetEl = document.getElementById('c' + targetId);
-        
+
         const parentPopup = link.closest('.comment-preview-popup');
         const level = parentPopup ? parseInt(parentPopup.dataset.level || 0) + 1 : 0;
 
@@ -912,10 +912,10 @@ class CommentSystem {
         preview.classList.add('comment-preview-popup');
         preview.dataset.level = level;
         preview.dataset.id = targetId;
-        
+
         // Remove temporary animation/highlight classes
         preview.classList.remove('new-item-fade', 'comment-highlighted', 'comment-entering');
-        
+
         // Remove input forms or action buttons
         const actions = preview.querySelector('.comment-actions');
         if (actions) actions.remove();
@@ -926,15 +926,15 @@ class CommentSystem {
         const rect = link.getBoundingClientRect();
         preview.style.position = 'fixed';
         preview.style.zIndex = (100000 + level).toString();
-        
+
         // Try to place it to the right of the link, or top/bottom if needed
         let left = rect.right + 10;
         let top = rect.top;
 
         document.body.appendChild(preview);
-        
+
         const previewRect = preview.getBoundingClientRect();
-        
+
         // Boundary checks
         if (left + previewRect.width > window.innerWidth) {
             left = rect.left - previewRect.width - 10;
@@ -952,7 +952,7 @@ class CommentSystem {
 
     async fetchCommentForPreview(id, link, level) {
         if (this.commentCache.has(id)) return; // Already fetching or fetched
-        
+
         // Prevent double fetches
         this.commentCache.set(id, { loading: true });
 
@@ -1078,7 +1078,7 @@ class CommentSystem {
             el.muted = snap.muted;
             el.volume = snap.volume;
             if (!snap.paused) {
-                el.play().catch(() => {/* autoplay may be blocked */});
+                el.play().catch(() => {/* autoplay may be blocked */ });
             }
         });
     }
@@ -1088,7 +1088,7 @@ class CommentSystem {
         this.lastData = comments;
         this.lastUserId = currentUserId;
         this.lastIsSubscribed = isSubscribed;
-        
+
         // Build map of who replied to whom for back-references (>>ID)
         this.buildBacklinkMap(comments);
 
@@ -1225,7 +1225,7 @@ class CommentSystem {
         document.querySelectorAll('#subscribe-btn').forEach(btn => {
             btn.classList.toggle('active', isSubscribed);
             btn.setAttribute('title', isSubscribed ? 'Subscribed' : 'Subscribe');
-            
+
             // Update text if it exists (legacy support)
             const textNodes = Array.from(btn.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
             if (textNodes.length > 0) {
@@ -1240,22 +1240,22 @@ class CommentSystem {
 
     _isDeeplyIdentical(newComments, currentUserId, isSubscribed) {
         if (!this.lastData) return false;
-        
+
         // Use lax comparison for user IDs as they might flip between string/int
         const userMatches = (this.lastUserId == currentUserId);
         if (!userMatches) return false;
 
         if (this.lastIsSubscribed !== isSubscribed) return false;
         if (this.lastData.length !== newComments.length) return false;
-        
+
         for (let i = 0; i < newComments.length; i++) {
             const a = this.lastData[i];
             const b = newComments[i];
-            
+
             // Compare essential data that affects the UI
-            if (a.id !== b.id || 
-                a.content !== b.content || 
-                a.is_deleted !== b.is_deleted || 
+            if (a.id !== b.id ||
+                a.content !== b.content ||
+                a.is_deleted !== b.is_deleted ||
                 a.is_pinned !== b.is_pinned ||
                 a.display_name !== b.display_name) {
                 return false;
@@ -1278,7 +1278,7 @@ class CommentSystem {
         this.lastData = comments;
         this.lastUserId = currentUserId;
         this.lastIsSubscribed = isSubscribed;
-        
+
         // Build map of who replied to whom for back-references (>>ID)
         this.buildBacklinkMap(comments);
 
@@ -1288,7 +1288,7 @@ class CommentSystem {
         // 1. Identify missing or edited comments already in DOM
         const existingEls = list.querySelectorAll('[id^="c"]');
         const existingIds = new Set();
-        
+
         existingEls.forEach(el => {
             const id = el.id.substring(1);
             existingIds.add(id);
@@ -1309,7 +1309,7 @@ class CommentSystem {
                     contentEl.innerHTML = this.renderCommentContent(incoming.content, incoming.id);
                     contentEl.dataset.raw = incoming.content;
                 }
-                
+
                 // Update pinned status
                 el.classList.toggle('pinned', !!incoming.is_pinned);
                 const pinIcon = el.querySelector('.pin-icon');
@@ -1396,7 +1396,7 @@ class CommentSystem {
                     const tmp = document.createElement('div');
                     tmp.innerHTML = html;
                     const newEl = tmp.firstElementChild;
-                    
+
                     // Insertion point: after previous sibling if it exists, else prepend
                     if (idx === 0) {
                         const nav = container.querySelector('.scroll-nav-wrapper');
@@ -1466,7 +1466,7 @@ class CommentSystem {
 
             // 2. Initial escaping for the rest of the text. Preserve > for manual blockquote handling.
             let escaped = this.escapeHtml(processed)
-                .replace(/&gt;/g, ">"); 
+                .replace(/&gt;/g, ">");
 
 
             const siteOrigin = window.location.origin;
@@ -1493,7 +1493,7 @@ class CommentSystem {
                 const titleAttr = title ? ` title="${title}"` : '';
                 const isExternal = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
                 let isSameSite = false;
-                
+
                 // Marked greedy autolink fix for spoiler brackets appended to URLs
                 let extraSuffix = '';
                 const lowerHref = href.toLowerCase();
@@ -1515,7 +1515,7 @@ class CommentSystem {
                         const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
                         const urlObj = new URL(urlToParse, siteOrigin);
                         isSameSite = (urlObj.hostname === window.location.hostname);
-                    } catch(e) {}
+                    } catch (e) { }
                 }
 
                 // Shorten internal links if text matches the URL
@@ -1548,7 +1548,7 @@ class CommentSystem {
             }
             const hostsRegexPart = allowedHosts.join('|');
             const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?<!\\S)(?=\\/[a-zA-Z0-9_\\-]))`;
-            
+
             // "Safe non-whitespace" — matches any \S except the start of an https?:// boundary.
             // Prevents concatenated URLs (url1.webpurl2.webp) being consumed as one giant src.
             const safeS = `(?:(?!https?:\\/\\/)\\S)`;
@@ -1560,7 +1560,7 @@ class CommentSystem {
             // Line-by-line processing: handles quotes, mentions, images, and basic markdown safely
             const renderedLines = escaped.split('\n').map(line => {
                 const trimmed = line.trimStart();
-                
+
                 // 1. Manual Greentext/Quote handling (avoids recursive blockquote parsing)
                 // Exclude only the numeric context links (>>ID) so they can be handled as interactive links.
                 // Multiple chevrons (>>text, >>>text) should still be greentext.
@@ -1572,7 +1572,7 @@ class CommentSystem {
                         : quoteContent;
                     return `<span class="greentext">&gt;${renderedContent}</span>`;
                 }
-                
+
                 // 2. Per-line limit to prevent marked.parse recursion on single giant lines
                 if (line.length > 10000) return line;
 
@@ -1580,7 +1580,7 @@ class CommentSystem {
 
                 // 3. Perform replacements on the single line (prevents regex stack overflow on huge strings)
                 let processedLine = line;
-                
+
                 // Handle Mentions
                 processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
                     const user = g1 || g2;
@@ -1591,7 +1591,7 @@ class CommentSystem {
                 processedLine = processedLine.replace(/(?<!\w)>>(\d+)/g, (match, id) => {
                     return `<a href="#c${id}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
                 });
-                
+
                 // Handle Image Embeds
                 processedLine = processedLine.replace(imageRegex, (match, url) => {
                     let fullUrl = url;
@@ -1600,14 +1600,14 @@ class CommentSystem {
                     }
                     return `![image](${fullUrl})`;
                 });
-                
+
                 // Handle Raw Video/Audio links so Marked converts them to <a>
                 processedLine = processedLine.replace(rawVideoRegex, (match, url) => {
                     let fullUrl = url;
                     if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
                     return `[video](${fullUrl})`;
                 });
-                
+
                 processedLine = processedLine.replace(rawAudioRegex, (match, url) => {
                     let fullUrl = url;
                     if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
@@ -1616,13 +1616,13 @@ class CommentSystem {
 
                 // 3. Render Markdown for the line
                 const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
-                let rendered = marked.parseInline 
-                    ? marked.parseInline(escapedAsterisks, { renderer: renderer }) 
+                let rendered = marked.parseInline
+                    ? marked.parseInline(escapedAsterisks, { renderer: renderer })
                     : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
-                
+
                 // 4. Emojis
                 rendered = rendered.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n));
-                
+
                 return rendered;
             });
 
@@ -1641,7 +1641,7 @@ class CommentSystem {
                     }
                 );
             }
-            
+
             // Vocaroo embed
             md = md.replace(
                 /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:voca\.ro|vocaroo\.com)\/([a-zA-Z0-9_-]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
@@ -1696,7 +1696,7 @@ class CommentSystem {
                 });
                 iterations++;
             } while (md !== prevMd && iterations < 10);
-            
+
             // Restore protected code blocks
             md = md.replace(/BLOCKPORTALX(\d+)X/g, (match, index) => {
                 return codeBlocks[index] || '';
@@ -1724,7 +1724,7 @@ class CommentSystem {
             return fallback;
         }
     }
-    
+
     buildBacklinkMap(comments) {
         this.backlinkMap = {};
         const process = (c) => {
@@ -1777,7 +1777,7 @@ class CommentSystem {
         if (!this.backlinkMap) this.backlinkMap = {};
         if (!this.backlinkMap[targetId]) this.backlinkMap[targetId] = new Set();
         this.backlinkMap[targetId].add(replierId);
-        
+
         const targetEl = document.getElementById('c' + targetId);
         if (targetEl) {
             const headerLeft = targetEl.querySelector('.comment-header-left');
@@ -1905,8 +1905,8 @@ class CommentSystem {
     renderInput(parentId = null) {
         const i18n = window.f0ckI18n || {};
         const placeholder = i18n.write_comment || 'Write a comment...';
-        const postLabel   = i18n.post           || 'Post';
-        const cancelLabel = i18n.cancel         || 'Cancel';
+        const postLabel = i18n.post || 'Post';
+        const cancelLabel = i18n.cancel || 'Cancel';
         const maxLen = window.f0ckSession?.comment_max_length;
         const maxLenAttr = (maxLen !== null && maxLen !== undefined) ? ` maxlength="${maxLen}"` : '';
         const counter = (maxLen !== null && maxLen !== undefined)
@@ -1917,7 +1917,7 @@ class CommentSystem {
                 <textarea placeholder="${placeholder}"${maxLenAttr}></textarea>
                 <div class="input-actions">
                     ${counter}
-                    ${parentId ? `<button class="cancel-reply">${cancelLabel}</button>` : ''}
+                    ${parentId ? `<button class="cancel-reply" title="${cancelLabel}"><i class="fa-solid fa-xmark"></i></button>` : ''}
                     <button class="submit-comment">${postLabel}</button>
                 </div>
             </div>
@@ -1934,7 +1934,7 @@ class CommentSystem {
         document.addEventListener('mouseover', (e) => {
             const contextLink = e.target.closest('.comment-context-link');
             const popup = e.target.closest('.comment-preview-popup');
-            
+
             if (contextLink || popup) {
                 if (this.previewCloseTimer) {
                     clearTimeout(this.previewCloseTimer);
@@ -1962,7 +1962,7 @@ class CommentSystem {
                 this.currentHoverLink = null;
 
                 const level = popup ? parseInt(popup.dataset.level || 0) : -1;
-                
+
                 // If we move back to a parent level or blank area of a popup, close its children
                 // but use a delay so the user can reach the child popup if they are moving towards it.
                 if (popup && !contextLink) {
@@ -1970,7 +1970,7 @@ class CommentSystem {
                         this.closePreviewsAboveLevel(level);
                     }, 400);
                 }
-                
+
                 this.mouseCurrentLevel = level;
             }
         });
@@ -1978,7 +1978,7 @@ class CommentSystem {
         document.addEventListener('mouseout', (e) => {
             const contextLink = e.target.closest('.comment-context-link');
             const popup = e.target.closest('.comment-preview-popup');
-            
+
             if (contextLink) {
                 if (this.previewOpenTimer) {
                     clearTimeout(this.previewOpenTimer);
@@ -2026,7 +2026,7 @@ class CommentSystem {
         document.addEventListener('click', (e) => {
             const isLink = e.target.closest('.comment-context-link');
             const isPopup = e.target.closest('.comment-preview-popup');
-            
+
             if (!isLink && !isPopup) {
                 this.closePreviewsAboveLevel(-1);
             }
@@ -2068,7 +2068,7 @@ class CommentSystem {
                 .length;
             counter.textContent = `${nonQuotedLen} / ${max}`;
             counter.classList.toggle('near-limit', nonQuotedLen >= max * 0.9);
-            counter.classList.toggle('at-limit',   nonQuotedLen >= max);
+            counter.classList.toggle('at-limit', nonQuotedLen >= max);
         });
 
         // Single Change Listener for Sort
@@ -2156,7 +2156,7 @@ class CommentSystem {
                 e.preventDefault();
                 const targetId = contextLink.dataset.id;
                 this.scrollToComment(targetId, 0, true);
-                
+
                 // Highlight effect
                 const targetEl = document.getElementById('c' + targetId);
                 if (targetEl) {
@@ -2183,7 +2183,7 @@ class CommentSystem {
                 }
 
                 const id = delBtn.dataset.id;
-                const res = await fetch(`/api/comments/${id}/delete`, { 
+                const res = await fetch(`/api/comments/${id}/delete`, {
                     method: 'POST',
                     headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
                 });
@@ -2222,7 +2222,7 @@ class CommentSystem {
             const adminPinBtn = target.closest('.admin-pin-btn');
             if (adminPinBtn) {
                 const id = adminPinBtn.dataset.id;
-                const res = await fetch(`/api/comments/${id}/pin`, { 
+                const res = await fetch(`/api/comments/${id}/pin`, {
                     method: 'POST',
                     headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
                 });
@@ -2244,7 +2244,7 @@ class CommentSystem {
                 contentEl.innerHTML = `
                     <textarea class="edit-textarea">${currentContent}</textarea>
                     <div class="input-actions">
-                        <button class="cancel-edit-btn">Cancel</button>
+                        <button class="cancel-edit-btn" title="Cancel"><i class="fa-solid fa-comment-slash"></i></button>
                         <button class="save-edit-btn">Save</button>
                     </div>
                 `;
@@ -2291,11 +2291,11 @@ class CommentSystem {
                 const id = replyBtn.dataset.id;
                 const commentEl = replyBtn.closest('[id^="c"]');
                 const body = commentEl ? commentEl.querySelector('.comment-body') : null;
-                
+
                 if (body) {
                     // Check if any reply input is ALREADY open
                     let textarea = document.querySelector('.comment-input.reply-input textarea');
-                    
+
                     // If none open, open the local one for this comment
                     if (!textarea && !body.querySelector('.reply-input')) {
                         const div = document.createElement('div');
@@ -2307,7 +2307,7 @@ class CommentSystem {
                     } else if (!textarea) {
                         textarea = body.querySelector('.reply-input textarea');
                     }
-                    
+
                     if (textarea) {
                         const quote = `>>${id} `;
                         const start = textarea.selectionStart;
@@ -2339,7 +2339,7 @@ class CommentSystem {
                 const isSubscribed = subBtn.textContent === 'Subscribed';
                 subBtn.textContent = 'Wait...';
                 try {
-                    const res = await fetch(`/api/subscribe/${this.itemId}`, { 
+                    const res = await fetch(`/api/subscribe/${this.itemId}`, {
                         method: 'POST',
                         headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
                     });
@@ -2362,7 +2362,7 @@ class CommentSystem {
             if (lockBtn) {
                 const action = this.isLocked ? 'unlock' : 'lock';
                 lockBtn.disabled = true;
-                const res = await fetch(`/api/comments/${this.itemId}/lock`, { 
+                const res = await fetch(`/api/comments/${this.itemId}/lock`, {
                     method: 'POST',
                     headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
                 });
@@ -2718,7 +2718,7 @@ class CommentSystem {
                 window.commentSystem.scrollToComment(id);
             }
         });
-        
+
         window.addEventListener('f0ck:emojis_updated', () => {
             const cs = window.commentSystem;
             if (!cs) return;
@@ -2778,13 +2778,13 @@ class CommentSystem {
             if (subBtn) {
                 e.preventDefault();
                 if (subBtn.style.opacity === '0.5') return;
-                
+
                 const itemId = subBtn.dataset.itemId || (window.commentSystem ? window.commentSystem.itemId : null);
                 if (!itemId) return;
 
                 subBtn.style.opacity = '0.5';
                 try {
-                    const res = await fetch(`/api/subscribe/${itemId}`, { 
+                    const res = await fetch(`/api/subscribe/${itemId}`, {
                         method: 'POST',
                         headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
                     });
@@ -2936,7 +2936,7 @@ class CommentSystem {
             acActiveIdx = -1;
             acDisplayedCount = 0;
             appendMoreItems(); // Initial batch
-            
+
             positionAC();
             autocomplete.style.display = 'flex';
         };
@@ -2993,7 +2993,7 @@ class CommentSystem {
 
         // Lazy load on scroll
         autocomplete.addEventListener('scroll', () => {
-            const threshold = 50; 
+            const threshold = 50;
             if (autocomplete.scrollHeight - autocomplete.scrollTop - autocomplete.clientHeight < threshold) {
                 appendMoreItems();
             }
@@ -3037,7 +3037,7 @@ class CommentSystem {
                 const end = textarea.selectionEnd;
                 const val = textarea.value;
                 const selected = val.substring(start, end);
-                
+
                 if (selected) {
                     const tagStart = '[spoiler]';
                     const tagEnd = '[/spoiler]';
@@ -3052,8 +3052,11 @@ class CommentSystem {
                 }
                 textarea.focus();
             });
-            const submitBtn = actions.querySelector('.submit-comment');
-            actions.insertBefore(trigger, submitBtn);
+            const referenceNode = actions.querySelector('.cancel-reply') ||
+                actions.querySelector('.cancel-edit-btn') ||
+                actions.querySelector('.submit-comment') ||
+                actions.querySelector('.save-edit-btn');
+            actions.insertBefore(trigger, referenceNode);
             actions.insertBefore(spoilerBtn, trigger);
             if (this.isAdmin) {
                 const lockBtn = document.createElement('button');
