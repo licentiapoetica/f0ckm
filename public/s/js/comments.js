@@ -1615,10 +1615,13 @@ class CommentSystem {
                 });
 
                 // 3. Render Markdown for the line
-                const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
+                let mdSafe = processedLine.replace(/\*/g, '\\*').replace(/_/g, '\\_');
+                const bs = String.fromCharCode(92);
+                mdSafe = mdSafe.split(bs + bs + '_').join(bs + bs + bs + '_');
+
                 let rendered = marked.parseInline
-                    ? marked.parseInline(escapedAsterisks, { renderer: renderer })
-                    : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+                    ? marked.parseInline(mdSafe, { renderer: renderer })
+                    : marked.parse(mdSafe, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
 
                 // 4. Emojis
                 rendered = rendered.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n));
