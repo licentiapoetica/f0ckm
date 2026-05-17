@@ -4,22 +4,56 @@ import lib from "../lib.mjs";
 
 export default (router, tpl) => {
   // Serve the scroller page
-  router.get(/^\/abyss\/?$/, async (req, res) => {
+  router.get(/^\/abyss(?:\/(?<id>[0-9]+))?\/?$/, async (req, res) => {
     if (cfg.websrv.abyss_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     if (cfg.websrv.private_society && !req.session) {
       return res.reply({ code: 502, body: '<html><body>502 Bad Gateway</body></html>' });
     }
+
+    const id = req.params?.id;
+    let page_meta = {
+      title: 'doomscroll',
+      description: 'Scroll through content endlessly',
+      url: `https://${cfg.main.url.domain}/abyss`
+    };
+
+    if (id) {
+      try {
+        const items = await db`
+          select i.*, uo.display_name
+          from "items" i
+          left join users u on u.id = i.author
+          left join user_options uo on uo.user_id = u.id
+          where i.id = ${+id} and i.active = true
+          limit 1
+        `;
+        if (items.length > 0) {
+          const item = items[0];
+          
+          // Fetch tags to check for NSFW/NSFL
+          const tags = await db`
+            select tag_id from tags_assign where item_id = ${+id}
+          `;
+          const tagIds = tags.map(t => t.tag_id);
+          const isBlurred = tagIds.includes(2) || tagIds.includes(cfg.nsfl_tag_id || 3);
+
+          page_meta.title = `${id}`;
+          page_meta.description = cfg.websrv.description || "The webs dumpster";
+          page_meta.url = `https://${cfg.main.url.domain}/abyss/${id}`;
+          page_meta.image = `https://${cfg.main.url.domain}/t/${id}${isBlurred ? '_blur' : ''}.webp`;
+        }
+      } catch (e) {
+        console.error('[SCROLLER] Failed to fetch meta for ID:', id, e);
+      }
+    }
+
     return res.reply({
       body: tpl.render('scroller', {
         tmp: null,
         session: req.session ? { ...req.session } : false,
         enable_nsfl: !!cfg.enable_nsfl,
         enable_swf: !!cfg.websrv.enable_swf,
-        page_meta: {
-          title: 'doomscroll',
-          description: 'Scroll through content endlessly',
-          url: `https://${cfg.main.url.domain}/abyss`
-        }
+        page_meta
       }, req)
     });
   });

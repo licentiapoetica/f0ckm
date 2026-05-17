@@ -1668,7 +1668,14 @@ class CommentSystem {
                 }
             );
 
-            // Build regex for allowed media hosters (video/audio)
+            // Abyss label replacement
+            md = md.replace(
+                /<a\s[^>]*href="(?:https?:\/\/[^\/]+)?\/abyss(?:#|\/)(\d+)"[^>]*>([\s\S]*?)<\/a>/gi,
+                (match, abyssId) => {
+                    return `<a href="/abyss/${abyssId}" class="abyss-link" data-abyss-id="${abyssId}"><i class="fa-solid fa-dice-d6"></i> /abyss/${abyssId}</a>`;
+                }
+            );
+
             const mediaHosts = [escapedSiteHost];
             if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
                 window.f0ckAllowedImages.forEach(h => {

@@ -40,6 +40,7 @@
     const ytOembedCache = new Map(); // videoId -> meta object
     const ytOembedPending = new Map(); // videoId -> Promise
 
+
     const fetchSidebarYoutubeTitles = async (container) => {
         const links = container.querySelectorAll('.sidebar-video-link[data-yt-id]');
         if (links.length === 0) return;
@@ -287,6 +288,14 @@
                     const targetHref = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : vocaHref);
                     const externalAttr = (itemId && commentId) || commentId ? '' : ' target="_blank" rel="noopener noreferrer"';
                     return `<a href="${targetHref}"${externalAttr} class="sidebar-video-link"><i class="fa-solid fa-microphone"></i> <span>Vocaroo Audio</span></a>`;
+                }
+            );
+
+            // Abyss label replacement
+            md = md.replace(
+                /<a\s[^>]*href="(?:https?:\/\/[^\/]+)?\/abyss(?:#|\/)(\d+)"[^>]*>([\s\S]*?)<\/a>/gi,
+                (match, abyssId) => {
+                    return `<a href="/abyss/${abyssId}" class="sidebar-abyss-link" data-abyss-id="${abyssId}"><i class="fa-solid fa-dice-d6"></i> /abyss/${abyssId}</a>`;
                 }
             );
 

@@ -229,28 +229,32 @@
     return ago(fmt(y === 1 ? i.ta_year : i.ta_years, y, 'year'));
   }
   function hashId() {
-    // Strip the leading '#' and allow numeric IDs or board/postid format
+    // Check path first /abyss/1234
+    const pathMatch = location.pathname.match(/\/abyss\/(\d+)$/);
+    if (pathMatch) return pathMatch[1];
+
+    // Fallback to hash
     const raw = location.hash.replace(/^#/, '').trim();
     if (/^\d+$/.test(raw)) return raw;
     if (/^[a-z0-9]+\/\d+$/.test(raw)) return raw;
     return '';
   }
-  let lastPushedHash = location.hash;
+  let lastPushedUrl = location.pathname + location.hash;
   function pushHash(id) {
     if (!id) return;
-    const newHash = '#' + id;
-    if (newHash === lastPushedHash) return;
-    lastPushedHash = newHash;
-    history.pushState({ scrollerId: id }, '', '/abyss' + newHash);
+    const newUrl = '/abyss/' + id;
+    if (newUrl === lastPushedUrl) return;
+    lastPushedUrl = newUrl;
+    history.pushState({ scrollerId: id }, '', newUrl);
     updateCacheActiveId(id);
   }
 
   // Handle back/forward within abyss — scroll to the target slide
   window.addEventListener('popstate', (e) => {
     if (!document.body.classList.contains('scroller-active')) return;
-    const id = e.state?.scrollerId || location.hash.replace('#', '');
+    const id = e.state?.scrollerId || hashId();
     if (!id) return;
-    lastPushedHash = '#' + id;
+    lastPushedUrl = '/abyss/' + id;
     const slide = feed.querySelector(`.scroll-slide[data-id="${id}"], .scroll-slide[data-local-id="${id}"]`);
     if (slide) {
       slide.scrollIntoView({ behavior: 'smooth', block: 'start' });

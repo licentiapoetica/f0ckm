@@ -1678,7 +1678,7 @@ window.cancelAnimFrame = (function () {
       (parts.length >= 3 && (parts[0] === 'tag' || parts[0] === 'user' || parts[0] === 'h') && /^\d+$/.test(parts[parts.length - 1]))
     );
     const isMessages = !!pathname.match(/^\/messages(\/|$)/);
-    const isAbyss    = !!pathname.match(/^\/abyss(\/?$|\?|#)/) || pathname === '/abyss';
+    const isAbyss    = !!pathname.match(/^\/abyss(\/|$|\?|#)/) || pathname === '/abyss';
     const isGrid = !isProfile && !isUserHall && !isUserHalls && !isHall && !isHalls && !isTags && !isComments && !isNotifs && !isItem && !isAdmin && !isMod && !isSettings && !isStatic && !isUpload && !isMessages && !isAbyss;
 
     if (isItem) {
