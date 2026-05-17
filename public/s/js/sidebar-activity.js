@@ -1,4 +1,4 @@
-(function() {
+(function () {
     let customEmojis = {};
     let loading = false;
     let loadingMore = false;
@@ -47,7 +47,7 @@
         for (const link of links) {
             const videoId = link.dataset.ytId;
             if (!videoId) continue;
-            
+
             const titleSpan = link.querySelector('.yt-title');
             if (!titleSpan || titleSpan.dataset.loaded === 'true') continue;
 
@@ -67,7 +67,7 @@
                                     return data.meta;
                                 }
                             }
-                        } catch (e) {}
+                        } catch (e) { }
                         return null;
                     })();
                     ytOembedPending.set(videoId, promise);
@@ -154,7 +154,7 @@
                 const titleAttr = title ? ` title="${title}"` : '';
                 const isExternal = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
                 let isSameSite = false;
-                
+
                 // Marked greedy autolink fix for spoiler brackets appended to URLs
                 let extraSuffix = '';
                 const lowerHref = href.toLowerCase();
@@ -175,7 +175,7 @@
                         const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
                         const urlObj = new URL(urlToParse, siteOrigin);
                         isSameSite = (urlObj.hostname === window.location.hostname);
-                    } catch(e) {}
+                    } catch (e) { }
                 }
 
                 let displayText = text;
@@ -184,7 +184,7 @@
                         const urlToParse = href.startsWith('//') ? window.location.protocol + href : href;
                         const url = new URL(urlToParse.startsWith('http') ? urlToParse : siteOrigin + (urlToParse.startsWith('/') ? '' : '/') + urlToParse);
                         displayText = url.pathname + url.search + url.hash;
-                    } catch (e) {}
+                    } catch (e) { }
                 }
 
                 const isMention = href.startsWith('/user/') && text.startsWith('@');
@@ -195,8 +195,8 @@
             };
             renderer.image = function (href, title, text) {
                 const src = (typeof href === 'object' && href !== null) ? (href.href || '') : (href || '');
-                const alt  = text  || '';
-                const ttl  = title ? ` title="${title}"` : '';
+                const alt = text || '';
+                const ttl = title ? ` title="${title}"` : '';
                 return `<img class="sidebar-comment-img" src="${src}" alt="${alt}"${ttl} loading="lazy">`;
             };
 
@@ -206,18 +206,18 @@
                 if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     // Manual greentext handling — apply emoji if the user preference allows it
                     const quoteContent = line.substring(line.indexOf('>') + 1);
-                    const quoteEmojis  = window.f0ckSession?.quote_emojis === true;
-                    const rendered     = quoteEmojis
+                    const quoteEmojis = window.f0ckSession?.quote_emojis === true;
+                    const rendered = quoteEmojis
                         ? quoteContent.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n))
                         : quoteContent;
                     return `<span class="greentext">&gt;${rendered}</span>`;
                 }
-                
+
                 // Per-line limit to prevent marked.parse recursion on single giant lines
                 if (line.length > 10000) return line;
 
                 if (!line.trim()) return '&nbsp;';
-                
+
                 // Perform replacements on the single line
                 let processedLine = line;
 
@@ -246,20 +246,20 @@
                     if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
                     return `[video](${fullUrl})`;
                 });
-                
+
                 // Use marked for each line individually
                 let mdSafe = processedLine.replace(/\*/g, '\\*').replace(/_/g, '\\_');
                 const bs = String.fromCharCode(92);
                 mdSafe = mdSafe.split(bs + bs + '_').join(bs + bs + bs + '_');
-                
+
                 let rendered = marked.parseInline ? marked.parseInline(mdSafe, { renderer: renderer }) : marked.parse(mdSafe, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
-                
+
                 // Render emojis ONLY if this is NOT a quote line OR if the user prefers it
                 const quoteEmojis = window.f0ckSession?.quote_emojis === true;
                 if (!trimmed.startsWith('>') || quoteEmojis) {
                     rendered = rendered.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n));
                 }
-                
+
                 return rendered;
             });
 
@@ -276,7 +276,7 @@
                     return `<a href="${targetHref}"${externalAttr} class="sidebar-video-link" data-yt-id="${videoId}"><i class="fa-brands fa-youtube"></i> <span class="yt-title"></span></a>`;
                 }
             );
-            
+
             // Vocaroo label replacement
             md = md.replace(
                 /<a\s[^>]*href="https?:\/\/(?:www\.)?(?:voca\.ro|vocaroo\.com)\/([a-zA-Z0-9_-]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi,
@@ -316,7 +316,7 @@
                     const urlToParse = cleanUrl.startsWith('//') ? window.location.protocol + cleanUrl : cleanUrl;
                     const urlObj = new URL(urlToParse, siteOrigin);
                     isSameSite = (urlObj.hostname === window.location.hostname);
-                } catch(e) {
+                } catch (e) {
                     isSameSite = cleanUrl.startsWith(siteOrigin) || (cleanUrl.startsWith('/') && !cleanUrl.startsWith('//'));
                 }
                 const label = isSameSite ? 'Video Link' : 'External Video Link';
@@ -347,7 +347,7 @@
                 });
                 iterations++;
             } while (md !== prevMd && iterations < 10);
-            
+
             // Restore protected code blocks
             md = md.replace(/BLOCKPORTALX(\d+)X/g, (match, index) => {
                 return codeBlocks[index] || '';
@@ -422,7 +422,7 @@
             const container = inner.parentElement;
             const btn = container.querySelector('.read-more-btn');
             if (!btn) return;
-            
+
             // If expanded, always show "see less"
             if (container.classList.contains('expanded')) {
                 btn.style.display = 'block';
@@ -438,6 +438,16 @@
                 btn.style.display = 'none';
                 container.classList.remove('has-overflow');
             }
+        });
+    };
+
+    const attachMediaLoadListeners = (element) => {
+        element.querySelectorAll('img, video').forEach(media => {
+            if (media.dataset.loadListenerBound) return;
+            media.dataset.loadListenerBound = 'true';
+
+            media.addEventListener('load', checkOverflow, { once: true });
+            media.addEventListener('loadedmetadata', checkOverflow, { once: true });
         });
     };
 
@@ -490,13 +500,13 @@
         }
         container.innerHTML = html;
         // Auto-play converted GIF videos
-        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
+        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
     };
 
     const renderFromCache = () => {
         const container = document.getElementById('sidebar-activity-container');
         if (!container || window._sidebarActivityCache.length === 0) return false;
-        
+
         let html = '';
         window._sidebarActivityCache.forEach(c => {
             html += renderActivityItem(c);
@@ -507,19 +517,20 @@
         if (ioSentinel) {
             container.appendChild(ioSentinel);
         }
+        attachMediaLoadListeners(container);
         checkOverflow();
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos
-        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
+        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
         return true;
     };
 
-    const SIDEBAR_PAGE_LIMIT = 50;
+    const SIDEBAR_PAGE_LIMIT = 5;
 
     const loadActivity = async (silent = false) => {
         const container = document.getElementById('sidebar-activity-container');
         if (!container || loading) return;
-        
+
         const hasCache = renderFromCache();
         // If no cache and not silent: show skeletons while we fetch.
         // On the very first page load the server-rendered skeletons are already there;
@@ -613,10 +624,11 @@
                     }
                     // Keep the IO sentinel at the very end so it triggers on the next scroll
                     if (ioSentinel) container.appendChild(ioSentinel);
+                    attachMediaLoadListeners(container);
                     checkOverflow();
                     fetchSidebarYoutubeTitles(container);
                     // Auto-play converted GIF videos
-                    container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
+                    container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
             } else {
                 hasMore = false;
@@ -637,7 +649,7 @@
 
     const handleNewActivity = (data) => {
         const container = document.getElementById('sidebar-activity-container');
-        
+
         // 1. Deduplicate: check if this comment ID is already in the cache
         if (window._sidebarActivityCache.some(c => parseInt(c.id) === parseInt(data.id))) {
             window.f0ckDebug("Sidebar Activity: Duplicate comment ignored", data.id);
@@ -656,11 +668,12 @@
         if (container) {
             const html = renderActivityItem(newItem);
             const temp = document.createElement('div');
-                temp.innerHTML = html;
+            temp.innerHTML = html;
             const node = temp.firstElementChild;
             if (node) {
                 node.classList.add('new-item-fade');
                 container.prepend(node);
+                attachMediaLoadListeners(node);
                 checkOverflow();
                 fetchSidebarYoutubeTitles(container);
             }
@@ -680,7 +693,7 @@
 
     const handleLiveEdit = (data) => {
         const container = document.getElementById('sidebar-activity-container');
-        
+
         // 1. Update cache
         if (window._sidebarActivityCache) {
             const comment = window._sidebarActivityCache.find(c => String(c.id) === String(data.comment_id));
@@ -701,10 +714,11 @@
                     el.classList.remove('new-item-fade');
                     void el.offsetWidth;
                     el.classList.add('new-item-fade');
+                    attachMediaLoadListeners(inner);
                     checkOverflow();
                     fetchSidebarYoutubeTitles(el);
                     // Auto-play converted GIF videos
-                    inner.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
+                    inner.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
             }
         }
@@ -724,7 +738,7 @@
         lastBoundMode = currentMode;
 
         window.f0ckDebug("Sidebar Activity: Page transition detected", modeChanged ? "(Mode changed)" : "");
-        
+
         if (modeChanged) {
             window._sidebarActivityCache = [];
             currentPage = 1;
