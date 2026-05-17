@@ -314,7 +314,9 @@
                     isSameSite = url.startsWith(siteOrigin) || (url.startsWith('/') && !url.startsWith('//'));
                 }
                 const label = isSameSite ? 'Video Link' : 'External Video Link';
-                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="sidebar-video-link"><i class="fa-solid fa-film"></i> ${label} &raquo;</a>`;
+                const targetHref = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : url);
+                const externalAttr = (itemId && commentId) || commentId ? '' : ' target="_blank" rel="noopener noreferrer"';
+                return `<a href="${targetHref}"${externalAttr} class="sidebar-video-link"><i class="fa-solid fa-film"></i> ${label} &raquo;</a>`;
             });
 
             // Handle spoilers [spoiler]text[/spoiler] (supports nesting)
