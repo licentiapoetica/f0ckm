@@ -1687,7 +1687,7 @@ class CommentSystem {
                 let deleteBtn = '';
                 if (this.isAdmin && cleanUrl.startsWith('/c/')) {
                     const filename = cleanUrl.substring(3);
-                    deleteBtn = `<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[del attachment]</button>`;
+                    deleteBtn = `<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[x]</button>`;
                 }
                 if (isConvertedGif) {
                     return `<span class="video-embed-wrap"><video src="${cleanUrl}" class="autoplay-gif" loop muted playsinline preload="auto"></video>${deleteBtn}</span>`;
@@ -1701,7 +1701,7 @@ class CommentSystem {
                 let deleteBtn = '';
                 if (this.isAdmin && url.startsWith('/c/')) {
                     const filename = url.substring(3);
-                    deleteBtn = `<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[del attachment]</button>`;
+                    deleteBtn = `<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[x]</button>`;
                 }
                 return `<span class="audio-embed-wrap"><audio src="${url}" controls preload="metadata"></audio>${deleteBtn}</span>`;
             });
@@ -2448,25 +2448,25 @@ class CommentSystem {
                         body: params
                     });
                     const json = await res.json();
-                        if (json.success) {
-                            const commentEl = document.getElementById(`c${id}`);
-                            if (commentEl) {
-                                commentEl.classList.add('deleted');
-                                const contentEl = commentEl.querySelector('.comment-content');
-                                if (contentEl) {
-                                    contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
-                                }
-                                const actionsEl = commentEl.querySelector('.comment-actions');
-                                if (actionsEl) {
-                                    actionsEl.innerHTML = ''; // Remove reply/quote/admin buttons
-                                }
-                                // Remove attachments if present
-                                const attachmentsEl = commentEl.querySelector('.comment-attachments, .media-pills'); // Try common classes
-                                if (attachmentsEl) attachmentsEl.remove();
-                            } else {
-                                this.loadComments();
+                    if (json.success) {
+                        const commentEl = document.getElementById(`c${id}`);
+                        if (commentEl) {
+                            commentEl.classList.add('deleted');
+                            const contentEl = commentEl.querySelector('.comment-content');
+                            if (contentEl) {
+                                contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
                             }
+                            const actionsEl = commentEl.querySelector('.comment-actions');
+                            if (actionsEl) {
+                                actionsEl.innerHTML = ''; // Remove reply/quote/admin buttons
+                            }
+                            // Remove attachments if present
+                            const attachmentsEl = commentEl.querySelector('.comment-attachments, .media-pills'); // Try common classes
+                            if (attachmentsEl) attachmentsEl.remove();
                         } else {
+                            this.loadComments();
+                        }
+                    } else {
                         throw new Error(json.message || 'Failed to delete');
                     }
                 }, { allowEmpty: window.f0ckSession?.is_admin });
@@ -2725,7 +2725,7 @@ class CommentSystem {
                 if (parentId) params.append('parent_id', parentId);
                 params.append('content', text);
                 if (videoTime !== null) params.append('video_time', videoTime.toFixed(3));
-                
+
                 // Collect file IDs from upload previews
                 const fileIds = [];
                 const previewArea = wrap.querySelector('.comment-file-preview');
