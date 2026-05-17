@@ -7,6 +7,16 @@ import { exec } from "child_process";
 
 let cachedDiskSize = "Calculating...";
 
+// Read last saved size from DB on startup
+try {
+  const result = await db`select value from site_settings where key = 'disk_size'`;
+  if (result.length > 0) {
+    cachedDiskSize = lib.formatSize(parseInt(result[0].value, 10));
+  }
+} catch (err) {
+  console.error("Error reading disk size from DB:", err);
+}
+
 function updateDiskSize() {
   exec("du -sb f0ckm-data/b f0ckm-data/t f0ckm-data/c", (error, stdout, stderr) => {
     if (error) {
@@ -22,6 +32,12 @@ function updateDiskSize() {
       }
     }
     cachedDiskSize = lib.formatSize(totalBytes);
+    // Save to DB
+    db`
+      insert into site_settings (key, value)
+      values ('disk_size', ${totalBytes.toString()})
+      on conflict (key) do update set value = excluded.value
+    `.catch(err => console.error("Error saving disk size to DB:", err));
   });
 }
 
