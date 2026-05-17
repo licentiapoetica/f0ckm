@@ -3,6 +3,32 @@ import lib from "../lib.mjs";
 import config from "../config.mjs";
 import f0cklib from "../routeinc/f0cklib.mjs";
 import fetch from "flumm-fetch";
+import { exec } from "child_process";
+
+let cachedDiskSize = "Calculating...";
+
+function updateDiskSize() {
+  exec("du -sb f0ckm-data/b f0ckm-data/t f0ckm-data/c", (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error calculating disk size: ${error.message}`);
+      return;
+    }
+    const lines = stdout.trim().split('\n');
+    let totalBytes = 0;
+    for (const line of lines) {
+      const match = line.match(/^(\d+)\s+/);
+      if (match) {
+        totalBytes += parseInt(match[1], 10);
+      }
+    }
+    cachedDiskSize = lib.formatSize(totalBytes);
+  });
+}
+
+// Update every 30 minutes
+setInterval(updateDiskSize, 1000 * 60 * 30);
+updateDiskSize(); // Run once at start
+
 
 export default (router, tpl) => {
   router.get(/^\/ranking$/, lib.loggedin, async (req, res) => {
@@ -94,6 +120,7 @@ export default (router, tpl) => {
           totalComments,
           totalFavs,
           enable_nsfl: config.enable_nsfl,
+          diskSize: cachedDiskSize,
           tmp: null,
           session: (req.session && req.session.user) ? { ...req.session } : false,
           page_meta: {

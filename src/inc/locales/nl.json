@@ -445,6 +445,7 @@
     "stat_deleted": "Verwijderd",
     "stat_comments": "Totaal aantal reacties",
     "stat_favs": "Totaal aantal favorieten",
+    "stat_disk_usage": "Totale Bestandsgrootte",
     "most_favorited": "Meest Gefavoriet",
     "favs": "favorieten",
     "top_xd": "Top xD-scores"
