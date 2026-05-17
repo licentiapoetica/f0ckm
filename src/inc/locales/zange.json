@@ -446,6 +446,8 @@
     "stat_sfw": "SFW-Inhalt",
     "stat_nsfw": "NSFW-Inhalt",
     "stat_deleted": "Gelöscht",
+    "stat_comments": "Gesamtanzahl Kommentare",
+    "stat_favs": "Gesamtanzahl Favoriten",
     "most_favorited": "Am häufigsten favorisiert",
     "favs": "Favoriten",
     "top_xd": "Beste xD-Punktestände"

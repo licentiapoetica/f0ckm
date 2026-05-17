@@ -22,6 +22,20 @@ export default (router, tpl) => {
       `;
       const stats = await lib.countf0cks();
 
+      const totalComments = +(await db`
+        select count(*) as total
+        from comments
+        join items on comments.item_id = items.id
+        where comments.is_deleted = false and items.active = true
+      `)[0].total;
+
+      const totalFavs = +(await db`
+        select count(*) as total
+        from favorites
+        join items on favorites.item_id = items.id
+        where items.active = true
+      `)[0].total;
+
       const hoster = await db`
         with t as (
           select
@@ -77,6 +91,8 @@ export default (router, tpl) => {
           hoster,
           favotop,
           xdtop,
+          totalComments,
+          totalFavs,
           tmp: null,
           session: (req.session && req.session.user) ? { ...req.session } : false,
           page_meta: {

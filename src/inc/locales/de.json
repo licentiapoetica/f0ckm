@@ -176,10 +176,8 @@
     "font_default": "Standard",
     "theme": "Thema",
     "flash_section": "Flash",
-
     "flash_bg": "Flash im Hintergrund abspielen",
     "flash_bg_hint": "Verhindert, dass Ruffle pausiert, wenn der Tab verlassen wird",
-
     "notifications_section": "Benachrichtigungseinstellungen",
     "receive_system_notifications": "Systembenachrichtigungen erhalten",
     "receive_system_notifications_hint": "Benachrichtigungen über Erfolg/Fehler bei Hintergrund-Uploads umschalten. Kritische Moderationsaktionen werden immer angezeigt.",
@@ -444,6 +442,8 @@
     "stat_sfw": "SFW-Inhalte",
     "stat_nsfw": "NSFW-Inhalte",
     "stat_deleted": "Gelöscht",
+    "stat_comments": "Gesamt Kommentare",
+    "stat_favs": "Gesamt Favoriten",
     "most_favorited": "Meiste Favs",
     "favs": "Favs",
     "top_xd": "Top xD-Score"

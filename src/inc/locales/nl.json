@@ -444,6 +444,8 @@
     "stat_sfw": "SFW-inhoud",
     "stat_nsfw": "NSFW-inhoud",
     "stat_deleted": "Verwijderd",
+    "stat_comments": "Totaal aantal reacties",
+    "stat_favs": "Totaal aantal favorieten",
     "most_favorited": "Meest Gefavoriet",
     "favs": "favorieten",
     "top_xd": "Top xD-scores"

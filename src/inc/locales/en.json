@@ -448,6 +448,8 @@
     "stat_sfw": "SFW content",
     "stat_nsfw": "NSFW content",
     "stat_deleted": "Deleted",
+    "stat_comments": "Total Comments",
+    "stat_favs": "Total Favorites",
     "most_favorited": "Most Favorited",
     "favs": "favs",
     "top_xd": "Top xD Scores"
