@@ -525,7 +525,7 @@
         return true;
     };
 
-    const SIDEBAR_PAGE_LIMIT = 50;
+    const SIDEBAR_PAGE_LIMIT = 15;
     const SIDEBAR_INITIAL_LIMIT = 15;
 
     const loadActivity = async (silent = false) => {
