@@ -783,8 +783,11 @@ export default (router, tpl) => {
     router.get(/\/activity\/?/, async (req, res) => {
         try {
             const page = +(req.url.qs?.page || 1);
-            const limit = 50;
-            const offset = (page - 1) * limit;
+            const limit = Math.min(+(req.url.qs?.limit || 50), 50);
+            // Support explicit offset (used by sidebar infinite-scroll after a non-standard initial limit)
+            const offset = req.url.qs?.offset !== undefined
+                ? Math.max(0, +(req.url.qs.offset))
+                : (page - 1) * limit;
 
             /* <mode-override> */
             // prioritize query mode (from AJAX) over session default

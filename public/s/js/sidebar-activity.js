@@ -390,7 +390,7 @@
             let mediaHtml = '';
             let thumbUrl = `/t/${c.item_id}.webp`;
             if (window.applyThumbCacheBust) thumbUrl = window.applyThumbCacheBust(thumbUrl);
-            mediaHtml = `<img src="${thumbUrl}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 2px;" onerror="this.style.display='none'" />`;
+            mediaHtml = `<img src="${thumbUrl}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 2px;" loading="lazy" onerror="this.style.display='none'" />`;
 
             itemPreview = `
                 <div class="item-preview">
@@ -525,7 +525,8 @@
         return true;
     };
 
-    const SIDEBAR_PAGE_LIMIT = 5;
+    const SIDEBAR_PAGE_LIMIT = 50;
+    const SIDEBAR_INITIAL_LIMIT = 15;
 
     const loadActivity = async (silent = false) => {
         const container = document.getElementById('sidebar-activity-container');
@@ -545,7 +546,7 @@
         hasMore = true;
         try {
             const mode = typeof window.activeMode !== 'undefined' ? window.activeMode : '';
-            const res = await fetch(`/activity?json=true&page=1&mode=${mode}`, {
+            const res = await fetch(`/activity?json=true&page=1&limit=${SIDEBAR_INITIAL_LIMIT}&mode=${mode}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const data = await res.json();
@@ -555,7 +556,7 @@
                     ...c,
                     body: c.content || c.body
                 }));
-                hasMore = data.hasMore === true;
+                hasMore = data.hasMore === true || data.comments.length === SIDEBAR_INITIAL_LIMIT;
                 renderFromCache();
                 // Also check after a delay to account for image/emoji loading shifts
                 setTimeout(checkOverflow, 500);
@@ -580,7 +581,9 @@
         if (!container || loading || loadingMore || !hasMore) return;
 
         loadingMore = true;
-        const nextPage = currentPage + 1;
+        // Use the current cache length as the exact offset so there's never a gap,
+        // regardless of the initial fetch limit.
+        const nextOffset = window._sidebarActivityCache.length;
 
         // Show a subtle loading row at the bottom
         const sentinel = document.createElement('div');
@@ -591,7 +594,7 @@
 
         try {
             const mode = typeof window.activeMode !== 'undefined' ? window.activeMode : '';
-            const res = await fetch(`/activity?json=true&page=${nextPage}&mode=${mode}`, {
+            const res = await fetch(`/activity?json=true&offset=${nextOffset}&limit=${SIDEBAR_PAGE_LIMIT}&mode=${mode}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const data = await res.json();
@@ -601,7 +604,7 @@
             if (s) s.remove();
 
             if (data.success && data.comments && data.comments.length > 0) {
-                currentPage = nextPage;
+                currentPage++;
                 hasMore = data.hasMore === true;
 
                 // Append only comments not already in the cache
