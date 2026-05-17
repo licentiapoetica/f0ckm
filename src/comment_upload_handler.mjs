@@ -252,7 +252,8 @@ export const handleCommentUpload = async (req, res) => {
                     try {
                         await queue.spawn('magick', [tmpPath, '-coalesce',
                             '-resize', `${COMMENT_IMG_MAX_DIM}x${COMMENT_IMG_MAX_DIM}>`,
-                            '-quality', '80', webpTmpPath]);
+                            '-quality', '40', '+repage',
+                            webpTmpPath]);
                         const webpStat = await fs.stat(webpTmpPath);
                         if (webpStat.size < gifSize) {
                             await fs.unlink(tmpPath).catch(() => { });
@@ -260,6 +261,7 @@ export const handleCommentUpload = async (req, res) => {
                             actualMime = 'image/webp';
                             ext = 'webp';
                             converted = true;
+                            convertedFromGif = true;
                             console.log(`[COMMENT_UPLOAD] GIF → WebP (${(gifSize / 1024 / 1024).toFixed(1)}MB → ${(webpStat.size / 1024 / 1024).toFixed(1)}MB): ${file.filename}`);
                         } else {
                             console.log(`[COMMENT_UPLOAD] WebP larger than GIF, keeping original: ${file.filename}`);

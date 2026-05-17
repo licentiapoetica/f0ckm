@@ -1541,6 +1541,16 @@ class CommentSystem {
                 return `<a href="${href}"${titleAttr}${isMention ? ' class="mention"' : ''}>${displayText}</a>${extraSuffix}`;
             };
 
+            renderer.image = (href, title, text) => {
+                const src = (typeof href === 'object' && href !== null) ? (href.href || '') : (href || '');
+                const imgHtml = `<img src="${src}" alt="${text || ''}"${title ? ` title="${title}"` : ''} onerror="this.onerror=null; this.outerHTML='<span class=\\'broken-image-text\\'>[image not found]</span>';">`;
+                if (this.isAdmin && src && src.startsWith('/c/')) {
+                    const filename = src.substring(3); // Remove '/c/'
+                    return `<span class="image-embed-wrap">${imgHtml}<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[x]</button></span>`;
+                }
+                return imgHtml;
+            };
+
             // Pre-compile regexes used in the loop
             const escapedSiteHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const allowedHosts = [escapedSiteHost];
@@ -1556,7 +1566,7 @@ class CommentSystem {
             // "Safe non-whitespace" — matches any \S except the start of an https?:// boundary.
             // Prevents concatenated URLs (url1.webpurl2.webp) being consumed as one giant src.
             const safeS = `(?:(?!https?:\\/\\/)\\S)`;
-            const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
+            const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?(?:#gif)?))(?![\\)\\]])`, 'gi');
             const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))`, 'gi');
             const rawAudioRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
             const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
@@ -1674,16 +1684,26 @@ class CommentSystem {
             md = md.replace(videoEmbedRegex, (match, url) => {
                 const isConvertedGif = url.endsWith('#gif');
                 const cleanUrl = url.replace(/#gif$/, '');
-                if (isConvertedGif) {
-                    return `<span class="video-embed-wrap"><video src="${cleanUrl}" class="autoplay-gif" loop muted playsinline preload="auto"></video></span>`;
+                let deleteBtn = '';
+                if (this.isAdmin && cleanUrl.startsWith('/c/')) {
+                    const filename = cleanUrl.substring(3);
+                    deleteBtn = `<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[del attachment]</button>`;
                 }
-                return `<span class="video-embed-wrap"><video src="${cleanUrl}" controls loop muted playsinline preload="metadata"></video></span>`;
+                if (isConvertedGif) {
+                    return `<span class="video-embed-wrap"><video src="${cleanUrl}" class="autoplay-gif" loop muted playsinline preload="auto"></video>${deleteBtn}</span>`;
+                }
+                return `<span class="video-embed-wrap"><video src="${cleanUrl}" controls loop muted playsinline preload="metadata"></video>${deleteBtn}</span>`;
             });
 
             // Audio embed: replace anchor links pointing to audio files from allowed hosters with an audio player
             const audioEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
             md = md.replace(audioEmbedRegex, (match, url) => {
-                return `<span class="audio-embed-wrap"><audio src="${url}" controls preload="metadata"></audio></span>`;
+                let deleteBtn = '';
+                if (this.isAdmin && url.startsWith('/c/')) {
+                    const filename = url.substring(3);
+                    deleteBtn = `<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[del attachment]</button>`;
+                }
+                return `<span class="audio-embed-wrap"><audio src="${url}" controls preload="metadata"></audio>${deleteBtn}</span>`;
             });
 
             // Handle spoilers [spoiler]text[/spoiler] (supports nesting)
@@ -1749,7 +1769,7 @@ class CommentSystem {
             v.autoplay = true;
             v.muted = true;
             v.play().catch(() => {
-                v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true });
+                v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true });
             });
         });
     }
@@ -1887,7 +1907,7 @@ class CommentSystem {
                         <a href="#c${comment.id}" class="comment-time timeago" title="${fullDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
                     </div>
                     <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
-                    ${this.renderCommentAttachments(comment.files)}
+                    ${this.renderCommentAttachments(comment.files, comment.content)}
                     <div class="comment-footer">
                         <div class="comment-footer-right">
                             <div class="comment-actions">
@@ -1931,10 +1951,11 @@ class CommentSystem {
         return div.innerHTML;
     }
 
-    renderCommentAttachments(files) {
+    renderCommentAttachments(files, content = '') {
         if (!files || files.length === 0) return '';
         const items = files.map(f => {
             const url = `/c/${f.dest}`;
+            if (content.includes(url)) return ''; // Skip if already rendered in content
             if (f.mime.startsWith('image/')) {
                 return `<a href="${url}" target="_blank" class="cf-attachment cf-image"><img src="${url}" alt="${this.escapeHtml(f.original_filename || 'image')}" loading="lazy"></a>`;
             } else if (f.mime.startsWith('video/')) {
@@ -2427,12 +2448,61 @@ class CommentSystem {
                         body: params
                     });
                     const json = await res.json();
-                    if (json.success) {
-                        this.loadComments();
-                    } else {
+                        if (json.success) {
+                            const commentEl = document.getElementById(`c${id}`);
+                            if (commentEl) {
+                                commentEl.classList.add('deleted');
+                                const contentEl = commentEl.querySelector('.comment-content');
+                                if (contentEl) {
+                                    contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
+                                }
+                                const actionsEl = commentEl.querySelector('.comment-actions');
+                                if (actionsEl) {
+                                    actionsEl.innerHTML = ''; // Remove reply/quote/admin buttons
+                                }
+                                // Remove attachments if present
+                                const attachmentsEl = commentEl.querySelector('.comment-attachments, .media-pills'); // Try common classes
+                                if (attachmentsEl) attachmentsEl.remove();
+                            } else {
+                                this.loadComments();
+                            }
+                        } else {
                         throw new Error(json.message || 'Failed to delete');
                     }
                 }, { allowEmpty: window.f0ckSession?.is_admin });
+                return;
+            }
+
+            // Admin Delete Attachment
+            const adminDelAttachBtn = target.closest('.admin-delete-attachment-btn');
+            if (adminDelAttachBtn) {
+                const filename = adminDelAttachBtn.dataset.filename;
+                if (filename) {
+                    if (confirm('Are you sure you want to delete this attachment?')) {
+                        const res = await fetch('/api/comments/attachment/delete', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRF-Token': window.f0ckSession?.csrf_token
+                            },
+                            body: `filename=${encodeURIComponent(filename)}`
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                            const wrapper = adminDelAttachBtn.closest('.image-embed-wrap') || adminDelAttachBtn.closest('.video-embed-wrap') || adminDelAttachBtn.closest('.audio-embed-wrap');
+                            if (wrapper) {
+                                const span = document.createElement('span');
+                                span.className = 'attachment-removed-text';
+                                span.textContent = '[attachment removed]';
+                                wrapper.parentNode.replaceChild(span, wrapper);
+                            } else {
+                                this.loadComments();
+                            }
+                        } else {
+                            alert('Failed to delete attachment: ' + (json.message || 'Error'));
+                        }
+                    }
+                }
                 return;
             }
 
@@ -2655,6 +2725,20 @@ class CommentSystem {
                 if (parentId) params.append('parent_id', parentId);
                 params.append('content', text);
                 if (videoTime !== null) params.append('video_time', videoTime.toFixed(3));
+                
+                // Collect file IDs from upload previews
+                const fileIds = [];
+                const previewArea = wrap.querySelector('.comment-file-preview');
+                if (previewArea) {
+                    previewArea.querySelectorAll('.cf-preview-item').forEach(item => {
+                        if (item.dataset.fileId) {
+                            fileIds.push(item.dataset.fileId);
+                        }
+                    });
+                }
+                if (fileIds.length > 0) {
+                    params.append('file_ids', fileIds.join(','));
+                }
 
                 const res = await fetch('/api/comments', {
                     method: 'POST',

@@ -7642,6 +7642,48 @@ video.autoplay-gif {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   background: rgba(0, 0, 0, 0.3);
   padding: 6px 8px;
+  position: relative;
+}
+
+.image-embed-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.admin-delete-attachment-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ff4d4d;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: monospace;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out, background 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.image-embed-wrap:hover .admin-delete-attachment-btn,
+.video-embed-wrap:hover .admin-delete-attachment-btn,
+.audio-embed-wrap:hover .admin-delete-attachment-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.admin-delete-attachment-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: #ff6666;
+}
+
+.admin-delete-attachment-btn:active {
+  transform: scale(0.95);
 }
 
 .audio-embed-wrap audio {

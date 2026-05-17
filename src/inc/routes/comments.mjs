@@ -3,6 +3,8 @@ import f0cklib from "../routeinc/f0cklib.mjs";
 import cfg from "../config.mjs";
 import lib from "../lib.mjs";
 import audit from "../audit.mjs";
+import { promises as fs } from "fs";
+import path from "path";
 
 export default (router, tpl) => {
 
@@ -529,6 +531,37 @@ export default (router, tpl) => {
                 old_content: comment[0].content
             });
 
+            // Handle attachments cleanup
+            const files = await db`SELECT id, dest, checksum FROM comment_files WHERE comment_id = ${commentId}`;
+            for (const f of files) {
+                const otherRefs = await db`SELECT id FROM comment_files WHERE checksum = ${f.checksum} AND id != ${f.id}`;
+                const textRefs = await db`SELECT id FROM comments WHERE content LIKE ${'%' + f.dest + '%'} AND id != ${commentId}`;
+                
+                const hasRefs = otherRefs.length > 0 || textRefs.length > 0;
+                
+                const filePath = path.join(cfg.paths.c, f.dest);
+                const thumbPath = path.join(cfg.paths.t, `cf_${f.dest.split('.')[0]}.webp`);
+
+                if (!hasRefs) {
+                    // Safe to delete from disk (last reference)
+                    await fs.unlink(filePath).catch(() => {});
+                    await fs.unlink(thumbPath).catch(() => {});
+                } else {
+                    // There are other references. Only delete if it's a symlink AND not referenced by text!
+                    try {
+                        const stats = await fs.lstat(filePath);
+                        if (stats.isSymbolicLink() && textRefs.length === 0) {
+                            await fs.unlink(filePath).catch(() => {});
+                            await fs.unlink(thumbPath).catch(() => {});
+                        }
+                    } catch (e) {
+                        console.error(`[DELETE_COMMENT] Failed to check stats for ${f.dest}:`, e.message);
+                    }
+                }
+                // Delete record from DB
+                await db`DELETE FROM comment_files WHERE id = ${f.id}`;
+            }
+
             await db`UPDATE comments SET is_deleted = true, content = '[deleted]' WHERE id = ${commentId}`;
 
             // Notify for live update
@@ -543,6 +576,110 @@ export default (router, tpl) => {
                 body: JSON.stringify({ success: true })
             });
         } catch (e) {
+            return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
+        }
+    });
+
+    // Delete comment attachment (admin/mod only)
+    router.post('/api/comments/attachment/delete', async (req, res) => {
+        if (!req.session) return res.reply({ code: 401, body: JSON.stringify({ success: false }) });
+        if (!req.session.admin && !req.session.is_moderator) return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+
+        const body = req.post || {};
+        const filename = body.filename;
+
+        if (!filename) {
+            return res.reply({ body: JSON.stringify({ success: false, message: "Missing filename" }) });
+        }
+
+        try {
+            const cleanFilename = filename.split('#')[0];
+            const file = await db`SELECT id, comment_id, dest FROM comment_files WHERE dest = ${cleanFilename}`;
+            if (!file.length) return res.reply({ code: 404, body: JSON.stringify({ success: false, message: "Attachment not found" }) });
+
+            let commentId = file[0].comment_id;
+            let comment;
+
+            if (!commentId) {
+                // Try to find the comment by content search if not linked
+                const commentsFound = await db`SELECT id, content, item_id FROM comments WHERE content LIKE ${'%' + cleanFilename + '%'}`;
+                if (commentsFound.length > 0) {
+                    commentId = commentsFound[0].id;
+                    comment = commentsFound;
+                }
+            } else {
+                comment = await db`SELECT id, content, item_id FROM comments WHERE id = ${commentId}`;
+            }
+
+            if (!commentId || !comment.length) {
+                // File uploaded but not linked and not found in any comment content
+                await db`DELETE FROM comment_files WHERE id = ${file[0].id}`;
+                const filePath = path.join(cfg.paths.c, file[0].dest);
+                await fs.unlink(filePath).catch(() => {});
+                return res.reply({ body: JSON.stringify({ success: true, message: "Orphaned attachment deleted" }) });
+            }
+
+            const escapedFilename = cleanFilename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            // Find ALL comments containing this filename and update them
+            const commentsToUpdate = await db`SELECT id, content FROM comments WHERE content LIKE ${'%' + cleanFilename + '%'}`;
+            
+            let finalContent = comment[0].content;
+            for (const c of commentsToUpdate) {
+                const originalContent = c.content;
+                const domainRegex = `(?:https?:\\/\\/[^\\/\\s]+)?`;
+                const updatedContent = originalContent
+                    .replace(new RegExp(`!?\\[[^\\]]*\\]\\(${domainRegex}/c/${escapedFilename}(?:#gif)?\\)`, 'g'), '[attachment removed]')
+                    .replace(new RegExp(`${domainRegex}/c/${escapedFilename}(?:#gif)?`, 'g'), '[attachment removed]');
+                
+                if (updatedContent !== originalContent) {
+                    await db`UPDATE comments SET content = ${updatedContent}, updated_at = NOW() WHERE id = ${c.id}`;
+                    
+                    if (c.id === commentId) {
+                        finalContent = updatedContent;
+                    }
+                    
+                    // Notify for live update for each updated comment
+                    db.notify('comments', JSON.stringify({
+                        type: 'edit',
+                        comment_id: c.id,
+                        content: updatedContent
+                    }));
+                }
+            }
+
+            // Delete file record
+            await db`DELETE FROM comment_files WHERE id = ${file[0].id}`;
+
+            // Delete file from disk
+            const filePath = path.join(cfg.paths.c, file[0].dest);
+            await fs.unlink(filePath).catch(() => {});
+            
+            // Also delete thumbnail if exists
+            const thumbPath = path.join(cfg.paths.t, `cf_${filename.split('.')[0]}.webp`);
+            await fs.unlink(thumbPath).catch(() => {});
+
+            // Log in audit log
+            await audit.log(req.session.id, 'delete_attachment', 'comment', commentId, {
+                filename: filename,
+                old_content: comment[0].content,
+                new_content: finalContent
+            });
+
+            // Notify for live update
+            db.notify('comments', JSON.stringify({
+                type: 'edit',
+                item_id: comment[0].item_id,
+                comment_id: commentId,
+                content: finalContent
+            }));
+
+            return res.reply({
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify({ success: true })
+            });
+        } catch (e) {
+            console.error(e);
             return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
         }
     });
