@@ -357,7 +357,8 @@
                 md = window.Sanitizer.clean(md);
             }
 
-            return md;
+            // Strip #gif from final text if it leaked through
+            return md.replace(/#gif/g, '');
         } catch (e) {
             return content;
         }
