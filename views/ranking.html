@@ -78,6 +78,9 @@
             <tr><td>{{ t('ranking.stat_untagged') }}</td><td>{{ stats.untagged }}</td></tr>
             <tr><td>{{ t('ranking.stat_sfw') }}</td><td>{{ stats.sfw }}</td></tr>
             <tr><td>{{ t('ranking.stat_nsfw') }}</td><td>{{ stats.nsfw }}</td></tr>
+            @if(enable_nsfl)
+              <tr><td>{{ t('ranking.stat_nsfl') }}</td><td>{{ stats.nsfl }}</td></tr>
+            @endif
             <tr><td>{{ t('ranking.stat_deleted') }}</td><td>{{ stats.deleted }}</td></tr>
           </tbody>
         </table>

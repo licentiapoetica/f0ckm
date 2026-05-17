@@ -93,6 +93,7 @@ export default (router, tpl) => {
           xdtop,
           totalComments,
           totalFavs,
+          enable_nsfl: config.enable_nsfl,
           tmp: null,
           session: (req.session && req.session.user) ? { ...req.session } : false,
           page_meta: {
