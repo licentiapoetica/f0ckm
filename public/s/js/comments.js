@@ -504,6 +504,7 @@ class CommentSystem {
 
             contentEl.dataset.raw = this.escapeHtml(fullContent);
             contentEl.innerHTML = this.renderCommentContent(fullContent, commentId);
+            CommentSystem.autoplayConvertedGifs(contentEl);
         } catch (e) {
             _f0ckDebug('[CommentSystem] _patchLiveCommentContent failed:', e);
         }
@@ -527,6 +528,7 @@ class CommentSystem {
         const contentEl = el.querySelector('.comment-content');
         if (contentEl) {
             contentEl.innerHTML = this.renderCommentContent(data.content, data.comment_id);
+            CommentSystem.autoplayConvertedGifs(contentEl);
 
             // Flash effect to draw attention
             el.classList.remove('new-item-fade');
@@ -1196,6 +1198,7 @@ class CommentSystem {
         this.container.innerHTML = html;
         this.restoreMediaState(mediaState);
         this.syncSubscribeButton(isSubscribed);
+        CommentSystem.autoplayConvertedGifs(this.container);
 
         // Attach media load listeners to re-stabilize scroll if a hash is active.
         // Only during the initial anchor scroll — never on subsequent renders (tab re-focus,
@@ -1307,6 +1310,7 @@ class CommentSystem {
                 if (contentEl && contentEl.dataset.raw !== incoming.content) {
                     _f0ckDebug(`[CommentSystem] Reconcile: Updating content for #c${id}`);
                     contentEl.innerHTML = this.renderCommentContent(incoming.content, incoming.id);
+                    CommentSystem.autoplayConvertedGifs(contentEl);
                     contentEl.dataset.raw = incoming.content;
                 }
 
@@ -1553,7 +1557,7 @@ class CommentSystem {
             // Prevents concatenated URLs (url1.webpurl2.webp) being consumed as one giant src.
             const safeS = `(?:(?!https?:\\/\\/)\\S)`;
             const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
-            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
+            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))`, 'gi');
             const rawAudioRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
             const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
 
@@ -1666,9 +1670,14 @@ class CommentSystem {
             const mediaDomainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${mediaHostsPart})|(?=\\/[a-zA-Z0-9_\\-]))`;
 
             // Video embed: replace anchor links pointing to video files from allowed hosters with a video player
-            const videoEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
+            const videoEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
             md = md.replace(videoEmbedRegex, (match, url) => {
-                return `<span class="video-embed-wrap"><video src="${url}" controls loop muted playsinline preload="metadata"></video></span>`;
+                const isConvertedGif = url.endsWith('#gif');
+                const cleanUrl = url.replace(/#gif$/, '');
+                if (isConvertedGif) {
+                    return `<span class="video-embed-wrap"><video src="${cleanUrl}" class="autoplay-gif" loop muted playsinline preload="auto"></video></span>`;
+                }
+                return `<span class="video-embed-wrap"><video src="${cleanUrl}" controls loop muted playsinline preload="metadata"></video></span>`;
             });
 
             // Audio embed: replace anchor links pointing to audio files from allowed hosters with an audio player
@@ -1726,6 +1735,23 @@ class CommentSystem {
             }
             return fallback;
         }
+    }
+
+    /**
+     * Force-play videos with autoplay attribute in a container.
+     * Browsers often block autoplay on dynamically inserted elements;
+     * calling .play() explicitly after DOM insertion resolves this.
+     */
+    static autoplayConvertedGifs(container) {
+        if (!container) return;
+        const videos = container.querySelectorAll('video.autoplay-gif');
+        videos.forEach(v => {
+            v.autoplay = true;
+            v.muted = true;
+            v.play().catch(() => {
+                v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true });
+            });
+        });
     }
 
     buildBacklinkMap(comments) {
@@ -2184,7 +2210,7 @@ class CommentSystem {
                     const json = await res.json();
                     if (json.success && json.files && json.files.length > 0) {
                         const fileData = json.files[0];
-                        const url = `/c/${fileData.dest}`;
+                        const url = `/c/${fileData.dest}${fileData.converted_gif ? '#gif' : ''}`;
                         textarea.value = textarea.value.replace(placeholder, url);
 
                         // Update preview with actual thumbnail

@@ -7432,6 +7432,10 @@ input#s_avatar {
 
 /* Comments System */
 /* Primary definition moved up to line 1082 to avoid overrides */
+video.autoplay-gif {
+  background: rgba(0, 0, 0, 0) !important;
+}
+
 #comments-container {
   color: var(--white);
   font-family: var(--font);
@@ -7613,6 +7617,11 @@ input#s_avatar {
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   background: #000;
+}
+
+.video-embed-wrap:has(.autoplay-gif) {
+  background: transparent;
+  box-shadow: none;
 }
 
 .video-embed-wrap video {

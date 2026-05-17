@@ -24,9 +24,9 @@ db`CREATE TABLE IF NOT EXISTS public.comment_files (
     phash TEXT,
     original_filename TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
-)`.catch(() => {});
-db`CREATE INDEX IF NOT EXISTS idx_comment_files_comment_id ON public.comment_files(comment_id)`.catch(() => {});
-db`CREATE INDEX IF NOT EXISTS idx_comment_files_checksum ON public.comment_files(checksum)`.catch(() => {});
+)`.catch(() => { });
+db`CREATE INDEX IF NOT EXISTS idx_comment_files_comment_id ON public.comment_files(comment_id)`.catch(() => { });
+db`CREATE INDEX IF NOT EXISTS idx_comment_files_checksum ON public.comment_files(checksum)`.catch(() => { });
 
 /**
  * Parse multipart form data supporting multiple files with the same field name.
@@ -207,7 +207,7 @@ export const handleCommentUpload = async (req, res) => {
             // Verify actual MIME with `file` command
             let actualMime = (await queue.spawn('file', ['--mime-type', '-b', tmpPath])).stdout.trim();
             if (!allowedMimes.includes(actualMime)) {
-                await fs.unlink(tmpPath).catch(() => {});
+                await fs.unlink(tmpPath).catch(() => { });
                 return sendJson(res, {
                     success: false,
                     msg: `Invalid file type detected: ${actualMime}`
@@ -236,21 +236,84 @@ export const handleCommentUpload = async (req, res) => {
             }
 
             let ext = cfg.mimes[actualMime] || 'bin';
+            // Max dimension for comment images (scale down if larger)
+            const COMMENT_IMG_MAX_DIM = 1280;
 
-            // Convert GIF → animated WebP to save disk space
+            // Convert GIF → WebP (small) or WebM (large) to save disk space
+            let convertedFromGif = false;
             if (actualMime === 'image/gif') {
-                const webpTmpPath = tmpPath.replace(/\.tmp$/, '.webp');
+                const gifSize = file.data.length;
+                const GIF_WEBM_THRESHOLD = 5 * 1024 * 1024; // 8MB
+                let converted = false;
+
+                if (gifSize <= GIF_WEBM_THRESHOLD) {
+                    // Small GIF → try WebP (with resize)
+                    const webpTmpPath = tmpPath.replace(/\.tmp$/, '.webp');
+                    try {
+                        await queue.spawn('magick', [tmpPath, '-coalesce',
+                            '-resize', `${COMMENT_IMG_MAX_DIM}x${COMMENT_IMG_MAX_DIM}>`,
+                            '-quality', '80', webpTmpPath]);
+                        const webpStat = await fs.stat(webpTmpPath);
+                        if (webpStat.size < gifSize) {
+                            await fs.unlink(tmpPath).catch(() => { });
+                            await fs.rename(webpTmpPath, tmpPath);
+                            actualMime = 'image/webp';
+                            ext = 'webp';
+                            converted = true;
+                            console.log(`[COMMENT_UPLOAD] GIF → WebP (${(gifSize / 1024 / 1024).toFixed(1)}MB → ${(webpStat.size / 1024 / 1024).toFixed(1)}MB): ${file.filename}`);
+                        } else {
+                            console.log(`[COMMENT_UPLOAD] WebP larger than GIF, keeping original: ${file.filename}`);
+                            await fs.unlink(webpTmpPath).catch(() => { });
+                        }
+                    } catch (e) {
+                        console.warn(`[COMMENT_UPLOAD] GIF→WebP failed, keeping original:`, e.message);
+                        await fs.unlink(webpTmpPath).catch(() => { });
+                    }
+                } else {
+                    // Large GIF → go straight to WebM (VP9 with alpha + resize)
+                    const webmTmpPath = tmpPath.replace(/\.tmp$/, '.webm');
+                    try {
+                        await queue.spawn('ffmpeg', [
+                            '-y', '-i', tmpPath,
+                            '-an',
+                            '-vf', `scale='min(${COMMENT_IMG_MAX_DIM},iw)':min'(${COMMENT_IMG_MAX_DIM},ih)':force_original_aspect_ratio=decrease`,
+                            '-c:v', 'libvpx-vp9',
+                            '-pix_fmt', 'yuva420p',
+                            '-auto-alt-ref', '0',
+                            '-crf', '30', '-b:v', '0',
+                            webmTmpPath
+                        ]);
+                        const webmStat = await fs.stat(webmTmpPath);
+                        if (webmStat.size < gifSize) {
+                            await fs.unlink(tmpPath).catch(() => { });
+                            await fs.rename(webmTmpPath, tmpPath);
+                            actualMime = 'video/webm';
+                            ext = 'webm';
+                            converted = true;
+                            convertedFromGif = true;
+                            console.log(`[COMMENT_UPLOAD] GIF → WebM (${(gifSize / 1024 / 1024).toFixed(1)}MB → ${(webmStat.size / 1024 / 1024).toFixed(1)}MB): ${file.filename}`);
+                        } else {
+                            console.log(`[COMMENT_UPLOAD] WebM also larger, keeping original GIF: ${file.filename}`);
+                            await fs.unlink(webmTmpPath).catch(() => { });
+                        }
+                    } catch (e) {
+                        console.warn(`[COMMENT_UPLOAD] GIF→WebM failed, keeping original:`, e.message);
+                        await fs.unlink(webmTmpPath).catch(() => { });
+                    }
+                }
+            }
+
+            // Downscale regular images (JPEG, PNG, WebP) if too large
+            if (actualMime.startsWith('image/') && actualMime !== 'image/gif') {
                 try {
-                    await queue.spawn('magick', [tmpPath, '-coalesce', '-quality', '80', webpTmpPath]);
-                    // Replace the temp file with the converted one
-                    await fs.unlink(tmpPath).catch(() => {});
-                    await fs.rename(webpTmpPath, tmpPath);
-                    actualMime = 'image/webp';
-                    ext = 'webp';
-                    console.log(`[COMMENT_UPLOAD] Converted GIF → WebP: ${file.filename}`);
+                    const { stdout: dims } = await queue.spawn('magick', [tmpPath, '-format', '%wx%h', 'info:']);
+                    const [w, h] = dims.trim().split('x').map(Number);
+                    if (w > COMMENT_IMG_MAX_DIM || h > COMMENT_IMG_MAX_DIM) {
+                        await queue.spawn('magick', [tmpPath, '-resize', `${COMMENT_IMG_MAX_DIM}x${COMMENT_IMG_MAX_DIM}>`, '-quality', '85', tmpPath]);
+                        console.log(`[COMMENT_UPLOAD] Resized ${w}x${h} → max ${COMMENT_IMG_MAX_DIM}px: ${file.filename}`);
+                    }
                 } catch (e) {
-                    console.warn(`[COMMENT_UPLOAD] GIF→WebP conversion failed, keeping original:`, e.message);
-                    await fs.unlink(webpTmpPath).catch(() => {});
+                    console.warn(`[COMMENT_UPLOAD] Resize check failed:`, e.message);
                 }
             }
 
@@ -364,7 +427,7 @@ export const handleCommentUpload = async (req, res) => {
             }
 
             // Clean up tmp
-            await fs.unlink(tmpPath).catch(() => {});
+            await fs.unlink(tmpPath).catch(() => { });
 
             // Generate thumbnail (same size as regular uploads = 512px)
             const dynThumbSize = 512;
@@ -376,20 +439,20 @@ export const handleCommentUpload = async (req, res) => {
                 console.warn(`[COMMENT_UPLOAD] Thumbnail generation failed for ${filename}:`, err.message);
                 // Fallback to placeholder
                 const tPath = path.join(cfg.paths.t, `cf_${uuid}.webp`);
-                await queue.spawn('magick', ['-size', `${dynThumbSize}x${dynThumbSize}`, 'xc:#1a1a1a', tPath]).catch(() => {});
+                await queue.spawn('magick', ['-size', `${dynThumbSize}x${dynThumbSize}`, 'xc:#1a1a1a', tPath]).catch(() => { });
             }
 
             // Insert into comment_files (comment_id is null; will be linked when comment is posted)
             const inserted = await db`
                 INSERT INTO comment_files ${db({
-                    user_id: req.session.id,
-                    dest: filename,
-                    mime: actualMime,
-                    size: file.data.length,
-                    checksum: checksum,
-                    phash: phash,
-                    original_filename: file.filename || null
-                }, 'user_id', 'dest', 'mime', 'size', 'checksum', 'phash', 'original_filename')}
+                user_id: req.session.id,
+                dest: filename,
+                mime: actualMime,
+                size: file.data.length,
+                checksum: checksum,
+                phash: phash,
+                original_filename: file.filename || null
+            }, 'user_id', 'dest', 'mime', 'size', 'checksum', 'phash', 'original_filename')}
                 RETURNING id, dest, mime
             `;
 
@@ -397,7 +460,8 @@ export const handleCommentUpload = async (req, res) => {
                 id: inserted[0].id,
                 dest: inserted[0].dest,
                 mime: inserted[0].mime,
-                thumbnail: `/t/cf_${uuid}.webp`
+                thumbnail: `/t/cf_${uuid}.webp`,
+                converted_gif: convertedFromGif
             });
         }
 
@@ -429,7 +493,7 @@ async function generateCommentThumbnail(filename, mime, uuid, size = 512) {
         if (lstat.isSymbolicLink()) {
             realSource = await fs.realpath(sourcePath);
         }
-    } catch (e) {}
+    } catch (e) { }
 
     if (mime.startsWith('video/') || mime === 'image/gif') {
         const ffThumbSize = Math.max(size, 512);
@@ -452,7 +516,7 @@ async function generateCommentThumbnail(filename, mime, uuid, size = 512) {
             if (stat && stat.size > 0) {
                 coverExtracted = true;
             }
-        } catch (err) {}
+        } catch (err) { }
 
         if (!coverExtracted) {
             // Generate a placeholder for audio
@@ -472,7 +536,7 @@ async function generateCommentThumbnail(filename, mime, uuid, size = 512) {
     }
 
     // Cleanup tmp
-    await fs.unlink(tmpFile).catch(() => {});
+    await fs.unlink(tmpFile).catch(() => { });
 }
 
 /**

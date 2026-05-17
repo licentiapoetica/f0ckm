@@ -130,7 +130,7 @@
             const safeS = `(?:(?!https?:\\/\\/)\\S)`;
             const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?<!\\S)(?=\\/[a-zA-Z0-9_\\-]))`;
             const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
-            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
+            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))`, 'gi');
             const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
 
             const renderer = new marked.Renderer();
@@ -303,18 +303,24 @@
             const mediaDomainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${mediaHostsPart})|(?=\\/[a-zA-Z0-9_\\-]))`;
 
             // Video label replacement: instead of embedding, show a link
-            const videoEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
+            const videoEmbedRegex = new RegExp(`<a\\s[^>]*href="(${mediaDomainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]+\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))"[^>]*>([\\s\\S]*?)<\\/a>`, 'gi');
             md = md.replace(videoEmbedRegex, (match, url) => {
+                const isConvertedGif = url.endsWith('#gif');
+                const cleanUrl = url.replace(/#gif$/, '');
+                // Converted GIFs → inline autoplay in sidebar too
+                if (isConvertedGif) {
+                    return `<span class="video-embed-wrap"><video src="${cleanUrl}" class="sidebar-comment-img autoplay-gif" loop muted playsinline preload="auto"></video></span>`;
+                }
                 let isSameSite = false;
                 try {
-                    const urlToParse = url.startsWith('//') ? window.location.protocol + url : url;
+                    const urlToParse = cleanUrl.startsWith('//') ? window.location.protocol + cleanUrl : cleanUrl;
                     const urlObj = new URL(urlToParse, siteOrigin);
                     isSameSite = (urlObj.hostname === window.location.hostname);
                 } catch(e) {
-                    isSameSite = url.startsWith(siteOrigin) || (url.startsWith('/') && !url.startsWith('//'));
+                    isSameSite = cleanUrl.startsWith(siteOrigin) || (cleanUrl.startsWith('/') && !cleanUrl.startsWith('//'));
                 }
                 const label = isSameSite ? 'Video Link' : 'External Video Link';
-                const targetHref = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : url);
+                const targetHref = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : cleanUrl);
                 const externalAttr = (itemId && commentId) || commentId ? '' : ' target="_blank" rel="noopener noreferrer"';
                 return `<a href="${targetHref}"${externalAttr} class="sidebar-video-link"><i class="fa-solid fa-film"></i> ${label} &raquo;</a>`;
             });
@@ -482,6 +488,8 @@
             </div>`;
         }
         container.innerHTML = html;
+        // Auto-play converted GIF videos
+        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
     };
 
     const renderFromCache = () => {
@@ -500,6 +508,8 @@
         }
         checkOverflow();
         fetchSidebarYoutubeTitles(container);
+        // Auto-play converted GIF videos
+        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
         return true;
     };
 
@@ -604,6 +614,8 @@
                     if (ioSentinel) container.appendChild(ioSentinel);
                     checkOverflow();
                     fetchSidebarYoutubeTitles(container);
+                    // Auto-play converted GIF videos
+                    container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
                 }
             } else {
                 hasMore = false;
@@ -690,6 +702,8 @@
                     el.classList.add('new-item-fade');
                     checkOverflow();
                     fetchSidebarYoutubeTitles(el);
+                    // Auto-play converted GIF videos
+                    inner.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }); }); });
                 }
             }
         }
