@@ -10,7 +10,8 @@ export default (router, tpl) => {
       return res.reply({ code: 502, body: '<html><body>502 Bad Gateway</body></html>' });
     }
 
-    const id = req.params?.id;
+    const id = req.params?.id || req.params?.[0];
+    console.log('[SCROLLER] URL:', req.url.pathname, 'Params:', req.params, 'ID:', id);
     let page_meta = {
       title: 'doomscroll',
       description: 'Scroll through content endlessly',
@@ -22,7 +23,7 @@ export default (router, tpl) => {
         const items = await db`
           select i.*, uo.display_name
           from "items" i
-          left join users u on u.id = i.author
+          left join "user" u on u."user" = i.username or u.login = i.username
           left join user_options uo on uo.user_id = u.id
           where i.id = ${+id} and i.active = true
           limit 1
