@@ -130,6 +130,7 @@
             const safeS = `(?:(?!https?:\\/\\/)\\S)`;
             const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?<!\\S)(?=\\/[a-zA-Z0-9_\\-]))`;
             const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
+            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
             const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
 
             const renderer = new marked.Renderer();
@@ -239,10 +240,19 @@
                     }
                     return `![image](${fullUrl})`;
                 });
+
+                processedLine = processedLine.replace(rawVideoRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
+                    return `[video](${fullUrl})`;
+                });
                 
                 // Use marked for each line individually
-                const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
-                let rendered = marked.parseInline ? marked.parseInline(escapedAsterisks, { renderer: renderer }) : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+                let mdSafe = processedLine.replace(/\*/g, '\\*').replace(/_/g, '\\_');
+                const bs = String.fromCharCode(92);
+                mdSafe = mdSafe.split(bs + bs + '_').join(bs + bs + bs + '_');
+                
+                let rendered = marked.parseInline ? marked.parseInline(mdSafe, { renderer: renderer }) : marked.parse(mdSafe, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
                 
                 // Render emojis ONLY if this is NOT a quote line OR if the user prefers it
                 const quoteEmojis = window.f0ckSession?.quote_emojis === true;
