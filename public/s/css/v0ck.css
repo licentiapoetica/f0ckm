@@ -489,6 +489,25 @@
   margin: 0 2px;
 }
 
+/* Inline video (converted GIF) in pill */
+.danmaku-pill .dpill-video {
+  max-height: 80px;
+  max-width: 120px;
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+  object-fit: contain;
+  display: inline-block;
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+/* Audio indicator in pill */
+.danmaku-pill .dpill-audio {
+  vertical-align: middle;
+  font-size: 0.9em;
+}
+
 @keyframes danmaku-fly {
   from { transform: translateX(calc(100vw + 100%)); }
   to   { transform: translateX(calc(-100% - 200px)); }

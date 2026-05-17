@@ -609,10 +609,33 @@ class Danmaku {
                     parent.appendChild(document.createTextNode(match[0]));
                 }
             } else if (match[4]) {
-                const img = document.createElement('img');
-                img.src = match[4];
-                img.className = 'dpill-img';
-                parent.appendChild(img);
+                const mediaUrl = match[4];
+                const isConvertedGif = mediaUrl.endsWith('#gif');
+                const cleanUrl = mediaUrl.replace(/#gif$/, '');
+                const videoExts = /\.(?:mp4|webm|ogv|mov)$/i;
+                const audioExts = /\.(?:mp3|ogg|wav|flac|aac|opus|m4a)$/i;
+
+                if (videoExts.test(cleanUrl)) {
+                    const vid = document.createElement('video');
+                    vid.src = cleanUrl;
+                    vid.className = 'dpill-video';
+                    vid.muted = true;
+                    vid.loop = true;
+                    vid.autoplay = true;
+                    vid.playsInline = true;
+                    vid.play().catch(() => { vid.addEventListener('canplay', () => vid.play().catch(() => {}), { once: true }); });
+                    parent.appendChild(vid);
+                } else if (audioExts.test(cleanUrl)) {
+                    const span = document.createElement('span');
+                    span.className = 'dpill-audio';
+                    span.textContent = '🔊 ';
+                    parent.appendChild(span);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = cleanUrl;
+                    img.className = 'dpill-img';
+                    parent.appendChild(img);
+                }
             }
 
             lastIndex = match.index + match[0].length;
@@ -648,6 +671,11 @@ class Danmaku {
         };
         const imgTokenUrls = [];
         protected_ = protected_
+            // Tokenize relative /c/ media URLs (comment attachments)
+            .replace(/\/c\/[a-f0-9]+\.(?:png|jpg|jpeg|gif|webp|svg|avif|mp4|webm|ogv|mov|mp3|ogg|wav|flac|aac|opus|m4a)(?:#gif)?/gi, (url) => {
+                imgTokenUrls.push(url);
+                return `\x04${imgTokenUrls.length - 1}\x05`;
+            })
             // Stop at protocol boundaries so concatenated URLs aren't merged into one broken src.
             .replace(/https?:\/\/(?:(?!https?:\/\/)\S)+\.(?:png|jpg|jpeg|gif|webp|svg|avif)(\?(?:(?!https?:\/\/)\S)*)?/gi, (url) => {
                 if (!isAllowedImg(url)) return url; // disallowed image URLs stay as plain text
