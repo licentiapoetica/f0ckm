@@ -18,7 +18,7 @@ try {
 }
 
 function updateDiskSize() {
-  exec("du -sb f0ckm-data/b f0ckm-data/t f0ckm-data/c", (error, stdout, stderr) => {
+  exec(`du -sb ${config.paths.b} ${config.paths.t} ${config.paths.c}`, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error calculating disk size: ${error.message}`);
       return;
