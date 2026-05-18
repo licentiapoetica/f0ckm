@@ -23,6 +23,22 @@
     let chatFocused  = document.hasFocus();
     const ytOembedCache = new Map(); // videoId → {title, author_name}
 
+    // Shared IntersectionObserver for lazy-loading embedded images.
+    // Images are rendered with data-lazy-src; this observer sets the real src
+    // when the image is within 200px of the visible scroll area.
+    const lazyImgObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const img = entry.target;
+            const src = img.dataset.lazySrc;
+            if (src) { img.src = src; delete img.dataset.lazySrc; }
+            lazyImgObserver.unobserve(img);
+        }
+    }, {
+        rootMargin: '200px',   // start loading 200px before entering viewport
+        threshold: 0
+    });
+
     function updateBadge() {
         const badge  = document.getElementById('gchat-badge');
         const bubble = document.getElementById('gchat-reopen-bubble');
@@ -187,7 +203,7 @@
             'gi'
         );
         html = html.replace(imageRegex, url =>
-            `<span class="gchat-embed-img"><img src="${url}" loading="lazy" alt="" onerror="this.parentNode.style.display='none'"></span>`
+            `<span class="gchat-embed-img"><img data-lazy-src="${url}" src="" loading="lazy" alt="" onerror="this.parentNode.style.display='none'"></span>`
         );
 
         // 6b. Raw video URLs from allowed hosts → <video>
@@ -270,7 +286,7 @@
                     if (/\.(mp4|webm|ogv|mov)(\?.*)?$/i.test(path))
                         return `${pre}<span class="gchat-embed-video"><video src="${url}" controls loop muted playsinline preload="metadata"></video></span>`;
                     if (/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(path))
-                        return `${pre}<span class="gchat-embed-img"><img src="${url}" loading="lazy" alt="" onerror="this.parentNode.style.display='none'"></span>`;
+                        return `${pre}<span class="gchat-embed-img"><img data-lazy-src="${url}" src="" loading="lazy" alt="" onerror="this.parentNode.style.display='none'"></span>`;
                     if (/\.(mp3|ogg|wav|flac|aac|opus|m4a)(\?.*)?$/i.test(path))
                         return `${pre}<span class="gchat-embed-audio"><audio src="${url}" controls preload="metadata"></audio></span>`;
                 }
@@ -310,13 +326,17 @@
         </div>`;
     }
 
-    function scrollToBottom(force = false) {
+    function scrollToBottom(force = false, smooth = false) {
         const el = document.getElementById('gchat-messages');
         if (!el) return;
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
         if (!force && !nearBottom) return;
-        // Double rAF ensures the browser has committed the layout before we measure scrollHeight
-        requestAnimationFrame(() => requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; }));
+        if (smooth) {
+            el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        } else {
+            // Double rAF ensures layout is committed before reading scrollHeight
+            requestAnimationFrame(() => requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; }));
+        }
     }
 
     /**
@@ -351,9 +371,15 @@
         };
 
         if (typeof ResizeObserver !== 'undefined') {
+            // Debounce: batch rapid layout changes (e.g. progressive image renders)
+            // into a single smooth scroll instead of many jarring instant jumps.
+            let debounceTimer = null;
             ro = new ResizeObserver(() => {
                 if (userScrolledUp) { cleanup(); return; }
-                el.scrollTop = el.scrollHeight;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (!userScrolledUp) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+                }, 80);
             });
             ro.observe(el);
         } else {
@@ -364,10 +390,9 @@
 
         setTimeout(cleanup, durationMs);
 
-        // Immediate snaps
+        // First snap is instant (no animation — the panel just opened)
         scrollToBottom(true);
-        setTimeout(() => { if (!userScrolledUp) scrollToBottom(true); }, 200);
-        setTimeout(() => { if (!userScrolledUp) scrollToBottom(true); }, 600);
+        setTimeout(() => { if (!userScrolledUp) scrollToBottom(true); }, 150);
     }
 
     async function fetchYtOembed(cardEl) {
@@ -470,9 +495,16 @@
             s.addEventListener('click', () => s.classList.toggle('revealed'));
         });
 
-        // Embedded images: scroll to bottom when loaded + open modal on click
-        node.querySelectorAll('.gchat-embed-img img').forEach(img => {
-            img.addEventListener('load',  () => scrollToBottom(scrollForce));
+        // Embedded images: register with lazy observer; scroll on load only for new messages (not history)
+        node.querySelectorAll('.gchat-embed-img img[data-lazy-src]').forEach(img => {
+            img.addEventListener('load', () => scrollToBottom(scrollForce));
+            img.addEventListener('click', () => openImgModal(img.src));
+            img.style.cursor = 'zoom-in';
+            lazyImgObserver.observe(img);
+        });
+        // Also handle already-src'd images (avatars etc.)
+        node.querySelectorAll('.gchat-embed-img img:not([data-lazy-src])').forEach(img => {
+            img.addEventListener('load', () => scrollToBottom(scrollForce));
             img.addEventListener('click', () => openImgModal(img.src));
             img.style.cursor = 'zoom-in';
         });
@@ -498,10 +530,9 @@
             if (!data.success) return;
             const container = document.getElementById('gchat-messages');
             if (container) container.innerHTML = '';
-            // Pass scrollForce=true so every img.load in the batch force-scrolls
-            (data.messages || []).forEach(m => appendMsg(m, true));
-            // Start sticky scroll: watches ResizeObserver + input events, holds 8s
-            startStickyScroll(8000);
+            (data.messages || []).forEach(m => appendMsg(m, false));
+            // One instant snap — images above viewport won't load (lazy) so no layout shift
+            container.scrollTop = container.scrollHeight;
         } catch (e) {
             console.error('[Chat] Failed to load history:', e);
         }

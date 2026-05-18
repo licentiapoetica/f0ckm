@@ -1201,8 +1201,10 @@ if (window.__dmLoaded) {
                 bubble.appendChild(placeholder);
             }
 
-            // Auto-decrypt and render
-            (async () => {
+            // Defer decrypt until the placeholder scrolls near the viewport.
+            // This means attachments above the initial view never cause layout shifts.
+            const decryptWhenVisible = () => {
+                (async () => {
                 const blob = await fetchAndDecryptAttachment(att.id, att.mime);
                 if (!blob || !placeholder.parentNode) return;
 
@@ -1264,6 +1266,16 @@ if (window.__dmLoaded) {
                     requestAnimationFrame(() => requestAnimationFrame(snapIfAtBottom));
                 }
             })();
+            }; // end decryptWhenVisible
+
+            // Use IntersectionObserver to defer decryption until near viewport.
+            // Bottom messages (already visible) fire immediately; older ones wait.
+            const io = new IntersectionObserver((entries, obs) => {
+                if (!entries[0].isIntersecting) return;
+                obs.disconnect();
+                decryptWhenVisible();
+            }, { rootMargin: '200px', threshold: 0 });
+            io.observe(placeholder);
         }
     }
 
@@ -2481,9 +2493,13 @@ if (window.__dmLoaded) {
 
         // ResizeObserver: re-snap whenever content grows (images, attachments decrypting)
         if (typeof ResizeObserver !== 'undefined') {
+            let debounceTimer = null;
             ro = new ResizeObserver(() => {
                 if (userScrolledUp) { cleanup(); return; }
-                el.scrollTop = el.scrollHeight;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (!userScrolledUp) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+                }, 80);
             });
             ro.observe(el);
         } else {
@@ -2496,7 +2512,7 @@ if (window.__dmLoaded) {
         // Disconnect after the deadline regardless
         setTimeout(cleanup, durationMs);
 
-        // Immediate snaps as safety net for content already in the DOM
+        // First snaps are instant (panel just opened — no animation needed)
         snapToBottom(el, true);
         setTimeout(() => { if (!userScrolledUp) snapToBottom(el, true); }, 200);
         setTimeout(() => { if (!userScrolledUp) snapToBottom(el, true); }, 600);
