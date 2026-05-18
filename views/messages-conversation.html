@@ -13,7 +13,10 @@
             @else
             <img class="dm-header-avatar" src="/a/default.png" alt="">
             @endif
-            <a href="/user/{{ other.user.toLowerCase() }}" class="dm-header-username" @if(other.username_color) style="color:{{ other.username_color }}" @endif>{!! other.display_name || other.user !!}</a>
+            <div class="dm-header-name-wrap">
+                <a href="/user/{{ other.user.toLowerCase() }}" class="dm-header-username" @if(other.username_color) style="color:{{ other.username_color }}" @endif>{!! other.display_name || other.user !!}</a>
+                <span id="dm-presence" class="dm-presence"></span>
+            </div>
         </div>
         <button class="dm-manage-keys-btn btn-small" title="Manage encryption key">🔑 Keys</button>
     </div>

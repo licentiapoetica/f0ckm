@@ -392,6 +392,39 @@ if (window.__dmLoaded) {
                 (el.textContent = timeAgo(el.dataset.ts)));
         tickTimestamps(); // Run immediately so values are fresh
         window._dmTimestampTicker = setInterval(tickTimestamps, 10_000);
+
+        // ── Online presence ───────────────────────────────────────────────────
+        if (window._dmPresenceTicker) clearInterval(window._dmPresenceTicker);
+
+        const presenceEl = document.getElementById('dm-presence');
+        const pollPresence = async () => {
+            if (!presenceEl) return;
+            try {
+                const data = await (await fetch(`/api/dm/presence/${currentOtherId}`)).json();
+                if (!data.success) { presenceEl.innerHTML = ''; return; }
+
+                const now  = ~~(Date.now() / 1000);
+                const diff = now - (data.last_seen || 0); // seconds ago
+
+                if (data.online) {
+                    presenceEl.className = 'dm-presence dm-presence--online';
+                    presenceEl.innerHTML = '<span class="dm-presence-dot"></span>Online';
+                } else if (diff < 3600) {
+                    // Active within the last hour
+                    const mins = Math.max(1, Math.floor(diff / 60));
+                    presenceEl.className = 'dm-presence dm-presence--recent';
+                    presenceEl.innerHTML = `<span class="dm-presence-dot"></span>Active ${mins}m ago`;
+                } else {
+                    presenceEl.className = 'dm-presence dm-presence--offline';
+                    presenceEl.innerHTML = data.last_seen
+                        ? `Last seen ${timeAgo(new Date(data.last_seen * 1000).toISOString())}`
+                        : 'Last seen a long time ago';
+                }
+            } catch { if (presenceEl) presenceEl.innerHTML = ''; }
+        };
+
+        await pollPresence();
+        window._dmPresenceTicker = setInterval(pollPresence, 30_000);
     }
 
     async function loadThread(thread, prepend = false) {

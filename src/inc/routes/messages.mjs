@@ -406,6 +406,24 @@ export default (router, tpl) => {
         }
     });
 
+    // Presence check — last_seen timestamp for a given user (online = seen < 5 min ago)
+    router.get(/\/api\/dm\/presence\/(?<userId>\d+)/, async (req, res) => {
+        if (!getPrivateMessages()) return json(res, { success: false }, 404);
+        if (!req.session) return json(res, { success: false }, 401);
+        const userId = parseInt(req.params.userId, 10);
+        try {
+            const rows = await db`SELECT last_seen FROM "user" WHERE id = ${userId} AND banned = false LIMIT 1`;
+            if (!rows.length) return json(res, { success: false, msg: 'User not found' }, 404);
+            const lastSeen = rows[0].last_seen || 0; // unix seconds
+            const now      = ~~(Date.now() / 1000);
+            const online   = (now - lastSeen) < 300; // 5-minute window
+            return json(res, { success: true, online, last_seen: lastSeen });
+        } catch (err) {
+            console.error('[DM] presence failed:', err);
+            return json(res, { success: false }, 500);
+        }
+    });
+
     // Total unread DM count (for navbar badge polling)
     router.get('/api/dm/unread', async (req, res) => {
         if (!getPrivateMessages()) return json(res, { success: true, count: 0 });
