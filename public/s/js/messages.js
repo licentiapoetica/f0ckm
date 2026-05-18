@@ -2369,36 +2369,57 @@ if (window.__dmLoaded) {
 
     /**
      * Watch a thread container and keep snapping to bottom for `durationMs`.
-     * This handles images, iframes, and emoji that load asynchronously and
-     * push the scroll height upward after the initial snap has fired.
+     * Uses pointer/wheel/touch events to detect intentional user scrolling
+     * instead of a distance heuristic, so async content (decrypting attachments,
+     * images loading) does not fool it into stopping early.
      */
-    function snapToBottomSticky(el, durationMs = 1200) {
-        if (!el || typeof ResizeObserver === 'undefined') {
-            // Fallback: a single extra snap after a short delay
-            setTimeout(() => snapToBottom(el, true), 250);
-            return;
+    function snapToBottomSticky(el, durationMs = 8000) {
+        if (!el) return;
+
+        let userScrolledUp = false;
+
+        // Detect intentional upward scroll via input devices only
+        const onWheel = (e) => { if (e.deltaY < 0) userScrolledUp = true; };
+        const onKey   = (e) => { if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) userScrolledUp = true; };
+        let touchStartY = 0;
+        const onTouchStart = (e) => { touchStartY = e.touches[0]?.clientY ?? 0; };
+        const onTouchMove  = (e) => { if ((e.touches[0]?.clientY ?? 0) > touchStartY + 10) userScrolledUp = true; };
+
+        el.addEventListener('wheel',      onWheel,       { passive: true });
+        el.addEventListener('keydown',    onKey,         { passive: true });
+        el.addEventListener('touchstart', onTouchStart,  { passive: true });
+        el.addEventListener('touchmove',  onTouchMove,   { passive: true });
+
+        let ro;
+        const cleanup = () => {
+            el.removeEventListener('wheel',      onWheel);
+            el.removeEventListener('keydown',    onKey);
+            el.removeEventListener('touchstart', onTouchStart);
+            el.removeEventListener('touchmove',  onTouchMove);
+            if (ro) ro.disconnect();
+        };
+
+        // ResizeObserver: re-snap whenever content grows (images, attachments decrypting)
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(() => {
+                if (userScrolledUp) { cleanup(); return; }
+                el.scrollTop = el.scrollHeight;
+            });
+            ro.observe(el);
+        } else {
+            // Fallback for older browsers
+            setTimeout(() => snapToBottom(el, true), 300);
+            setTimeout(() => snapToBottom(el, true), 800);
+            setTimeout(() => snapToBottom(el, true), 2000);
         }
 
-        const deadline = Date.now() + durationMs;
-        const ro = new ResizeObserver(() => {
-            if (Date.now() > deadline) { ro.disconnect(); return; }
-            // Only keep snapping if the user hasn't manually scrolled up
-            const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-            if (distanceFromBottom < 300) {
-                el.scrollTop = el.scrollHeight;
-            } else {
-                // User scrolled up intentionally — stop sticky behaviour
-                ro.disconnect();
-            }
-        });
-        ro.observe(el);
+        // Disconnect after the deadline regardless
+        setTimeout(cleanup, durationMs);
 
-        // Disconnect after deadline regardless
-        setTimeout(() => ro.disconnect(), durationMs);
-
-        // Also fire a plain timeout-based snap as an extra safety net
-        setTimeout(() => snapToBottom(el, true), 150);
-        setTimeout(() => snapToBottom(el, true), 400);
+        // Immediate snaps as safety net for content already in the DOM
+        snapToBottom(el, true);
+        setTimeout(() => { if (!userScrolledUp) snapToBottom(el, true); }, 200);
+        setTimeout(() => { if (!userScrolledUp) snapToBottom(el, true); }, 600);
     }
 
     // Expose for external use (template inline scripts, f0ckm.js SSE handler, AJAX nav)
