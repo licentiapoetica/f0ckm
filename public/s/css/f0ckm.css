@@ -10463,7 +10463,7 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
   max-width: none !important;
   max-height: none !important;
   width: auto !important;
-  height: 100% !important;
+  height: auto !important;
   border-radius: 2px;
   animation: modalZoomIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
   cursor: move !important;
@@ -10888,8 +10888,15 @@ body.layout-modern .tag-controls {
 }
 
 @keyframes dm-presence-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(61, 220, 132, 0.25); }
-  50%       { box-shadow: 0 0 0 4px rgba(61, 220, 132, 0.1);  }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(61, 220, 132, 0.25);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(61, 220, 132, 0.1);
+  }
 }
 
 /* ── Key notice banner ───────────────────────────────────── */

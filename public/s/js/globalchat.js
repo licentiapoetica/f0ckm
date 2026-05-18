@@ -497,14 +497,17 @@
 
         // Embedded images: register with lazy observer; scroll on load only for new messages (not history)
         node.querySelectorAll('.gchat-embed-img img[data-lazy-src]').forEach(img => {
-            img.addEventListener('load', () => scrollToBottom(scrollForce));
+            // Only snap to bottom on image load for NEW incoming messages, not history.
+            // History already scrolls once at the end of loadHistory; an extra scroll
+            // here is what causes the double jump.
+            if (scrollForce) img.addEventListener('load', () => scrollToBottom(true));
             img.addEventListener('click', () => openImgModal(img.src));
             img.style.cursor = 'zoom-in';
             lazyImgObserver.observe(img);
         });
-        // Also handle already-src'd images (avatars etc.)
+        // Already-src'd images (avatars etc.) — same rule
         node.querySelectorAll('.gchat-embed-img img:not([data-lazy-src])').forEach(img => {
-            img.addEventListener('load', () => scrollToBottom(scrollForce));
+            if (scrollForce) img.addEventListener('load', () => scrollToBottom(true));
             img.addEventListener('click', () => openImgModal(img.src));
             img.style.cursor = 'zoom-in';
         });
@@ -529,10 +532,14 @@
             const data = await res.json();
             if (!data.success) return;
             const container = document.getElementById('gchat-messages');
-            if (container) container.innerHTML = '';
+            if (!container) return;
+            container.innerHTML = '';
             (data.messages || []).forEach(m => appendMsg(m, false));
-            // One instant snap — images above viewport won't load (lazy) so no layout shift
-            container.scrollTop = container.scrollHeight;
+            // Double rAF: wait for the browser to commit the layout (panel just became
+            // visible from display:none) before reading scrollHeight.
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                container.scrollTop = container.scrollHeight;
+            }));
         } catch (e) {
             console.error('[Chat] Failed to load history:', e);
         }
@@ -636,7 +643,9 @@
         if (icon)  icon.className = `fa-solid ${isMinimized ? 'fa-chevron-up' : 'fa-chevron-down'}`;
         if (!isMinimized) {
             clearUnread();
-            loadHistory();
+            // Wait one rAF so the panel transitions from display:none to its full
+            // height before loadHistory measures scrollHeight.
+            requestAnimationFrame(() => loadHistory());
             if (!window.matchMedia('(pointer: coarse)').matches)
                 setTimeout(() => document.getElementById('gchat-input')?.focus(), 150);
         }
