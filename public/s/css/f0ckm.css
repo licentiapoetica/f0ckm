@@ -7667,7 +7667,7 @@ video.autoplay-gif {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease-in-out, background 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .image-embed-wrap:hover .admin-delete-attachment-btn,
@@ -11006,7 +11006,7 @@ body.layout-modern .tag-controls {
 }
 
 .dm-msg-mine .dm-bubble {
-  background: var(--badge-bg);
+  background: #090909;
   color: var(--white);
   border-bottom-right-radius: 4px;
 }
@@ -11064,7 +11064,7 @@ body.layout-modern .tag-controls {
 
 .dm-msg-action-btn:hover {
   color: var(--fg, #ddd);
-  background: rgba(255,255,255,0.07);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .dm-msg-action-btn[data-action="delete"]:hover {
@@ -11079,8 +11079,8 @@ body.layout-modern .tag-controls {
 .dm-edit-textarea {
   width: 100%;
   min-height: 60px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   color: var(--fg, #ddd);
   font: inherit;
@@ -11111,7 +11111,7 @@ body.layout-modern .tag-controls {
 }
 
 .dm-edit-cancel {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--fg, #ddd);
 }
 
@@ -11124,13 +11124,78 @@ body.layout-modern .tag-controls {
 
 /* Delete fade-out */
 @keyframes dm-msg-fade-out {
-  to { opacity: 0; transform: scaleY(0); max-height: 0; margin: 0; padding: 0; overflow: hidden; }
+  to {
+    opacity: 0;
+    transform: scaleY(0);
+    max-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
 }
 
 .dm-msg-deleting {
   animation: dm-msg-fade-out 0.25s ease forwards;
   transform-origin: top;
   overflow: hidden;
+}
+
+/* ── Reply banner ────────────────────────────────────────── */
+.dm-reply-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid var(--badge-bg, #4a90d9);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.8em;
+  color: #aaa;
+  margin-bottom: 5px;
+  animation: dm-reply-in 0.12s ease;
+}
+
+@keyframes dm-reply-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dm-reply-banner__icon {
+  color: var(--badge-bg, #4a90d9);
+  flex-shrink: 0;
+}
+
+.dm-reply-banner__body {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dm-reply-banner__body strong {
+  color: var(--fg, #ddd);
+}
+
+.dm-reply-banner__close {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 1em;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+
+.dm-reply-banner__close:hover {
+  color: var(--fg, #ddd);
 }
 
 /* ── Send form ───────────────────────────────────────────── */

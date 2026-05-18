@@ -305,6 +305,7 @@ if (window.__dmLoaded) {
     const renderedIds    = new Set();
     let threadMessages   = []; // Cache for re-rendering (e.g. emojis)
     const dmPostPreviewCache = new Map(); // itemId → { item, meta } | null
+    let activeReply      = null; // { senderName, preview } | null
 
     // Title management — global across all pages
     let _dmTitleCount  = 0;
@@ -718,21 +719,24 @@ if (window.__dmLoaded) {
             `<div class="dm-bubble comment-content">${content}</div>` +
             `<span class="dm-msg-time" data-ts="${escHtml(m.created_at)}">${escHtml(time)}${editedBit}</span>`;
 
-        if (isMine) {
-            const actions = document.createElement('div');
-            actions.className = 'dm-msg-actions';
-            actions.innerHTML =
-                `<button class="dm-msg-action-btn" data-action="edit"  title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>` +
-                `<button class="dm-msg-action-btn" data-action="delete" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
-            actions.addEventListener('click', async (e) => {
-                const btn    = e.target.closest('[data-action]');
-                if (!btn) return;
-                const action = btn.dataset.action;
-                if (action === 'edit')   editDmMessage(m, div);
-                if (action === 'delete') deleteDmMessage(m, div);
-            });
-            div.appendChild(actions);
-        }
+        // Actions row — always shown (reply for all, edit/delete for own)
+        const actions = document.createElement('div');
+        actions.className = 'dm-msg-actions';
+
+        const replyBtn = `<button class="dm-msg-action-btn" data-action="reply" title="Reply"><i class="fa-solid fa-reply"></i></button>`;
+        const editBtn  = `<button class="dm-msg-action-btn" data-action="edit"  title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>`;
+        const delBtn   = `<button class="dm-msg-action-btn" data-action="delete" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+
+        actions.innerHTML = replyBtn + (isMine ? editBtn + delBtn : '');
+        actions.addEventListener('click', async (e) => {
+            const btn    = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'reply')  replyToDmMessage(m, div);
+            if (action === 'edit')   editDmMessage(m, div);
+            if (action === 'delete') deleteDmMessage(m, div);
+        });
+        div.appendChild(actions);
 
         // Async: extract post IDs from raw plaintext and inject preview cards into the bubble
         if (m.plaintext) resolvePostPreviews(div, m.plaintext);
@@ -742,6 +746,62 @@ if (window.__dmLoaded) {
 
         return div;
     }
+
+    function replyToDmMessage(m, div) {
+        const thread     = document.getElementById('dm-thread');
+        const otherName  = thread?.dataset.otherName || 'them';
+        const myName     = window.f0ckSession?.user || 'me';
+        const senderName = (m.sender_id === myId) ? myName : otherName;
+
+        const raw = m.plaintext || '';
+
+        // Strip attachment sentinels from the text part, collect their filenames
+        const attachments = parseAttachmentSentinels(raw);
+        const textOnly    = raw.replace(/\[attachment:\d+:[A-Za-z0-9+/=]+:[^:]+:\d+\]/g, '').trim();
+        const textPreview = textOnly.replace(/\n/g, ' ').slice(0, 80) + (textOnly.length > 80 ? '…' : '');
+
+        // One preview string for the banner; quoteLines drives the actual sent quote
+        const preview     = [textPreview, ...attachments.map(a => a.filename)].filter(Boolean).join(' · ');
+
+        // Build the multi-line blockquote: first line has the sender + text, then one line per attachment
+        const quoteLines  = [];
+        quoteLines.push(`> @${senderName}: ${textPreview}`);
+        for (const att of attachments) quoteLines.push(`> ${att.filename}`);
+
+        activeReply = { senderName, preview, quoteLines };
+        showReplyBanner();
+
+        const input = document.getElementById('dm-input');
+        if (input) { input.focus(); }
+    }
+
+    function showReplyBanner() {
+        const form = document.getElementById('dm-send-form');
+        if (!form) return;
+
+        let banner = form.querySelector('.dm-reply-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.className = 'dm-reply-banner';
+            form.insertBefore(banner, form.firstChild);
+        }
+
+        const name    = escHtml(activeReply?.senderName || '');
+        const preview = escHtml(activeReply?.preview    || '');
+        banner.innerHTML =
+            `<span class="dm-reply-banner__icon"><i class="fa-solid fa-reply"></i></span>` +
+            `<span class="dm-reply-banner__body"><strong>${name}</strong> ${preview}</span>` +
+            `<button class="dm-reply-banner__close" title="Cancel reply"><i class="fa-solid fa-xmark"></i></button>`;
+
+        banner.querySelector('.dm-reply-banner__close').addEventListener('click', clearReply);
+    }
+
+    function clearReply() {
+        activeReply = null;
+        const banner = document.querySelector('.dm-reply-banner');
+        if (banner) banner.remove();
+    }
+
 
     async function editDmMessage(m, div) {
         if (div.dataset.editing === 'true') return;
@@ -1670,8 +1730,13 @@ if (window.__dmLoaded) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (sendInFlight) return; // prevent double-submit
-            const text = input.value.trim();
-            if (!text) return;
+            const rawText = input.value.trim();
+            if (!rawText) return;
+
+            // Prepend reply quote if active
+            const text = activeReply
+                ? `${activeReply.quoteLines.join('\n')}\n\n${rawText}`
+                : rawText;
 
             // If recipient has no key, block sending — we cannot encrypt for them
             if (!currentOtherPubKey) {
@@ -1692,6 +1757,7 @@ if (window.__dmLoaded) {
                 if (res.success) {
                     input.value = '';
                     input.style.height = '';
+                    clearReply();
 
                     // Optimistic render with the real server ID so dedup works
                     const thread = document.getElementById('dm-thread');
