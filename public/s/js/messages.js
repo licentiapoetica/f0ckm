@@ -1183,6 +1183,27 @@ if (window.__dmLoaded) {
                 wrap.appendChild(el);
                 wrap.appendChild(dlBtn);
                 placeholder.replaceWith(wrap);
+
+                // Snap to bottom once the media has decoded and the browser knows its dimensions.
+                // This is the correct moment — the ResizeObserver fires too early (before layout is final).
+                const thread = msgDiv.closest('#dm-thread');
+                if (thread) {
+                    const snapIfAtBottom = () => {
+                        const dist = thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+                        // Always snap if we're within 400px of the bottom (covers initial load offset too)
+                        if (dist < 400) thread.scrollTop = thread.scrollHeight;
+                    };
+                    if (isImage) {
+                        el.addEventListener('load',  snapIfAtBottom, { once: true });
+                        el.addEventListener('error', snapIfAtBottom, { once: true });
+                    } else {
+                        // video / audio: loadedmetadata fires when dimensions / duration are known
+                        el.addEventListener('loadedmetadata', snapIfAtBottom, { once: true });
+                        el.addEventListener('error',          snapIfAtBottom, { once: true });
+                    }
+                    // Also snap immediately after DOM insertion for any already-cached blob
+                    requestAnimationFrame(() => requestAnimationFrame(snapIfAtBottom));
+                }
             })();
         }
     }
