@@ -209,7 +209,8 @@ export default (router, tpl) => {
                     pm.ciphertext,
                     pm.iv,
                     pm.is_read,
-                    pm.created_at
+                    pm.created_at,
+                    pm.edited_at
                 FROM private_messages pm
                 WHERE (
                     (pm.sender_id = ${req.session.id} AND pm.recipient_id = ${otherId})
@@ -308,6 +309,81 @@ export default (router, tpl) => {
             return json(res, { success: true });
         } catch (err) {
             console.error('[DM] read mark failed:', err);
+            return json(res, { success: false, msg: 'DB error' }, 500);
+        }
+    });
+
+    // Edit own message (re-encrypt in browser, send new ciphertext + iv)
+    router.patch(/\/api\/dm\/message\/(?<msgId>\d+)/, async (req, res) => {
+        if (!getPrivateMessages()) return json(res, { success: false, msg: 'Not found' }, 404);
+        if (!req.session) return json(res, { success: false, msg: 'Unauthorized' }, 401);
+
+        const csrf = req.headers['x-csrf-token'];
+        if (!csrf || csrf !== req.session.csrf_token) return json(res, { success: false, msg: 'CSRF mismatch' }, 403);
+
+        const msgId = parseInt(req.params.msgId, 10);
+        const body  = req.post || {};
+        const { ciphertext, iv } = body;
+
+        if (!ciphertext || !iv || typeof ciphertext !== 'string' || typeof iv !== 'string') {
+            return json(res, { success: false, msg: 'Missing ciphertext or iv' }, 400);
+        }
+        if (ciphertext.length > 65536 || iv.length > 32) {
+            return json(res, { success: false, msg: 'Payload too large' }, 413);
+        }
+
+        try {
+            const result = await db`
+                UPDATE private_messages
+                SET ciphertext = ${ciphertext}, iv = ${iv}, edited_at = NOW()
+                WHERE id = ${msgId} AND sender_id = ${req.session.id}
+                RETURNING id, edited_at
+            `;
+            if (!result.length) return json(res, { success: false, msg: 'Not found or not yours' }, 404);
+            return json(res, { success: true, id: result[0].id, edited_at: result[0].edited_at });
+        } catch (err) {
+            console.error('[DM] edit message failed:', err);
+            return json(res, { success: false, msg: 'DB error' }, 500);
+        }
+    });
+
+    // Delete own message (and optionally its attachment blobs)
+    router.delete(/\/api\/dm\/message\/(?<msgId>\d+)/, async (req, res) => {
+        if (!getPrivateMessages()) return json(res, { success: false, msg: 'Not found' }, 404);
+        if (!req.session) return json(res, { success: false, msg: 'Unauthorized' }, 401);
+
+        const csrf = req.headers['x-csrf-token'];
+        if (!csrf || csrf !== req.session.csrf_token) return json(res, { success: false, msg: 'CSRF mismatch' }, 403);
+
+        const msgId = parseInt(req.params.msgId, 10);
+        const body  = req.post || {};
+        const rawIds = body['attachment_ids[]'] ?? body.attachment_ids;
+        const attachmentIds = (Array.isArray(rawIds) ? rawIds : rawIds ? [rawIds] : [])
+            .map(Number).filter(n => Number.isFinite(n) && n > 0);
+
+        // Verify message belongs to sender
+        const rows = await db`SELECT id FROM private_messages WHERE id = ${msgId} AND sender_id = ${req.session.id} LIMIT 1`;
+        if (!rows.length) return json(res, { success: false, msg: 'Not found or not yours' }, 404);
+
+        try {
+            // Clean up attachments the client identified (verify sender ownership server-side)
+            if (attachmentIds.length) {
+                const { promises: fsP } = await import('fs');
+                const atts = await db`
+                    SELECT id, file_path FROM dm_attachments
+                    WHERE id = ANY(${attachmentIds}) AND sender_id = ${req.session.id}
+                `;
+                for (const att of atts) await fsP.unlink(att.file_path).catch(() => {});
+                if (atts.length) {
+                    const ids = atts.map(a => a.id);
+                    await db`DELETE FROM dm_attachments WHERE id = ANY(${ids})`;
+                }
+            }
+
+            await db`DELETE FROM private_messages WHERE id = ${msgId} AND sender_id = ${req.session.id}`;
+            return json(res, { success: true });
+        } catch (err) {
+            console.error('[DM] delete message failed:', err);
             return json(res, { success: false, msg: 'DB error' }, 500);
         }
     });

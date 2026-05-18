@@ -11030,6 +11030,109 @@ body.layout-modern .tag-controls {
   font-size: 0.88em;
 }
 
+/* ── Message edit / delete actions ─────────────────────── */
+.dm-msg {
+  position: relative;
+}
+
+.dm-msg-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  margin-top: 1px;
+}
+
+.dm-msg:hover .dm-msg-actions,
+.dm-msg:focus-within .dm-msg-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dm-msg-action-btn {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.78em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+
+.dm-msg-action-btn:hover {
+  color: var(--fg, #ddd);
+  background: rgba(255,255,255,0.07);
+}
+
+.dm-msg-action-btn[data-action="delete"]:hover {
+  color: #e55;
+}
+
+/* Inline edit textarea */
+.dm-edit-wrap {
+  width: 100%;
+}
+
+.dm-edit-textarea {
+  width: 100%;
+  min-height: 60px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: var(--fg, #ddd);
+  font: inherit;
+  font-size: 0.92em;
+  padding: 6px 8px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.dm-edit-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.dm-edit-save,
+.dm-edit-cancel {
+  font-size: 0.8em;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+}
+
+.dm-edit-save {
+  background: var(--badge-bg, #4a90d9);
+  color: #fff;
+}
+
+.dm-edit-cancel {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg, #ddd);
+}
+
+/* (edited) badge */
+.dm-edited {
+  color: #555;
+  font-size: 0.85em;
+  margin-left: 3px;
+}
+
+/* Delete fade-out */
+@keyframes dm-msg-fade-out {
+  to { opacity: 0; transform: scaleY(0); max-height: 0; margin: 0; padding: 0; overflow: hidden; }
+}
+
+.dm-msg-deleting {
+  animation: dm-msg-fade-out 0.25s ease forwards;
+  transform-origin: top;
+  overflow: hidden;
+}
+
 /* ── Send form ───────────────────────────────────────────── */
 .dm-send-form {
   gap: 8px;

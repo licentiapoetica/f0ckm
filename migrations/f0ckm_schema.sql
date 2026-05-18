@@ -2770,11 +2770,15 @@ CREATE TABLE IF NOT EXISTS public.dm_attachments (
     mime_hint     text NOT NULL DEFAULT '',
     size_bytes    integer NOT NULL DEFAULT 0,
     created_at    timestamp with time zone DEFAULT now(),
-    expires_at    timestamp with time zone DEFAULT (now() + interval '30 days')
+    expires_at    timestamp with time zone DEFAULT (now() + interval '90 days')
 );
 
 CREATE INDEX IF NOT EXISTS idx_dm_att_sender    ON public.dm_attachments(sender_id);
 CREATE INDEX IF NOT EXISTS idx_dm_att_recipient ON public.dm_attachments(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_dm_att_expires   ON public.dm_attachments(expires_at);
+
+-- DM message edit/delete support (Migration 006)
+ALTER TABLE private_messages
+    ADD COLUMN IF NOT EXISTS edited_at timestamp with time zone DEFAULT NULL;
 
 \unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG

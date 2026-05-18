@@ -710,9 +710,29 @@ if (window.__dmLoaded) {
         const hasEmbed = content.includes('yt-embed-wrap');
         div.className = `dm-msg ${isMine ? 'dm-msg-mine' : 'dm-msg-theirs'}${hasEmbed ? ' dm-has-embed' : ''}`;
         div.dataset.msgId = m.id;
+        if (m.plaintext) div.dataset.plaintext = m.plaintext;
 
-        const time = timeAgo(m.created_at);
-        div.innerHTML = `<div class="dm-bubble comment-content">${content}</div><span class="dm-msg-time" data-ts="${escHtml(m.created_at)}">${escHtml(time)}</span>`;
+        const time      = timeAgo(m.created_at);
+        const editedBit = m.edited_at ? ' <span class="dm-edited">(edited)</span>' : '';
+        div.innerHTML =
+            `<div class="dm-bubble comment-content">${content}</div>` +
+            `<span class="dm-msg-time" data-ts="${escHtml(m.created_at)}">${escHtml(time)}${editedBit}</span>`;
+
+        if (isMine) {
+            const actions = document.createElement('div');
+            actions.className = 'dm-msg-actions';
+            actions.innerHTML =
+                `<button class="dm-msg-action-btn" data-action="edit"  title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>` +
+                `<button class="dm-msg-action-btn" data-action="delete" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+            actions.addEventListener('click', async (e) => {
+                const btn    = e.target.closest('[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                if (action === 'edit')   editDmMessage(m, div);
+                if (action === 'delete') deleteDmMessage(m, div);
+            });
+            div.appendChild(actions);
+        }
 
         // Async: extract post IDs from raw plaintext and inject preview cards into the bubble
         if (m.plaintext) resolvePostPreviews(div, m.plaintext);
@@ -721,6 +741,127 @@ if (window.__dmLoaded) {
         if (m.plaintext && m.plaintext.includes('[attachment:')) resolveAttachments(div, m.plaintext);
 
         return div;
+    }
+
+    async function editDmMessage(m, div) {
+        if (div.dataset.editing === 'true') return;
+        if (!m.plaintext) { showFlashMsg('Cannot edit — message could not be decrypted', 'error'); return; }
+        div.dataset.editing = 'true';
+
+        const bubble = div.querySelector('.dm-bubble');
+        const origHtml = bubble.innerHTML;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'dm-edit-wrap';
+
+        const ta = document.createElement('textarea');
+        ta.className = 'dm-edit-textarea';
+        ta.value = m.plaintext;
+
+        const actions = document.createElement('div');
+        actions.className = 'dm-edit-actions';
+
+        const saveBtn   = document.createElement('button');
+        saveBtn.className = 'dm-edit-save';
+        saveBtn.textContent = 'Save';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'dm-edit-cancel';
+        cancelBtn.textContent = 'Cancel';
+
+        actions.append(saveBtn, cancelBtn);
+        wrap.append(ta, actions);
+        bubble.innerHTML = '';
+        bubble.appendChild(wrap);
+        ta.focus();
+
+        cancelBtn.addEventListener('click', () => {
+            bubble.innerHTML = origHtml;
+            div.dataset.editing = '';
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            const newText = ta.value.trim();
+            if (!newText || newText === m.plaintext) {
+                bubble.innerHTML = origHtml;
+                div.dataset.editing = '';
+                return;
+            }
+            if (!currentOtherPubKey) { showFlashMsg('Cannot encrypt: no key', 'error'); return; }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = '…';
+            try {
+                const sharedKey   = await deriveSharedKey(_privateKey, currentOtherPubKey);
+                const { iv: newIv, ciphertext: newCt } = await encryptMessage(sharedKey, newText);
+
+                const res = await fetch(`/api/dm/message/${m.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrfToken() },
+                    body: new URLSearchParams({ ciphertext: newCt, iv: newIv })
+                });
+                const data = await res.json();
+                if (!data.success) { showFlashMsg('Edit failed: ' + (data.msg || res.status), 'error'); return; }
+
+                // Update in-memory plaintext and re-render bubble
+                m.plaintext  = newText;
+                m.edited_at  = data.edited_at || new Date().toISOString();
+                div.dataset.plaintext = newText;
+
+                const newContent = renderDmContent(newText).trimEnd();
+                const editedBit  = '<span class="dm-edited">(edited)</span>';
+                bubble.innerHTML = newContent;
+
+                // Update the time span
+                const timeEl = div.querySelector('.dm-msg-time');
+                if (timeEl) timeEl.innerHTML = escHtml(timeAgo(m.created_at)) + ' ' + editedBit;
+
+                if (m.plaintext) resolvePostPreviews(div, m.plaintext);
+                if (m.plaintext && m.plaintext.includes('[attachment:')) resolveAttachments(div, m.plaintext);
+            } catch (e) {
+                showFlashMsg('Edit error: ' + e.message, 'error');
+            } finally {
+                div.dataset.editing = '';
+                saveBtn.disabled = false;
+            }
+        });
+    }
+
+    async function deleteDmMessage(m, div) {
+        if (div.dataset.deleting === 'true') return;
+        div.dataset.deleting = 'true';
+
+        // Extract attachment IDs from plaintext sentinels
+        const attachmentIds = [];
+        if (m.plaintext) {
+            for (const att of parseAttachmentSentinels(m.plaintext)) {
+                const id = parseInt(att.id, 10);
+                if (id) attachmentIds.push(id);
+            }
+        }
+
+        try {
+            const body = new URLSearchParams();
+            attachmentIds.forEach(id => body.append('attachment_ids[]', id));
+
+            const res = await fetch(`/api/dm/message/${m.id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrfToken() },
+                body
+            });
+            const data = await res.json();
+            if (!data.success) {
+                showFlashMsg('Delete failed: ' + (data.msg || res.status), 'error');
+                div.dataset.deleting = '';
+                return;
+            }
+
+            div.classList.add('dm-msg-deleting');
+            div.addEventListener('animationend', () => div.remove(), { once: true });
+        } catch (e) {
+            showFlashMsg('Delete error: ' + e.message, 'error');
+            div.dataset.deleting = '';
+        }
     }
 
     // ── Post link preview cards ───────────────────────────────────────────────

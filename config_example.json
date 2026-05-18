@@ -62,6 +62,7 @@
     "enable_danmaku": true,
     "private_messages": true,
     "dm_attachments": true,
+    "dm_attachment_expiry_days": 90,
     "halls_enabled": true,
     "userhalls_enabled": true,
     "enable_userhall_image_upload": true,

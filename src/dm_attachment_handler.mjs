@@ -16,7 +16,7 @@ import db from './inc/sql.mjs';
 import lib from './inc/lib.mjs';
 import cfg from './inc/config.mjs';
 import { collectBody } from './inc/multipart.mjs';
-import { getDmAttachments } from './inc/settings.mjs';
+import { getDmAttachments, getDmAttachmentExpiryDays } from './inc/settings.mjs';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -165,6 +165,7 @@ export async function handleDmAttachmentUpload(req, res, recipientId) {
 
     try {
         // Insert DB record first to get an ID
+        const expiresAt = new Date(Date.now() + getDmAttachmentExpiryDays() * 86400000);
         const [row] = await db`
             INSERT INTO dm_attachments ${db({
                 sender_id:     session.id,
@@ -173,7 +174,8 @@ export async function handleDmAttachmentUpload(req, res, recipientId) {
                 file_path:     '',
                 original_name: originalName,
                 mime_hint:     mimeHint,
-                size_bytes:    sizeBytes
+                size_bytes:    sizeBytes,
+                expires_at:    expiresAt
             })}
             RETURNING id
         `;

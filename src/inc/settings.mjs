@@ -63,6 +63,11 @@ export const setPrivateMessages = (val) => private_messages = !!val;
 export const getDmAttachments = () => dm_attachments;
 export const setDmAttachments = (val) => dm_attachments = !!val;
 
+export const getDmAttachmentExpiryDays = () => {
+    const v = parseInt(cfg.websrv.dm_attachment_expiry_days);
+    return (Number.isFinite(v) && v > 0) ? v : 90;
+};
+
 export const getDefaultLayout = () => default_layout;
 export const setDefaultLayout = (val) => default_layout = (val === 'legacy' ? 'legacy' : 'modern');
 
