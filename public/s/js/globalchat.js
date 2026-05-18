@@ -313,8 +313,61 @@
     function scrollToBottom(force = false) {
         const el = document.getElementById('gchat-messages');
         if (!el) return;
-        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-        if (force || nearBottom) el.scrollTop = el.scrollHeight;
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        if (!force && !nearBottom) return;
+        // Double rAF ensures the browser has committed the layout before we measure scrollHeight
+        requestAnimationFrame(() => requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; }));
+    }
+
+    /**
+     * Watch the message container and keep snapping to bottom for durationMs.
+     * Only stops if the user actively scrolls up via wheel / touch / keyboard.
+     * Same logic as the DM snapToBottomSticky.
+     */
+    function startStickyScroll(durationMs = 8000) {
+        const el = document.getElementById('gchat-messages');
+        if (!el) return;
+
+        let userScrolledUp = false;
+
+        const onWheel      = (e) => { if (e.deltaY < 0) userScrolledUp = true; };
+        const onKey        = (e) => { if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) userScrolledUp = true; };
+        let touchStartY = 0;
+        const onTouchStart = (e) => { touchStartY = e.touches[0]?.clientY ?? 0; };
+        const onTouchMove  = (e) => { if ((e.touches[0]?.clientY ?? 0) > touchStartY + 10) userScrolledUp = true; };
+
+        el.addEventListener('wheel',      onWheel,       { passive: true });
+        el.addEventListener('keydown',    onKey,         { passive: true });
+        el.addEventListener('touchstart', onTouchStart,  { passive: true });
+        el.addEventListener('touchmove',  onTouchMove,   { passive: true });
+
+        let ro;
+        const cleanup = () => {
+            el.removeEventListener('wheel',      onWheel);
+            el.removeEventListener('keydown',    onKey);
+            el.removeEventListener('touchstart', onTouchStart);
+            el.removeEventListener('touchmove',  onTouchMove);
+            if (ro) ro.disconnect();
+        };
+
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(() => {
+                if (userScrolledUp) { cleanup(); return; }
+                el.scrollTop = el.scrollHeight;
+            });
+            ro.observe(el);
+        } else {
+            setTimeout(() => scrollToBottom(true), 300);
+            setTimeout(() => scrollToBottom(true), 800);
+            setTimeout(() => scrollToBottom(true), 2000);
+        }
+
+        setTimeout(cleanup, durationMs);
+
+        // Immediate snaps
+        scrollToBottom(true);
+        setTimeout(() => { if (!userScrolledUp) scrollToBottom(true); }, 200);
+        setTimeout(() => { if (!userScrolledUp) scrollToBottom(true); }, 600);
     }
 
     async function fetchYtOembed(cardEl) {
@@ -445,10 +498,10 @@
             if (!data.success) return;
             const container = document.getElementById('gchat-messages');
             if (container) container.innerHTML = '';
-            (data.messages || []).forEach(m => appendMsg(m));
-            scrollToBottom(true);
-            // Also scroll after images have had time to paint
-            setTimeout(() => scrollToBottom(true), 600);
+            // Pass scrollForce=true so every img.load in the batch force-scrolls
+            (data.messages || []).forEach(m => appendMsg(m, true));
+            // Start sticky scroll: watches ResizeObserver + input events, holds 8s
+            startStickyScroll(8000);
         } catch (e) {
             console.error('[Chat] Failed to load history:', e);
         }
