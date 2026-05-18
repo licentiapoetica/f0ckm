@@ -1186,7 +1186,7 @@ if (window.__dmLoaded) {
         actions.prepend(spoilerBtn);
 
         // ── Attachment button ─────────────────────────────────────────────────
-        if (window.f0ckSession?.dm_attachments !== false) {
+        if (window.f0ckSession?.dm_attachments === true) {
         const attachInput = document.createElement('input');
         attachInput.type     = 'file';
         attachInput.id       = 'dm-attach-input';

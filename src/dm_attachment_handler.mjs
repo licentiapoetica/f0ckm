@@ -194,8 +194,6 @@ export async function handleDmAttachmentUpload(req, res, recipientId) {
 // ─── Download handler ─────────────────────────────────────────────────────────
 
 export async function handleDmAttachmentDownload(req, res, attachmentId) {
-    if (!getDmAttachments()) return sendJson(res, { success: false, msg: 'Not found' }, 404);
-
     const session = await resolveSession(req);
     if (!session) return sendJson(res, { success: false, msg: 'Unauthorized' }, 401);
 
@@ -236,8 +234,6 @@ export async function handleDmAttachmentDownload(req, res, attachmentId) {
 // ─── Delete handler ───────────────────────────────────────────────────────────
 
 export async function handleDmAttachmentDelete(req, res, attachmentId) {
-    if (!getDmAttachments()) return sendJson(res, { success: false, msg: 'Not found' }, 404);
-
     const session = await resolveSession(req);
     if (!session) return sendJson(res, { success: false, msg: 'Unauthorized' }, 401);
     if (!validateCsrf(req, session)) return sendJson(res, { success: false, msg: 'CSRF mismatch' }, 403);
