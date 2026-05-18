@@ -52,6 +52,7 @@ config.paths = {
     emojis: resolvePath('public/s/emojis'),
     koepfe: resolvePath('public/s/koepfe'),
     memes: resolvePath('public/memes'),
+    e: resolvePath('e'),
     pending: resolvePath('pending'),
     deleted: resolvePath('deleted'),
     logs: resolvePath('logs'),

@@ -17,7 +17,8 @@ import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleH
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
 import { handleCommentUpload } from "./comment_upload_handler.mjs";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode } from "./inc/settings.mjs";
+import { handleDmAttachmentUpload, handleDmAttachmentDownload, handleDmAttachmentDelete } from "./dm_attachment_handler.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDmAttachments, setDmAttachments, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
 import security from "./inc/security.mjs";
@@ -346,7 +347,7 @@ process.on('uncaughtException', err => {
 
   // Ensure storage directories exist
   const initDirs = [
-    cfg.paths.a, cfg.paths.b, cfg.paths.c, cfg.paths.t, cfg.paths.ca, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
+    cfg.paths.a, cfg.paths.b, cfg.paths.c, cfg.paths.t, cfg.paths.ca, cfg.paths.e, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
     path.join(cfg.paths.pending, 'b'), path.join(cfg.paths.pending, 't'), path.join(cfg.paths.pending, 'ca'),
     path.join(cfg.paths.deleted, 'b'), path.join(cfg.paths.deleted, 't'), path.join(cfg.paths.deleted, 'ca')
   ];
@@ -712,6 +713,8 @@ process.on('uncaughtException', err => {
   app.use(async (req, res) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
     if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta', '/api/v2/comments/upload'].includes(req.url.pathname)) return;
+    // DM attachment upload validates CSRF internally
+    if (req.url.pathname.match(/^\/api\/dm\/attachment\/upload\//)) return;
     // Hall manager routes are handled by bypass middleware with their own session auth
     if (cfg.websrv.halls_enabled !== false && req.url.pathname.match(/^\/api\/v2\/admin\/halls(\/|$)/)) return;
     // User hall image upload is handled by bypass middleware below
@@ -831,6 +834,22 @@ process.on('uncaughtException', err => {
     if (req.method === 'POST' && req.url.pathname === '/api/v2/comments/upload') {
       await handleCommentUpload(req, res);
       req.url.pathname = '/handled_comment_upload_bypass';
+    }
+  });
+
+  // Bypass middleware for DM encrypted attachment upload/download/delete
+  app.use(async (req, res) => {
+    const uploadMatch   = req.url.pathname.match(/^\/api\/dm\/attachment\/upload\/(\d+)$/);
+    const downloadMatch = req.url.pathname.match(/^\/api\/dm\/attachment\/(\d+)$/);
+    if (req.method === 'POST' && uploadMatch) {
+      await handleDmAttachmentUpload(req, res, uploadMatch[1]);
+      req.url.pathname = '/handled_dm_attachment_upload_bypass';
+    } else if (req.method === 'GET' && downloadMatch) {
+      await handleDmAttachmentDownload(req, res, downloadMatch[1]);
+      req.url.pathname = '/handled_dm_attachment_download_bypass';
+    } else if (req.method === 'DELETE' && downloadMatch) {
+      await handleDmAttachmentDelete(req, res, downloadMatch[1]);
+      req.url.pathname = '/handled_dm_attachment_delete_bypass';
     }
   });
 
@@ -982,7 +1001,11 @@ process.on('uncaughtException', err => {
   // Default is true; set to false to fully disable private messaging
   setPrivateMessages(cfg.websrv.private_messages !== false);
   console.log(`[BOOT] Private messaging: ${cfg.websrv.private_messages !== false ? 'ENABLED' : 'DISABLED'}`);
-  
+
+  // Load dm_attachments from config.json (static — not a DB setting)
+  // Default is true; requires private_messages to also be enabled
+  setDmAttachments(cfg.websrv.dm_attachments !== false);
+  console.log(`[BOOT] DM attachments: ${cfg.websrv.dm_attachments !== false ? 'ENABLED' : 'DISABLED'}`); 
   // Load default_layout from config.json (static)
   if (cfg.websrv.default_layout) {
     setDefaultLayout(cfg.websrv.default_layout);
@@ -1069,6 +1092,7 @@ process.on('uncaughtException', err => {
     themes_json: JSON.stringify(cfg.websrv.themes || []),
     enable_profile_description: !!cfg.websrv.enable_profile_description,
     get private_messages() { return getPrivateMessages(); },
+    get dm_attachments()    { return getDmAttachments(); },
     get enable_pdf() { return getEnablePdf(); },
     get enable_cleanup() { return getEnableCleanup(); },
     get cleanup_start_date() { return getCleanupStartDate(); },

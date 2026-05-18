@@ -510,6 +510,11 @@ if (window.__dmLoaded) {
     function renderDmContent(plaintext) {
         if (!plaintext) return '';
 
+        // Strip attachment sentinels before rendering — resolveAttachments() replaces them with cards
+        const strippedPlaintext = plaintext.replace(/\[attachment:\d+:[A-Za-z0-9+/=]+:[^:]+:\d+\]/g, '').trim();
+        if (!strippedPlaintext) return '';
+        plaintext = strippedPlaintext;
+
         // Anti-recursion / Performance safeguard for extremely long messages
         if (plaintext.length > 50000) {
             console.warn('[DM] Message too long, skipping markdown');
@@ -712,6 +717,9 @@ if (window.__dmLoaded) {
         // Async: extract post IDs from raw plaintext and inject preview cards into the bubble
         if (m.plaintext) resolvePostPreviews(div, m.plaintext);
 
+        // Async: resolve encrypted attachment sentinels
+        if (m.plaintext && m.plaintext.includes('[attachment:')) resolveAttachments(div, m.plaintext);
+
         return div;
     }
 
@@ -723,10 +731,11 @@ if (window.__dmLoaded) {
         const bubble = msgDiv.querySelector('.dm-bubble');
         if (!bubble) return;
 
-        // Match bare /12345 and full same-site URLs like https://site.com/12345
+        // Match bare /12345 and full same-site URLs like https://site.com/12345.
+        // Negative lookbehinds prevent /10 inside "10/10" or "//10" from matching.
         const siteOriginEsc = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const itemRx = new RegExp(
-            `(?:${siteOriginEsc})?\\/(\\d+)(?=[\\s,!?\"'\\)\\]<]|$)`,
+            `(?<!\\d)(?<!/)(?:${siteOriginEsc})?\\/(\\d+)(?=[\\s,!?\"'\\)\\]<]|$)`,
             'g'
         );
 
@@ -801,6 +810,332 @@ if (window.__dmLoaded) {
         }
     }
 
+    // ── Encrypted Attachment System ───────────────────────────────────────────
+    // Sentinel format embedded in message plaintext:
+    //   [attachment:ID:FILENAME_B64:MIME:SIZE]
+    // where FILENAME_B64 is btoa(filename) to avoid colon conflicts.
+
+    const DM_ATT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+
+    async function encryptAttachment(sharedKey, fileBuffer) {
+        const iv  = crypto.getRandomValues(new Uint8Array(12));
+        const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, sharedKey, fileBuffer);
+        return { iv: toB64u(iv), encryptedBuffer: new Uint8Array(enc) };
+    }
+
+    async function decryptAttachment(sharedKey, ivB64u, encryptedBuffer) {
+        const plain = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: fromB64u(ivB64u) },
+            sharedKey,
+            encryptedBuffer
+        );
+        return plain; // ArrayBuffer
+    }
+
+    /**
+     * Encrypt and upload a file as a DM attachment.
+     * Returns the sentinel string to embed in the message, or null on failure.
+     */
+    async function uploadDmAttachment(file, sharedKey, recipientId, onProgress) {
+        if (file.size > DM_ATT_MAX_BYTES) {
+            showFlashMsg(`File too large (max 50 MB): ${file.name}`, 'error');
+            return null;
+        }
+
+        onProgress('encrypt');
+        let iv, encryptedBuffer;
+        try {
+            const raw = await file.arrayBuffer();
+            ({ iv, encryptedBuffer } = await encryptAttachment(sharedKey, raw));
+        } catch (e) {
+            showFlashMsg('Encryption failed: ' + e.message, 'error');
+            return null;
+        }
+
+        onProgress('upload');
+        try {
+            const fd = new FormData();
+            fd.append('iv', iv);
+            fd.append('original_name', file.name);
+            fd.append('mime_hint', file.type || 'application/octet-stream');
+            fd.append('size_bytes', String(file.size));
+            fd.append('file', new Blob([encryptedBuffer], { type: 'application/octet-stream' }), 'enc');
+
+            const res = await fetch(`/api/dm/attachment/upload/${recipientId}`, {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken() },
+                body: fd
+            });
+            const data = await res.json();
+            if (!data.success) {
+                showFlashMsg('Upload failed: ' + (data.msg || 'Unknown error'), 'error');
+                return null;
+            }
+
+            // Build sentinel: [attachment:ID:base64(filename):mime:size]
+            const b64name = btoa(unescape(encodeURIComponent(file.name)));
+            return `[attachment:${data.id}:${b64name}:${file.type || 'application/octet-stream'}:${file.size}]`;
+        } catch (e) {
+            showFlashMsg('Upload failed: ' + e.message, 'error');
+            return null;
+        }
+    }
+
+    // Parse [attachment:ID:b64name:mime:size] sentinels from plaintext
+    function parseAttachmentSentinels(text) {
+        const rx = /\[attachment:(\d+):([A-Za-z0-9+/=]+):([^:]+):(\d+)\]/g;
+        const results = [];
+        let m;
+        while ((m = rx.exec(text)) !== null) {
+            let filename = m[2];
+            try { filename = decodeURIComponent(escape(atob(m[2]))); } catch { /* use raw */ }
+            results.push({ id: m[1], filename, mime: m[3], size: parseInt(m[4], 10), raw: m[0] });
+        }
+        return results;
+    }
+
+    // Inject attachment previews for any sentinels found in plaintext.
+    // Media (image/video/audio) decrypts automatically and renders inline.
+    // Other file types show the clickable download card.
+    async function resolveAttachments(msgDiv, plaintext) {
+        const bubble = msgDiv.querySelector('.dm-bubble');
+        if (!bubble) return;
+        const sentinels = parseAttachmentSentinels(plaintext);
+        if (!sentinels.length) return;
+
+        for (const att of sentinels) {
+            const isImage = att.mime.startsWith('image/');
+            const isVideo = att.mime.startsWith('video/');
+            const isAudio = att.mime.startsWith('audio/');
+            const isMedia = isImage || isVideo || isAudio;
+
+            // Build a placeholder element to swap into the bubble first
+            const placeholder = document.createElement('div');
+            const rawHtmlEncoded = escHtml(att.raw);
+
+            if (isMedia) {
+                // Loading state
+                placeholder.className = 'dm-attachment-preview dm-attachment-preview--loading';
+                placeholder.innerHTML = '<span class="dm-attachment-preview__spinner"><i class="fa-solid fa-spinner fa-spin"></i></span>';
+            } else {
+                // Non-media: just build the download card immediately, no async needed
+                const card = buildAttachmentCard(att);
+                if (bubble.innerHTML.includes(rawHtmlEncoded)) {
+                    // Replace sentinel text with card HTML, then re-query the live node to attach events
+                    bubble.innerHTML = bubble.innerHTML.replace(rawHtmlEncoded, `<span data-att-slot="${att.id}"></span>`);
+                    const slot = bubble.querySelector(`[data-att-slot="${att.id}"]`);
+                    if (slot) slot.replaceWith(card);
+                } else {
+                    bubble.appendChild(card);
+                }
+                continue;
+            }
+
+            // Insert placeholder where the sentinel text is
+            if (bubble.innerHTML.includes(rawHtmlEncoded)) {
+                bubble.innerHTML = bubble.innerHTML.replace(rawHtmlEncoded, `<span data-att-slot="${att.id}"></span>`);
+                const slot = bubble.querySelector(`[data-att-slot="${att.id}"]`);
+                if (slot) slot.replaceWith(placeholder);
+            } else {
+                bubble.appendChild(placeholder);
+            }
+
+            // Auto-decrypt and render
+            (async () => {
+                const blob = await fetchAndDecryptAttachment(att.id, att.mime);
+                if (!blob || !placeholder.parentNode) return;
+
+                const url = URL.createObjectURL(blob);
+                const wrap = document.createElement('div');
+                wrap.className = 'dm-attachment-preview';
+
+                let el;
+                if (isImage) {
+                    el = document.createElement('img');
+                    el.src = url;
+                    el.className = 'dm-attachment-preview__img';
+                    el.alt = att.filename;
+                    el.addEventListener('click', () => window.open(url, '_blank'));
+                } else if (isVideo) {
+                    el = document.createElement('video');
+                    el.src = url;
+                    el.controls = true;
+                    el.className = 'dm-attachment-preview__video';
+                    el.preload = 'metadata';
+                } else {
+                    el = document.createElement('audio');
+                    el.src = url;
+                    el.controls = true;
+                    el.className = 'dm-attachment-preview__audio';
+                    el.preload = 'metadata';
+                }
+
+                // Download button overlaid on the preview
+                const dlBtn = document.createElement('a');
+                dlBtn.className = 'dm-attachment-preview__dl';
+                dlBtn.href = url;
+                dlBtn.download = att.filename;
+                dlBtn.title = `Download ${att.filename}`;
+                dlBtn.innerHTML = '<i class="fa-solid fa-download"></i>';
+                dlBtn.addEventListener('click', e => e.stopPropagation());
+
+                wrap.appendChild(el);
+                wrap.appendChild(dlBtn);
+                placeholder.replaceWith(wrap);
+            })();
+        }
+    }
+
+    function fmtBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1048576).toFixed(1)} MB`;
+    }
+
+    function getAttachmentIcon(mime) {
+        if (mime.startsWith('image/')) return 'fa-image';
+        if (mime.startsWith('video/')) return 'fa-film';
+        if (mime.startsWith('audio/')) return 'fa-music';
+        return 'fa-file';
+    }
+
+    function buildAttachmentCard(att) {
+        const isImage = att.mime.startsWith('image/');
+        const isVideo = att.mime.startsWith('video/');
+        const isAudio = att.mime.startsWith('audio/');
+        const isMedia = isImage || isVideo || isAudio;
+
+        const card = document.createElement('div');
+        card.className = 'dm-attachment-card';
+        card.dataset.attId   = att.id;
+        card.dataset.attMime = att.mime;
+        card.dataset.attName = att.filename;
+
+        const icon = getAttachmentIcon(att.mime);
+        // Action label: media shows "tap to preview", files show download arrow
+        const actionIcon = isMedia ? 'fa-eye' : 'fa-download';
+        const actionTitle = isMedia ? 'Click to preview' : 'Download';
+
+        card.innerHTML =
+            `<span class="dm-attachment-card__icon"><i class="fa-solid ${icon}"></i></span>`+
+            `<span class="dm-attachment-card__info">`+
+                `<span class="dm-attachment-card__name">${escHtml(att.filename)}</span>`+
+                `<span class="dm-attachment-card__size">${fmtBytes(att.size)}</span>`+
+            `</span>`+
+            `<span class="dm-attachment-card__dl" title="${actionTitle}"><i class="fa-solid ${actionIcon}"></i></span>`;
+
+        card.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (card.dataset.busy === 'true') return;
+
+            // If media is already previewed inline, clicking the card again toggles it
+            const existing = card.nextElementSibling;
+            if (existing && existing.classList.contains('dm-attachment-preview')) {
+                existing.remove();
+                if (card._blobUrl) { URL.revokeObjectURL(card._blobUrl); card._blobUrl = null; }
+                card.dataset.previewed = '';
+                return;
+            }
+
+            card.dataset.busy = 'true';
+            const dlIcon = card.querySelector('.dm-attachment-card__dl i');
+            if (dlIcon) dlIcon.className = 'fa-solid fa-spinner fa-spin';
+
+            try {
+                const blob = await fetchAndDecryptAttachment(att.id, att.mime);
+                if (!blob) return;
+
+                const url = URL.createObjectURL(blob);
+                card._blobUrl = url;
+
+                if (isMedia) {
+                    // Render inline preview
+                    const wrap = document.createElement('div');
+                    wrap.className = 'dm-attachment-preview';
+
+                    let el;
+                    if (isImage) {
+                        el = document.createElement('img');
+                        el.src = url;
+                        el.className = 'dm-attachment-preview__img';
+                        el.alt = att.filename;
+                        // Click image to open full-size in new tab
+                        el.addEventListener('click', () => window.open(url, '_blank'));
+                    } else if (isVideo) {
+                        el = document.createElement('video');
+                        el.src = url;
+                        el.controls = true;
+                        el.className = 'dm-attachment-preview__video';
+                        el.preload = 'metadata';
+                    } else { // audio
+                        el = document.createElement('audio');
+                        el.src = url;
+                        el.controls = true;
+                        el.className = 'dm-attachment-preview__audio';
+                        el.preload = 'metadata';
+                    }
+
+                    // Download button inside preview
+                    const dlBtn = document.createElement('a');
+                    dlBtn.className = 'dm-attachment-preview__dl';
+                    dlBtn.href = url;
+                    dlBtn.download = att.filename;
+                    dlBtn.title = 'Download';
+                    dlBtn.innerHTML = '<i class="fa-solid fa-download"></i>';
+                    dlBtn.addEventListener('click', e => e.stopPropagation());
+
+                    wrap.appendChild(el);
+                    wrap.appendChild(dlBtn);
+                    card.insertAdjacentElement('afterend', wrap);
+                    card.dataset.previewed = 'true';
+                } else {
+                    // Non-media: just trigger download
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = att.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); card._blobUrl = null; }, 5000);
+                }
+            } catch (e) {
+                showFlashMsg('Preview failed: ' + e.message, 'error');
+            } finally {
+                card.dataset.busy = '';
+                if (dlIcon) {
+                    const newIcon = isMedia ? 'fa-eye' : 'fa-download';
+                    dlIcon.className = `fa-solid ${card.dataset.previewed ? 'fa-eye-slash' : newIcon}`;
+                }
+            }
+        });
+
+        return card;
+    }
+
+    // Shared fetch+decrypt helper — returns a Blob or null
+    async function fetchAndDecryptAttachment(id, mime) {
+        if (!currentOtherPubKey) {
+            showFlashMsg('Cannot decrypt: no encryption key', 'error');
+            return null;
+        }
+        try {
+            const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
+            const res = await fetch(`/api/dm/attachment/${id}`, {
+                headers: { 'X-CSRF-Token': csrfToken() }
+            });
+            if (!res.ok) { showFlashMsg('Download failed (' + res.status + ')', 'error'); return null; }
+
+            const ivHeader = res.headers.get('X-DM-IV');
+            if (!ivHeader) { showFlashMsg('Server did not return IV — please refresh', 'error'); return null; }
+
+            const encBuf   = await res.arrayBuffer();
+            const plainBuf = await decryptAttachment(sharedKey, ivHeader, new Uint8Array(encBuf));
+            return new Blob([plainBuf], { type: mime || 'application/octet-stream' });
+        } catch (e) {
+            showFlashMsg('Decryption failed: ' + e.message, 'error');
+            return null;
+        }
+    }
+
     let sendInFlight = false; // debounce guard against double-submit
 
     function setupDmEmojiPicker() {
@@ -850,6 +1185,75 @@ if (window.__dmLoaded) {
         // Put them in: spoiler then emoji
         actions.prepend(trigger);
         actions.prepend(spoilerBtn);
+
+        // ── Attachment button ─────────────────────────────────────────────────
+        if (window.f0ckSession?.dm_attachments !== false) {
+        const attachInput = document.createElement('input');
+        attachInput.type     = 'file';
+        attachInput.id       = 'dm-attach-input';
+        attachInput.accept   = 'audio/*,video/*,image/*';
+        attachInput.style.display = 'none';
+        form.appendChild(attachInput);
+
+        const attachBtn = document.createElement('button');
+        attachBtn.type      = 'button';
+        attachBtn.title     = 'Send encrypted attachment';
+        attachBtn.className = 'dm-attach-btn';
+        attachBtn.innerHTML = '<i class="fa-solid fa-paperclip"></i>';
+        actions.prepend(attachBtn);
+
+        attachBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            attachInput.value = '';
+            attachInput.click();
+        });
+
+        attachInput.addEventListener('change', async () => {
+            const file = attachInput.files[0];
+            if (!file) return;
+
+            if (!currentOtherPubKey) {
+                showFlashMsg('Cannot attach: recipient has no encryption key', 'error');
+                return;
+            }
+            if (!hasKey()) {
+                showFlashMsg('Cannot attach: your encryption key is not loaded', 'error');
+                return;
+            }
+
+            // Show progress state on button
+            const origHtml = attachBtn.innerHTML;
+            attachBtn.disabled = true;
+            attachBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            const onProgress = (stage) => {
+                if (stage === 'encrypt') attachBtn.title = 'Encrypting…';
+                if (stage === 'upload')  attachBtn.title = 'Uploading…';
+            };
+
+            try {
+                const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
+                const sentinel  = await uploadDmAttachment(file, sharedKey, currentOtherId, onProgress);
+                if (sentinel) {
+                    // Append sentinel to the textarea (with a newline separator)
+                    const ta = form.querySelector('#dm-input');
+                    if (ta) {
+                        ta.value = ta.value ? ta.value + '\n' + sentinel : sentinel;
+                        ta.dispatchEvent(new Event('input'));
+                        ta.focus();
+                    }
+                }
+            } catch (e) {
+                showFlashMsg('Attachment error: ' + e.message, 'error');
+            } finally {
+                attachBtn.disabled = false;
+                attachBtn.innerHTML = origHtml;
+                attachBtn.title = 'Send encrypted attachment';
+                attachInput.value = '';
+            }
+        });
+
+        } // end if (dm_attachments)
 
         // Picker lives inside the form — CSS positions it above via position:absolute + bottom:100%
         const picker = document.createElement('div');

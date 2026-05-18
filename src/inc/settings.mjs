@@ -7,6 +7,7 @@ let trusted_uploads = 0;
 let bypass_duplicate_check = false;
 let protect_files = false;
 let private_messages = true;
+let dm_attachments = true;
 let default_layout = 'modern';
 let enable_pdf = false;
 let enable_cleanup = false;
@@ -58,6 +59,9 @@ export const setProtectFiles = (val) => protect_files = !!val;
 
 export const getPrivateMessages = () => private_messages;
 export const setPrivateMessages = (val) => private_messages = !!val;
+
+export const getDmAttachments = () => dm_attachments;
+export const setDmAttachments = (val) => dm_attachments = !!val;
 
 export const getDefaultLayout = () => default_layout;
 export const setDefaultLayout = (val) => default_layout = (val === 'legacy' ? 'legacy' : 'modern');

@@ -411,7 +411,8 @@
     fileupload_comments_multifile: @if(fileupload_comments_multifile) true @else false @endif,
     fileupload_comments_size: {{ fileupload_comments_size }},
     fileupload_comments_max: {{ fileupload_comments_max }},
-    fileupload_comments_mode: "{{ fileupload_comments_mode }}"
+    fileupload_comments_mode: "{{ fileupload_comments_mode }}",
+    dm_attachments: @if(dm_attachments) true @else false @endif
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   window.f0ckI18n = {

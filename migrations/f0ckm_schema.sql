@@ -2759,4 +2759,22 @@ CREATE INDEX IF NOT EXISTS idx_user_ips_user_id ON user_ips(user_id);
 -- Add IP tracking to user_sessions for "current" IP view
 ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS ip TEXT;
 
+-- DM encrypted attachments (Migration 005)
+CREATE TABLE IF NOT EXISTS public.dm_attachments (
+    id            bigserial PRIMARY KEY,
+    sender_id     integer NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
+    recipient_id  integer NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
+    iv            text NOT NULL,
+    file_path     text NOT NULL,
+    original_name text NOT NULL DEFAULT '',
+    mime_hint     text NOT NULL DEFAULT '',
+    size_bytes    integer NOT NULL DEFAULT 0,
+    created_at    timestamp with time zone DEFAULT now(),
+    expires_at    timestamp with time zone DEFAULT (now() + interval '30 days')
+);
+
+CREATE INDEX IF NOT EXISTS idx_dm_att_sender    ON public.dm_attachments(sender_id);
+CREATE INDEX IF NOT EXISTS idx_dm_att_recipient ON public.dm_attachments(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_dm_att_expires   ON public.dm_attachments(expires_at);
+
 \unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG

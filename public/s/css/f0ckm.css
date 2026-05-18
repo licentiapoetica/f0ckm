@@ -11622,7 +11622,197 @@ span.dm-post-card--loading {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* ── Global Chat Post Preview Card ──────────────────────────── */
+/* ── DM Encrypted Attachment Card ────────────────────────── */
+a.dm-attachment-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.28);
+  margin: 6px 0 2px;
+  padding: 10px 14px 10px 12px;
+  max-width: 300px;
+  min-width: 180px;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+  color: inherit;
+  position: relative;
+}
+
+a.dm-attachment-card:hover {
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.dm-attachment-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  font-size: 1.1em;
+  color: var(--accent, #aaa);
+}
+
+.dm-attachment-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.dm-attachment-card__name {
+  font-size: 0.82em;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg, #ddd);
+}
+
+.dm-attachment-card__size {
+  font-size: 0.72em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.dm-attachment-card__dl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.35);
+  padding-left: 4px;
+  transition: color 0.15s;
+}
+
+a.dm-attachment-card:hover .dm-attachment-card__dl {
+  color: var(--accent, #aaa);
+}
+
+/* Lock badge — indicates E2EE */
+a.dm-attachment-card::after {
+  content: '\f023';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  font-size: 0.6em;
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+/* Inside "mine" bubble */
+.dm-msg-mine a.dm-attachment-card {
+  background: rgba(0, 0, 0, 0.18);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Attach button (paperclip) ────────────────────────────── */
+.dm-attach-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0 6px;
+  font-size: 1em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.dm-attach-btn:hover {
+  color: var(--accent, #aaa);
+}
+
+.dm-attach-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Inline attachment preview (image / video / audio) ───── */
+.dm-attachment-preview {
+  position: relative;
+  margin: 4px 0 2px;
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 320px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dm-attachment-preview__img {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: 10px;
+}
+
+.dm-attachment-preview__video {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+}
+
+.dm-attachment-preview__audio {
+  display: block;
+  width: 100%;
+  padding: 8px 6px;
+  accent-color: var(--accent, #aaa);
+}
+
+/* Loading placeholder while decrypting */
+.dm-attachment-preview--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1.2em;
+}
+
+/* Floating download button in the preview corner */
+.dm-attachment-preview__dl {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.75);
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-size: 0.78em;
+  text-decoration: none;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+  z-index: 2;
+}
+
+.dm-attachment-preview__dl:hover {
+  background: var(--accent, #aaa);
+  color: #000;
+}
+
+/* Eye-slash on card when preview is open */
+.dm-attachment-card[data-previewed="true"] .dm-attachment-card__dl i {
+  color: var(--accent, #aaa);
+}
+
 a.gchat-post-card,
 span.gchat-post-card {
   display: inline-flex;

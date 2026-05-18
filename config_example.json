@@ -61,6 +61,7 @@
     "enable_global_chat": true,
     "enable_danmaku": true,
     "private_messages": true,
+    "dm_attachments": true,
     "halls_enabled": true,
     "userhalls_enabled": true,
     "enable_userhall_image_upload": true,
