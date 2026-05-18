@@ -395,33 +395,59 @@ if (window.__dmLoaded) {
 
         // ── Online presence ───────────────────────────────────────────────────
         if (window._dmPresenceTicker) clearInterval(window._dmPresenceTicker);
+        if (window._dmPresenceHandler) {
+            document.removeEventListener('f0ck:global_chat_presence', window._dmPresenceHandler);
+        }
 
         const presenceEl = document.getElementById('dm-presence');
+
+        const renderPresence = (online, lastSeenUnix) => {
+            if (!presenceEl) return;
+            const now  = ~~(Date.now() / 1000);
+            const diff = now - (lastSeenUnix || 0);
+
+            if (online) {
+                presenceEl.className = 'dm-presence dm-presence--online';
+                presenceEl.innerHTML = '<span class="dm-presence-dot"></span>Online';
+            } else if (diff < 3600) {
+                const mins = Math.max(1, Math.floor(diff / 60));
+                presenceEl.className = 'dm-presence dm-presence--recent';
+                presenceEl.innerHTML = `<span class="dm-presence-dot"></span>Active ${mins}m ago`;
+            } else {
+                presenceEl.className = 'dm-presence dm-presence--offline';
+                presenceEl.innerHTML = lastSeenUnix
+                    ? `Last seen ${timeAgo(new Date(lastSeenUnix * 1000).toISOString())}`
+                    : 'Last seen a long time ago';
+            }
+        };
+
         const pollPresence = async () => {
             if (!presenceEl) return;
             try {
                 const data = await (await fetch(`/api/dm/presence/${currentOtherId}`)).json();
-                if (!data.success) { presenceEl.innerHTML = ''; return; }
-
-                const now  = ~~(Date.now() / 1000);
-                const diff = now - (data.last_seen || 0); // seconds ago
-
-                if (data.online) {
-                    presenceEl.className = 'dm-presence dm-presence--online';
-                    presenceEl.innerHTML = '<span class="dm-presence-dot"></span>Online';
-                } else if (diff < 3600) {
-                    // Active within the last hour
-                    const mins = Math.max(1, Math.floor(diff / 60));
-                    presenceEl.className = 'dm-presence dm-presence--recent';
-                    presenceEl.innerHTML = `<span class="dm-presence-dot"></span>Active ${mins}m ago`;
-                } else {
-                    presenceEl.className = 'dm-presence dm-presence--offline';
-                    presenceEl.innerHTML = data.last_seen
-                        ? `Last seen ${timeAgo(new Date(data.last_seen * 1000).toISOString())}`
-                        : 'Last seen a long time ago';
-                }
-            } catch { if (presenceEl) presenceEl.innerHTML = ''; }
+                if (data.success) renderPresence(data.online, data.last_seen);
+            } catch { /* non-critical */ }
         };
+
+        // Live update: fires immediately when the other user connects/disconnects from SSE
+        window._dmPresenceHandler = (e) => {
+            const users  = e.detail?.users || [];
+            const isLive = users.some(u => u.id === currentOtherId);
+            if (isLive) {
+                // They just connected — mark online immediately, no HTTP round-trip needed
+                renderPresence(true, ~~(Date.now() / 1000));
+            } else {
+                // They disconnected — fall back to a fresh poll to get accurate last_seen
+                pollPresence();
+            }
+        };
+        document.addEventListener('f0ck:global_chat_presence', window._dmPresenceHandler);
+
+        // Also poll on page-visibility restore (user returns to tab)
+        const onVisible = () => { if (!document.hidden) pollPresence(); };
+        document.removeEventListener('visibilitychange', window._dmVisibilityHandler || (() => {}));
+        window._dmVisibilityHandler = onVisible;
+        document.addEventListener('visibilitychange', onVisible);
 
         await pollPresence();
         window._dmPresenceTicker = setInterval(pollPresence, 30_000);

@@ -16,6 +16,7 @@ function broadcastChatPresence() {
             if (!seen.has(client.userId)) {
                 seen.add(client.userId);
                 users.push({
+                    id:             client.userId,
                     username:       client.username,
                     display_name:   client.display_name,
                     avatar_file:    client.avatar_file,
