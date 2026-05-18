@@ -347,14 +347,15 @@ process.on('uncaughtException', err => {
 
   // Ensure storage directories exist
   const initDirs = [
-    cfg.paths.a, cfg.paths.b, cfg.paths.c, cfg.paths.t, cfg.paths.ca, cfg.paths.e, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
+    cfg.paths.a, cfg.paths.b, cfg.paths.c, cfg.paths.t, cfg.paths.ca, cfg.paths.emojis, cfg.paths.memes, cfg.paths.tmp, cfg.paths.logs,
     path.join(cfg.paths.pending, 'b'), path.join(cfg.paths.pending, 't'), path.join(cfg.paths.pending, 'ca'),
     path.join(cfg.paths.deleted, 'b'), path.join(cfg.paths.deleted, 't'), path.join(cfg.paths.deleted, 'ca')
   ];
   for (const dir of initDirs) {
-    if (!fs.existsSync(dir)) {
-      console.log(`[BOOT] Creating directory: ${dir}`);
+    try {
       fs.mkdirSync(dir, { recursive: true });
+    } catch (e) {
+      if (e.code !== 'EEXIST') console.warn(`[BOOT] Could not create directory ${dir}: ${e.message}`);
     }
   }
 

@@ -815,6 +815,7 @@ if (window.__dmLoaded) {
     //   [attachment:ID:FILENAME_B64:MIME:SIZE]
     // where FILENAME_B64 is btoa(filename) to avoid colon conflicts.
 
+
     const DM_ATT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
     async function encryptAttachment(sharedKey, fileBuffer) {
@@ -955,7 +956,6 @@ if (window.__dmLoaded) {
                     el.src = url;
                     el.className = 'dm-attachment-preview__img';
                     el.alt = att.filename;
-                    el.addEventListener('click', () => window.open(url, '_blank'));
                 } else if (isVideo) {
                     el = document.createElement('video');
                     el.src = url;
@@ -1060,8 +1060,7 @@ if (window.__dmLoaded) {
                         el.className = 'dm-attachment-preview__img';
                         el.alt = att.filename;
                         // Click image to open full-size in new tab
-                        el.addEventListener('click', () => window.open(url, '_blank'));
-                    } else if (isVideo) {
+                        } else if (isVideo) {
                         el = document.createElement('video');
                         el.src = url;
                         el.controls = true;
