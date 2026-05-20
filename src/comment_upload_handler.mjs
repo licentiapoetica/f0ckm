@@ -374,29 +374,23 @@ export const handleCommentUpload = async (req, res) => {
                 try {
                     phash = await queue.generatePHash(tmpPath);
                     if (phash && !linkedToExisting) {
-                        // Check comment_files for visual duplicate
-                        const cfItems = await db`
-                            SELECT id, phash, dest FROM comment_files
-                            WHERE phash IS NOT NULL AND phash != '' AND phash NOT LIKE '00000000%'
-                        `;
-                        for (const cf of cfItems) {
-                            if (isPhashMatch(phash, cf.phash)) {
-                                const existingAbsPath = path.join(cfg.paths.c, cf.dest);
-                                try {
-                                    const realTarget = await fs.realpath(existingAbsPath);
-                                    const destPath = path.join(cfg.paths.c, filename);
-                                    const relTarget = path.relative(path.dirname(destPath), realTarget);
-                                    await fs.symlink(relTarget, destPath);
-                                    linkedToExisting = true;
-                                    console.log(`[COMMENT_UPLOAD] PHash match in comment_files: ${filename} → ${relTarget}`);
-                                } catch (e) {
-                                    console.error(`[COMMENT_UPLOAD] PHash symlink failed:`, e.message);
-                                }
-                                break;
+                        // Check comment_files for visual duplicate using fast SQL query
+                        const commentMatch = await queue.checkcommentrepostphash(phash);
+                        if (commentMatch) {
+                            const existingAbsPath = path.join(cfg.paths.c, commentMatch.dest);
+                            try {
+                                const realTarget = await fs.realpath(existingAbsPath);
+                                const destPath = path.join(cfg.paths.c, filename);
+                                const relTarget = path.relative(path.dirname(destPath), realTarget);
+                                await fs.symlink(relTarget, destPath);
+                                linkedToExisting = true;
+                                console.log(`[COMMENT_UPLOAD] PHash match in comment_files: ${filename} → ${relTarget}`);
+                            } catch (e) {
+                                console.error(`[COMMENT_UPLOAD] PHash symlink failed:`, e.message);
                             }
                         }
-
-                        // Also check items table for visual duplicate
+ 
+                        // Also check items table for visual duplicate using fast SQL query
                         if (!linkedToExisting) {
                             const phashMatch = await queue.checkrepostphash(phash);
                             if (phashMatch) {
@@ -541,41 +535,4 @@ async function generateCommentThumbnail(filename, mime, uuid, size = 512) {
     await fs.unlink(tmpFile).catch(() => { });
 }
 
-/**
- * PHash matching helper (same logic as queue.checkrepostphash)
- */
-function isPhashMatch(newHash, dbHash) {
-    if (!newHash || !dbHash) return false;
-    const newHashes = newHash.split('_');
-    const dbHashes = dbHash.split('_');
-    const THRESHOLD = 15;
 
-    const getHammingDistance = (h1, h2) => {
-        if (!h1 || !h2 || h1.length !== h2.length) return 9999;
-        let distance = 0;
-        for (let i = 0; i < h1.length; i += 2) {
-            const v1 = parseInt(h1.substr(i, 2), 16);
-            const v2 = parseInt(h2.substr(i, 2), 16);
-            let xor = v1 ^ v2;
-            while (xor) {
-                distance += xor & 1;
-                xor >>= 1;
-            }
-        }
-        return distance;
-    };
-
-    const framesToCompare = Math.min(newHashes.length, dbHashes.length);
-    let matches = 0;
-
-    for (let i = 0; i < framesToCompare; i++) {
-        const dist = getHammingDistance(newHashes[i], dbHashes[i]);
-        if (dist <= THRESHOLD) matches++;
-    }
-
-    if (framesToCompare >= 3 && matches >= 2) return true;
-    if (framesToCompare === 1 && matches === 1) return true;
-    if (framesToCompare === 2 && matches >= 2) return true;
-
-    return false;
-}

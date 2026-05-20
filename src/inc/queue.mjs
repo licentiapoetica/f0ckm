@@ -6,6 +6,28 @@ import cfg from "./config.mjs";
 import path from "path";
 import os from "os";
 
+function isFlatFrame(buffer) {
+  if (!buffer || buffer.length !== 1056) return true;
+  let min = 255;
+  let max = 0;
+  let sum = 0;
+  for (let i = 0; i < buffer.length; i++) {
+    const val = buffer[i];
+    if (val < min) min = val;
+    if (val > max) max = val;
+    sum += val;
+  }
+  const mean = sum / buffer.length;
+  if (mean < 15 || mean > 240) return true;
+
+  let sqDiffSum = 0;
+  for (let i = 0; i < buffer.length; i++) {
+    sqDiffSum += Math.pow(buffer[i] - mean, 2);
+  }
+  const variance = sqDiffSum / buffer.length;
+  return variance < 10 || (max - min) < 15;
+}
+
 export default new class queue {
 
   constructor() {
@@ -85,35 +107,62 @@ export default new class queue {
   async generatePHash(source) {
     try {
       // Temporal dHash implementation:
-      // 1. Get duration.
-      // 2. Extract 3 frames: 10%, 50%, 90%.
-      // 3. Generate dHash for each.
-      // 4. Return combined hash "hash1_hash2_hash3".
+      // 1. Check if source is image/video and get duration.
+      // 2. For videos: Extract 3 frames (10%, 50%, 90% of duration).
+      //    For static images: Extract 1 frame.
+      // 3. Generate dHash for each valid non-flat frame.
+      // 4. Return combined hash "hash1_hash2_hash3" or single "hash".
 
       // Skip ffprobe for PDFs (which would fail with "Invalid data")
       if (source.toLowerCase().endsWith('.pdf')) {
         return null; 
       }
 
-      const durationStr = (await this.spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', source])).stdout.trim();
-      const duration = parseFloat(durationStr);
-      if (isNaN(duration) || duration <= 0) return null;
+      let isVideo = true;
+      let timestamps = [];
+      
+      try {
+        const durationStr = (await this.spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', source])).stdout.trim();
+        const duration = parseFloat(durationStr);
+        if (isNaN(duration) || duration <= 0) {
+          isVideo = false;
+        } else {
+          timestamps = [duration * 0.1, duration * 0.5, duration * 0.9];
+        }
+      } catch (err) {
+        isVideo = false;
+      }
 
-      const timestamps = [duration * 0.1, duration * 0.5, duration * 0.9];
+      if (!isVideo) {
+        timestamps = [0]; // Process static image as single frame
+      }
+
       const hashes = [];
 
       for (const ts of timestamps) {
         let buffer;
         try {
-          const { stdout } = await this.spawn('ffmpeg', ['-ss', ts.toString(), '-v', 'error', '-i', source, '-vf', 'thumbnail,scale=33:32,format=gray', '-frames:v', '1', '-f', 'rawvideo', 'pipe:1'], { encoding: 'buffer', quiet: true });
+          const vf = isVideo ? 'thumbnail,scale=33:32,format=gray' : 'scale=33:32,format=gray';
+          const args = [];
+          if (isVideo) {
+            args.push('-ss', ts.toString());
+          }
+          args.push('-v', 'error', '-i', source, '-vf', vf, '-frames:v', '1', '-f', 'rawvideo', 'pipe:1');
+          
+          const { stdout } = await this.spawn('ffmpeg', args, { encoding: 'buffer', quiet: true });
           buffer = stdout;
         } catch (err) {
           console.warn(`[PHASH] Failed to extract frame at ${ts}s for ${source}: ${err.message}`);
-          // Buffer remains undefined, triggering fallback below
         }
 
         if (!buffer || buffer.length !== 1056) {
           console.warn(`[PHASH] Invalid buffer length (${buffer?.length}) at ${ts}s for ${source}`);
+          continue;
+        }
+
+        // Filter out flat/black frames (e.g. solid color backgrounds, fade-to-black)
+        if (isFlatFrame(buffer)) {
+          console.log(`[PHASH] Ignored flat/black frame at ${ts}s for ${source}`);
           continue;
         }
 
@@ -151,66 +200,80 @@ export default new class queue {
 
   async checkrepostphash(newHash) {
     if (!newHash) return false;
-    const newHashes = newHash.split('_');
+    const newHashes = newHash.split('_').filter(s => s && !s.startsWith('00000000'));
     if (newHashes.length === 0) return false;
 
-    // Fetch all phashes, filtering out "all zero" failed hashes
-    const items = await db`
-      SELECT id, phash FROM items 
-      WHERE phash IS NOT NULL 
-      AND phash != '' 
-      AND phash NOT LIKE '00000000%'
+    const h1 = newHashes[0] || '';
+    const h2 = newHashes[1] || '';
+    const h3 = newHashes[2] || '';
+
+    const results = await db`
+      SELECT id FROM items
+      WHERE phash IS NOT NULL AND phash != '' AND phash != 'ERROR' AND phash != 'MISSING' AND phash NOT LIKE '00000000%'
+        AND (
+          (
+            CASE WHEN split_part(phash, '_', 1) != '' AND ${h1} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 1))::bit(1024) # ('x' || ${h1})::bit(1024)) <= 15
+            ELSE false END::int
+            +
+            CASE WHEN split_part(phash, '_', 2) != '' AND ${h2} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 2))::bit(1024) # ('x' || ${h2})::bit(1024)) <= 15
+            ELSE false END::int
+            +
+            CASE WHEN split_part(phash, '_', 3) != '' AND ${h3} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 3))::bit(1024) # ('x' || ${h3})::bit(1024)) <= 15
+            ELSE false END::int
+          ) >= (
+            CASE 
+              WHEN split_part(phash, '_', 3) != '' AND ${h3} != '' THEN 2
+              WHEN split_part(phash, '_', 2) != '' AND ${h2} != '' THEN 2
+              ELSE 1
+            END
+          )
+        )
+      LIMIT 1
     `;
 
-    // Configurable threshold: max Hamming distance per 256-bit dHash frame.
-    // A value of 15 means < 6% bit difference — tight enough to only match true duplicates.
-    const THRESHOLD = 15;
+    return results.length > 0 ? results[0].id : false;
+  };
 
-    const getHammingDistance = (h1, h2) => {
-      if (!h1 || !h2 || h1.length !== h2.length) return 9999;
-      let distance = 0;
-      for (let i = 0; i < h1.length; i += 2) {
-        const v1 = parseInt(h1.substr(i, 2), 16);
-        const v2 = parseInt(h2.substr(i, 2), 16);
-        let xor = v1 ^ v2;
-        while (xor) {
-          distance += xor & 1;
-          xor >>= 1;
-        }
-      }
-      return distance;
-    };
+  async checkcommentrepostphash(newHash) {
+    if (!newHash) return false;
+    const newHashes = newHash.split('_').filter(s => s && !s.startsWith('00000000'));
+    if (newHashes.length === 0) return false;
 
-    // We want at least 2 out of 3 frames to match
-    const REQUIRED_MATCHES = 2;
+    const h1 = newHashes[0] || '';
+    const h2 = newHashes[1] || '';
+    const h3 = newHashes[2] || '';
 
-    for (const item of items) {
-      // Handle legacy single hashes vs new multi-hashes
-      const dbHashes = item.phash.split('_');
+    const results = await db`
+      SELECT id, dest FROM comment_files
+      WHERE phash IS NOT NULL AND phash != '' AND phash NOT LIKE '00000000%'
+        AND (
+          (
+            CASE WHEN split_part(phash, '_', 1) != '' AND ${h1} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 1))::bit(1024) # ('x' || ${h1})::bit(1024)) <= 15
+            ELSE false END::int
+            +
+            CASE WHEN split_part(phash, '_', 2) != '' AND ${h2} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 2))::bit(1024) # ('x' || ${h2})::bit(1024)) <= 15
+            ELSE false END::int
+            +
+            CASE WHEN split_part(phash, '_', 3) != '' AND ${h3} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 3))::bit(1024) # ('x' || ${h3})::bit(1024)) <= 15
+            ELSE false END::int
+          ) >= (
+            CASE 
+              WHEN split_part(phash, '_', 3) != '' AND ${h3} != '' THEN 2
+              WHEN split_part(phash, '_', 2) != '' AND ${h2} != '' THEN 2
+              ELSE 1
+            END
+          )
+        )
+      LIMIT 1
+    `;
 
-      let matches = 0;
-      // Compare corresponding frames: 0vs0, 1vs1, 2vs2
-      const framesToCompare = Math.min(newHashes.length, dbHashes.length);
-
-      for (let i = 0; i < framesToCompare; i++) {
-        const dist = getHammingDistance(newHashes[i], dbHashes[i]);
-        if (dist <= THRESHOLD) {
-          matches++;
-        }
-      }
-
-      // If we have 3 frames, require 2 out of 3 matches.
-      // If we are comparing against a legacy 1-frame hash, require that single frame to match.
-      if (framesToCompare >= 3 && matches >= REQUIRED_MATCHES) {
-        return item.id;
-      } else if (framesToCompare === 1 && matches === 1) {
-        return item.id;
-      } else if (framesToCompare === 2 && matches >= 2) {
-        return item.id;
-      }
-    }
-
-    return false;
+    return results.length > 0 ? results[0] : false;
   };
 
   async genuuid() {
