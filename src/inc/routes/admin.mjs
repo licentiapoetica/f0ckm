@@ -45,7 +45,7 @@ export default (router, tpl) => {
       return res.reply({ code: 429, body: msg });
     }
 
-    if (!username || !password || password.length < 20) {
+    if (!username || !password) {
       return fail("Invalid username or password.");
     }
 
