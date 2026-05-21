@@ -8,6 +8,7 @@ let bypass_duplicate_check = false;
 let protect_files = false;
 let private_messages = true;
 let dm_attachments = true;
+let dm_unencrypted = false;
 let default_layout = 'modern';
 let enable_pdf = false;
 let enable_cleanup = false;
@@ -62,6 +63,9 @@ export const setPrivateMessages = (val) => private_messages = !!val;
 
 export const getDmAttachments = () => dm_attachments;
 export const setDmAttachments = (val) => dm_attachments = !!val;
+
+export const getDmUnencrypted = () => dm_unencrypted;
+export const setDmUnencrypted = (val) => dm_unencrypted = !!val;
 
 export const getDmAttachmentExpiryDays = () => {
     const v = parseInt(cfg.websrv.dm_attachment_expiry_days);

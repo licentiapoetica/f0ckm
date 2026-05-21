@@ -344,7 +344,7 @@ if (window.__dmLoaded) {
         // Try to get recipient's key — but don't block if they don't have one yet
         currentOtherPubKey = await getRemotePublicKey(currentOtherId);
 
-        if (!currentOtherPubKey) {
+        if (!window.f0ckSession?.dm_unencrypted && !currentOtherPubKey) {
             // Recipient has no key — clearly block sending
             const notice = document.getElementById('dm-key-notice');
             if (notice) {
@@ -531,23 +531,33 @@ if (window.__dmLoaded) {
 
     async function decryptBatch(messages) {
         if (!messages.length) return [];
-        if (!currentOtherPubKey) return messages.map(m => ({ ...m, plaintext: null }));
 
-        // Derive shared key ONCE for the whole batch — ECDH is expensive, don't repeat per message
-        let sharedKey;
-        try {
-            sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
-        } catch (e) {
-            return messages.map(m => ({ ...m, plaintext: null }));
+        let sharedKey = null;
+        if (_privateKey && currentOtherPubKey) {
+            try {
+                sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
+            } catch (e) {
+                // Key derivation failed — will treat encrypted messages as null plaintext
+            }
         }
 
         const result = [];
         for (const m of messages) {
-            try {
-                const plaintext = await decryptMessage(sharedKey, m.ciphertext, m.iv);
-                result.push({ ...m, plaintext });
-            } catch (e) {
-                result.push({ ...m, plaintext: null });
+            if (m.iv === 'unencrypted' || !m.iv) {
+                // Unencrypted message
+                result.push({ ...m, plaintext: m.ciphertext });
+            } else {
+                // Encrypted message
+                if (sharedKey) {
+                    try {
+                        const plaintext = await decryptMessage(sharedKey, m.ciphertext, m.iv);
+                        result.push({ ...m, plaintext });
+                    } catch (e) {
+                        result.push({ ...m, plaintext: null });
+                    }
+                } else {
+                    result.push({ ...m, plaintext: null });
+                }
             }
         }
         return result;
@@ -906,13 +916,21 @@ if (window.__dmLoaded) {
                 div.dataset.editing = '';
                 return;
             }
-            if (!currentOtherPubKey) { showFlashMsg('Cannot encrypt: no key', 'error'); return; }
 
             saveBtn.disabled = true;
             saveBtn.textContent = '…';
             try {
-                const sharedKey   = await deriveSharedKey(_privateKey, currentOtherPubKey);
-                const { iv: newIv, ciphertext: newCt } = await encryptMessage(sharedKey, newText);
+                let newIv, newCt;
+                if (window.f0ckSession?.dm_unencrypted) {
+                    newIv = 'unencrypted';
+                    newCt = newText;
+                } else {
+                    if (!currentOtherPubKey) { showFlashMsg('Cannot encrypt: no key', 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+                    const sharedKey   = await deriveSharedKey(_privateKey, currentOtherPubKey);
+                    const enc = await encryptMessage(sharedKey, newText);
+                    newIv = enc.iv;
+                    newCt = enc.ciphertext;
+                }
 
                 const res = await fetch(`/api/dm/message/${m.id}`, {
                     method: 'PATCH',
@@ -1107,7 +1125,12 @@ if (window.__dmLoaded) {
         let iv, encryptedBuffer;
         try {
             const raw = await file.arrayBuffer();
-            ({ iv, encryptedBuffer } = await encryptAttachment(sharedKey, raw));
+            if (window.f0ckSession?.dm_unencrypted) {
+                iv = 'unencrypted';
+                encryptedBuffer = raw;
+            } else {
+                ({ iv, encryptedBuffer } = await encryptAttachment(sharedKey, raw));
+            }
         } catch (e) {
             showFlashMsg('Encryption failed: ' + e.message, 'error');
             return null;
@@ -1405,12 +1428,7 @@ if (window.__dmLoaded) {
 
     // Shared fetch+decrypt helper — returns a Blob or null
     async function fetchAndDecryptAttachment(id, mime) {
-        if (!currentOtherPubKey) {
-            showFlashMsg('Cannot decrypt: no encryption key', 'error');
-            return null;
-        }
         try {
-            const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
             const res = await fetch(`/api/dm/attachment/${id}`, {
                 headers: { 'X-CSRF-Token': csrfToken() }
             });
@@ -1420,6 +1438,15 @@ if (window.__dmLoaded) {
             if (!ivHeader) { showFlashMsg('Server did not return IV — please refresh', 'error'); return null; }
 
             const encBuf   = await res.arrayBuffer();
+            if (ivHeader === 'unencrypted') {
+                return new Blob([encBuf], { type: mime || 'application/octet-stream' });
+            }
+
+            if (!currentOtherPubKey) {
+                showFlashMsg('Cannot decrypt: no encryption key', 'error');
+                return null;
+            }
+            const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
             const plainBuf = await decryptAttachment(sharedKey, ivHeader, new Uint8Array(encBuf));
             return new Blob([plainBuf], { type: mime || 'application/octet-stream' });
         } catch (e) {
@@ -1489,7 +1516,7 @@ if (window.__dmLoaded) {
 
         const attachBtn = document.createElement('button');
         attachBtn.type      = 'button';
-        attachBtn.title     = 'Send encrypted attachment';
+        attachBtn.title     = window.f0ckSession?.dm_unencrypted ? 'Send attachment' : 'Send encrypted attachment';
         attachBtn.className = 'dm-attach-btn';
         attachBtn.innerHTML = '<i class="fa-solid fa-paperclip"></i>';
         actions.prepend(attachBtn);
@@ -1504,13 +1531,15 @@ if (window.__dmLoaded) {
             const file = attachInput.files[0];
             if (!file) return;
 
-            if (!currentOtherPubKey) {
-                showFlashMsg('Cannot attach: recipient has no encryption key', 'error');
-                return;
-            }
-            if (!hasKey()) {
-                showFlashMsg('Cannot attach: your encryption key is not loaded', 'error');
-                return;
+            if (!window.f0ckSession?.dm_unencrypted) {
+                if (!currentOtherPubKey) {
+                    showFlashMsg('Cannot attach: recipient has no encryption key', 'error');
+                    return;
+                }
+                if (!hasKey()) {
+                    showFlashMsg('Cannot attach: your encryption key is not loaded', 'error');
+                    return;
+                }
             }
 
             // Show progress state on button
@@ -1524,7 +1553,10 @@ if (window.__dmLoaded) {
             };
 
             try {
-                const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
+                let sharedKey = null;
+                if (!window.f0ckSession?.dm_unencrypted) {
+                    sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
+                }
                 const sentinel  = await uploadDmAttachment(file, sharedKey, currentOtherId, onProgress);
                 if (sentinel) {
                     // Append sentinel to the textarea (with a newline separator)
@@ -1540,7 +1572,7 @@ if (window.__dmLoaded) {
             } finally {
                 attachBtn.disabled = false;
                 attachBtn.innerHTML = origHtml;
-                attachBtn.title = 'Send encrypted attachment';
+                attachBtn.title = window.f0ckSession?.dm_unencrypted ? 'Send attachment' : 'Send encrypted attachment';
                 attachInput.value = '';
             }
         });
@@ -1830,21 +1862,31 @@ if (window.__dmLoaded) {
                 ? `${activeReply.quoteLines.join('\n')}\n\n${rawText}`
                 : rawText;
 
-            // If recipient has no key, block sending — we cannot encrypt for them
-            if (!currentOtherPubKey) {
-                // Re-check in case they registered since page load
-                currentOtherPubKey = await getRemotePublicKey(currentOtherId);
-            }
-            if (!currentOtherPubKey) {
-                showFlashMsg('This user hasn\'t set up their encryption key yet. Sending is not possible until they do.', 'error');
-                return;
+            if (!window.f0ckSession?.dm_unencrypted) {
+                // If recipient has no key, block sending — we cannot encrypt for them
+                if (!currentOtherPubKey) {
+                    // Re-check in case they registered since page load
+                    currentOtherPubKey = await getRemotePublicKey(currentOtherId);
+                }
+                if (!currentOtherPubKey) {
+                    showFlashMsg('This user hasn\'t set up their encryption key yet. Sending is not possible until they do.', 'error');
+                    return;
+                }
             }
 
             sendInFlight = true;
             btn.disabled = true;
             try {
-                const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
-                const { ciphertext, iv } = await encryptMessage(sharedKey, text);
+                let ciphertext, iv;
+                if (window.f0ckSession?.dm_unencrypted) {
+                    ciphertext = text;
+                    iv = 'unencrypted';
+                } else {
+                    const sharedKey = await deriveSharedKey(_privateKey, currentOtherPubKey);
+                    const enc = await encryptMessage(sharedKey, text);
+                    ciphertext = enc.ciphertext;
+                    iv = enc.iv;
+                }
                 const res = await dmFetch('POST', `/api/dm/send/${currentOtherId}`, { ciphertext, iv });
                 if (res.success) {
                     input.value = '';
@@ -1880,6 +1922,11 @@ if (window.__dmLoaded) {
     // ─────────────────────────────────────────────────────────────────────────
 
     async function ensureKeyReady() {
+        if (window.f0ckSession?.dm_unencrypted) {
+            const btns = document.querySelectorAll('.dm-manage-keys-btn');
+            btns.forEach(btn => btn.style.display = 'none');
+            return;
+        }
         const status = await loadOrCreateKeyPair();
         // Always re-upload public key silently (on every page, so recipients can find us)
         uploadPublicKey().catch(e => console.warn('[DM] pubkey upload failed:', e));
