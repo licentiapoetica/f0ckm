@@ -21,6 +21,59 @@
 
         const memeFont = 'Impact, Charcoal, sans-serif';
 
+        function wrapText(ctx, text, maxWidth) {
+            const paragraphs = text.split('\n');
+            const lines = [];
+            
+            paragraphs.forEach(paragraph => {
+                if (paragraph.trim() === '') {
+                    lines.push('');
+                    return;
+                }
+                
+                const words = paragraph.split(' ').filter(w => w !== '');
+                let currentLine = '';
+                
+                words.forEach(word => {
+                    const testLine = currentLine ? currentLine + ' ' + word : word;
+                    let metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width <= maxWidth) {
+                        currentLine = testLine;
+                    } else {
+                        if (currentLine !== '') {
+                            lines.push(currentLine);
+                            currentLine = '';
+                        }
+                        
+                        metrics = ctx.measureText(word);
+                        if (metrics.width <= maxWidth) {
+                            currentLine = word;
+                        } else {
+                            let charLine = '';
+                            for (let i = 0; i < word.length; i++) {
+                                const char = word[i];
+                                const testCharLine = charLine + char;
+                                if (ctx.measureText(testCharLine).width > maxWidth && charLine !== '') {
+                                    lines.push(charLine);
+                                    charLine = char;
+                                } else {
+                                    charLine = testCharLine;
+                                }
+                            }
+                            currentLine = charLine;
+                        }
+                    }
+                });
+                if (currentLine) {
+                    lines.push(currentLine);
+                }
+            });
+            
+            return lines;
+        }
+
+
         // Image Setup
         img.crossOrigin = "anonymous";
         img.onload = () => {
@@ -127,7 +180,7 @@
                 ctx.font = `bold ${fontSize}px ${memeFont}`;
 
                 let displayStr = layer.text.toUpperCase();
-                const lines = displayStr.split('\n');
+                const lines = wrapText(ctx, displayStr, canvas.width * 0.9);
                 const h = lines.length * fontSize * 1.1;
                 const w = canvas.width * 0.9;
 
@@ -173,7 +226,10 @@
         const isInsideText = (pt, layer) => {
             if (!layer.text) return false;
             const fontSize = layer.fontSize || 40;
-            const lines = layer.text.split('\n');
+            ctx.save();
+            ctx.font = `bold ${fontSize}px ${memeFont}`;
+            const lines = wrapText(ctx, layer.text.toUpperCase(), canvas.width * 0.9);
+            ctx.restore();
             const w = canvas.width * 0.95;
             const h = lines.length * fontSize * 1.2;
             
