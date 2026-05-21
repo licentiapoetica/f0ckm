@@ -733,6 +733,8 @@ window.initUploadForm = (selector) => {
             activeMode = 'file';
         }
 
+        let lastNewLinkPreviewItem = null;
+
         // Build preview items — skip items already rendered (append-only)
         selectedFiles.forEach((item, index) => {
             if (item._rendered) return; // already in DOM, don't touch it
@@ -1138,6 +1140,10 @@ window.initUploadForm = (selector) => {
             previewItem.appendChild(infoRow);
             previewItem.appendChild(removeBtn);
             if (filePreview) filePreview.appendChild(previewItem);
+
+            if (isUrl) {
+                lastNewLinkPreviewItem = previewItem;
+            }
         });
 
         // "Add more" button for Shitpost Mode — reuse existing or create once, always move to end
@@ -1231,6 +1237,13 @@ window.initUploadForm = (selector) => {
 
         updateSubmitButton();
         form.dispatchEvent(new CustomEvent('fileReady', { detail: { files: selectedFiles } }));
+
+        if (lastNewLinkPreviewItem) {
+            setTimeout(() => {
+                lastNewLinkPreviewItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
         return true;
     };
 
