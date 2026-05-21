@@ -519,17 +519,36 @@ export default router => {
         });
       }
 
-      // API expects { success: true, items: { id: ... } } (based on f0ck.js usage)
-      // The old query returned full item row. f0cklib.getRandom returns { itemid: ... } or { itemid: ... } (actually it returns { itemid: ... } on success)
+      const rows = await db`
+        SELECT *
+        FROM "items"
+        WHERE id = ${data.itemid} AND active = true
+        LIMIT 1
+      `;
+      const item = rows[0];
 
-      // We need to fetch the item details if the frontend expects them?
-      // Looking at f0ck.js: 
-      // if (data.success && data.items && data.items.id) { loadItemAjax(`/${data.items.id}`, true); }
-      // So it only really needs the ID.
+      if (!item) {
+        return res.json({
+          success: false,
+          items: []
+        });
+      }
+
+      const isYouTube = item.mime === 'video/youtube';
+      const relativeDest = isYouTube ? item.dest : `${cfg.websrv.paths.images}/${item.dest}`;
+      const directUrl = isYouTube ? item.dest : `${cfg.main.url.full}${cfg.websrv.paths.images}/${item.dest}`;
+
+      const { username, src, xd_score, ...safeItem } = item;
 
       return res.json({
         success: true,
-        items: { id: data.itemid }
+        items: {
+          ...safeItem,
+          id: item.id,
+          dest: relativeDest,
+          url: directUrl,
+          direct_url: directUrl
+        }
       });
     });
     
