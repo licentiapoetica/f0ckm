@@ -283,3 +283,22 @@ canvas#memeCanvas {
     box-shadow: 0 0 25px rgba(159, 255, 0, 0.4) !important;
 }
 
+/* Sidebar space reservation for meme pages */
+.meme-layout-wrapper {
+    width: 100%;
+    transition: padding-right 0.3s ease-in-out;
+}
+
+@media (min-width: 1200px) {
+    /* Reserve space for the fixed sidebar so content doesn't flow behind it */
+    .meme-layout-wrapper {
+        padding-right: 300px;
+    }
+
+    /* Collapse reserved space when sidebar is hidden */
+    body.sidebar-right-hidden .meme-layout-wrapper {
+        padding-right: 0;
+    }
+}
+
+
