@@ -1721,9 +1721,8 @@ body.sidebar-right-hidden .global-sidebar-right {
     grid-column: 2;
     height: calc(100vh - var(--navbar-h, 50px));
     display: grid;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto 1fr;
     justify-items: center;
-    align-content: center;
     overflow: hidden;
     padding: 20px;
     min-height: 0;
@@ -1732,15 +1731,16 @@ body.sidebar-right-hidden .global-sidebar-right {
   }
 
   body.layout-modern .item-layout-container .item-main-content ._204863 {
-    align-self: end;
+    align-self: start;
   }
 
   body.layout-modern .item-layout-container .item-main-content .content {
-    align-self: center;
+    align-self: start;
   }
 
   body.layout-modern .item-layout-container .item-main-content .metadata {
     align-self: start;
+    overflow: auto;
   }
 
   /* Sidebar toggle: hide left sidebar (e.g. keybind toggle) */
@@ -8494,7 +8494,6 @@ html[theme="f0ck95d"] .badge-dark {
 .blahlol {
   grid-column: 1 / 4;
   width: 100%;
-  background: rgba(0, 0, 0, 0.2);
 }
 
 
