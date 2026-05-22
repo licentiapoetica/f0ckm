@@ -1780,5 +1780,146 @@
         });
     }
 
+    // ============================================================
+    // Upload API Key Management
+    // ============================================================
+    const apiKeyStatusBox   = document.getElementById('api-key-status-box');
+    const apiKeyRevealBox   = document.getElementById('api-key-reveal');
+    const apiKeyFullDisplay = document.getElementById('api-key-full-display');
+    const btnCopyApiKey     = document.getElementById('btn-copy-api-key');
+    const btnRegenApiKey    = document.getElementById('btn-regen-api-key');
+    const btnRevokeApiKey   = document.getElementById('btn-revoke-api-key');
+    const apiKeyActionStatus = document.getElementById('api-key-action-status');
+
+    const showApiKeyStatus = (msg, type) => {
+        if (!apiKeyActionStatus) return;
+        apiKeyActionStatus.textContent = msg;
+        apiKeyActionStatus.className = 'avatar-status ' + (type || '');
+    };
+
+    const renderApiKeyState = (hasKey, preview, createdAt) => {
+        if (!apiKeyStatusBox) return;
+        if (hasKey) {
+            const date = createdAt ? new Date(createdAt).toLocaleString() : 'unknown';
+            apiKeyStatusBox.innerHTML =
+                `<span>Active key: <code style="font-size:0.9em;">${escHTML(preview)}</code></span>` +
+                `<span style="color:var(--text-muted); margin-left:12px; font-size:0.85em;">Created: ${escHTML(date)}</span>`;
+            if (btnRevokeApiKey) btnRevokeApiKey.style.display = '';
+        } else {
+            apiKeyStatusBox.innerHTML = '<span class="text-muted">No API key generated yet.</span>';
+            if (btnRevokeApiKey) btnRevokeApiKey.style.display = 'none';
+        }
+    };
+
+    // Load current state
+    if (apiKeyStatusBox) {
+        (async () => {
+            try {
+                const res = await fetch('/api/v2/settings/api-key');
+                const data = await res.json();
+                if (data.success) {
+                    renderApiKeyState(data.has_key, data.preview, data.created_at);
+                } else {
+                    apiKeyStatusBox.innerHTML = '<span class="text-muted">Could not load key info.</span>';
+                }
+            } catch (e) {
+                apiKeyStatusBox.innerHTML = '<span class="text-muted">Could not load key info.</span>';
+            }
+        })();
+    }
+
+    // Generate / Regenerate
+    if (btnRegenApiKey) {
+        btnRegenApiKey.addEventListener('click', async () => {
+            if (btnRevokeApiKey && btnRevokeApiKey.style.display !== 'none') {
+                // Key already exists — warn the user
+                if (!confirm('Regenerating will immediately invalidate your current API key. Continue?')) return;
+            }
+
+            btnRegenApiKey.disabled = true;
+            btnRegenApiKey.textContent = 'Generating…';
+            showApiKeyStatus('', '');
+
+            try {
+                const res = await fetch('/api/v2/settings/api-key/regenerate', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Show one-time reveal box
+                    if (apiKeyFullDisplay) apiKeyFullDisplay.textContent = data.api_key;
+                    if (apiKeyRevealBox) apiKeyRevealBox.style.display = '';
+
+                    // Update status row to masked preview
+                    const preview = '****' + data.api_key.slice(-8);
+                    renderApiKeyState(true, preview, new Date().toISOString());
+                    showApiKeyStatus('Key generated. Copy it now — it will not be shown in full again.', 'success');
+                } else {
+                    showApiKeyStatus(data.msg || 'Failed to generate key.', 'error');
+                }
+            } catch (e) {
+                showApiKeyStatus('Request failed.', 'error');
+            } finally {
+                btnRegenApiKey.disabled = false;
+                btnRegenApiKey.textContent = 'Generate / Regenerate Key';
+            }
+        });
+    }
+
+    // Copy key to clipboard
+    if (btnCopyApiKey) {
+        btnCopyApiKey.addEventListener('click', async () => {
+            const key = apiKeyFullDisplay?.textContent?.trim();
+            if (!key) return;
+            try {
+                await navigator.clipboard.writeText(key);
+                const orig = btnCopyApiKey.textContent;
+                btnCopyApiKey.textContent = 'Copied!';
+                setTimeout(() => { btnCopyApiKey.textContent = orig; }, 2000);
+            } catch (e) {
+                // Fallback: select the text
+                const range = document.createRange();
+                range.selectNodeContents(apiKeyFullDisplay);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        });
+    }
+
+    // Revoke key
+    if (btnRevokeApiKey) {
+        btnRevokeApiKey.addEventListener('click', async () => {
+            if (!confirm('Revoke your API key? This cannot be undone — you will need to generate a new one.')) return;
+
+            btnRevokeApiKey.disabled = true;
+            btnRevokeApiKey.textContent = 'Revoking…';
+
+            try {
+                const res = await fetch('/api/v2/settings/api-key', {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    renderApiKeyState(false, null, null);
+                    if (apiKeyRevealBox) apiKeyRevealBox.style.display = 'none';
+                    if (apiKeyFullDisplay) apiKeyFullDisplay.textContent = '';
+                    showApiKeyStatus('API key revoked.', 'success');
+                } else {
+                    showApiKeyStatus(data.msg || 'Failed to revoke key.', 'error');
+                    btnRevokeApiKey.disabled = false;
+                    btnRevokeApiKey.textContent = 'Revoke Key';
+                }
+            } catch (e) {
+                showApiKeyStatus('Request failed.', 'error');
+                btnRevokeApiKey.disabled = false;
+                btnRevokeApiKey.textContent = 'Revoke Key';
+            }
+        });
+    }
 
 })();

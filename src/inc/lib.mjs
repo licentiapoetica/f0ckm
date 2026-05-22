@@ -334,6 +334,67 @@ export default new class {
     return next();
   };
 
+  // Middleware: authenticate via X-Api-Key header (upload-only)
+  async apiKeyAuth(req, res, next) {
+    const key = req.headers['x-api-key'];
+    if (!key) {
+      return res.reply({
+        code: 401,
+        body: JSON.stringify({ success: false, msg: 'API key required' }),
+        type: 'application/json'
+      });
+    }
+
+    let row;
+    try {
+      const rows = await db`
+        SELECT
+          u.id, u.user, u.login, u.admin, u.is_moderator, u.banned,
+          uo.display_name, uo.mode, uo.theme, uo.avatar, uo.avatar_file,
+          uo.username_color, uo.show_motd, uo.disable_autoplay,
+          uo.disable_swiping, uo.use_new_layout, uo.excluded_tags,
+          uo.ruffle_background, uo.ruffle_volume, uo.quote_emojis,
+          uo.embed_youtube_in_comments, uo.hide_koepfe,
+          uo.use_alternative_infobox, uo.language, uo.comment_display_mode,
+          uo.force_comment_display_mode, uo.min_xd_score, uo.show_background,
+          uo.font, uo.receive_system_notifications, uo.receive_user_notifications,
+          uo.do_not_disturb, uo.description
+        FROM user_api_keys k
+        JOIN "user" u ON u.id = k.user_id
+        LEFT JOIN user_options uo ON uo.user_id = u.id
+        WHERE k.api_key = ${key}
+        LIMIT 1
+      `;
+      row = rows[0];
+    } catch (err) {
+      console.error('[API KEY AUTH] DB error:', err);
+      return res.reply({
+        code: 500,
+        body: JSON.stringify({ success: false, msg: 'Internal server error' }),
+        type: 'application/json'
+      });
+    }
+
+    if (!row) {
+      return res.reply({
+        code: 401,
+        body: JSON.stringify({ success: false, msg: 'Invalid API key' }),
+        type: 'application/json'
+      });
+    }
+
+    if (row.banned) {
+      return res.reply({
+        code: 403,
+        body: JSON.stringify({ success: false, msg: 'Account banned' }),
+        type: 'application/json'
+      });
+    }
+
+    req.session = { ...row, api_key_auth: true };
+    return next();
+  };
+
   getCookieOptions(expires = null, httpOnly = true) {
     const isSecure = cfg.main.url.full && cfg.main.url.full.startsWith('https');
     let options = "Path=/; SameSite=Lax";

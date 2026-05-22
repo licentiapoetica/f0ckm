@@ -20,6 +20,9 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 DROP PUBLICATION IF EXISTS alltables;
+ALTER TABLE IF EXISTS ONLY public.user_api_keys DROP CONSTRAINT IF EXISTS user_api_keys_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.user_api_keys DROP CONSTRAINT IF EXISTS user_api_keys_api_key_key;
+ALTER TABLE IF EXISTS ONLY public.user_api_keys DROP CONSTRAINT IF EXISTS user_api_keys_pkey;
 ALTER TABLE IF EXISTS ONLY public.user_warnings DROP CONSTRAINT IF EXISTS user_warnings_user_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.user_warnings DROP CONSTRAINT IF EXISTS user_warnings_admin_id_fkey;
 ALTER TABLE IF EXISTS ONLY public.user_video_views DROP CONSTRAINT IF EXISTS user_video_views_video_id_fkey;
@@ -91,6 +94,7 @@ DROP INDEX IF EXISTS public.idx_user_last_seen;
 DROP INDEX IF EXISTS public.idx_user_halls_user_id;
 DROP INDEX IF EXISTS public.idx_user_halls_assign_item;
 DROP INDEX IF EXISTS public.idx_user_halls_assign_hall;
+DROP INDEX IF EXISTS public.idx_user_api_keys_api_key;
 DROP INDEX IF EXISTS public.idx_user_alias_userid;
 DROP INDEX IF EXISTS public.idx_user_alias_type;
 DROP INDEX IF EXISTS public.idx_user_alias_alias;
@@ -191,6 +195,7 @@ DROP TABLE IF EXISTS public.user_halls_assign;
 DROP TABLE IF EXISTS public.user_halls;
 DROP TABLE IF EXISTS public.user_dm_keyvault;
 DROP TABLE IF EXISTS public.user_conversation_states;
+DROP TABLE IF EXISTS public.user_api_keys;
 DROP TABLE IF EXISTS public.user_alias;
 DROP TABLE IF EXISTS public."user";
 DROP SEQUENCE IF EXISTS public.user_id_seq;
@@ -1327,6 +1332,23 @@ CREATE TABLE public."user" (
 ALTER TABLE public."user" OWNER TO f0ckm;
 
 --
+-- Name: user_api_keys; Type: TABLE; Schema: public; Owner: f0ckm
+--
+
+CREATE TABLE public.user_api_keys (
+    user_id    integer NOT NULL,
+    api_key    text    NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT user_api_keys_pkey PRIMARY KEY (user_id),
+    CONSTRAINT user_api_keys_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE,
+    CONSTRAINT user_api_keys_api_key_key UNIQUE (api_key)
+);
+
+ALTER TABLE public.user_api_keys OWNER TO f0ckm;
+
+
+--
 -- Name: user_alias; Type: TABLE; Schema: public; Owner: f0ckm
 --
 
@@ -2242,6 +2264,13 @@ CREATE INDEX idx_user_alias_userid ON public.user_alias USING btree (userid);
 
 
 --
+-- Name: idx_user_api_keys_api_key; Type: INDEX; Schema: public; Owner: f0ckm
+--
+
+CREATE INDEX idx_user_api_keys_api_key ON public.user_api_keys USING btree (api_key);
+
+
+--
 -- Name: idx_user_halls_assign_hall; Type: INDEX; Schema: public; Owner: f0ckm
 --
 
@@ -2719,6 +2748,14 @@ ALTER TABLE ONLY public.user_warnings
 
 ALTER TABLE ONLY public.user_warnings
     ADD CONSTRAINT user_warnings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_api_keys user_api_keys_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public.user_api_keys
+    ADD CONSTRAINT user_api_keys_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --

@@ -3,6 +3,7 @@ import lib from '../../lib.mjs';
 import cfg from '../../config.mjs';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 
 // Note: Avatar upload/delete is handled by middleware in index.mjs via avatar_handler.mjs
 // These routes remain for other settings API endpoints
@@ -723,6 +724,81 @@ export default router => {
       } catch (e) {
         console.error(`Update notification preference (${key}) error:`, e);
         return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
+    // --- Upload API Key Management ---
+
+    // GET /api/v2/settings/api-key
+    // Returns whether the user has an API key, when it was created, and the last 8 chars (masked preview).
+    group.get(/\/api-key$/, lib.loggedin, async (req, res) => {
+      try {
+        const row = (await db`
+          SELECT api_key, created_at
+          FROM user_api_keys
+          WHERE user_id = ${+req.session.id}
+          LIMIT 1
+        `)[0];
+
+        if (!row) {
+          return res.json({ success: true, has_key: false }, 200);
+        }
+
+        return res.json({
+          success: true,
+          has_key: true,
+          preview: `****${row.api_key.slice(-8)}`,
+          created_at: row.created_at
+        }, 200);
+      } catch (e) {
+        console.error('[API KEY] GET error:', e);
+        return res.json({ success: false, msg: 'Error fetching API key' }, 500);
+      }
+    });
+
+    // POST /api/v2/settings/api-key/regenerate
+    // Generates a new key (or replaces an existing one). Returns the full key — only shown once.
+    group.post(/\/api-key\/regenerate$/, lib.loggedin, async (req, res) => {
+      try {
+        const newKey = crypto.randomBytes(32).toString('hex');
+
+        await db`
+          INSERT INTO user_api_keys (user_id, api_key, created_at)
+          VALUES (${+req.session.id}, ${newKey}, now())
+          ON CONFLICT (user_id) DO UPDATE
+            SET api_key = EXCLUDED.api_key,
+                created_at = now()
+        `;
+
+        return res.json({
+          success: true,
+          api_key: newKey,
+          msg: 'API key generated. Copy it now — it will not be shown again in full.'
+        }, 200);
+      } catch (e) {
+        console.error('[API KEY] Regenerate error:', e);
+        return res.json({ success: false, msg: 'Error generating API key' }, 500);
+      }
+    });
+
+    // DELETE /api/v2/settings/api-key
+    // Revokes (deletes) the user's API key.
+    group.delete(/\/api-key$/, lib.loggedin, async (req, res) => {
+      try {
+        const result = await db`
+          DELETE FROM user_api_keys
+          WHERE user_id = ${+req.session.id}
+          RETURNING user_id
+        `;
+
+        if (result.length === 0) {
+          return res.json({ success: false, msg: 'No API key to revoke' }, 404);
+        }
+
+        return res.json({ success: true, msg: 'API key revoked' }, 200);
+      } catch (e) {
+        console.error('[API KEY] Delete error:', e);
+        return res.json({ success: false, msg: 'Error revoking API key' }, 500);
       }
     });
 

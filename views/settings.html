@@ -407,6 +407,38 @@
       </div>
       @endif
 
+      <h2>Upload API Key</h2>
+      <div id="api-key-section" class="account-settings-wrapper"
+        style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
+        <p style="color: var(--text-muted); margin-bottom: 15px;">
+          Use this key to upload files via external tools or scripts without a browser session.
+          The key grants <strong>upload access only</strong> to your account — it cannot be used for comments or any other action.
+        </p>
+
+        <div id="api-key-status-box" style="margin-bottom: 15px;">
+          <span class="text-muted" id="api-key-loading-text">Loading&hellip;</span>
+        </div>
+
+        <!-- Shown only after regenerate — full key revealed once for copying -->
+        <div id="api-key-reveal" style="display:none; margin-bottom: 15px;">
+          <div style="background: rgba(0,180,100,0.12); border: 1px solid rgba(0,180,100,0.4); border-radius: 4px; padding: 14px;">
+            <strong style="display:block; margin-bottom: 6px;">&#9888; Copy your key now &mdash; it will not be shown again in full:</strong>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <code id="api-key-full-display"
+                style="flex: 1; word-break: break-all; font-size: 0.85em; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; user-select: all;"></code>
+              <button type="button" id="btn-copy-api-key" class="button"
+                style="white-space: nowrap; padding: 6px 14px;">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <button type="button" id="btn-regen-api-key" class="button button-primary">Generate / Regenerate Key</button>
+          <button type="button" id="btn-revoke-api-key" class="button button-danger" style="display:none;">Revoke Key</button>
+        </div>
+        <div id="api-key-action-status" class="avatar-status" style="margin-top: 10px;"></div>
+      </div>
+
       <style>
         @keyframes exportDotBounce {
           0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }

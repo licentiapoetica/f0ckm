@@ -37,14 +37,40 @@ export const handleUpload = async (req, res, self) => {
         }
     }
 
+    // Fallback: authenticate via X-Api-Key header (upload-only; no CSRF required)
+    if (!req.session && req.headers['x-api-key']) {
+        const key = req.headers['x-api-key'];
+        try {
+            const rows = await db`
+                SELECT u.id, u.user, u.login, u.admin, u.is_moderator, u.banned,
+                       uo.*
+                FROM user_api_keys k
+                JOIN "user" u ON u.id = k.user_id
+                LEFT JOIN user_options uo ON uo.user_id = u.id
+                WHERE k.api_key = ${key}
+                LIMIT 1
+            `;
+            if (rows.length > 0) {
+                if (rows[0].banned) {
+                    return sendJson(res, { success: false, msg: 'Account banned' }, 403);
+                }
+                req.session = { ...rows[0], api_key_auth: true };
+            }
+        } catch (err) {
+            console.error('[UPLOAD] API key lookup error:', err);
+        }
+    }
+
     if (!req.session) {
         return sendJson(res, { success: false, msg: 'Unauthorized' }, 401);
     }
 
-    // CSRF validation — must happen after session lookup since flummpress middlewares run in parallel.
-    const csrfToken = req.headers['x-csrf-token'];
-    if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
-        return sendJson(res, { success: false, msg: 'Invalid CSRF token' }, 403);
+    // CSRF validation — required for browser sessions, skipped for API key auth.
+    if (!req.session.api_key_auth) {
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
+            return sendJson(res, { success: false, msg: 'Invalid CSRF token' }, 403);
+        }
     }
 
     try {
@@ -157,10 +183,11 @@ export const handleUpload = async (req, res, self) => {
                 AND stamp > ${twelveHoursAgo} 
                 AND is_deleted = false
             `;
-            if (parseInt(uploadCount[0].count) >= 69) {
+            const uploadLimit = cfg.main.upload_limit ?? 69;
+            if (parseInt(uploadCount[0].count) >= uploadLimit) {
                 return sendJson(res, {
                     success: false,
-                    msg: 'Rate limit exceeded. You can only upload 69 files every 12 hours.'
+                    msg: `Rate limit exceeded. You can only upload ${uploadLimit} files every 12 hours.`
                 }, 429);
             }
         }
@@ -634,7 +661,8 @@ export const handleUpload = async (req, res, self) => {
             msg: successMsg,
             itemid: itemid,
             manual_approval: manualApproval,
-            redirect: !manualApproval ? `/${itemid}` : null
+            redirect: !manualApproval ? `/${itemid}` : null,
+            url: !manualApproval ? `${cfg.main.url.full}/${itemid}` : null
         });
 
     } catch (err) {
