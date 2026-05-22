@@ -344,15 +344,21 @@ window.cancelAnimFrame = (function () {
     badge.innerHTML = badgeText + zomgHtml;
 
     if (hasMimeFilter) {
-      const dotsContainer = document.createElement('span');
-      dotsContainer.className = 'filter-mime-dots';
+      const iconsContainer = document.createElement('span');
+      iconsContainer.className = 'filter-mime-icons';
       selectedMimes.forEach(mime => {
-        const dot = document.createElement('span');
-        dot.className = `mime-dot mime-dot-${mime}`;
-        dot.title = mime.charAt(0).toUpperCase() + mime.slice(1);
-        dotsContainer.appendChild(dot);
+        const icon = document.createElement('i');
+        let iconClass = 'mime-icon ';
+        if (mime === 'audio') iconClass += 'fa-solid fa-music mime-icon-audio';
+        else if (mime === 'image') iconClass += 'fa-solid fa-image mime-icon-image';
+        else if (mime === 'video') iconClass += 'fa-solid fa-film mime-icon-video';
+        else if (mime === 'flash') iconClass += 'fa-solid fa-bolt mime-icon-flash';
+        
+        icon.className = iconClass;
+        icon.title = mime.charAt(0).toUpperCase() + mime.slice(1);
+        iconsContainer.appendChild(icon);
       });
-      badge.appendChild(dotsContainer);
+      badge.appendChild(iconsContainer);
     }
 
     badge.style.display = 'inline-flex';

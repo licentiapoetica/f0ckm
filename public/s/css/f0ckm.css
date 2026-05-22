@@ -14395,7 +14395,6 @@ body.scroller-active #gchat-reopen-bubble {
 .filter-badge {
   position: absolute;
   bottom: -13px;
-  right: -5px;
   font-size: 8px;
   font-weight: 800;
   padding: 1px 4px;
@@ -14434,20 +14433,21 @@ body.scroller-active #gchat-reopen-bubble {
   /* Slate grey */
 }
 
-/* Dynamic MIME dots styles */
-.filter-mime-dots {
+/* Dynamic MIME icons styles */
+.filter-mime-icons {
   display: inline-flex;
-  gap: 2px;
-  margin-left: 2px;
+  gap: 3px;
+  margin-left: 4px;
   align-items: center;
 }
 
-.mime-dot {
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  box-shadow: 0 0 1px rgba(0, 0, 0, 0.8);
+.mime-icon {
+  font-size: 7px !important;
+  width: auto !important;
+  /* Override navbar icon fixed width */
+  text-align: center;
+  line-height: 1;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
   animation: dot-fade-in 0.2s ease-out forwards;
 }
 
@@ -14463,28 +14463,20 @@ body.scroller-active #gchat-reopen-bubble {
   }
 }
 
-.mime-dot-video {
-  background-color: #00bcd4;
-  /* Cyan */
-  box-shadow: 0 0 3px #00bcd4;
+.mime-icon-video {
+  text-shadow: 0 0 3px #00bcd4;
 }
 
-.mime-dot-image {
-  background-color: #2ecc71;
-  /* Green */
-  box-shadow: 0 0 3px #2ecc71;
+.mime-icon-image {
+  text-shadow: 0 0 3px #2ecc71;
 }
 
-.mime-dot-audio {
-  background-color: #e84393;
-  /* Pink */
-  box-shadow: 0 0 3px #e84393;
+.mime-icon-audio {
+  text-shadow: 0 0 3px #e84393;
 }
 
-.mime-dot-flash {
-  background-color: #f1c40f;
-  /* Yellow */
-  box-shadow: 0 0 3px #f1c40f;
+.mime-icon-flash {
+  text-shadow: 0 0 3px #f1c40f;
 }
 
 /* ZOMG Mode glowing Z indicator */
