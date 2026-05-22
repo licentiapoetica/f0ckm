@@ -14234,6 +14234,7 @@ body.scroller-active #gchat-reopen-bubble {
   box-sizing: border-box;
   word-break: break-word;
   overflow-wrap: anywhere;
+  padding: 20px;
 }
 
 .settings h1,
