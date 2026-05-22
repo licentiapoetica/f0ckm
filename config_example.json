@@ -71,6 +71,7 @@
     "meme_creator": true,
     "enable_cleanup": false,
     "enable_data_export": true,
+    "enable_user_api_keys": true,
     "cleanup_timeframe_days": 30,
     "web_url_upload": true,
     "enable_youtube_upload": true,

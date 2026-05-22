@@ -38,7 +38,7 @@ export const handleUpload = async (req, res, self) => {
     }
 
     // Fallback: authenticate via X-Api-Key header (upload-only; no CSRF required)
-    if (!req.session && req.headers['x-api-key']) {
+    if (!req.session && req.headers['x-api-key'] && cfg.websrv.enable_user_api_keys !== false) {
         const key = req.headers['x-api-key'];
         try {
             const rows = await db`
@@ -108,7 +108,7 @@ export const handleUpload = async (req, res, self) => {
 
         const is_oc = (parts.is_oc === 'true' || parts.is_oc === '1');
 
-        const is_shitpost = (parts.is_shitpost === 'true' || parts.is_shitpost === '1');
+        const is_shitpost = (parts.is_shitpost === 'true' || parts.is_shitpost === '1') || cfg.websrv.shitpost_mode === true;
 
         const maxLen = cfg.main.comment_max_length;
         if (comment && maxLen !== null && maxLen !== undefined && comment.length > maxLen) {

@@ -407,6 +407,7 @@
       </div>
       @endif
 
+      @if(enable_user_api_keys)
       <h2>Upload API Key</h2>
       <div id="api-key-section" class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
@@ -438,6 +439,7 @@
         </div>
         <div id="api-key-action-status" class="avatar-status" style="margin-top: 10px;"></div>
       </div>
+      @endif
 
       <style>
         @keyframes exportDotBounce {

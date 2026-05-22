@@ -732,6 +732,9 @@ export default router => {
     // GET /api/v2/settings/api-key
     // Returns whether the user has an API key, when it was created, and the last 8 chars (masked preview).
     group.get(/\/api-key$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_api_keys === false) {
+        return res.json({ success: false, msg: 'API keys are disabled' }, 403);
+      }
       try {
         const row = (await db`
           SELECT api_key, created_at
@@ -759,6 +762,9 @@ export default router => {
     // POST /api/v2/settings/api-key/regenerate
     // Generates a new key (or replaces an existing one). Returns the full key — only shown once.
     group.post(/\/api-key\/regenerate$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_api_keys === false) {
+        return res.json({ success: false, msg: 'API keys are disabled' }, 403);
+      }
       try {
         const newKey = crypto.randomBytes(32).toString('hex');
 
@@ -784,6 +790,9 @@ export default router => {
     // DELETE /api/v2/settings/api-key
     // Revokes (deletes) the user's API key.
     group.delete(/\/api-key$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_api_keys === false) {
+        return res.json({ success: false, msg: 'API keys are disabled' }, 403);
+      }
       try {
         const result = await db`
           DELETE FROM user_api_keys
