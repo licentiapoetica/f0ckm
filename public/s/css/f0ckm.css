@@ -14390,3 +14390,98 @@ body.scroller-active #gchat-reopen-bubble {
   text-transform: uppercase;
   margin-bottom: 2px;
 }
+
+/* Filter badge style on navbar */
+.filter-badge {
+  position: absolute;
+  bottom: -6px;
+  font-size: 6px;
+  font-weight: 796;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #fff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  font-family: var(--font, monospace);
+  letter-spacing: 0.5px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-badge-sfw {
+  background: var(--badge-sfw, #68a728);
+}
+
+.filter-badge-nsfw {
+  background: var(--badge-nsfw, #E10DC3);
+}
+
+.filter-badge-nsfl {
+  background: var(--badge-nsfl, #660000);
+}
+
+.filter-badge-unt {
+  background: #ff9800;
+  /* Amber/Orange */
+}
+
+.filter-badge-all {
+  background: #555;
+  /* Slate grey */
+}
+
+/* Dynamic MIME dots styles */
+.filter-mime-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 2px;
+  align-items: center;
+}
+
+.mime-dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.8);
+  animation: dot-fade-in 0.2s ease-out forwards;
+}
+
+@keyframes dot-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mime-dot-video {
+  background-color: #00bcd4;
+  /* Cyan */
+  box-shadow: 0 0 3px #00bcd4;
+}
+
+.mime-dot-image {
+  background-color: #2ecc71;
+  /* Green */
+  box-shadow: 0 0 3px #2ecc71;
+}
+
+.mime-dot-audio {
+  background-color: #e84393;
+  /* Pink */
+  box-shadow: 0 0 3px #e84393;
+}
+
+.mime-dot-flash {
+  background-color: #f1c40f;
+  /* Yellow */
+  box-shadow: 0 0 3px #f1c40f;
+}

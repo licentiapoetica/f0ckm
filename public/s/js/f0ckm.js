@@ -274,8 +274,88 @@ window.cancelAnimFrame = (function () {
       });
     });
 
+    if (window.updateFilterBadge) window.updateFilterBadge();
   };
   window.updateMimeLabel = updateMimeLabel;
+
+  const updateFilterBadge = () => {
+    const badge = document.getElementById('nav-filter-badge');
+    if (!badge) return;
+
+    let activeMode = 0;
+    if (window.activeMode !== undefined) {
+      activeMode = window.activeMode;
+    } else {
+      const cookieMode = document.cookie.split('; ').find(row => row.startsWith('mode='));
+      if (cookieMode) {
+        activeMode = +cookieMode.split('=')[1];
+      } else if (window.f0ckSession && window.f0ckSession.mode !== undefined) {
+        activeMode = window.f0ckSession.mode;
+      }
+    }
+
+    let hasMimeFilter = false;
+    let mimeStr = '';
+    const cookieMime = document.cookie.split('; ').find(row => row.startsWith('mime='));
+    if (cookieMime) {
+      mimeStr = cookieMime.split('=')[1] || '';
+    }
+    const selectedMimes = mimeStr ? mimeStr.split(',').filter(m => ['video', 'audio', 'image', 'flash'].includes(m)) : [];
+    if (selectedMimes.length > 0) {
+      hasMimeFilter = true;
+    }
+
+    let badgeText = '';
+    let badgeClass = 'filter-badge';
+
+    switch (activeMode) {
+      case 0:
+        badgeText = 'SFW';
+        badgeClass += ' filter-badge-sfw';
+        break;
+      case 1:
+        badgeText = 'NSFW';
+        badgeClass += ' filter-badge-nsfw';
+        break;
+      case 4:
+        badgeText = 'NSFL';
+        badgeClass += ' filter-badge-nsfl';
+        break;
+      case 2:
+        badgeText = 'UNT';
+        badgeClass += ' filter-badge-unt';
+        break;
+      case 3:
+        badgeText = 'ALL';
+        badgeClass += ' filter-badge-all';
+        break;
+      default:
+        badgeText = 'SFW';
+        badgeClass += ' filter-badge-sfw';
+    }
+
+    badge.className = badgeClass;
+    badge.innerHTML = badgeText;
+
+    if (hasMimeFilter) {
+      const dotsContainer = document.createElement('span');
+      dotsContainer.className = 'filter-mime-dots';
+      selectedMimes.forEach(mime => {
+        const dot = document.createElement('span');
+        dot.className = `mime-dot mime-dot-${mime}`;
+        dot.title = mime.charAt(0).toUpperCase() + mime.slice(1);
+        dotsContainer.appendChild(dot);
+      });
+      badge.appendChild(dotsContainer);
+    }
+
+    badge.style.display = 'inline-flex';
+  };
+  window.updateFilterBadge = updateFilterBadge;
+
+  document.addEventListener('f0ck:modeChanged', () => {
+    updateFilterBadge();
+  });
   window.randomizeLogo = () => {
     const logoArr = window.f0ckBrandImages;
     if (!logoArr || !logoArr.length) return;
@@ -4548,6 +4628,7 @@ window.cancelAnimFrame = (function () {
   document.addEventListener('DOMContentLoaded', () => {
     initSearch();
     initExcludedTagsModal();
+    if (window.updateFilterBadge) window.updateFilterBadge();
   });
   // </search-overlay>
 

@@ -121,7 +121,22 @@
       <a href="/settings" title="Settings" class="desktop-only"><i class="fa-solid fa-gear"></i></a>
 
       <!-- Filter -->
-      <a href="#" id="nav-filter-btn" title="Filter"><i class="fa-solid fa-filter"></i></a>
+      <a href="#" id="nav-filter-btn" title="Filter" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
+        <i class="fa-solid fa-filter"></i>
+        @if(session.mode == 0)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-sfw">SFW</span>
+        @elseif(session.mode == 1)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-nsfw">NSFW</span>
+        @elseif(session.mode == 4)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-nsfl">NSFL</span>
+        @elseif(session.mode == 2)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-unt">UNT</span>
+        @elseif(session.mode == 3)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-all">ALL</span>
+        @else
+        <span id="nav-filter-badge" class="filter-badge filter-badge-sfw">SFW</span>
+        @endif
+      </a>
 
       <!-- Logout -->
       <a href="/logout" title="Logout" class="desktop-only"><i class="fa-solid fa-right-from-bracket"></i></a>
