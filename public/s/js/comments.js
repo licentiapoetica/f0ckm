@@ -3389,6 +3389,15 @@ class CommentSystem {
                 actions.querySelector('.save-edit-btn');
             actions.insertBefore(trigger, referenceNode);
             actions.insertBefore(spoilerBtn, trigger);
+
+            // Prevent trigger from blurring the textarea, keeping the keyboard open
+            trigger.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+            trigger.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                trigger.click();
+            }, { passive: false });
             if (this.isAdmin) {
                 const lockBtn = document.createElement('button');
                 lockBtn.id = 'lock-thread-btn';
@@ -3432,6 +3441,16 @@ class CommentSystem {
                 // Create picker only once
                 picker = document.createElement('div');
                 picker.className = 'emoji-picker';
+
+                // Prevent picker interactions from blurring the textarea, keeping the keyboard open
+                picker.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                });
+                picker.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const img = e.target.closest('img');
+                    if (img) img.click();
+                }, { passive: false });
 
                 if (this.customEmojis && Object.keys(this.customEmojis).length > 0) {
                     Object.keys(this.customEmojis).forEach(name => {
