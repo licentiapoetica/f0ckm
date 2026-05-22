@@ -1049,9 +1049,27 @@ class CommentSystem {
                 textarea.focus({ preventScroll: true });
                 textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                this._scrollReplyIntoView(textarea);
             }
         }
     }
+
+    _scrollReplyIntoView(textarea) {
+        const form = textarea.closest('.reply-input');
+        if (!form) return;
+
+        // Smooth scroll immediately
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // On mobile, the virtual keyboard takes a moment to appear and resizes the viewport.
+        // Doing a delayed scroll guarantees it is centered and fully visible within the resized viewport.
+        if (window.innerWidth <= 768) {
+            setTimeout(() => {
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+    }
+
 
     saveMediaState() {
         // Snapshot currently playing or paused-mid-way media elements
@@ -2612,6 +2630,7 @@ class CommentSystem {
                         textarea.focus({ preventScroll: true });
                         textarea.selectionStart = textarea.selectionEnd = start + quote.length;
                         textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        this._scrollReplyIntoView(textarea);
                     }
                 }
                 return;
