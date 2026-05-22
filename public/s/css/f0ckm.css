@@ -1693,10 +1693,9 @@ body.sidebar-right-hidden .global-sidebar-right {
     grid-template-columns: 400px minmax(0, 1fr) 300px;
     grid-template-rows: auto;
     flex: 1;
-    min-height: calc(100vh - var(--navbar-h, 50px));
+    height: calc(100vh - var(--navbar-h, 50px));
     width: 100%;
-    height: auto;
-    overflow: visible;
+    overflow: hidden;
     transition: grid-template-columns 0.3s ease;
   }
 
@@ -1720,13 +1719,12 @@ body.sidebar-right-hidden .global-sidebar-right {
 
   body.layout-modern .item-layout-container .item-main-content {
     grid-column: 2;
-    height: auto;
+    height: calc(100vh - var(--navbar-h, 50px));
     display: grid;
     grid-template-rows: auto auto auto;
     justify-items: center;
-    align-content: baseline;
-    /*with center the layout shifts when item has favs, with baseline it stays consistent and expands to the bottom cleanly */
-    overflow: visible;
+    align-content: center;
+    overflow: hidden;
     padding: 20px;
     min-height: 0;
     min-width: 0;
@@ -1747,6 +1745,10 @@ body.sidebar-right-hidden .global-sidebar-right {
 
   /* Sidebar toggle: hide left sidebar (e.g. keybind toggle) */
   body.layout-modern .item-layout-container.sidebar-hidden {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  body.layout-modern.sidebar-right-hidden .item-layout-container.sidebar-hidden {
     grid-template-columns: 1fr;
   }
 
@@ -2174,7 +2176,7 @@ body.sidebar-right-hidden .global-sidebar-right {
 
 .item-layout-container .item-main-content .embed-responsive {
   width: 100%;
-  max-width: calc(100vh * (16 / 9));
+  max-width: calc((100vh - 180px) * (16 / 9));
   /* Cap width based on viewport height to fit vertically */
   margin: 0 auto;
 }
@@ -10023,10 +10025,10 @@ body.layout-legacy .navbar-header {
     overflow-y: auto;
   }
 
-  /* Removed app-like viewport lock to enable body scrolling */
+  /* Viewport lock to enable full app view and prevent scrollbars */
   body.layout-modern:has(.item-layout-container) {
-    overflow: visible;
-    height: auto;
+    overflow: hidden;
+    height: 100vh;
   }
 
   body.layout-modern>.pagewrapper {
@@ -10043,14 +10045,16 @@ body.layout-legacy .navbar-header {
 
   body.layout-modern:has(.item-layout-container)>.pagewrapper {
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
+    height: calc(100vh - var(--navbar-h, 50px));
   }
 
 
   body.layout-modern:has(.item-layout-container)>.pagewrapper>#main,
   body.layout-modern:has(.item-layout-container)>#main {
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
+    height: 100%;
   }
 }
 
