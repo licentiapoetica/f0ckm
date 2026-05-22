@@ -3446,10 +3446,38 @@ class CommentSystem {
                 picker.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                 });
+
+                // Differentiate touch-scrolling from tap-to-select
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchMoved = false;
+
                 picker.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    touchMoved = false;
+                }, { passive: true });
+
+                picker.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    const diffX = Math.abs(touch.clientX - touchStartX);
+                    const diffY = Math.abs(touch.clientY - touchStartY);
+                    if (diffX > 10 || diffY > 10) {
+                        touchMoved = true;
+                    }
+                }, { passive: true });
+
+                picker.addEventListener('touchend', (e) => {
+                    if (touchMoved) {
+                        return; // Scroll gesture - let browser handle naturally
+                    }
+                    // Quick tap - prevent blur to keep keyboard open and click emoji
                     e.preventDefault();
                     const img = e.target.closest('img');
-                    if (img) img.click();
+                    if (img) {
+                        img.click();
+                    }
                 }, { passive: false });
 
                 if (this.customEmojis && Object.keys(this.customEmojis).length > 0) {
