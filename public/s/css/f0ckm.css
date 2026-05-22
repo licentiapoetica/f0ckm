@@ -14394,8 +14394,8 @@ body.scroller-active #gchat-reopen-bubble {
 /* Filter badge style on navbar */
 .filter-badge {
   position: absolute;
-  bottom: -6px;
-  right: -8px;
+  bottom: -13px;
+  right: -5px;
   font-size: 8px;
   font-weight: 800;
   padding: 1px 4px;
@@ -14489,7 +14489,8 @@ body.scroller-active #gchat-reopen-bubble {
 
 /* ZOMG Mode glowing Z indicator */
 .zomg-z {
-  color: #f1c40f; /* Gold/Yellow */
+  color: #f1c40f;
+  /* Gold/Yellow */
   font-weight: 900;
   text-shadow: 0 0 3px #f1c40f;
   margin-left: 2px;
@@ -14500,6 +14501,7 @@ body.scroller-active #gchat-reopen-bubble {
   from {
     text-shadow: 0 0 2px #f1c40f;
   }
+
   to {
     text-shadow: 0 0 6px #f1c40f, 0 0 10px #f1c40f;
   }
