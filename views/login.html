@@ -14,7 +14,7 @@
     <div class="flash-error" style="margin-bottom: 15px;">{{ error }}</div>
     @endif
     <input type="text" name="username" placeholder="{{ t('auth.username_placeholder') }}" autocomplete="off" required />
-    <input type="password" name="password" placeholder="{{ t('auth.password_placeholder') }}" autocomplete="off" required minlength="20" />
+    <input type="password" name="password" placeholder="{{ t('auth.password_placeholder') }}" autocomplete="off" required />
     <p><input type="checkbox" id="kmsi" name="kmsi" /> <label for="kmsi">{{ t('auth.stay_signed_in_label') }}</label></p>
     <button type="submit">{{ t('auth.login_title') }}</button>
     @if(smtp_enabled)

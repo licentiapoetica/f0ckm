@@ -525,7 +525,7 @@ window.cancelAnimFrame = (function () {
         const formData = new FormData(loginForm);
         const params = new URLSearchParams(formData);
 
-        if (formData.get('password') && formData.get('password').length < 10) {
+        if (!formData.get('password')) {
           let errDiv = loginForm.querySelector('.flash-error');
           if (!errDiv) {
             errDiv = document.createElement('div');

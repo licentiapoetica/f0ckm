@@ -195,7 +195,7 @@
         loginForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           const formData = new FormData(loginForm);
-          if (formData.get('password') && formData.get('password').length < 20) {
+          if (!formData.get('password')) {
             let errDiv = loginForm.querySelector('.flash-error');
             if (!errDiv) { errDiv = document.createElement('div'); errDiv.className = 'flash-error'; loginForm.insertBefore(errDiv, loginForm.firstChild); }
             errDiv.textContent = 'Invalid username or password.';

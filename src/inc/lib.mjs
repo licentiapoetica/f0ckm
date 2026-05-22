@@ -183,10 +183,30 @@ export default new class {
     return "$f0ck$" + salt + ":" + derivedKey.toString("hex");
   };
   async verify(str, hash) {
-    const [salt, key] = hash.substring(6).split(":");
-    const keyBuffer = Buffer.from(key, "hex");
-    const derivedKey = await scrypt(str, salt, 64);
-    return crypto.timingSafeEqual(keyBuffer, derivedKey);
+    if (typeof hash !== 'string') return false;
+
+    if (hash.startsWith("$f0ck$")) {
+      const parts = hash.substring(6).split(":");
+      if (parts.length !== 2) return false;
+      const [salt, key] = parts;
+      try {
+        const keyBuffer = Buffer.from(key, "hex");
+        const derivedKey = await scrypt(str, salt, 64);
+        return crypto.timingSafeEqual(keyBuffer, derivedKey);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    if (hash.length === 32) {
+      return this.md5(str) === hash;
+    }
+
+    if (hash.length === 64) {
+      return this.sha256(str) === hash;
+    }
+
+    return false;
   };
   async getTags(itemid) {
     const tags = await db`
