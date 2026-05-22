@@ -334,8 +334,14 @@ window.cancelAnimFrame = (function () {
         badgeClass += ' filter-badge-sfw';
     }
 
+    const isRandom = document.cookie.includes('random_mode=1');
+    let zomgHtml = '';
+    if (isRandom) {
+      zomgHtml = ' <span class="zomg-z" title="ZOMG Mode Active (Shuffle!)">Z</span>';
+    }
+
     badge.className = badgeClass;
-    badge.innerHTML = badgeText;
+    badge.innerHTML = badgeText + zomgHtml;
 
     if (hasMimeFilter) {
       const dotsContainer = document.createElement('span');
@@ -4642,6 +4648,7 @@ window.cancelAnimFrame = (function () {
         btn.classList.remove('active');
       }
     });
+    if (window.updateFilterBadge) window.updateFilterBadge();
   };
 
   const handleShuffleBtnClick = (btn) => {
