@@ -528,7 +528,11 @@
     "text_layer": "Textebene",
     "enter_text": "Text eingeben...",
     "size_label": "Größe",
-    "create_meme": "Meme erstellen:"
+    "create_meme": "Meme erstellen:",
+    "custom_template_title": "Eigene Vorlage",
+    "custom_template_tag": "Lokale Datei",
+    "select_image": "Eigenes Bild auswählen",
+    "choose_file_btn": "Bild aussuchen"
   },
   "timeago": {
     "just_now": "gerade eben",

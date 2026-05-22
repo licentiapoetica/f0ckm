@@ -528,7 +528,11 @@
     "text_layer": "Tekstlaag",
     "enter_text": "Voer tekst in...",
     "size_label": "Grootte",
-    "create_meme": "Meme Maken:"
+    "create_meme": "Meme Maken:",
+    "custom_template_title": "Eigen sjabloon gebruiken",
+    "custom_template_tag": "Lokaal bestand",
+    "select_image": "Selecteer eigen afbeelding",
+    "choose_file_btn": "Kies afbeelding"
   },
   "timeago": {
     "just_now": "zojuist",

@@ -29,6 +29,30 @@ export default (router, tpl) => {
         });
     });
 
+    // Custom meme template page
+    router.get(/^\/meme\/custom$/, lib.userauth, async (req, res) => {
+        if (!cfg.websrv.meme_creator) {
+            res.writeHead(404).end('Not Found');
+            return;
+        }
+        res.reply({
+            body: tpl.render('meme-creator', {
+                template: {
+                    id: 'custom',
+                    name: 'Custom Template',
+                    url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="%231a1a1b"/><text x="50%25" y="50%25" fill="%23888888" font-family="sans-serif" font-size="24" dominant-baseline="middle" text-anchor="middle">Click %22Choose Image%22 or Drag and Drop here</text></svg>',
+                    category: 'Custom',
+                    sub_category: ''
+                },
+                page_meta: {
+                    title: 'Create Meme - Custom Template',
+                    description: 'Create a meme using your own custom template',
+                    url: `https://${cfg.main.url.domain}/meme/custom`
+                }
+            }, req)
+        });
+    });
+
     // Meme creator page
     router.get(/^\/meme\/(?<id>[a-z0-9-]+)$/, lib.userauth, async (req, res) => {
         if (!cfg.websrv.meme_creator) {

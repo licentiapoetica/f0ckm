@@ -32,6 +32,14 @@
                     </div>
 
                     <div class="meme-controls">
+                        <div id="customTemplateSelector" class="form-group" style="margin-bottom: 20px;">
+                            <label for="customTemplateFile">{{ t('meme.select_image') }}</label>
+                            <input type="file" id="customTemplateFile" accept="image/*" style="display: none;">
+                            <button id="selectCustomFileBtn" type="button" class="btn btn-secondary btn-block">
+                                <i class="fa fa-image"></i> {{ t('meme.choose_file_btn') }}
+                            </button>
+                        </div>
+
                         <div id="textLayersContainer">
                             <!-- Dynamic inputs injected by JS -->
                         </div>

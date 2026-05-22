@@ -260,3 +260,26 @@ canvas#memeCanvas {
         gap: 10px;
     }
 }
+
+/* Custom Template Card & Drag Hover Styles */
+.custom-template-card .template-image-wrapper {
+    transition: background-color 0.2s ease;
+}
+
+.custom-template-card:hover .template-image-wrapper {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.custom-template-card i {
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.custom-template-card:hover i {
+    transform: scale(1.1);
+}
+
+.canvas-wrapper.drag-hover {
+    border-color: var(--accent, #9f0) !important;
+    box-shadow: 0 0 25px rgba(159, 255, 0, 0.4) !important;
+}
+

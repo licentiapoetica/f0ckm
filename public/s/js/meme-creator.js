@@ -82,11 +82,23 @@
             
             const defaultSize = 40;
             
-            // Initial layers
-            textLayers = [
-                { id: Date.now(), text: '', x: canvas.width / 2, y: 40, fontSize: defaultSize },
-                { id: Date.now() + 1, text: '', x: canvas.width / 2, y: canvas.height - 100, fontSize: defaultSize }
-            ];
+            // Initial layers - only set if we don't have any layers yet
+            if (textLayers.length === 0) {
+                textLayers = [
+                    { id: Date.now(), text: '', x: canvas.width / 2, y: 40, fontSize: defaultSize },
+                    { id: Date.now() + 1, text: '', x: canvas.width / 2, y: canvas.height - 100, fontSize: defaultSize }
+                ];
+            } else {
+                // Keep the text layers but adjust their coordinates to be in-bounds if they exceed new boundaries
+                textLayers.forEach(layer => {
+                    if (layer.x > canvas.width) {
+                        layer.x = canvas.width / 2;
+                    }
+                    if (layer.y > canvas.height) {
+                        layer.y = canvas.height - 100;
+                    }
+                });
+            }
             
             renderInputs();
             draw();
@@ -459,6 +471,77 @@
                 uploadBtn.disabled = false;
             }
         });
+
+        // Custom Local Image Selector logic
+        const fileInput = document.getElementById('customTemplateFile');
+        const selectFileBtn = document.getElementById('selectCustomFileBtn');
+        const canvasWrapper = document.querySelector('.canvas-wrapper');
+
+        const loadLocalImage = (file) => {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.src = event.target.result;
+                    
+                    // Update template metadata
+                    window.memeTemplate.name = file.name.replace(/\.[^/.]+$/, "");
+                    
+                    // Update header title dynamically
+                    const headerTitle = document.querySelector('.meme-title');
+                    if (headerTitle) {
+                        headerTitle.innerHTML = `${window.f0ckI18n?.meme?.create_meme || 'Create Meme:'} ${window.memeTemplate.name}`;
+                    }
+
+                    // Update tags input value if tags are present
+                    const tagsInput = document.getElementById('tags');
+                    if (tagsInput) {
+                        tagsInput.value = `meme, Custom, ${window.memeTemplate.name}`;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        if (selectFileBtn && fileInput) {
+            selectFileBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                loadLocalImage(file);
+            });
+        }
+
+        // HTML5 Drag & Drop Support
+        if (canvas && canvasWrapper) {
+            const preventDefaults = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            };
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                canvasWrapper.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                canvasWrapper.addEventListener(eventName, () => {
+                    canvasWrapper.classList.add('drag-hover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                canvasWrapper.addEventListener(eventName, () => {
+                    canvasWrapper.classList.remove('drag-hover');
+                }, false);
+            });
+
+            canvasWrapper.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const file = dt.files[0];
+                loadLocalImage(file);
+            }, false);
+        }
 
         // Initial draw
         setTimeout(draw, 300);
