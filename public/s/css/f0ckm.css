@@ -14412,6 +14412,7 @@ body.scroller-active #gchat-reopen-bubble {
   z-index: 10;
   display: inline-flex;
   align-items: center;
+  user-select: none;
 }
 
 .filter-badge-sfw {
