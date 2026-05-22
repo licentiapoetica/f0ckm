@@ -18,6 +18,7 @@
         let draggingLayer = null; 
         let hoveredLayer = null;
         let img = new Image();
+        let hasLoadedImage = window.memeTemplate.id !== 'custom' && window.memeTemplate.category !== 'Custom';
 
         const memeFont = 'Impact, Charcoal, sans-serif';
 
@@ -82,13 +83,13 @@
             
             const defaultSize = 40;
             
-            // Initial layers - only set if we don't have any layers yet
-            if (textLayers.length === 0) {
+            // Initial layers - only set if we don't have any layers yet and we have loaded an image
+            if (textLayers.length === 0 && hasLoadedImage) {
                 textLayers = [
                     { id: Date.now(), text: '', x: canvas.width / 2, y: 40, fontSize: defaultSize },
                     { id: Date.now() + 1, text: '', x: canvas.width / 2, y: canvas.height - 100, fontSize: defaultSize }
                 ];
-            } else {
+            } else if (hasLoadedImage) {
                 // Keep the text layers but adjust their coordinates to be in-bounds if they exceed new boundaries
                 textLayers.forEach(layer => {
                     if (layer.x > canvas.width) {
@@ -159,6 +160,10 @@
         }
 
         addTextBtn.addEventListener('click', () => {
+            if (!hasLoadedImage) {
+                window.flashMessage((window.f0ckI18n?.meme?.choose_image_first) || 'Please select an image first!', 3000, 'error');
+                return;
+            }
             textLayers.push({
                 id: Date.now(),
                 text: 'NEW TEXT',
@@ -300,6 +305,10 @@
         canvas.addEventListener('mousedown', onStart);
         // Upload
         uploadBtn.addEventListener('click', async () => {
+            if (!hasLoadedImage) {
+                window.flashMessage((window.f0ckI18n?.meme?.choose_image_first) || 'Please select an image first!', 3000, 'error');
+                return;
+            }
             const category = (window.memeTemplate && window.memeTemplate.category) ? window.memeTemplate.category.toLowerCase() : '';
             const subCategory = (window.memeTemplate && window.memeTemplate.sub_category) ? window.memeTemplate.sub_category.toLowerCase() : '';
             
@@ -481,6 +490,7 @@
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
+                    hasLoadedImage = true;
                     img.src = event.target.result;
                     
                     // Update template metadata
@@ -489,7 +499,8 @@
                     // Update header title dynamically
                     const headerTitle = document.querySelector('.meme-title');
                     if (headerTitle) {
-                        headerTitle.innerHTML = `${window.f0ckI18n?.meme?.create_meme || 'Create Meme:'} ${window.memeTemplate.name}`;
+                        const baseTitle = window.f0ckI18n?.meme?.create_meme || 'Create Meme:';
+                        headerTitle.innerHTML = `${baseTitle} ${window.memeTemplate.name}`;
                     }
 
                     // Update tags input value if tags are present

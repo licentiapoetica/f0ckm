@@ -536,7 +536,8 @@
     "custom_template_title": "Use Own Template",
     "custom_template_tag": "Local File",
     "select_image": "Select Custom Image",
-    "choose_file_btn": "Choose Image"
+    "choose_file_btn": "Choose Image",
+    "choose_image_first": "Please select an image first!"
   },
   "timeago": {
     "just_now": "just now",

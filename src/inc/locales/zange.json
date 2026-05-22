@@ -535,7 +535,8 @@
     "custom_template_title": "Eigene Vorlage nutzen",
     "custom_template_tag": "Lokale Datei",
     "select_image": "Eigenes Bild auswählen",
-    "choose_file_btn": "Bild aussuchen"
+    "choose_file_btn": "Bild aussuchen",
+    "choose_image_first": "Zuerst Vorlage auswählen"
   },
   "timeago": {
     "just_now": "gerade eben",
