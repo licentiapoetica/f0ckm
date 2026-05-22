@@ -84,6 +84,11 @@ export const handleUpload = async (req, res, self) => {
 
         const is_shitpost = (parts.is_shitpost === 'true' || parts.is_shitpost === '1');
 
+        const maxLen = cfg.main.comment_max_length;
+        if (comment && maxLen !== null && maxLen !== undefined && comment.length > maxLen) {
+            return sendJson(res, { success: false, msg: `Comment too long (max ${maxLen} characters)` }, 400);
+        }
+
         if (!file || !file.data) {
             return sendJson(res, { success: false, msg: 'No file provided' }, 400);
         }
@@ -380,7 +385,7 @@ export const handleUpload = async (req, res, self) => {
         }
 
         // Insert optional first comment
-        if (comment && comment.length > 0 && comment.length <= 2000) {
+        if (comment && comment.length > 0) {
             try {
                 await db`
                     INSERT INTO comments ${db({

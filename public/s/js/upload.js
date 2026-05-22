@@ -70,6 +70,8 @@ window.initUploadForm = (selector) => {
 
     // Dynamically get min tags requirement from DOM
     const minTags = parseInt(form.getAttribute('data-min-tags') || '3');
+    const commentMaxLenAttr = form.getAttribute('data-comment-max-length');
+    const commentMaxLen = (commentMaxLenAttr && commentMaxLenAttr !== 'null') ? parseInt(commentMaxLenAttr) : null;
 
     const isShitpost = form.classList.contains('shitpost-mode-active') || !!window.f0ckShitpostMode;
     let tags = [];
@@ -870,9 +872,10 @@ window.initUploadForm = (selector) => {
 
 
                 const commentPlaceholder = window.f0ckI18n?.upload_comment_placeholder || 'Comment (optional)...';
+                const maxLenHtml = (commentMaxLen !== null && !isNaN(commentMaxLen)) ? ` maxlength="${commentMaxLen}"` : '';
                 commentUI = `
                     <div class="item-comment-container">
-                        <textarea class="item-comment-input" placeholder="${window.escapeHtmlUpload(commentPlaceholder)}">${window.escapeHtmlUpload(item.comment || '')}</textarea>
+                        <textarea class="item-comment-input" placeholder="${window.escapeHtmlUpload(commentPlaceholder)}"${maxLenHtml}>${window.escapeHtmlUpload(item.comment || '')}</textarea>
                         <div class="item-comment-actions">
                             <button type="button" class="item-emoji-trigger" title="Emoji">&#x263A;</button>
                         </div>

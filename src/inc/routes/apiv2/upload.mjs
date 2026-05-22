@@ -204,6 +204,11 @@ export default router => {
 
                 const { url: inputUrl, rating, tags: tagsRaw, comment, is_oc, is_shitpost } = req.post || {};
 
+                const maxLen = cfg.main.comment_max_length;
+                if (comment && maxLen !== null && maxLen !== undefined && comment.length > maxLen) {
+                    return res.json({ success: false, msg: `Comment too long (max ${maxLen} characters)` }, 400);
+                }
+
                 if (!inputUrl || !inputUrl.trim()) {
                     return res.json({ success: false, msg: 'URL is required' }, 400);
                 }
