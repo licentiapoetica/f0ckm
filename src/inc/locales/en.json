@@ -64,7 +64,7 @@
     "remove_file": "Remove File",
     "cancel_upload": "Cancel Upload",
     "shitpost_success": "Successfully shitposted {n} items!",
-    "shitposting_status": "Shitposting",
+    "shitposting_status": "Uploading",
     "item_comment_placeholder": "Comment (optional)...",
     "item_tags_placeholder": "Tags...",
     "btn_add_urls": "Add URL(s)",
