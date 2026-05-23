@@ -1728,6 +1728,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     min-height: 0;
     min-width: 0;
     gap: 0;
+    overflow-y: scroll;
   }
 
   body.layout-modern .item-layout-container .item-main-content ._204863 {
