@@ -2831,4 +2831,12 @@ CREATE INDEX IF NOT EXISTS idx_dm_att_expires   ON public.dm_attachments(expires
 ALTER TABLE private_messages
     ADD COLUMN IF NOT EXISTS edited_at timestamp with time zone DEFAULT NULL;
 
+-- Wordfilter Table (Migration 009)
+CREATE TABLE IF NOT EXISTS public.wordfilter (
+    id SERIAL PRIMARY KEY,
+    word VARCHAR(255) UNIQUE NOT NULL,
+    replacement VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 \unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG

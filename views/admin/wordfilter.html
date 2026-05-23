@@ -16,7 +16,7 @@
     <!-- Rule Add Section -->
     <div class="wordfilter-form-container" style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 6px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.05);">
         <h4 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">Create Wordfilter Rule</h4>
-        <form id="wordfilter-form" onsubmit="event.preventDefault(); addRule(this);" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <form id="wordfilter-form" onsubmit="event.preventDefault(); window.wordfilterAdmin.addRule(this);" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 200px;">
                 <label for="word" style="display: block; margin-bottom: 6px; font-size: 0.9em; color: #ccc;">Target Word</label>
                 <input type="text" id="word" name="word" required placeholder="Word to match..." style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; border-radius: 4px; font-size: 1em;">
@@ -28,121 +28,129 @@
             <button type="submit" class="btn-upload" style="width: auto; padding: 11px 25px; margin-bottom: 1px;">Add Rule</button>
         </form>
         <span id="form-status" style="margin-top: 10px; display: block; font-weight: bold; font-size: 0.9em;"></span>
-    </div>
+     </div>
+ 
+     <!-- Active Rules List -->
+     <div class="wordfilter-table-container" style="background: rgba(0,0,0,0.1); border-radius: 6px; padding: 5px; border: 1px solid rgba(255,255,255,0.05);">
+         <table class="responsive-table">
+             <thead>
+                 <tr>
+                     <th>Original Word</th>
+                     <th>Replacement</th>
+                     <th>Created</th>
+                     <th style="text-align: right;">Actions</th>
+                 </tr>
+             </thead>
+             <tbody id="filter-list">
+                 <!-- Dynamically loaded -->
+             </tbody>
+         </table>
+         <div id="no-rules-msg" style="text-align: center; padding: 40px; color: #aaa; display: none;">
+             No wordfilter rules active. Add one above!
+         </div>
+     </div>
+ 
+     <script>
+        (function() {
+            const escapeHtml = (str) => {
+                if (!str) return '';
+                return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            };
 
-    <!-- Active Rules List -->
-    <div class="wordfilter-table-container" style="background: rgba(0,0,0,0.1); border-radius: 6px; padding: 5px; border: 1px solid rgba(255,255,255,0.05);">
-        <table class="responsive-table">
-            <thead>
-                <tr>
-                    <th>Original Word</th>
-                    <th>Replacement</th>
-                    <th>Created</th>
-                    <th style="text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="filter-list">
-                <!-- Dynamically loaded -->
-            </tbody>
-        </table>
-        <div id="no-rules-msg" style="text-align: center; padding: 40px; color: #aaa; display: none;">
-            No wordfilter rules active. Add one above!
-        </div>
-    </div>
+            const loadRules = async () => {
+                try {
+                    const res = await fetch('/api/v2/admin/wordfilter');
+                    const data = await res.json();
+                    if (data.success) {
+                        const tbody = document.getElementById('filter-list');
+                        const noRulesMsg = document.getElementById('no-rules-msg');
+                        if (!tbody) return;
 
-    <script>
-        const loadRules = async () => {
-            try {
-                const res = await fetch('/api/v2/admin/wordfilter');
-                const data = await res.json();
-                if (data.success) {
-                    const tbody = document.getElementById('filter-list');
-                    const noRulesMsg = document.getElementById('no-rules-msg');
-                    if (!tbody) return;
+                        if (!data.filters || data.filters.length === 0) {
+                            tbody.innerHTML = '';
+                            noRulesMsg.style.display = 'block';
+                            return;
+                        }
 
-                    if (!data.filters || data.filters.length === 0) {
-                        tbody.innerHTML = '';
-                        noRulesMsg.style.display = 'block';
-                        return;
+                        noRulesMsg.style.display = 'none';
+                        tbody.innerHTML = data.filters.map(f =>
+                            '<tr>' +
+                                '<td data-label="Original Word" style="font-weight: bold; color: var(--accent);">' + escapeHtml(f.word) + '</td>' +
+                                '<td data-label="Replacement" style="font-family: monospace; color: #fff;">' + escapeHtml(f.replacement) + '</td>' +
+                                '<td data-label="Created">' + (f.created_at ? new Date(f.created_at).toLocaleString() : '—') + '</td>' +
+                                '<td data-label="Actions" style="text-align: right;">' +
+                                    '<button onclick="window.wordfilterAdmin.deleteRule(' + f.id + ')" class="btn-remove" style="padding: 5px 12px; font-size: 0.85em; border-radius: 4px; border: 0; cursor: pointer;">Delete</button>' +
+                                '</td>' +
+                            '</tr>'
+                        ).join('');
                     }
-
-                    noRulesMsg.style.display = 'none';
-                    tbody.innerHTML = data.filters.map(f =>
-                        '<tr>' +
-                            '<td data-label="Original Word" style="font-weight: bold; color: var(--accent);">' + escapeHtml(f.word) + '</td>' +
-                            '<td data-label="Replacement" style="font-family: monospace; color: #fff;">' + escapeHtml(f.replacement) + '</td>' +
-                            '<td data-label="Created">' + (f.created_at ? new Date(f.created_at).toLocaleString() : '—') + '</td>' +
-                            '<td data-label="Actions" style="text-align: right;">' +
-                                '<button onclick="deleteRule(' + f.id + ')" class="btn-remove" style="padding: 5px 12px; font-size: 0.85em; border-radius: 4px; border: 0; cursor: pointer;">Delete</button>' +
-                            '</td>' +
-                        '</tr>'
-                    ).join('');
+                } catch (e) {
+                    console.error('Failed to load rules:', e);
                 }
-            } catch (e) {
-                console.error('Failed to load rules:', e);
-            }
-        };
+            };
 
-        const addRule = async (form) => {
-            const status = document.getElementById('form-status');
-            status.textContent = 'Saving...';
-            status.style.color = 'var(--accent)';
+            const addRule = async (form) => {
+                const status = document.getElementById('form-status');
+                status.textContent = 'Saving...';
+                status.style.color = 'var(--accent)';
 
-            try {
-                const res = await fetch('/api/v2/admin/wordfilter', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRF-Token': window.f0ckSession?.csrf_token
-                    },
-                    body: new URLSearchParams(new FormData(form))
-                });
-                const data = await res.json();
-                if (data.success) {
-                    status.textContent = 'Rule added successfully!';
-                    status.style.color = '#28a745';
-                    form.reset();
-                    loadRules();
-                    setTimeout(() => status.textContent = '', 3000);
-                } else {
-                    throw new Error(data.msg || 'Save failed');
+                try {
+                    const res = await fetch('/api/v2/admin/wordfilter', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        },
+                        body: new URLSearchParams(new FormData(form))
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        status.textContent = 'Rule added successfully!';
+                        status.style.color = '#28a745';
+                        form.reset();
+                        loadRules();
+                        setTimeout(() => status.textContent = '', 3000);
+                    } else {
+                        throw new Error(data.msg || 'Save failed');
+                    }
+                } catch (e) {
+                    status.textContent = 'Error: ' + e.message;
+                    status.style.color = '#d9534f';
                 }
-            } catch (e) {
-                status.textContent = 'Error: ' + e.message;
-                status.style.color = '#d9534f';
-            }
-        };
+            };
 
-        const deleteRule = async (id) => {
-            if (!confirm('Are you sure you want to delete this wordfilter rule?')) return;
-            try {
-                const res = await fetch('/api/v2/admin/wordfilter/delete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': window.f0ckSession?.csrf_token
-                    },
-                    body: JSON.stringify({ id })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    loadRules();
-                } else {
-                    alert('Delete failed: ' + data.msg);
+            const deleteRule = async (id) => {
+                if (!confirm('Are you sure you want to delete this wordfilter rule?')) return;
+                try {
+                    const res = await fetch('/api/v2/admin/wordfilter/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': window.f0ckSession?.csrf_token
+                        },
+                        body: JSON.stringify({ id })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        loadRules();
+                    } else {
+                        alert('Delete failed: ' + data.msg);
+                    }
+                } catch (e) {
+                    alert('Error deleting: ' + e.message);
                 }
-            } catch (e) {
-                alert('Error deleting: ' + e.message);
-            }
-        };
+            };
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
+            window.wordfilterAdmin = {
+                loadRules,
+                addRule,
+                deleteRule
+            };
 
-        // Initialize view
-        loadRules();
-    </script>
+            // Initialize view
+            loadRules();
+        })();
+     </script>
     </div>
 </div>
 </div>
