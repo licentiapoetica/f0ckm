@@ -719,6 +719,67 @@
         });
     }
 
+    // Granular Thumbnail Blur Toggles
+    const blurNsfwToggle = document.getElementById('blur_nsfw_toggle');
+    if (blurNsfwToggle) {
+        blurNsfwToggle.checked = localStorage.getItem('blurNsfw') === 'true';
+        blurNsfwToggle.addEventListener('change', () => {
+            const enabled = blurNsfwToggle.checked;
+            localStorage.setItem('blurNsfw', enabled ? 'true' : 'false');
+            if (enabled) {
+                document.documentElement.classList.add('blur-nsfw-active');
+            } else {
+                document.documentElement.classList.remove('blur-nsfw-active');
+            }
+            showStatus(enabled ? 'NSFW blurring enabled!' : 'NSFW blurring disabled!', 'success');
+        });
+    }
+
+    const blurNsflToggle = document.getElementById('blur_nsfl_toggle');
+    if (blurNsflToggle) {
+        blurNsflToggle.checked = localStorage.getItem('blurNsfl') === 'true';
+        blurNsflToggle.addEventListener('change', () => {
+            const enabled = blurNsflToggle.checked;
+            localStorage.setItem('blurNsfl', enabled ? 'true' : 'false');
+            if (enabled) {
+                document.documentElement.classList.add('blur-nsfl-active');
+            } else {
+                document.documentElement.classList.remove('blur-nsfl-active');
+            }
+            showStatus(enabled ? 'NSFL blurring enabled!' : 'NSFL blurring disabled!', 'success');
+        });
+    }
+
+    const blurSfwToggle = document.getElementById('blur_sfw_toggle');
+    if (blurSfwToggle) {
+        blurSfwToggle.checked = localStorage.getItem('blurSfw') === 'true';
+        blurSfwToggle.addEventListener('change', () => {
+            const enabled = blurSfwToggle.checked;
+            localStorage.setItem('blurSfw', enabled ? 'true' : 'false');
+            if (enabled) {
+                document.documentElement.classList.add('blur-sfw-active');
+            } else {
+                document.documentElement.classList.remove('blur-sfw-active');
+            }
+            showStatus(enabled ? 'SFW blurring enabled!' : 'SFW blurring disabled!', 'success');
+        });
+    }
+
+    const blurUntaggedToggle = document.getElementById('blur_untagged_toggle');
+    if (blurUntaggedToggle) {
+        blurUntaggedToggle.checked = localStorage.getItem('blurUntagged') === 'true';
+        blurUntaggedToggle.addEventListener('change', () => {
+            const enabled = blurUntaggedToggle.checked;
+            localStorage.setItem('blurUntagged', enabled ? 'true' : 'false');
+            if (enabled) {
+                document.documentElement.classList.add('blur-untagged-active');
+            } else {
+                document.documentElement.classList.remove('blur-untagged-active');
+            }
+            showStatus(enabled ? 'Untagged blurring enabled!' : 'Untagged blurring disabled!', 'success');
+        });
+    }
+
     // Background Blur Toggle
     const backgroundToggle = document.getElementById('show_background_toggle');
     if (backgroundToggle) {

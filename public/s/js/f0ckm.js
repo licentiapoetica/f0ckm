@@ -40,6 +40,11 @@ window.cancelAnimFrame = (function () {
   if (ua.includes('Chrome')) htmlEl.classList.add('is-chrome');
   if (ua.includes('Safari') && !ua.includes('Chrome')) htmlEl.classList.add('is-safari');
 
+  if (localStorage.getItem('blurNsfw') === 'true') htmlEl.classList.add('blur-nsfw-active');
+  if (localStorage.getItem('blurNsfl') === 'true') htmlEl.classList.add('blur-nsfl-active');
+  if (localStorage.getItem('blurSfw') === 'true') htmlEl.classList.add('blur-sfw-active');
+  if (localStorage.getItem('blurUntagged') === 'true') htmlEl.classList.add('blur-untagged-active');
+
   window.updateVisitIndicators = () => {
       try {
           // View indicators and counters have been permanently removed as requested.
@@ -138,8 +143,17 @@ window.cancelAnimFrame = (function () {
   window.initLazyLoading = () => {
     if (!('IntersectionObserver' in window)) {
         document.querySelectorAll('.lazy-thumb').forEach(thumb => {
-            if (thumb.dataset.bg) {
-                const finalBg = window.applyThumbCacheBust(thumb.dataset.bg);
+            let bg = thumb.dataset.bg;
+            if (bg) {
+                const mode = thumb.getAttribute('data-mode');
+                const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+                const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+                if (mode === 'nsfw' && blurNsfw && !thumb.classList.contains('revealed')) {
+                    bg = bg.replace('.webp', '_blur.webp');
+                } else if (mode === 'nsfl' && blurNsfl && !thumb.classList.contains('revealed')) {
+                    bg = bg.replace('.webp', '_blur.webp');
+                }
+                const finalBg = window.applyThumbCacheBust(bg);
                 thumb.style.backgroundImage = `url('${finalBg}')`;
                 thumb.classList.remove('lazy-thumb');
             }
@@ -154,6 +168,15 @@ window.cancelAnimFrame = (function () {
                     const thumb = entry.target;
                     let bg = thumb.dataset.bg;
                     if (bg && !thumb.classList.contains('loaded')) {
+                        const mode = thumb.getAttribute('data-mode');
+                        const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+                        const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+                        if (mode === 'nsfw' && blurNsfw && !thumb.classList.contains('revealed')) {
+                            bg = bg.replace('.webp', '_blur.webp');
+                        } else if (mode === 'nsfl' && blurNsfl && !thumb.classList.contains('revealed')) {
+                            bg = bg.replace('.webp', '_blur.webp');
+                        }
+
                         bg = window.applyThumbCacheBust(bg);
                         const img = new Image();
                         img.onload = () => {
@@ -8735,4 +8758,71 @@ if (navigator.vibrate) {
     if (window.resetGlobalScrollState) window.resetGlobalScrollState();
     if (window.hideAllModals) window.hideAllModals();
   });
+
+  // Global click interceptor for dynamically blurred thumbnails (NSFW, NSFL, SFW, Untagged)
+  document.addEventListener('click', (e) => {
+    // If no blur options are active, skip entirely
+    const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+    const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+    const blurSfw = localStorage.getItem('blurSfw') === 'true';
+    const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+    if (!blurNsfw && !blurNsfl && !blurSfw && !blurUntagged) return;
+    
+    // Check if they clicked the elegant hide-again button in the corner
+    const hideBtn = e.target.closest('.hide-thumb-btn');
+    if (hideBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const thumb = hideBtn.closest('a.thumb');
+      if (thumb) {
+        thumb.classList.remove('revealed');
+        hideBtn.remove();
+        
+        // Put the pre-blurred background image back if applicable
+        const baseBg = thumb.dataset.bg;
+        const mode = thumb.getAttribute('data-mode');
+        if (baseBg && (mode === 'nsfw' || mode === 'nsfl')) {
+          const finalBg = window.applyThumbCacheBust(baseBg.replace('.webp', '_blur.webp'));
+          thumb.style.backgroundImage = `url('${finalBg}')`;
+        }
+      }
+      return;
+    }
+    
+    const thumb = e.target.closest('a.thumb');
+    if (!thumb) return;
+    
+    // Determine if this thumbnail rating is set to be blurred
+    const mode = thumb.getAttribute('data-mode'); // 'nsfw', 'nsfl', 'sfw', or 'null' (untagged)
+    let shouldBlurThis = false;
+    if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+    else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+    else if (mode === 'sfw') shouldBlurThis = blurSfw;
+    else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+    
+    if (shouldBlurThis) {
+      if (!thumb.classList.contains('revealed')) {
+        e.preventDefault();
+        e.stopPropagation();
+        thumb.classList.add('revealed');
+        
+        // Dynamically load the standard unblurred background image
+        const baseBg = thumb.dataset.bg;
+        if (baseBg && (mode === 'nsfw' || mode === 'nsfl')) {
+          const finalBg = window.applyThumbCacheBust(baseBg);
+          thumb.style.backgroundImage = `url('${finalBg}')`;
+        }
+        
+        // Dynamically inject the hide-again eye-slash button inside <p>
+        const p = thumb.querySelector('p');
+        if (p && !p.querySelector('.hide-thumb-btn')) {
+          const btn = document.createElement('button');
+          btn.className = 'hide-thumb-btn';
+          btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+          btn.title = 'Hide thumbnail again';
+          p.appendChild(btn);
+        }
+      }
+    }
+  }, true);
 })();

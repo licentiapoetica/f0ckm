@@ -2328,6 +2328,11 @@ body.layout-modern .item-sidebar-left .tag-controls {
   cursor: wait;
 }
 
+.submit-comment.loading .fa-spinner {
+  font-size: 11px;
+  vertical-align: middle;
+}
+
 .submit-comment.uploading {
   pointer-events: none;
   opacity: 0.5;
@@ -14560,4 +14565,144 @@ body.scroller-active #gchat-reopen-bubble {
 .info-table tr:last-child th,
 .info-table tr:last-child td {
   border-bottom: none;
+}
+
+/* =============================================
+   NSFW / NSFL PREMIUM ZERO-LAG BACKGROUND BLUR
+   ============================================= */
+/* Stretch the thumbnail paragraph to cover the whole box */
+.blur-nsfw-active div.posts > a.thumb[data-mode="nsfw"] p,
+.blur-nsfl-active div.posts > a.thumb[data-mode="nsfl"] p,
+.blur-sfw-active div.posts > a.thumb[data-mode="sfw"] p,
+.blur-untagged-active div.posts > a.thumb[data-mode="null"] p {
+  position: absolute !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 8 !important;
+}
+
+/* Premium Blur Overlay for NSFW */
+.blur-nsfw-active div.posts > a.thumb[data-mode="nsfw"] p::after {
+  content: "NSFW" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+  background: rgba(15, 15, 20, 0.5) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Premium Blur Overlay for NSFL */
+.blur-nsfl-active div.posts > a.thumb[data-mode="nsfl"] p::after {
+  content: "NSFL" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ff3b30 !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+  background: rgba(15, 15, 20, 0.6) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Premium Blur Overlay for SFW */
+.blur-sfw-active div.posts > a.thumb[data-mode="sfw"] p::after {
+  content: "SFW" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #30d158 !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+  background: rgba(15, 15, 20, 0.45) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Premium Blur Overlay for Untagged */
+.blur-untagged-active div.posts > a.thumb[data-mode="null"] p::after {
+  content: "UNTAGGED" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ff9f0a !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
+  background: rgba(15, 15, 20, 0.5) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Click reveal transition state (reveals on click adding .revealed, no hover reveal) */
+.blur-nsfw-active div.posts > a.thumb.revealed p::after,
+.blur-nsfl-active div.posts > a.thumb.revealed p::after,
+.blur-sfw-active div.posts > a.thumb.revealed p::after,
+.blur-untagged-active div.posts > a.thumb.revealed p::after {
+  opacity: 0 !important;
+}
+
+/* Premium corner hide button styled dynamically inside revealed cards */
+.blur-nsfw-active a.thumb p .hide-thumb-btn,
+.blur-nsfl-active a.thumb p .hide-thumb-btn,
+.blur-sfw-active a.thumb p .hide-thumb-btn,
+.blur-untagged-active a.thumb p .hide-thumb-btn {
+  display: none !important;
+}
+
+.blur-nsfw-active a.thumb.revealed p .hide-thumb-btn,
+.blur-nsfl-active a.thumb.revealed p .hide-thumb-btn,
+.blur-sfw-active a.thumb.revealed p .hide-thumb-btn,
+.blur-untagged-active a.thumb.revealed p .hide-thumb-btn {
+  display: flex !important;
+  position: absolute !important;
+  bottom: 5px !important;
+  left: 5px !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 100 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  transition: background 0.2s, transform 0.2s, border-color 0.2s, color 0.2s !important;
+  padding: 0 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
 }
