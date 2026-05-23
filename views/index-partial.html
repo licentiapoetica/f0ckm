@@ -11,8 +11,8 @@
                 @if(item.is_oc)
                 <span class="oc-indicator anim">OC</span>
                 @endif
-                @if(enable_xd_score && item.xd_score > 0)
-                <span class="thumb-xd-indicator xd-tier-{{ item.xd_score >= 60 ? 5 : (item.xd_score >= 30 ? 4 : (item.xd_score >= 15 ? 3 : (item.xd_score >= 5 ? 2 : 1))) }}" title="xD Score: {{ item.xd_score }}">xD</span>
+                @if(enable_xd_score && item.xd_tier > 0)
+                <span class="thumb-xd-indicator xd-tier-{{ item.xd_tier }}" title="xD Score: {{ item.xd_score }}">xD</span>
                 @endif
               </div>
               <p></p>

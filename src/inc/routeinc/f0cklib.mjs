@@ -79,19 +79,19 @@ const computeXdScore = (comments) => {
   for (const c of comments) {
     if (!c.content || c.is_deleted) continue;
     for (const m of c.content.matchAll(xdRegex)) {
-      score += m[1].length; // 1pt per D: xD=1, xDD=2, xDDD=3, ...
+      score += m[1].length;
     }
   }
   return score;
 };
 
 const xdScoreMeta = (score) => {
-  if (score <= 0)  return { tier: 0, label: '' };
-  if (score < 5)   return { tier: 1, label: 'xD' };
-  if (score < 15)  return { tier: 2, label: 'xDD' };
-  if (score < 30)  return { tier: 3, label: 'xDDD' };
-  if (score < 60)  return { tier: 4, label: 'xDDDD' };
-  return              { tier: 5, label: 'xDDDDD+' };
+  if (score < 5)           return { tier: 0, label: '' };
+  if (score < 200)         return { tier: 1, label: 'xD' };
+  if (score < 1000)        return { tier: 2, label: 'xDD' };
+  if (score < 100000)      return { tier: 3, label: 'xDDD' };
+  if (score < 200000000)   return { tier: 4, label: 'xDDDD' };
+  return                      { tier: 5, label: 'xDDDDD+' };
 };
 
 export default {
@@ -259,6 +259,12 @@ export default {
       offset ${newerThan ? 0 : offset}
       limit ${eps}
     `;
+
+    for (const row of rows) {
+      const meta = xdScoreMeta(row.xd_score);
+      row.xd_tier = meta.tier;
+      row.xd_label = meta.label;
+    }
 
     // Dynamic thumb sizing: only on the unfiltered main feed.
     // Profile pages, tag searches, halls, favorites, mime filters all use tier 1 (1×1).

@@ -4618,11 +4618,11 @@ window.cancelAnimFrame = (function () {
     ];
     const getNavXdTier = (s) => {
       s = +s;
-      if (s <= 0) return 0;
-      if (s < 5)  return 1;
-      if (s < 15) return 2;
-      if (s < 30) return 3;
-      if (s < 60) return 4;
+      if (s < 5)           return 0;
+      if (s < 200)         return 1;
+      if (s < 1000)        return 2;
+      if (s < 100000)      return 3;
+      if (s < 200000000)   return 4;
       return 5;
     };
     const XD_TIER_COLORS = ['#888', '#5a9e5a', '#8ac449', '#d4a017', '#e07b2a', '#ff5500'];
@@ -4770,19 +4770,19 @@ window.cancelAnimFrame = (function () {
   //   2. Any grid thumbnail indicators for that item (on any page)
   const XD_TIER_META = [
     null,
-    { cls: 'xd-tier-1', label: 'xD',      min: 1  },
-    { cls: 'xd-tier-2', label: 'xDD',     min: 5  },
-    { cls: 'xd-tier-3', label: 'xDDD',    min: 15 },
-    { cls: 'xd-tier-4', label: 'xDDDD',   min: 30 },
-    { cls: 'xd-tier-5', label: 'xDDDDD+', min: 60 },
+    { cls: 'xd-tier-1', label: 'xD',      min: 5         },
+    { cls: 'xd-tier-2', label: 'xDD',     min: 200       },
+    { cls: 'xd-tier-3', label: 'xDDD',    min: 1000      },
+    { cls: 'xd-tier-4', label: 'xDDDD',   min: 100000    },
+    { cls: 'xd-tier-5', label: 'xDDDDD+', min: 200000000 },
   ];
 
   const getXdTierFromScore = (score) => {
-    if (score <= 0)  return 0;
-    if (score < 5)   return 1;
-    if (score < 15)  return 2;
-    if (score < 30)  return 3;
-    if (score < 60)  return 4;
+    if (score < 5)           return 0;
+    if (score < 200)         return 1;
+    if (score < 1000)        return 2;
+    if (score < 100000)      return 3;
+    if (score < 200000000)   return 4;
     return 5;
   };
 
