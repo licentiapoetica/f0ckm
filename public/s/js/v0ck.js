@@ -579,25 +579,11 @@ class v0ck {
     };
     document.addEventListener('mousemove', onDocMouseMove, { passive: true });
 
-    // Returns true if the cursor is currently inside the player's bounding box.
-    // We deliberately use the PLAYER rect (stable) not the animating controls rect.
-    function isCursorInPlayer() {
-      if (docMouseX < 0 || docMouseY < 0) return false;
-      const r = player.getBoundingClientRect();
-      return docMouseX >= r.left && docMouseX <= r.right &&
-             docMouseY >= r.top  && docMouseY <= r.bottom;
-    }
-
     function resetControlsTimer() {
       clearTimeout(controlsTimer);
-      if (!video.paused) {
+      const isFullscreen = player.classList.contains('v0ck_fullscreen');
+      if (!video.paused || isFullscreen) {
         controlsTimer = setTimeout(() => {
-          if (isCursorInPlayer()) {
-            // Cursor is still in the player — postpone. This handles the
-            // "stationary cursor near controls" case without any animation-state dependency.
-            resetControlsTimer();
-            return;
-          }
           player.classList.remove('v0ck_hover');
           if (settingsMenu && !settingsMenu.classList.contains('v0ck_hidden')) {
             settingsMenu.classList.add('v0ck_hidden');
