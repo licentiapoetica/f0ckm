@@ -564,7 +564,7 @@ class v0ck {
         }
     }
 
-    // Controls auto-hide logic (auto hide controls after 5 seconds of inactivity)
+    // Controls auto-hide logic (auto hide controls after 2.5 seconds of inactivity)
     let controlsTimer;
     function resetControlsTimer() {
       clearTimeout(controlsTimer);
@@ -575,7 +575,7 @@ class v0ck {
             settingsMenu.classList.add('v0ck_hidden');
             document.dispatchEvent(new CustomEvent('v0ck_settings_closed'));
           }
-        }, 5000);
+        }, 2500);
       }
     }
 
