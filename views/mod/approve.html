@@ -18,7 +18,7 @@
                         <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/{!! post.dest.replace('yt:', '') !!}" frameborder="0" allowfullscreen></iframe>
                     </div>
                     @elseif(post.mime.startsWith('video'))
-                    <video controls loop muted preload="metadata">
+                    <video controls loop muted preload="none" poster="/mod/pending/t/{!! post.id !!}.webp">
                         <source src="/mod/pending/b/{!! post.dest !!}" type="{!! post.mime !!}">
                         Your browser does not support the video tag.
                     </video>
@@ -69,7 +69,7 @@
                         <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/{!! post.dest.replace('yt:', '') !!}" frameborder="0" allowfullscreen></iframe>
                     </div>
                     @elseif(post.mime.startsWith('video'))
-                    <video controls loop muted preload="metadata">
+                    <video controls loop muted preload="none" poster="/mod/deleted/t/{!! post.id !!}.webp">
                         <source src="/mod/deleted/b/{!! post.dest !!}" type="{!! post.mime !!}">
                         Your browser does not support the video tag.
                     </video>

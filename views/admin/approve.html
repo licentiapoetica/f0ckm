@@ -21,7 +21,7 @@
                 @each(pending as post)
                 <tr>
                     <td>
-                        <video controls loop muted preload="metadata" style="max-height: 200px; max-width: 300px;">
+                        <video controls loop muted preload="none" style="max-height: 200px; max-width: 300px;">
                             <source src="/b/{{ post.dest }}" type="{{ post.mime }}">
                         </video>
                     </td>
