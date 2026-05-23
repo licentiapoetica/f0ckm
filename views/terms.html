@@ -11,7 +11,8 @@
         var el  = document.getElementById('terms-dynamic-content');
         function render() {
           if (raw && el && typeof marked !== 'undefined') {
-            var text = atob(raw.textContent.trim());
+            var bytes = Uint8Array.from(atob(raw.textContent.trim()), function(c) { return c.charCodeAt(0); });
+            var text = new TextDecoder('utf-8').decode(bytes);
             el.innerHTML = marked.parse(text, { gfm: true, breaks: true });
           }
         }
