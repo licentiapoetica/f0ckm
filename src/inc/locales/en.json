@@ -134,6 +134,7 @@
     "clear": "Clear",
     "preferences": "Preferences",
     "ui_section": "User Interface",
+    "content_preferences_section": "Content Preferences",
     "appearance_section": "Appearance",
     "show_motd": "Show Message of the Day (MOTD)",
     "modern_layout": "Modern layout",

@@ -134,6 +134,7 @@
     "clear": "Löschen",
     "preferences": "Einstellungen",
     "ui_section": "Benutzeroberfläche",
+    "content_preferences_section": "Inhaltseinstellungen",
     "appearance_section": "Erscheinungsbild",
     "show_motd": "Nachricht des Tages (MOTD) anzeigen",
     "modern_layout": "Modernes Layout",

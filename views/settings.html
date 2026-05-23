@@ -140,34 +140,6 @@
             <small class="text-muted" style="margin-left: 25px;">{{ t('settings.enable_bg_blur_hint') }}</small>
           </div>
           <div class="setting-item" style="margin-top: 15px;">
-            <label for="blur_nsfw_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
-              <input type="checkbox" id="blur_nsfw_toggle">
-              <span>{{ t('settings.blur_nsfw') }}</span>
-            </label>
-            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_nsfw_hint') }}</small>
-          </div>
-          <div class="setting-item" style="margin-top: 15px;">
-            <label for="blur_nsfl_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
-              <input type="checkbox" id="blur_nsfl_toggle">
-              <span>{{ t('settings.blur_nsfl') }}</span>
-            </label>
-            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_nsfl_hint') }}</small>
-          </div>
-          <div class="setting-item" style="margin-top: 15px;">
-            <label for="blur_sfw_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
-              <input type="checkbox" id="blur_sfw_toggle">
-              <span>{{ t('settings.blur_sfw') }}</span>
-            </label>
-            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_sfw_hint') }}</small>
-          </div>
-          <div class="setting-item" style="margin-top: 15px;">
-            <label for="blur_untagged_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
-              <input type="checkbox" id="blur_untagged_toggle">
-              <span>{{ t('settings.blur_untagged') }}</span>
-            </label>
-            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_untagged_hint') }}</small>
-          </div>
-          <div class="setting-item" style="margin-top: 15px;">
             <label for="quote_emojis_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
               <input type="checkbox" id="quote_emojis_toggle" @if(session.quote_emojis !==false) checked @endif>
               <span>{{ t('settings.render_emojis') }}</span>
@@ -219,6 +191,39 @@
                 {{ t('settings.comment_display_mode_hint') }}
               @endif
             </small>
+          </div>
+        </fieldset>
+
+        <fieldset
+          style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+          <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.content_preferences_section') }}</legend>
+          <div class="setting-item">
+            <label for="blur_nsfw_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="blur_nsfw_toggle">
+              <span>{{ t('settings.blur_nsfw') }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_nsfw_hint') }}</small>
+          </div>
+          <div class="setting-item" style="margin-top: 15px;">
+            <label for="blur_nsfl_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="blur_nsfl_toggle">
+              <span>{{ t('settings.blur_nsfl') }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_nsfl_hint') }}</small>
+          </div>
+          <div class="setting-item" style="margin-top: 15px;">
+            <label for="blur_sfw_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="blur_sfw_toggle">
+              <span>{{ t('settings.blur_sfw') }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_sfw_hint') }}</small>
+          </div>
+          <div class="setting-item" style="margin-top: 15px;">
+            <label for="blur_untagged_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="blur_untagged_toggle">
+              <span>{{ t('settings.blur_untagged') }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_untagged_hint') }}</small>
           </div>
         </fieldset>
 
