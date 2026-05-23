@@ -4,15 +4,15 @@
   <div class="rules">
     @if(rules_text)
     <div class="dynamic-page-content" id="rules-dynamic-content"></div>
-    <textarea id="rules-raw-data" hidden>{!! rules_text !!}</textarea>
+    <script id="rules-raw-data" type="application/json">{{ rules_text_b64 }}</script>
     <script>
       (function() {
         var raw = document.getElementById('rules-raw-data');
         var el  = document.getElementById('rules-dynamic-content');
         function render() {
           if (raw && el && typeof marked !== 'undefined') {
-            el.innerHTML = marked.parse(raw.value || '', { gfm: true, breaks: true });
-            raw.remove();
+            var text = atob(raw.textContent.trim());
+            el.innerHTML = marked.parse(text, { gfm: true, breaks: true });
           }
         }
         if (typeof marked !== 'undefined') {

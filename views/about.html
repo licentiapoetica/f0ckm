@@ -4,15 +4,15 @@
   <div class="rules">
     @if(about_text)
     <div class="dynamic-page-content" id="about-dynamic-content"></div>
-    <textarea id="about-raw-data" hidden>{!! about_text !!}</textarea>
+    <script id="about-raw-data" type="application/json">{{ about_text_b64 }}</script>
     <script>
       (function() {
         var raw = document.getElementById('about-raw-data');
         var el  = document.getElementById('about-dynamic-content');
         function render() {
           if (raw && el && typeof marked !== 'undefined') {
-            el.innerHTML = marked.parse(raw.value || '', { gfm: true, breaks: true });
-            raw.remove();
+            var text = atob(raw.textContent.trim());
+            el.innerHTML = marked.parse(text, { gfm: true, breaks: true });
           }
         }
         if (typeof marked !== 'undefined') {
