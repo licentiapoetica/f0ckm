@@ -521,6 +521,23 @@
     "found": "In den Metadaten gefunden:",
     "no_results": "Keine weiteren Metadatenfelder in dieser Datei gefunden."
   },
+  "info_modal": {
+    "title": "Pfosten- & Datei-Informationen",
+    "button_title": "Pfosten- & Datei-Informationen",
+    "id": "Pfosten-ID",
+    "source": "Quelle",
+    "uploader": "Hochgeladen von",
+    "uploaded_at": "Hochgeladen am",
+    "file_size": "Dateigröße",
+    "mime_type": "MIME-Typ",
+    "rating": "Bewertung",
+    "oc": "Originaler Inhalt (OC)",
+    "no": "Nein",
+    "direct_url": "Direkte Weltnetzadresse",
+    "view_file": "Datei betrachten",
+    "metadata": "Metadaten",
+    "sha256": "SHA-256-Streuwert"
+  },
   "meme": {
     "add_text_layer": "Textebene hinzufügen",
     "tags_label": "Etiketten (kommagetrennt)",

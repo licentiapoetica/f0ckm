@@ -636,6 +636,7 @@ export default {
         dest: actitem.mime === 'video/youtube' ? actitem.dest : `${cfg.websrv.paths.images}/${actitem.dest}`,
         mime: actitem.mime,
         size: lib.formatSize(actitem.size),
+        checksum: actitem.checksum,
         timestamp: {
           timeago: lib.timeAgo(new Date(actitem.stamp * 1e3).toISOString(), lang),
           timefull: new Date(actitem.stamp * 1e3).toISOString()

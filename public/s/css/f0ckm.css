@@ -14509,3 +14509,55 @@ body.scroller-active #gchat-reopen-bubble {
     text-shadow: 0 0 6px #f1c40f, 0 0 10px #f1c40f;
   }
 }
+
+/* =============================================
+   POST & FILE INFO MODAL STYLES
+   ============================================= */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.info-table th {
+  text-align: left;
+  padding: 8px 10px 8px 0;
+  font-weight: bold;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.9em;
+  width: 35%;
+}
+
+.info-table td {
+  text-align: left;
+  padding: 8px 0;
+  color: #ccc;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.9em;
+}
+
+.info-table td a {
+  color: var(--accent, #9f0);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.info-table td a:hover {
+  text-decoration: underline;
+}
+
+.info-table td code {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+  color: #eee;
+}
+
+.info-table tr:last-child th,
+.info-table tr:last-child td {
+  border-bottom: none;
+}

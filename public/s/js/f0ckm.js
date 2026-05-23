@@ -529,7 +529,7 @@ window.cancelAnimFrame = (function () {
       'login-modal', 'register-modal', 'forgot-modal', 'reset-modal',
       'report-modal', 'halls-modal', 'metadata-modal', 'warning-modal',
       'shortcuts-modal', 'upload-drag-modal', 'excluded-tags-overlay',
-      'content-warning-modal', 'gchat-img-modal', 'image-modal'
+      'content-warning-modal', 'gchat-img-modal', 'image-modal', 'info-modal'
     ];
     modalIds.forEach(id => {
       const el = document.getElementById(id);
@@ -910,6 +910,8 @@ window.cancelAnimFrame = (function () {
       closeModal(loginModal);
       closeModal(registerModal);
       closeModal(shortcutsModal);
+      const infoModal = document.getElementById('info-modal');
+      if (infoModal) closeModal(infoModal);
     }
   });
 
@@ -8695,6 +8697,39 @@ if (navigator.vibrate) {
             }
         }
     });
+
+  // Post & File Info Modal Logic
+  document.addEventListener('click', (e) => {
+    const infoBtn = e.target.closest('#a_info');
+    if (infoBtn) {
+      e.preventDefault();
+      const modal = document.getElementById('info-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+      }
+      return;
+    }
+
+    const closeBtn = e.target.closest('#info-modal-close');
+    if (closeBtn) {
+      e.preventDefault();
+      const modal = document.getElementById('info-modal');
+      if (modal) {
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+      }
+      return;
+    }
+
+    // Close when clicking outside modal content
+    const infoModal = document.getElementById('info-modal');
+    if (infoModal && e.target === infoModal) {
+      infoModal.style.display = 'none';
+      document.body.classList.remove('modal-open');
+    }
+  });
+
   // Ensure any navigation event restores the scroll state
   window.addEventListener('pjax:start', () => {
     if (window.resetGlobalScrollState) window.resetGlobalScrollState();

@@ -522,6 +522,23 @@
     "found": "Found in metadata:",
     "no_results": "No additional metadata fields found in this file."
   },
+  "info_modal": {
+    "title": "Post & File Information",
+    "button_title": "Post & File Info",
+    "id": "Post ID",
+    "source": "Source",
+    "uploader": "Uploader",
+    "uploaded_at": "Uploaded At",
+    "file_size": "File Size",
+    "mime_type": "MIME Type",
+    "rating": "Rating",
+    "oc": "Original Content (OC)",
+    "no": "No",
+    "direct_url": "Direct URL",
+    "view_file": "View File",
+    "metadata": "Metadata",
+    "sha256": "SHA-256 Hash"
+  },
   "meme": {
     "add_text_layer": "Add Text Layer",
     "tags_label": "Tags (comma separated)",

@@ -107,7 +107,7 @@
             </div>
             <div class="blahlol">
                 <span class="badge badge-dark">
-                    <a href="/{{ item.id }}" class="id-link">{{ item.id }}</a>@if(item.src.short) — <a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a>@endif @if(session) — [<a id="a_username" data-username="{{ item.username || '' }}" data-author-id="{{ item.author_id || '' }}" href="/user/{{ item_username_lower }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif @if(item.is_oc) — <span class="oc-badge" tooltip="Original Content">OC</span>@endif
+                    <a href="/{{ item.id }}" class="id-link">{{ item.id }}</a>@if(session) — [<a id="a_username" data-username="{{ item.username || '' }}" data-author-id="{{ item.author_id || '' }}" href="/user/{{ item_username_lower }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif @if(item.is_oc) — <span class="oc-badge" tooltip="Original Content">OC</span>@endif
                 </span> —
                 @if(halls_enabled && item.primaryHall)
                 <span class="badge hall-badge-wrap">
@@ -115,13 +115,14 @@
                 </span> —
                 @endif
                 <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
-                @if(session)
             <div class="gapRight">
+                @if(session)
                 @if(user_has_favorited)
                 <i class="iconset fa-solid fa-heart" id="a_favo" title="Favorite"></i>
                 @else
                 <i class="iconset fa-regular fa-heart" id="a_favo" title="Favorite"></i>
                 @endif
+                <i class="iconset fa-solid fa-circle-info" id="a_info" data-item-id="{{ item.id }}" title="{{ t('info_modal.button_title') || 'Post & File Info' }}"></i>
                 <i class="iconset {{ isSubscribed ? 'fa-solid' : 'fa-regular' }} fa-bell" id="subscribe-btn" data-item-id="{{ item.id }}" title="{{ isSubscribed ? 'Subscribed' : 'Subscribe' }}"></i>
                 <i class="iconset fa-solid fa-triangle-exclamation report-item-btn" data-item-id="{{ item.id }}" title="Report this post"></i>
                 @if(can_manage_item)
@@ -138,9 +139,10 @@
                 <i class="iconset fa-solid fa-thumbtack{{ item.is_pinned ? ' active' : '' }}" id="a_pin" data-pinned="{{ item.is_pinned }}" title="{{ item.is_pinned ? 'Unpin from main' : 'Pin to main' }}"></i>
                 <i class="iconset fa-solid fa-xmark" id="a_delete" title="Delete"></i>
                 @endif
-
+                @else
+                <i class="iconset fa-solid fa-circle-info" id="a_info" data-item-id="{{ item.id }}" title="{{ t('info_modal.button_title') || 'Post & File Info' }}"></i>
+                @endif
             </div>
-            @endif
                 <span id="favs" @if(!item.favorites.length) hidden@endif style="margin-top: 5px; display: block;">
                     @each(item.favorites as fav)
                     <a href="/user/{{ fav.user.toLowerCase() }}" tooltip="{!! fav.display_name || fav.user !!}" flow="up"><img src="@if(fav.avatar_file)/a/{{ fav.avatar_file }}@elseif(fav.avatar)/t/{{ fav.avatar }}.webp@else/a/default.png@endif" style="height: 32px; width: 32px@if(fav.username_color); border-color: {{ fav.username_color }}@endif" loading="lazy" /></a>
@@ -162,4 +164,44 @@
     {{-- RIGHT SIDEBAR: recent activity --}}
 
 
+</div>
+
+<div id="info-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-body" style="padding: 20px 0; text-align: left;">
+            <table class="info-table">
+                <tr>
+                    <th>{{ t('info_modal.file_size') || 'File Size' }}</th>
+                    <td>{{ item.size }}</td>
+                </tr>
+                <tr>
+                    <th>{{ t('info_modal.mime_type') || 'MIME Type' }}</th>
+                    <td><code>{{ item.mime }}</code></td>
+                </tr>
+                @if(item.checksum)
+                <tr>
+                    <th>{{ t('info_modal.sha256') || 'SHA-256 Hash' }}</th>
+                    <td><code style="word-break: break-all;">{{ item.checksum.split('_bypass_')[0] }}</code></td>
+                </tr>
+                @endif
+                <tr>
+                    <th>{{ t('info_modal.direct_url') || 'Direct URL' }}</th>
+                    <td>
+                        <a href="{{ item.mime === 'video/youtube' ? 'https://www.youtube.com/watch?v=' + item.dest.replace('yt:', '') : item.dest }}" target="_blank">
+                            {{ t('info_modal.view_file') || 'View File' }}
+                        </a>
+                    </td>
+                </tr>
+                @if(item.src.short)
+                <tr>
+                    <th>{{ t('info_modal.source') || 'Source' }}</th>
+                    <td><a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a></td>
+                </tr>
+                @endif
+            </table>
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn-secondary" id="info-modal-close">{{ t('common.close') || 'Close' }}</button>
+        </div>
+    </div>
 </div>

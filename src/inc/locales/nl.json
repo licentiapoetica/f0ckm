@@ -518,6 +518,23 @@
     "found": "Gevonden in metadata:",
     "no_results": "Geen extra metadata-velden gevonden in dit bestand."
   },
+  "info_modal": {
+    "title": "Post- & Bestandsinformatie",
+    "button_title": "Post- & Bestandsinformatie",
+    "id": "Post-ID",
+    "source": "Bron",
+    "uploader": "Uploader",
+    "uploaded_at": "Geüpload op",
+    "file_size": "Bestandsgrootte",
+    "mime_type": "MIME-type",
+    "rating": "Beoordeling",
+    "oc": "Originele Content (OC)",
+    "no": "Nee",
+    "direct_url": "Directe URL",
+    "view_file": "Bestand bekijken",
+    "metadata": "Metadata",
+    "sha256": "SHA-256 Hash"
+  },
   "meme": {
     "add_text_layer": "Tekstlaag Toevoegen",
     "tags_label": "Tags (gescheiden door komma's)",

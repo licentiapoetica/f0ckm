@@ -518,6 +518,23 @@
     "found": "Gefundene Metadaten:",
     "no_results": "Keine weiteren Metadaten in dieser Datei gefunden."
   },
+  "info_modal": {
+    "title": "Post- & Datei-Informationen",
+    "button_title": "Post- & Datei-Informationen",
+    "id": "Post-ID",
+    "source": "Quelle",
+    "uploader": "Hochgeladen von",
+    "uploaded_at": "Hochgeladen am",
+    "file_size": "Dateigröße",
+    "mime_type": "MIME-Typ",
+    "rating": "Bewertung",
+    "oc": "Originaler Inhalt (OC)",
+    "no": "Nein",
+    "direct_url": "Direkt-Link",
+    "view_file": "Datei anzeigen",
+    "metadata": "Metadaten",
+    "sha256": "SHA-256-Hash"
+  },
   "meme": {
     "add_text_layer": "Textebene hinzufügen",
     "tags_label": "Tags (kommagetrennt)",
