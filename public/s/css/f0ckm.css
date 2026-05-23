@@ -9322,9 +9322,15 @@ textarea.mod-reason {
   padding: 0 !important;
 }
 
+.notif-reason {
+  font-size: 0.85em;
+  color: #ffb8b8;
+  margin-top: 4px;
+}
+
 .notifications-page .notif-item {
   display: grid !important;
-  grid-template-columns: 0.3fr 1fr 1fr;
+  grid-template-columns: 0fr 1fr;
   width: 100%;
   align-items: center;
   padding: 8px 15px;
@@ -9365,7 +9371,7 @@ textarea.mod-reason {
 }
 
 .notif-msg {
-  white-space: nowrap;
+  white-space: wrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }

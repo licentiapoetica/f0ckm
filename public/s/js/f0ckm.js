@@ -6241,7 +6241,7 @@ class NotificationSystem {
                 <div class="notif-user"><strong>${userLabel}</strong></div>
                 <div class="notif-msg">
                     <strong>${label} #${n.item_id}</strong>
-                    <div style="font-size: 0.85em; color: #ffb8b8; margin-top: 4px;">${i18n.notif_reason_label || 'Reason:'} ${n.reason || (i18n.notif_no_reason || 'No reason provided')}</div>
+                    <div class="notif-reason">${i18n.notif_reason_label || 'Reason:'} ${n.reason || (i18n.notif_no_reason || 'No reason provided')}</div>
                 </div>
                 <div class="notif-time">${new Date(n.created_at).toLocaleString()}</div>
             </div>
