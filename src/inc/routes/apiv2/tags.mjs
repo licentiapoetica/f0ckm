@@ -115,6 +115,16 @@ export default router => {
           await db`INSERT INTO tags_assign ${db({ tag_id: nextTagId, item_id: postid, user_id: +req.session.id })}`;
         }
 
+        // Automatically generate blurred thumbnail if cycling TO NSFW or NSFL
+        if (nextTagId === 2 || nextTagId === nsflId) {
+          const blurPath = path.join(cfg.paths.t, `${postid}_blur.webp`);
+          try {
+            await fs.promises.access(blurPath);
+          } catch {
+            await queue.genBlurredThumbnail(postid, false);
+          }
+        }
+
         const labels = { 1: { label: 'SFW', cls: 'sfw' }, 2: { label: 'NSFW', cls: 'nsfw' }, [nsflId]: { label: 'NSFL', cls: 'nsfl' } };
         const { label, cls } = labels[nextTagId];
 

@@ -7177,11 +7177,29 @@ document.addEventListener('DOMContentLoaded', () => {
             activeThumb = null;
         }
     };
+    window.clearHoverPreview = clearPreview;
 
     // Use mouseover/mouseout bubbling on document for dynamic elements
     const startPreview = (thumb, delay = 150) => {
          // Clear any existing preview
          clearPreview();
+         
+         // If this thumbnail is currently set to be blurred and is not revealed yet, do not preview it!
+         const mode = thumb.getAttribute('data-mode');
+         const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+         const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+         const blurSfw = localStorage.getItem('blurSfw') === 'true';
+         const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+         
+         let shouldBlurThis = false;
+         if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+         else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+         else if (mode === 'sfw') shouldBlurThis = blurSfw;
+         else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+         
+         if (shouldBlurThis && !thumb.classList.contains('revealed')) {
+             return;
+         }
          
          activeThumb = thumb;
          activeThumb.classList.add('touch-active'); // Visual feedback (box-shadow)
@@ -7222,6 +7240,7 @@ document.addEventListener('DOMContentLoaded', () => {
              hoverTimeout = setTimeout(run, delay);
          }
     };
+    window.startHoverPreview = startPreview;
 
     document.addEventListener('mouseover', (e) => {
         const thumb = e.target.closest('.thumb');
@@ -8775,6 +8794,11 @@ if (navigator.vibrate) {
       e.stopPropagation();
       const thumb = hideBtn.closest('a.thumb');
       if (thumb) {
+        // Stop any active hover video preview immediately
+        if (typeof window.clearHoverPreview === 'function') {
+          window.clearHoverPreview();
+        }
+        
         thumb.classList.remove('revealed');
         hideBtn.remove();
         
@@ -8821,6 +8845,11 @@ if (navigator.vibrate) {
           btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
           btn.title = 'Hide thumbnail again';
           p.appendChild(btn);
+        }
+
+        // Automatically start the hover video preview immediately on reveal since mouse is already over the item
+        if (typeof window.startHoverPreview === 'function') {
+          window.startHoverPreview(thumb, 0);
         }
       }
     }
