@@ -541,6 +541,34 @@ class v0ck {
             else toggleDanmakuSwitch.addEventListener('click', handleDanmakuToggle);
         }
     }
+
+    // Mobile controls auto-hide logic (auto hide controls after 5 seconds of inactivity)
+    let controlsTimer;
+    function resetControlsTimer() {
+      if (!isMobile) return;
+      clearTimeout(controlsTimer);
+      if (!video.paused) {
+        controlsTimer = setTimeout(() => {
+          player.classList.remove('v0ck_hover');
+          if (settingsMenu && !settingsMenu.classList.contains('v0ck_hidden')) {
+            settingsMenu.classList.add('v0ck_hidden');
+            document.dispatchEvent(new CustomEvent('v0ck_settings_closed'));
+          }
+        }, 5000);
+      }
+    }
+
+    if (isMobile) {
+      // Use capturing phase so we intercept events before child elements stop propagation
+      const resetEvents = ['touchstart', 'touchmove', 'touchend', 'click'];
+      resetEvents.forEach(evt => {
+        player.addEventListener(evt, resetControlsTimer, { capture: true, passive: true });
+      });
+      video.addEventListener('play', resetControlsTimer);
+      video.addEventListener('playing', resetControlsTimer);
+      video.addEventListener('pause', () => clearTimeout(controlsTimer));
+    }
+
     this.toggleFullScreen = toggleFullScreen;
     this.enterFullScreen = enterFullScreen;
 
