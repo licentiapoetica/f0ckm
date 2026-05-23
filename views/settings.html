@@ -3,7 +3,76 @@
   <div id="main">
     <div class="settings">
       <h1>{{ t('settings.title') }}</h1>
-      <h2>{{ t('settings.avatar') }}</h2>
+
+      <!-- Quick navigation -->
+      <nav id="settings-quicknav" aria-label="Settings sections">
+        <a href="/settings#sec-avatar">{{ t('settings.avatar') }}</a>
+        <a href="/settings#sec-preferences">{{ t('settings.preferences') }}</a>
+        @if(enable_data_export)
+        <a href="/settings#sec-export">{{ t('settings.export_data_title') }}</a>
+        @endif
+        <a href="/settings#sec-account">{{ t('settings.account') }}</a>
+        @if(matrix_enabled)
+        <a href="/settings#sec-linked">{{ t('settings.linked_accounts') }}</a>
+        @endif
+        @if(enable_user_api_keys)
+        <a href="/settings#sec-apikey">API Key</a>
+        @endif
+        @if(enable_user_invites)
+        <a href="/settings#sec-invites">{{ t('invites.section_title') }}</a>
+        @endif
+      </nav>
+      <style>
+        #settings-quicknav {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 28px;
+          padding: 10px 14px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--nav-border-color);
+          border-radius: 8px;
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          backdrop-filter: blur(8px);
+        }
+        #settings-quicknav a {
+          font-size: 0.82em;
+          font-weight: 600;
+          padding: 4px 12px;
+          border-radius: 20px;
+          border: 1px solid var(--nav-border-color);
+          color: var(--text-muted);
+          text-decoration: none;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+          white-space: nowrap;
+        }
+        #settings-quicknav a:hover,
+        #settings-quicknav a.active {
+          background: var(--accent);
+          color: #fff;
+          border-color: var(--accent);
+        }
+      </style>
+      <script>
+      (function(){
+        const nav = document.getElementById('settings-quicknav');
+        if (!nav) return;
+        const links = Array.from(nav.querySelectorAll('a[href^="#"]'));
+        const targets = links.map(l => document.getElementById(l.getAttribute('href').slice(1))).filter(Boolean);
+        if (!targets.length) return;
+        const obs = new IntersectionObserver(entries => {
+          entries.forEach(e => {
+            const link = nav.querySelector('a[href="#' + e.target.id + '"]');
+            if (link) link.classList.toggle('active', e.isIntersecting);
+          });
+        }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+        targets.forEach(t => obs.observe(t));
+      })();
+      </script>
+
+      <h2 id="sec-avatar">{{ t('settings.avatar') }}</h2>
       <div class="avatar-settings-wrapper">
         <div class="avatar-preview-container">
           <div class="avatar-preview-label">{{ t('settings.current_avatar') }}</div>
@@ -75,7 +144,7 @@
         </div>
         <small class="text-muted">{{ t('settings.username_color_hint') }}</small>
       </div>
-      <h2>{{ t('settings.preferences') }}</h2>
+      <h2 id="sec-preferences">{{ t('settings.preferences') }}</h2>
       <div class="preferences-settings-wrapper">
         <fieldset
           style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
@@ -298,7 +367,7 @@
 
       </div>
       @if(enable_data_export)
-      <h2>{{ t('settings.export_data_title') || 'Export Data' }}</h2>
+      <h2 id="sec-export">{{ t('settings.export_data_title') || 'Export Data' }}</h2>
       <div class="export-settings-wrapper" style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
         <p>{{ t('settings.export_data_desc') || 'Download a copy of your data. This process happens entirely in your browser to protect your privacy and save server resources.' }}</p>
         
@@ -339,7 +408,7 @@
       </div>
       @endif
 
-      <h2>{{ t('settings.account') }}</h2>
+      <h2 id="sec-account">{{ t('settings.account') }}</h2>
       <div class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
         <table class="table account-info-table"
@@ -410,7 +479,7 @@
         </div>
       </div>
       @if(matrix_enabled)
-      <h2>{{ t('settings.linked_accounts') }}</h2>
+      <h2 id="sec-linked">{{ t('settings.linked_accounts') }}</h2>
       <div class="linked-accounts-wrapper">
         <p>{{ t('settings.matrix_link_desc') }}</p>
 
@@ -441,7 +510,7 @@
       @endif
 
       @if(enable_user_api_keys)
-      <h2>Upload API Key</h2>
+      <h2 id="sec-apikey">Upload API Key</h2>
       <div id="api-key-section" class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
         <p style="color: var(--text-muted); margin-bottom: 15px;">
@@ -475,11 +544,11 @@
       @endif
 
       @if(enable_user_invites)
-      <h2>{{ t('invites.section_title') }}</h2>
+      <h2 id="sec-invites">{{ t('invites.section_title') }}</h2>
       <div id="invite-section" class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
 
-        <p style="color: var(--text-muted); margin-bottom: 15px;">{{ t('invites.section_desc') }}</p>
+        <p id="invite-section-desc" style="color: var(--text-muted); margin-bottom: 15px;">{{ t('invites.section_desc') }}</p>
 
         <!-- Criteria grid -->
         <div id="invite-criteria-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 18px;">
@@ -584,6 +653,7 @@
         data-slot-refreshes-on="{{ t('invites.slot_refreshes_on') }}"
         data-slot-refreshed="{{ t('invites.slot_refreshed') }}"
         data-generating="{{ t('invites.generating') }}"
+        data-admin-desc="{{ t('invites.admin_desc') }}"
       ></div>
 
       <script>
@@ -623,22 +693,32 @@
               return;
             }
 
-            // Update criteria grid
-            const criteriaMap = {
-              'ic-uploads':  data.criteria.uploads,
-              'ic-age':      data.criteria.age_days,
-              'ic-comments': data.criteria.comments,
-              'ic-tags':     data.criteria.tags,
-            };
-            Object.entries(criteriaMap).forEach(([id, c]) => {
-              const el = document.getElementById(id);
-              if (!el) return;
-              el.classList.toggle('met',   c.met);
-              el.classList.toggle('unmet', !c.met);
-              el.querySelector('.ic-icon').textContent = c.met ? '✓' : '✗';
-              const unit = id === 'ic-age' ? ' ' + T('days') : '';
-              el.querySelector('.ic-values').textContent = c.current + ' / ' + c.required + unit;
-            });
+            if (data.is_admin) {
+              // Swap description and hide criteria/slots UI for admins
+              const desc = document.getElementById('invite-section-desc');
+              if (desc) desc.textContent = T('adminDesc');
+              const grid = document.getElementById('invite-criteria-grid');
+              const statusLine = document.getElementById('invite-status-line');
+              if (grid) grid.style.display = 'none';
+              if (statusLine) statusLine.style.display = 'none';
+            } else {
+              // Update criteria grid
+              const criteriaMap = {
+                'ic-uploads':  data.criteria.uploads,
+                'ic-age':      data.criteria.age_days,
+                'ic-comments': data.criteria.comments,
+                'ic-tags':     data.criteria.tags,
+              };
+              Object.entries(criteriaMap).forEach(([id, c]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.toggle('met',   c.met);
+                el.classList.toggle('unmet', !c.met);
+                el.querySelector('.ic-icon').textContent = c.met ? '✓' : '✗';
+                const unit = id === 'ic-age' ? ' ' + T('days') : '';
+                el.querySelector('.ic-values').textContent = c.current + ' / ' + c.required + unit;
+              });
+            }
 
             // Eligibility badge
             const badge = document.getElementById('invite-eligible-badge');
@@ -650,7 +730,7 @@
               T('slotsUsed', { used: data.slots_consumed, total: data.slots_total });
 
             // Generate button state
-            genBtn.disabled = !data.eligible || data.slots_available <= 0;
+            genBtn.disabled = !data.eligible || (!data.is_admin && data.slots_available <= 0);
 
             // Token list
             if (!data.tokens || data.tokens.length === 0) {

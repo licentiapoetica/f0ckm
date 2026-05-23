@@ -842,29 +842,9 @@ export default router => {
         const username = req.session.user;
         const totalSlots = getInviteSlots();
         const refreshDays = 30;
+        const isAdmin = !!req.session.admin;
 
-        // Gather eligibility stats in one query
-        const [stats] = await db`
-          SELECT
-            (SELECT COUNT(*) FROM items WHERE username = ${username} AND active = true AND is_deleted = false)::int AS upload_count,
-            EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400 AS age_days,
-            (SELECT COUNT(*) FROM comments WHERE user_id = ${userId} AND is_deleted = false)::int AS comment_count,
-            (SELECT COUNT(*) FROM tags_assign WHERE user_id = ${userId})::int AS tag_count
-          FROM "user" u
-          WHERE u.id = ${userId}
-        `;
-
-        const INVITE_CRITERIA = getInviteCriteria();
-        const criteria = {
-          uploads: { current: stats.upload_count, required: INVITE_CRITERIA.uploads, met: stats.upload_count >= INVITE_CRITERIA.uploads },
-          age_days: { current: Math.floor(stats.age_days), required: INVITE_CRITERIA.age_days, met: stats.age_days >= INVITE_CRITERIA.age_days },
-          comments: { current: stats.comment_count, required: INVITE_CRITERIA.comments, met: stats.comment_count >= INVITE_CRITERIA.comments },
-          tags: { current: stats.tag_count, required: INVITE_CRITERIA.tags, met: stats.tag_count >= INVITE_CRITERIA.tags },
-        };
-
-        const eligible = Object.values(criteria).every(c => c.met);
-
-        // Fetch all tokens this user created, join used_by name
+        // Always fetch this user's token history
         const tokens = await db`
           SELECT
             it.id,
@@ -879,19 +859,50 @@ export default router => {
           ORDER BY it.created_at DESC
         `;
 
-        // Slots consumed = tokens used within the last 30 days
-        const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
-        const slotsConsumed = tokens.filter(t => t.is_used && t.used_at && new Date(t.used_at) > cutoff).length;
-        const slotsAvailable = Math.max(0, totalSlots - slotsConsumed);
+        let eligible, criteria, slotsConsumed, slotsAvailable;
+
+        if (isAdmin) {
+          // Admins bypass all criteria and slot limits
+          eligible = true;
+          criteria = null;
+          slotsConsumed = 0;
+          slotsAvailable = Infinity;
+        } else {
+          // Gather eligibility stats in one query
+          const [stats] = await db`
+            SELECT
+              (SELECT COUNT(*) FROM items WHERE username = ${username} AND active = true AND is_deleted = false)::int AS upload_count,
+              EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400 AS age_days,
+              (SELECT COUNT(*) FROM comments WHERE user_id = ${userId} AND is_deleted = false)::int AS comment_count,
+              (SELECT COUNT(*) FROM tags_assign WHERE user_id = ${userId})::int AS tag_count
+            FROM "user" u
+            WHERE u.id = ${userId}
+          `;
+
+          const INVITE_CRITERIA = getInviteCriteria();
+          criteria = {
+            uploads: { current: stats.upload_count, required: INVITE_CRITERIA.uploads, met: stats.upload_count >= INVITE_CRITERIA.uploads },
+            age_days: { current: Math.floor(stats.age_days), required: INVITE_CRITERIA.age_days, met: stats.age_days >= INVITE_CRITERIA.age_days },
+            comments: { current: stats.comment_count, required: INVITE_CRITERIA.comments, met: stats.comment_count >= INVITE_CRITERIA.comments },
+            tags: { current: stats.tag_count, required: INVITE_CRITERIA.tags, met: stats.tag_count >= INVITE_CRITERIA.tags },
+          };
+          eligible = Object.values(criteria).every(c => c.met);
+
+          // Slots consumed = tokens used within the last 30 days
+          const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
+          slotsConsumed = tokens.filter(t => t.is_used && t.used_at && new Date(t.used_at) > cutoff).length;
+          slotsAvailable = Math.max(0, totalSlots - slotsConsumed);
+        }
 
         return res.json({
           success: true,
+          is_admin: isAdmin,
           eligible,
           criteria,
           tokens,
-          slots_total: totalSlots,
-          slots_consumed: slotsConsumed,
-          slots_available: slotsAvailable,
+          slots_total: isAdmin ? null : totalSlots,
+          slots_consumed: isAdmin ? null : slotsConsumed,
+          slots_available: isAdmin ? null : slotsAvailable,
           refresh_days: refreshDays,
         }, 200);
       } catch (e) {
@@ -912,39 +923,43 @@ export default router => {
         const totalSlots = getInviteSlots();
         const refreshDays = 30;
 
-        // Eligibility check
-        const [stats] = await db`
-          SELECT
-            (SELECT COUNT(*) FROM items WHERE username = ${username} AND active = true AND is_deleted = false)::int AS upload_count,
-            EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400 AS age_days,
-            (SELECT COUNT(*) FROM comments WHERE user_id = ${userId} AND is_deleted = false)::int AS comment_count,
-            (SELECT COUNT(*) FROM tags_assign WHERE user_id = ${userId})::int AS tag_count
-          FROM "user" u WHERE u.id = ${userId}
-        `;
+        const isAdmin = !!req.session.admin;
 
-        const INVITE_CRITERIA = getInviteCriteria();
-        const eligible =
-          stats.upload_count >= INVITE_CRITERIA.uploads &&
-          stats.age_days >= INVITE_CRITERIA.age_days &&
-          stats.comment_count >= INVITE_CRITERIA.comments &&
-          stats.tag_count >= INVITE_CRITERIA.tags;
+        if (!isAdmin) {
+          // Eligibility check
+          const [stats] = await db`
+            SELECT
+              (SELECT COUNT(*) FROM items WHERE username = ${username} AND active = true AND is_deleted = false)::int AS upload_count,
+              EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400 AS age_days,
+              (SELECT COUNT(*) FROM comments WHERE user_id = ${userId} AND is_deleted = false)::int AS comment_count,
+              (SELECT COUNT(*) FROM tags_assign WHERE user_id = ${userId})::int AS tag_count
+            FROM "user" u WHERE u.id = ${userId}
+          `;
 
-        if (!eligible) {
-          return res.json({ success: false, msg: 'You do not meet the eligibility criteria' }, 403);
-        }
+          const INVITE_CRITERIA = getInviteCriteria();
+          const eligible =
+            stats.upload_count >= INVITE_CRITERIA.uploads &&
+            stats.age_days >= INVITE_CRITERIA.age_days &&
+            stats.comment_count >= INVITE_CRITERIA.comments &&
+            stats.tag_count >= INVITE_CRITERIA.tags;
 
-        // Check available slots (used within last 30 days)
-        const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
-        const [{ slots_consumed }] = await db`
-          SELECT COUNT(*)::int AS slots_consumed
-          FROM invite_tokens
-          WHERE created_by = ${userId}
-            AND is_used = true
-            AND used_at > ${cutoff}
-        `;
+          if (!eligible) {
+            return res.json({ success: false, msg: 'You do not meet the eligibility criteria' }, 403);
+          }
 
-        if (slots_consumed >= totalSlots) {
-          return res.json({ success: false, msg: 'No invite slots available. Slots refresh 30 days after use.' }, 403);
+          // Check available slots (used within last 30 days)
+          const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
+          const [{ slots_consumed }] = await db`
+            SELECT COUNT(*)::int AS slots_consumed
+            FROM invite_tokens
+            WHERE created_by = ${userId}
+              AND is_used = true
+              AND used_at > ${cutoff}
+          `;
+
+          if (slots_consumed >= totalSlots) {
+            return res.json({ success: false, msg: 'No invite slots available. Slots refresh 30 days after use.' }, 403);
+          }
         }
 
         // Generate token
