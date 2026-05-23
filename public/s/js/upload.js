@@ -74,6 +74,9 @@ window.initUploadForm = (selector) => {
     const commentMaxLen = (commentMaxLenAttr && commentMaxLenAttr !== 'null') ? parseInt(commentMaxLenAttr) : null;
 
     const isShitpost = form.classList.contains('shitpost-mode-active') || !!window.f0ckShitpostMode;
+    // Config-driven shitpost overrides
+    const shitpostRequireRating = isShitpost && !!window.f0ckShitpostRequireRating;
+    const shitpostMinTags = isShitpost ? (parseInt(window.f0ckShitpostMinTags) || 0) : 0;
     let tags = [];
     let autoTags = []; // Track tags suggested from metadata
     let selectedFiles = []; // Array of files for shitpost_mode
@@ -548,14 +551,23 @@ window.initUploadForm = (selector) => {
         const isShitpost = !!window.f0ckShitpostMode;
         const rating = form.querySelector('input[name="rating"]:checked');
         
-        // In Shitpost Mode, ratings are per-item (optional) and tags are optional — just need files
-        const hasRating = (isShitpost && activeMode === 'file') ? true : (rating !== null);
+        // In Shitpost Mode, ratings are per-item. If require rating is true, every item must be rated.
+        let hasRating = true;
+        if (isShitpost && activeMode === 'file') {
+            if (shitpostRequireRating) {
+                hasRating = selectedFiles.length > 0 && selectedFiles.every(item => ['sfw', 'nsfw', 'nsfl'].includes(item.rating));
+            }
+        } else {
+            hasRating = (rating !== null);
+        }
         
         let hasTags = true;
         if (!isShitpost) {
             hasTags = tags.length >= minTags;
+        } else if (shitpostMinTags > 0 && activeMode === 'file') {
+            // In shitpost file mode with min-tags enforced: every queued item must meet the threshold.
+            hasTags = selectedFiles.length === 0 || selectedFiles.every(item => (item.tags || []).length >= shitpostMinTags);
         }
-        // In shitpost file mode: hasTags is always true (untagged is allowed)
 
         // Toggle visibility of global rating/comment/tag sections
         const ratingSec = form.querySelector('.global-rating-section');
@@ -606,18 +618,27 @@ window.initUploadForm = (selector) => {
                         ? (ssrSelectFileText || i18n.select_file || 'Select a file')
                         : (i18n.enter_url   || 'Enter a URL');
                 } else if (!hasTags) {
-                    // non-shitpost only
-                    const remaining = minTags - tags.length;
-                    const tpl = i18n.tags_required || '{n} more tag{s} required';
-                    btnText.textContent = tpl
-                        .replace('{n}', remaining)
-                        .replace('{s}', remaining !== 1 ? 's' : '');
+                    // non-shitpost or shitpost with min-tags
+                    if (isShitpost && shitpostMinTags > 0) {
+                        const remaining = shitpostMinTags - Math.min(...selectedFiles.map(item => (item.tags || []).length));
+                        btnText.textContent = `${remaining} more tag${remaining !== 1 ? 's' : ''} required per item`;
+                    } else {
+                        const remaining = minTags - tags.length;
+                        const tpl = i18n.tags_required || '{n} more tag{s} required';
+                        btnText.textContent = tpl
+                            .replace('{n}', remaining)
+                            .replace('{s}', remaining !== 1 ? 's' : '');
+                    }
                 } else if (!hasRating) {
                     const nsflEnabled = !!form.querySelector('input[name="rating"][value="nsfl"]');
-                    if (nsflEnabled) {
-                        btnText.textContent = i18n.select_rating_nsfl || 'Select SFW, NSFW or NSFL';
+                    if (isShitpost && shitpostRequireRating) {
+                        btnText.textContent = 'Select a rating for each item';
                     } else {
-                        btnText.textContent = i18n.select_rating || 'Select SFW or NSFW';
+                        if (nsflEnabled) {
+                            btnText.textContent = i18n.select_rating_nsfl || 'Select SFW, NSFW or NSFL';
+                        } else {
+                            btnText.textContent = i18n.select_rating || 'Select SFW or NSFW';
+                        }
                     }
                 } else {
                     if (activeMode === 'url' && urlInput && ytRegex.test(urlInput.value.trim()) && window.f0ckEnableYoutubeUpload !== false) {
@@ -841,19 +862,21 @@ window.initUploadForm = (selector) => {
             let commentUI = '';
             if (isShitpost) {
                 const nsflEnabled = !!form.querySelector('input[name="rating"][value="nsfl"]');
+                // Build per-item rating HTML
+                const ratingValue = item.rating;
                 ratingSwitch = `
                     <div class="item-rating-container">
                         <label class="item-rating-option">
-                            <input type="radio" name="rating_${index}" value="sfw" ${item.rating === 'sfw' ? 'checked' : ''}>
+                            <input type="radio" name="rating_${index}" value="sfw" ${ratingValue === 'sfw' ? 'checked' : ''}>
                             <span class="item-rating-label sfw">SFW</span>
                         </label>
                         <label class="item-rating-option">
-                            <input type="radio" name="rating_${index}" value="nsfw" ${item.rating === 'nsfw' ? 'checked' : ''}>
+                            <input type="radio" name="rating_${index}" value="nsfw" ${ratingValue === 'nsfw' ? 'checked' : ''}>
                             <span class="item-rating-label nsfw">NSFW</span>
                         </label>
                         ${nsflEnabled ? `
                         <label class="item-rating-option">
-                            <input type="radio" name="rating_${index}" value="nsfl" ${item.rating === 'nsfl' ? 'checked' : ''}>
+                            <input type="radio" name="rating_${index}" value="nsfl" ${ratingValue === 'nsfl' ? 'checked' : ''}>
                             <span class="item-rating-label nsfl">NSFL</span>
                         </label>
                         ` : ''}
@@ -861,10 +884,11 @@ window.initUploadForm = (selector) => {
                 `;
 
                 const tagsPlaceholder = window.f0ckI18n?.upload_tags_placeholder || 'Tags...';
+                const minTagsHint = shitpostMinTags > 0 ? ` (min ${shitpostMinTags})` : '';
                 tagsUI = `
                     <div class="item-tags-container">
                         <div class="item-tags-list"></div>
-                        <input type="text" class="item-tag-input" placeholder="${window.escapeHtmlUpload(tagsPlaceholder)}" enterkeyhint="done">
+                        <input type="text" class="item-tag-input" placeholder="${window.escapeHtmlUpload(tagsPlaceholder + minTagsHint)}" enterkeyhint="done">
                         <div class="tag-suggestions" style="display:none;"></div>
                         <div class="item-meta-suggestions" style="display:none; margin-top:5px; font-size:0.7rem; opacity:0.6;"></div>
                     </div>
@@ -901,7 +925,10 @@ window.initUploadForm = (selector) => {
             if (isShitpost) {
                 // Handle Rating
                 infoRow.querySelectorAll('.item-rating-option input').forEach(radio => {
-                    radio.onchange = () => { item.rating = radio.value; };
+                    radio.onchange = () => { 
+                        item.rating = radio.value; 
+                        updateSubmitButton();
+                    };
                 });
 
                 // Handle Comment

@@ -86,6 +86,8 @@
     "web_meta_extraction": true,
     "bypass_duplicate_check": true,
     "shitpost_mode": false,
+    "shitpost_require_rating": false,
+    "shitpost_min_tags": 0,
     "protect_files": false,
     "enable_dynamic_thumbs": false,
     "allowed_comment_images": [

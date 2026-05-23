@@ -46,7 +46,7 @@
     @endif
     <link rel="stylesheet" href="/s/css/upload.css?v={{ ts }}">
   @endif
-  <script>window.f0ckThemes = {{ themes_json }}; window.f0ckDefaultTheme = "{{ default_theme }}"; window.f0ckDomain = "{{ domain }}"; window.f0ckGitHash = "{{ git_hash }}"; window.f0ckAllowedImages = {{ allowed_comment_images_json }}; window.f0ckEmbedYoutubeInComments = {{ embed_youtube_in_comments ? 'true' : 'false' }}; window.f0ckEnableYoutubeUpload = {{ enable_youtube_upload ? 'true' : 'false' }}; window.f0ckBrandImages = {{ custom_brand_images_json }}; window.f0ckMediaBase = "{{ paths_images }}"; window.f0ckShitpostMode = {{ shitpost_mode ? 'true' : 'false' }};</script>
+  <script>window.f0ckThemes = {{ themes_json }}; window.f0ckDefaultTheme = "{{ default_theme }}"; window.f0ckDomain = "{{ domain }}"; window.f0ckGitHash = "{{ git_hash }}"; window.f0ckAllowedImages = {{ allowed_comment_images_json }}; window.f0ckEmbedYoutubeInComments = {{ embed_youtube_in_comments ? 'true' : 'false' }}; window.f0ckEnableYoutubeUpload = {{ enable_youtube_upload ? 'true' : 'false' }}; window.f0ckBrandImages = {{ custom_brand_images_json }}; window.f0ckMediaBase = "{{ paths_images }}"; window.f0ckShitpostMode = {{ shitpost_mode ? 'true' : 'false' }}; window.f0ckShitpostRequireRating = {{ shitpost_require_rating ? 'true' : 'false' }}; window.f0ckShitpostMinTags = {{ shitpost_min_tags || 0 }};</script>
   @if(!private_society || session)
   <script src="/s/js/marked.min.js" defer></script>
   <script src="/s/js/comments.js?v={{ ts }}" defer></script>

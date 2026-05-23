@@ -1077,6 +1077,8 @@ process.on('uncaughtException', err => {
     registration_web_toggle_enabled: cfg.websrv.open_registration_web_toggle !== false,
     get trusted_uploads() { return getTrustedUploads(); },
     get shitpost_mode() { return getShitpostMode(); },
+    shitpost_require_rating: !!cfg.websrv.shitpost_require_rating,
+    shitpost_min_tags: parseInt(cfg.websrv.shitpost_min_tags) || 0,
     get about_text() { return getAboutText(); },
     get rules_text() { return getRulesText(); },
     get terms_text() { return getTermsText(); },

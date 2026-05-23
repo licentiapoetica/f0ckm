@@ -119,11 +119,16 @@ export const handleUpload = async (req, res, self) => {
             return sendJson(res, { success: false, msg: 'No file provided' }, 400);
         }
 
-        // In shitpost mode, rating is optional — null means no rating tag is assigned (truly untagged)
-        const effectiveRating = (rating && ['sfw', 'nsfw', 'nsfl'].includes(rating)) ? rating : (is_shitpost ? null : null);
+        // In shitpost mode, rating is optional — null means no rating tag is assigned (truly untagged).
+        // If shitpost_require_rating is configured to true, a rating is strictly required.
+        const effectiveRating = (rating && ['sfw', 'nsfw', 'nsfl'].includes(rating)) ? rating : null;
 
         if (!is_shitpost && !effectiveRating) {
             return sendJson(res, { success: false, msg: 'Rating (sfw/nsfw/nsfl) is required' }, 400);
+        }
+
+        if (is_shitpost && cfg.websrv.shitpost_require_rating === true && !effectiveRating) {
+            return sendJson(res, { success: false, msg: 'Rating (sfw/nsfw/nsfl) is required for each item' }, 400);
         }
 
         if (effectiveRating === 'nsfl' && !cfg.enable_nsfl) {
@@ -132,9 +137,13 @@ export const handleUpload = async (req, res, self) => {
 
         const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0 && !['sfw', 'nsfw', 'nsfl'].includes(t.toLowerCase())) : [];
         const minTags = getMinTags();
-        // In shitpost mode, tags are optional — items without tags enter as untagged
+        // In shitpost mode, tags are optional by default — unless shitpost_min_tags is configured.
+        const shitpostMinTags = is_shitpost ? (parseInt(cfg.websrv.shitpost_min_tags) || 0) : 0;
         if (!is_shitpost && tags.length < minTags) {
             return sendJson(res, { success: false, msg: `At least ${minTags} tags are required` }, 400);
+        }
+        if (is_shitpost && shitpostMinTags > 0 && tags.length < shitpostMinTags) {
+            return sendJson(res, { success: false, msg: `At least ${shitpostMinTags} tag${shitpostMinTags !== 1 ? 's' : ''} are required` }, 400);
         }
 
         // Validate MIME type
