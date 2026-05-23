@@ -44,6 +44,7 @@ window.cancelAnimFrame = (function () {
   if (localStorage.getItem('blurNsfl') === 'true') htmlEl.classList.add('blur-nsfl-active');
   if (localStorage.getItem('blurSfw') === 'true') htmlEl.classList.add('blur-sfw-active');
   if (localStorage.getItem('blurUntagged') === 'true') htmlEl.classList.add('blur-untagged-active');
+  if (localStorage.getItem('blurDetail') !== 'false') htmlEl.classList.add('blur-detail-active');
 
   window.updateVisitIndicators = () => {
       try {
@@ -8827,6 +8828,30 @@ if (navigator.vibrate) {
     const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
     if (!blurNsfw && !blurNsfl && !blurSfw && !blurUntagged) return;
     
+    // Check if they clicked a blurred media-object container on the detail page
+    const mediaObj = e.target.closest('.media-object');
+    if (mediaObj && localStorage.getItem('blurDetail') !== 'false') {
+      const mode = mediaObj.getAttribute('data-mode');
+      let shouldBlurThis = false;
+      if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+      else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+      else if (mode === 'sfw') shouldBlurThis = blurSfw;
+      else if (mode === 'untagged') shouldBlurThis = blurUntagged;
+      
+      if (shouldBlurThis && !mediaObj.classList.contains('revealed')) {
+        e.preventDefault();
+        e.stopPropagation();
+        mediaObj.classList.add('revealed');
+        
+        // Start audio/video playback cleanly on reveal
+        const videoElem = mediaObj.querySelector('video') || mediaObj.querySelector('audio');
+        if (videoElem) {
+          videoElem.play().catch(() => {});
+        }
+        return;
+      }
+    }
+
     // Check if they clicked the elegant hide-again button in the corner
     const hideBtn = e.target.closest('.hide-thumb-btn');
     if (hideBtn) {

@@ -421,8 +421,28 @@ class v0ck {
     video.volume = _volume = volumeSlider.value = +(localStorage.getItem('volume') ?? defaultVolume);
     handleVolumeButton(video.volume);
 
+    const mediaObj = player.closest('.media-object');
+    let isBlurredDetail = false;
+    if (mediaObj && localStorage.getItem('blurDetail') !== 'false') {
+      const mode = mediaObj.getAttribute('data-mode');
+      const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+      const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+      const blurSfw = localStorage.getItem('blurSfw') === 'true';
+      const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+      
+      let shouldBlurThis = false;
+      if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+      else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+      else if (mode === 'sfw') shouldBlurThis = blurSfw;
+      else if (mode === 'untagged') shouldBlurThis = blurUntagged;
+      
+      if (shouldBlurThis && !mediaObj.classList.contains('revealed')) {
+        isBlurredDetail = true;
+      }
+    }
+
     // Attempt autoplay and show overlay if blocked
-    const shouldAutoplay = window.f0ckSession?.disable_autoplay !== true;
+    const shouldAutoplay = !isBlurredDetail && window.f0ckSession?.disable_autoplay !== true;
     if (shouldAutoplay) {
       const playPromise = togglePlay();
       if (playPromise !== undefined) {

@@ -319,6 +319,13 @@
             </label>
             <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_untagged_hint') }}</small>
           </div>
+          <div class="setting-item" style="margin-top: 15px; border-top: 1px dashed var(--nav-border-color); padding-top: 15px;">
+            <label for="blur_detail_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="blur_detail_toggle">
+              <span>{{ t('settings.blur_detail') || 'Click to reveal item on detail page' }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.blur_detail_hint') || 'Require clicking to reveal blurred media on the post detail page instead of showing it immediately.' }}</small>
+          </div>
         </fieldset>
 
         <fieldset

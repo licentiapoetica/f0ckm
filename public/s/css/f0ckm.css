@@ -14734,3 +14734,85 @@ body.scroller-active #gchat-reopen-bubble {
   font-size: 11px !important;
   line-height: 1 !important;
 }
+
+/* Post detail page media-object blur overlay support (NSFW, NSFL, SFW, Untagged) */
+.blur-detail-active.blur-nsfw-active .media-object[data-mode="nsfw"]:not(.revealed),
+.blur-detail-active.blur-nsfl-active .media-object[data-mode="nsfl"]:not(.revealed),
+.blur-detail-active.blur-sfw-active .media-object[data-mode="sfw"]:not(.revealed),
+.blur-detail-active.blur-untagged-active .media-object[data-mode="untagged"]:not(.revealed) {
+  position: relative !important;
+  cursor: pointer !important;
+}
+
+.blur-detail-active.blur-nsfw-active .media-object[data-mode="nsfw"]:not(.revealed) > *,
+.blur-detail-active.blur-nsfl-active .media-object[data-mode="nsfl"]:not(.revealed) > *,
+.blur-detail-active.blur-sfw-active .media-object[data-mode="sfw"]:not(.revealed) > *,
+.blur-detail-active.blur-untagged-active .media-object[data-mode="untagged"]:not(.revealed) > * {
+  filter: blur(40px) brightness(0.6) !important;
+  -webkit-filter: blur(40px) brightness(0.6) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 0.35s ease, -webkit-filter 0.35s ease !important;
+}
+
+.media-object.revealed > * {
+  filter: none !important;
+  -webkit-filter: none !important;
+  pointer-events: auto !important;
+}
+
+.blur-detail-active.blur-nsfw-active .media-object[data-mode="nsfw"]:not(.revealed)::after,
+.blur-detail-active.blur-nsfl-active .media-object[data-mode="nsfl"]:not(.revealed)::after,
+.blur-detail-active.blur-sfw-active .media-object[data-mode="sfw"]:not(.revealed)::after,
+.blur-detail-active.blur-untagged-active .media-object[data-mode="untagged"]:not(.revealed)::after {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1000 !important;
+  color: #fff !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+  text-align: center !important;
+  white-space: pre-wrap !important;
+  cursor: pointer !important;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+}
+
+.blur-detail-active.blur-nsfw-active .media-object[data-mode="nsfw"]:not(.revealed)::after {
+  content: "NSFW\A \A Click to reveal" !important;
+  font-size: 18px !important;
+  color: #ffffff !important;
+  background: rgba(10, 10, 12, 0.45) !important;
+}
+.blur-detail-active.blur-nsfl-active .media-object[data-mode="nsfl"]:not(.revealed)::after {
+  content: "NSFL\A \A Click to reveal" !important;
+  font-size: 18px !important;
+  color: #ff3b30 !important;
+  background: rgba(10, 10, 12, 0.55) !important;
+}
+.blur-detail-active.blur-sfw-active .media-object[data-mode="sfw"]:not(.revealed)::after {
+  content: "SFW\A \A Click to reveal" !important;
+  font-size: 18px !important;
+  color: #30d158 !important;
+  background: rgba(10, 10, 12, 0.4) !important;
+}
+.blur-detail-active.blur-untagged-active .media-object[data-mode="untagged"]:not(.revealed)::after {
+  content: "UNTAGGED\A \A Click to reveal" !important;
+  font-size: 18px !important;
+  color: #ff9f0a !important;
+  background: rgba(10, 10, 12, 0.45) !important;
+}
+
+/* Hide overlay when revealed */
+.media-object.revealed::after {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

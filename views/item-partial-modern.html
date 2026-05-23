@@ -65,7 +65,7 @@
                 </div>
                 @endif
             </div>
-            <div class="media-object">
+            <div class="media-object" data-mode="@if(item.is_nsfl)nsfl@elseif(item.is_nsfw)nsfw@elseif(item.is_sfw)sfw@elseuntagged@endif">
                 @include(snippets/item-media)
             </div>
             <div class="next-post">

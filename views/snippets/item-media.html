@@ -8,7 +8,7 @@
 </div>
 @elseif(item.mime.startsWith("audio"))
 <div class="embed-responsive embed-responsive-16by9" style="background: url('@if(item.coverart)//w0bm.com{{ item.coverart }}@else/s/img/200.gif@endif') no-repeat center / contain black;">
-    <audio id="my-video" class="embed-responsive-item" autoplay loop src="{{ item.dest }}" data-setup="{}" data-size="{{ item.size }}" poster="@if(item.coverart){{ item.coverart }}@else/s/img/200.gif@endif" type="{{ item.mime }}"></audio>
+    <audio id="my-video" class="embed-responsive-item" loop src="{{ item.dest }}" data-setup="{}" data-size="{{ item.size }}" poster="@if(item.coverart){{ item.coverart }}@else/s/img/200.gif@endif" type="{{ item.mime }}"></audio>
     <img id="f0ck-audio-cover" src="@if(item.coverart){{ item.coverart }}@else/s/img/200.gif@endif" style="display: none;">
 </div>
 @elseif(item.mime.startsWith("image"))

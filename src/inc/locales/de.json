@@ -158,6 +158,8 @@
     "blur_sfw_hint": "Zeichnet SFW-Vorschaubilder weich.",
     "blur_untagged": "Unmarkierte weichzeichnen",
     "blur_untagged_hint": "Zeichnet unmarkierte Vorschaubilder weich.",
+    "blur_detail": "Beiträge weichzeichnen",
+    "blur_detail_hint": "Erfordert das Anklicken zum Anzeigen von weichgezeichneten Medien auf der Beitragsseite.",
     "render_emojis": "Emojis in Zitatantworten anzeigen",
     "render_emojis_hint": ":emoji:-Bilder in >zitierten Zeilen anzeigen",
     "embed_yt": "YouTube-Videos in Kommentaren einbetten",

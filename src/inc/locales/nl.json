@@ -158,6 +158,8 @@
     "blur_sfw_hint": "Vervaagt SFW-thumbnails.",
     "blur_untagged": "Ongetagde vervagen",
     "blur_untagged_hint": "Vervaagt ongetagde thumbnails.",
+    "blur_detail": "Details weigeren direct te tonen (vervagen)",
+    "blur_detail_hint": "Vereist klikken om vervaagde media op de detailpagina te onthullen.",
     "render_emojis": "Emoji's weergeven in antwoorden",
     "render_emojis_hint": "Toon :emoji: afbeeldingen binnen >geciteerde regels",
     "embed_yt": "YouTube-links insluiten in opmerkingen",

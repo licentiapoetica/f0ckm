@@ -779,6 +779,20 @@
             showStatus(enabled ? 'Untagged blurring enabled!' : 'Untagged blurring disabled!', 'success');
         });
     }
+    const blurDetailToggle = document.getElementById('blur_detail_toggle');
+    if (blurDetailToggle) {
+        blurDetailToggle.checked = localStorage.getItem('blurDetail') !== 'false';
+        blurDetailToggle.addEventListener('change', () => {
+            const enabled = blurDetailToggle.checked;
+            localStorage.setItem('blurDetail', enabled ? 'true' : 'false');
+            if (enabled) {
+                document.documentElement.classList.add('blur-detail-active');
+            } else {
+                document.documentElement.classList.remove('blur-detail-active');
+            }
+            showStatus(enabled ? 'Detail page blurring enabled!' : 'Detail page blurring disabled!', 'success');
+        });
+    }
 
     // Background Blur Toggle
     const backgroundToggle = document.getElementById('show_background_toggle');
