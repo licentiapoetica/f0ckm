@@ -173,6 +173,8 @@ class v0ck {
     let ignoreNextClick = false;
     let wasPausedWhenStarted = false;
     const speedIndicator = player.querySelector('.v0ck_speed_indicator');
+    
+    // (mouse position is now tracked via docMouseX/docMouseY in resetControlsTimer block)
 
     function handleVolumeButton(vol) {
       [...volumeSymbols].forEach(s => !s.classList.contains('v0ck_hidden') ? s.classList.add('v0ck_hidden') : null);
@@ -566,10 +568,36 @@ class v0ck {
 
     // Controls auto-hide logic (auto hide controls after 2.5 seconds of inactivity)
     let controlsTimer;
+
+    // Track real mouse position at document level — completely independent of
+    // any element animation or synthetic events.
+    let docMouseX = -1;
+    let docMouseY = -1;
+    const onDocMouseMove = (e) => {
+      docMouseX = e.clientX;
+      docMouseY = e.clientY;
+    };
+    document.addEventListener('mousemove', onDocMouseMove, { passive: true });
+
+    // Returns true if the cursor is currently inside the player's bounding box.
+    // We deliberately use the PLAYER rect (stable) not the animating controls rect.
+    function isCursorInPlayer() {
+      if (docMouseX < 0 || docMouseY < 0) return false;
+      const r = player.getBoundingClientRect();
+      return docMouseX >= r.left && docMouseX <= r.right &&
+             docMouseY >= r.top  && docMouseY <= r.bottom;
+    }
+
     function resetControlsTimer() {
       clearTimeout(controlsTimer);
       if (!video.paused) {
         controlsTimer = setTimeout(() => {
+          if (isCursorInPlayer()) {
+            // Cursor is still in the player — postpone. This handles the
+            // "stationary cursor near controls" case without any animation-state dependency.
+            resetControlsTimer();
+            return;
+          }
           player.classList.remove('v0ck_hover');
           if (settingsMenu && !settingsMenu.classList.contains('v0ck_hidden')) {
             settingsMenu.classList.add('v0ck_hidden');
@@ -579,7 +607,19 @@ class v0ck {
       }
     }
 
-    function showControlsAndReset() {
+    function showControlsAndReset(e) {
+      // Ignore synthetic pointer events fired by the browser during CSS animations
+      // (element shifts under stationary cursor). We compare against docMouseX/Y
+      // which is only ever updated by genuine user mouse movement.
+      if (e && e.clientX !== undefined && e.clientY !== undefined) {
+        if (e.clientX === docMouseX && e.clientY === docMouseY &&
+            player.classList.contains('v0ck_hover')) {
+          // Coordinates unchanged and controls already visible — synthetic event, skip.
+          return;
+        }
+        docMouseX = e.clientX;
+        docMouseY = e.clientY;
+      }
       player.classList.add('v0ck_hover');
       resetControlsTimer();
     }
@@ -590,11 +630,23 @@ class v0ck {
       player.addEventListener(evt, showControlsAndReset, { capture: true, passive: true });
     });
 
-    // Make sure leaving the player immediately hides the controls and clears the timer on desktop
-    player.addEventListener('mouseleave', () => {
+    // Hide when cursor leaves the player entirely.
+    // NO capture:true — that would incorrectly intercept mouseleave events from
+    // child elements (e.g. the progress bar animating away from the cursor).
+    // Without capture, this only fires when the mouse truly leaves .v0ck itself.
+    player.addEventListener('mouseleave', (e) => {
+      const r = player.getBoundingClientRect();
+      // Grace zone: the controls bar peeks ~3px below the player when hidden.
+      // If the cursor is still in that strip, don't hide.
+      if (e.clientX >= r.left && e.clientX <= r.right &&
+          e.clientY > r.bottom && e.clientY <= r.bottom + 8) {
+        return;
+      }
+      docMouseX = -1;
+      docMouseY = -1;
       player.classList.remove('v0ck_hover');
       clearTimeout(controlsTimer);
-    }, { capture: true, passive: true });
+    });
 
     video.addEventListener('play', resetControlsTimer);
     video.addEventListener('playing', resetControlsTimer);
