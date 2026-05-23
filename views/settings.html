@@ -23,40 +23,8 @@
         @endif
       </nav>
       <style>
-        #settings-quicknav {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          padding: 8px 14px;
-          background: rgba(20,20,20,0.92);
-          border-bottom: 1px solid var(--nav-border-color);
-          position: fixed;
-          top: var(--navbar-h, 50px); /* sit just below the site navbar */
-          left: 0;
-          right: 0;
-          z-index: 200;
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-        }
-        /* Push content down so the fixed nav doesn't overlap headings */
+        /* Push content down so the fixed nav doesn't overlap section headings */
         .settings { padding-top: 56px; }
-        #settings-quicknav a {
-          font-size: 0.82em;
-          font-weight: 600;
-          padding: 4px 12px;
-          border-radius: 20px;
-          border: 1px solid var(--nav-border-color);
-          color: var(--text-muted);
-          text-decoration: none;
-          transition: background 0.15s, color 0.15s, border-color 0.15s;
-          white-space: nowrap;
-        }
-        #settings-quicknav a:hover,
-        #settings-quicknav a.active {
-          background: var(--accent);
-          color: #fff;
-          border-color: var(--accent);
-        }
       </style>
       <script>
       (function(){
@@ -69,47 +37,42 @@
           });
         }
 
-        // Set initial active from hash or default to first
-        var initHash = location.hash;
-        var links = nav.querySelectorAll('a[href^="#"]');
-        var firstLink = links[0];
-        if (initHash && nav.querySelector('a[href="' + initHash + '"]')) {
-          setActive(initHash);
-        } else if (firstLink) {
-          setActive(firstLink.getAttribute('href'));
+        function highlightTarget(hash) {
+          if (!hash) return;
+          var el = document.querySelector(hash);
+          if (!el) return;
+          document.querySelectorAll('.comment-highlighted').forEach(function(c) {
+            c.classList.remove('comment-highlighted');
+          });
+          el.classList.add('comment-highlighted');
         }
 
-        // On load with a hash: highlight the target heading
-        if (initHash) {
-          var target = document.querySelector(initHash);
-          if (target) {
-            // Use rAF so the browser has scrolled to the target first
-            requestAnimationFrame(function() {
-              document.querySelectorAll('.comment-highlighted').forEach(function(el) {
-                el.classList.remove('comment-highlighted');
-              });
-              target.classList.add('comment-highlighted');
-            });
+        function initFromHash() {
+          var hash = location.hash;
+          if (hash && nav.querySelector('a[href="' + hash + '"]')) {
+            setActive(hash);
+            highlightTarget(hash);
+          } else {
+            var first = nav.querySelector('a[href^="#"]');
+            if (first) setActive(first.getAttribute('href'));
           }
         }
 
-        // Delegated click on the nav container — fires before document-level handlers
+        // Run now (direct page load) and after a tick (AJAX: URL updated after script runs)
+        initFromHash();
+        setTimeout(initFromHash, 50);
+
+        // Click: set active + highlight target immediately
         nav.addEventListener('click', function(e) {
           var link = e.target.closest('a[href^="#"]');
           if (!link) return;
-          setActive(link.getAttribute('href'));
-          // Highlight the target section
           var href = link.getAttribute('href');
-          var el = document.querySelector(href);
-          if (el) {
-            document.querySelectorAll('.comment-highlighted').forEach(function(c) {
-              c.classList.remove('comment-highlighted');
-            });
-            el.classList.add('comment-highlighted');
-          }
+          setActive(href);
+          requestAnimationFrame(function() { highlightTarget(href); });
         });
       })();
       </script>
+
 
       <!-- ═══════════════════════════════ PROFILE ═══════════════════════════════ -->
       <h2 id="profile">{{ t('settings.profile') }}</h2>

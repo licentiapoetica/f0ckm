@@ -14262,6 +14262,40 @@ body.scroller-active #gchat-reopen-bubble {
   box-sizing: border-box;
 }
 
+/* Settings quick-nav bar */
+#settings-quicknav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(20,20,20,0.92);
+  border-bottom: 1px solid var(--nav-border-color);
+  position: fixed;
+  top: var(--navbar-h, 50px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+#settings-quicknav a {
+  font-size: 0.82em;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--nav-border-color);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+#settings-quicknav a:hover,
+#settings-quicknav a.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 @media (max-width: 600px) {
   .settings {
     padding: 0 4px;
