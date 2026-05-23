@@ -6,20 +6,20 @@
 
       <!-- Quick navigation -->
       <nav id="settings-quicknav" aria-label="Settings sections">
-        <a href="/settings#sec-avatar">{{ t('settings.avatar') }}</a>
-        <a href="/settings#sec-preferences">{{ t('settings.preferences') }}</a>
+        <a href="#profile">{{ t('settings.profile') }}</a>
+        <a href="#preferences">{{ t('settings.preferences') }}</a>
         @if(enable_data_export)
-        <a href="/settings#sec-export">{{ t('settings.export_data_title') }}</a>
+        <a href="#export">{{ t('settings.export_data_title') }}</a>
         @endif
-        <a href="/settings#sec-account">{{ t('settings.account') }}</a>
+        <a href="#account">{{ t('settings.account') }}</a>
         @if(matrix_enabled)
-        <a href="/settings#sec-linked">{{ t('settings.linked_accounts') }}</a>
+        <a href="#linked">{{ t('settings.linked_accounts') }}</a>
         @endif
         @if(enable_user_api_keys)
-        <a href="/settings#sec-apikey">API Key</a>
+        <a href="#apikey">API Key</a>
         @endif
         @if(enable_user_invites)
-        <a href="/settings#sec-invites">{{ t('invites.section_title') }}</a>
+        <a href="#invites">{{ t('invites.section_title') }}</a>
         @endif
       </nav>
       <style>
@@ -27,16 +27,19 @@
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
-          margin-bottom: 28px;
-          padding: 10px 14px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid var(--nav-border-color);
-          border-radius: 8px;
-          position: sticky;
-          top: 0;
-          z-index: 50;
-          backdrop-filter: blur(8px);
+          padding: 8px 14px;
+          background: rgba(20,20,20,0.92);
+          border-bottom: 1px solid var(--nav-border-color);
+          position: fixed;
+          top: var(--navbar-h, 50px); /* sit just below the site navbar */
+          left: 0;
+          right: 0;
+          z-index: 200;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
         }
+        /* Push content down so the fixed nav doesn't overlap headings */
+        .settings { padding-top: 56px; }
         #settings-quicknav a {
           font-size: 0.82em;
           font-weight: 600;
@@ -57,68 +60,85 @@
       </style>
       <script>
       (function(){
-        const nav = document.getElementById('settings-quicknav');
+        var nav = document.getElementById('settings-quicknav');
         if (!nav) return;
-        const links = Array.from(nav.querySelectorAll('a[href^="#"]'));
-        const targets = links.map(l => document.getElementById(l.getAttribute('href').slice(1))).filter(Boolean);
-        if (!targets.length) return;
-        const obs = new IntersectionObserver(entries => {
-          entries.forEach(e => {
-            const link = nav.querySelector('a[href="#' + e.target.id + '"]');
-            if (link) link.classList.toggle('active', e.isIntersecting);
+
+        function setActive(href) {
+          nav.querySelectorAll('a').forEach(function(a) {
+            a.classList.toggle('active', a.getAttribute('href') === href);
           });
-        }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
-        targets.forEach(t => obs.observe(t));
+        }
+
+        // Set initial active from hash or default to first
+        var initHash = location.hash;
+        var links = nav.querySelectorAll('a[href^="#"]');
+        var firstLink = links[0];
+        if (initHash && nav.querySelector('a[href="' + initHash + '"]')) {
+          setActive(initHash);
+        } else if (firstLink) {
+          setActive(firstLink.getAttribute('href'));
+        }
+
+        // Delegated click on the nav container — fires before document-level handlers
+        nav.addEventListener('click', function(e) {
+          var link = e.target.closest('a[href^="#"]');
+          if (!link) return;
+          setActive(link.getAttribute('href'));
+        });
       })();
       </script>
 
-      <h2 id="sec-avatar">{{ t('settings.avatar') }}</h2>
-      <div class="avatar-settings-wrapper">
-        <div class="avatar-preview-container">
-          <div class="avatar-preview-label">{{ t('settings.current_avatar') }}</div>
-          @if(avatar_file)
-          <a href="/user/{!! session.user !!}" target="_blank">
-            <img id="avatar-preview" class="avatar-preview-img" src="/a/{{ avatar_file }}">
-          </a>
-          @elseif(session.avatar && session.avatar > 0)
-          <a href="/user/{!! session.user !!}" target="_blank">
-            <img id="avatar-preview" class="avatar-preview-img" src="/t/{{ session.avatar }}.webp">
-          </a>
-          @else
-          <div id="avatar-preview" class="avatar-preview-img avatar-placeholder">?</div>
-          @endif
-        </div>
-
-        <div class="avatar-upload-section">
-          <h4>{{ t('settings.upload_custom_avatar') }}</h4>
-          <p class="avatar-hint">{{ t('settings.avatar_hint') }}</p>
-
-          <div class="avatar-upload-wrapper">
-            <input type="file" id="avatar-file-input" accept="image/gif,image/jpeg,image/png,image/webp" hidden>
-            <button type="button" id="avatar-choose-btn" class="button">{{ t('settings.choose_file') }}</button>
-            <span id="avatar-filename" class="avatar-filename">{{ t('settings.no_file_selected') }}</span>
-          </div>
-
-          <div class="avatar-progress-wrapper" id="avatar-progress-wrapper" style="display: none;">
-            <div class="avatar-progress-bar">
-              <div class="avatar-progress-fill" id="avatar-progress-fill"></div>
-            </div>
-            <span class="avatar-progress-text" id="avatar-progress-text">0%</span>
-          </div>
-
-          <div class="avatar-upload-actions">
-            <button type="button" id="avatar-upload-btn" class="button" disabled>{{ t('settings.upload_btn') }}</button>
+      <!-- ═══════════════════════════════ PROFILE ═══════════════════════════════ -->
+      <h2 id="profile">{{ t('settings.profile') }}</h2>
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.avatar') }}</legend>
+        <div class="avatar-settings-wrapper">
+          <div class="avatar-preview-container">
+            <div class="avatar-preview-label">{{ t('settings.current_avatar') }}</div>
             @if(avatar_file)
-            <button type="button" id="avatar-remove-btn" class="button button-danger">{{ t('settings.remove_custom') }}</button>
+            <a href="/user/{!! session.user !!}" target="_blank">
+              <img id="avatar-preview" class="avatar-preview-img" src="/a/{{ avatar_file }}">
+            </a>
+            @elseif(session.avatar && session.avatar > 0)
+            <a href="/user/{!! session.user !!}" target="_blank">
+              <img id="avatar-preview" class="avatar-preview-img" src="/t/{{ session.avatar }}.webp">
+            </a>
+            @else
+            <div id="avatar-preview" class="avatar-preview-img avatar-placeholder">?</div>
             @endif
           </div>
-          <div id="avatar-upload-status" class="avatar-status"></div>
+
+          <div class="avatar-upload-section">
+            <p class="avatar-hint">{{ t('settings.avatar_hint') }}</p>
+
+            <div class="avatar-upload-wrapper">
+              <input type="file" id="avatar-file-input" accept="image/gif,image/jpeg,image/png,image/webp" hidden>
+              <button type="button" id="avatar-choose-btn" class="button">{{ t('settings.choose_file') }}</button>
+              <span id="avatar-filename" class="avatar-filename">{{ t('settings.no_file_selected') }}</span>
+            </div>
+
+            <div class="avatar-progress-wrapper" id="avatar-progress-wrapper" style="display: none;">
+              <div class="avatar-progress-bar">
+                <div class="avatar-progress-fill" id="avatar-progress-fill"></div>
+              </div>
+              <span class="avatar-progress-text" id="avatar-progress-text">0%</span>
+            </div>
+
+            <div class="avatar-upload-actions">
+              <button type="button" id="avatar-upload-btn" class="button" disabled>{{ t('settings.upload_btn') }}</button>
+              @if(avatar_file)
+              <button type="button" id="avatar-remove-btn" class="button button-danger">{{ t('settings.remove_custom') }}</button>
+              @endif
+            </div>
+            <div id="avatar-upload-status" class="avatar-status"></div>
+          </div>
         </div>
-      </div>
+      </fieldset>
+
       @if(enable_profile_description)
-      <div class="profile-settings-wrapper">
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.custom_description') }}</legend>
         <div class="setting-item">
-          <label for="profile_description">{{ t('settings.custom_description') }}</label>
           <textarea id="profile_description" class="input" placeholder="{{ t('settings.description_placeholder') }}"
             maxlength="255">{!! session.description || '' !!}</textarea>
           <div class="profile-settings-actions">
@@ -127,24 +147,43 @@
           </div>
           <div id="description-status" class="avatar-status"></div>
         </div>
-      </div>
+      </fieldset>
       @endif
-      <div class="setting-item" style="margin-top: 20px;">
-        <label for="username_color_picker" style="display: block; margin-bottom: 5px;">{{ t('settings.username_color') }}</label>
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <input type="color" id="username_color_picker" value="{{ session.username_color || '#ffffff' }}"
-            style="width: 50px; height: 30px; padding: 0; border: 1px solid var(--nav-border-color); cursor: pointer; background: none;">
-          <input type="text" id="username_color_hex" value="{{ session.username_color || '#ffffff' }}" maxlength="7"
-            placeholder="#ffffff" class="input"
-            style="width: 90px; font-family: monospace; font-size: 0.9em; padding: 4px 8px; height: 30px;">
-          <button type="button" id="btn-save-username-color" class="button"
-            style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save_color') }}</button>
-          <button type="button" id="btn-reset-username-color" class="button button-secondary"
-            style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.reset') }}</button>
+
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.username_color') }}</legend>
+        <div class="setting-item">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <input type="color" id="username_color_picker" value="{{ session.username_color || '#ffffff' }}"
+              style="width: 50px; height: 30px; padding: 0; border: 1px solid var(--nav-border-color); cursor: pointer; background: none;">
+            <input type="text" id="username_color_hex" value="{{ session.username_color || '#ffffff' }}" maxlength="7"
+              placeholder="#ffffff" class="input"
+              style="width: 90px; font-family: monospace; font-size: 0.9em; padding: 4px 8px; height: 30px;">
+            <button type="button" id="btn-save-username-color" class="button"
+              style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save_color') }}</button>
+            <button type="button" id="btn-reset-username-color" class="button button-secondary"
+              style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.reset') }}</button>
+          </div>
+          <small class="text-muted">{{ t('settings.username_color_hint') }}</small>
         </div>
-        <small class="text-muted">{{ t('settings.username_color_hint') }}</small>
-      </div>
-      <h2 id="sec-preferences">{{ t('settings.preferences') }}</h2>
+      </fieldset>
+
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.display_name') }}</legend>
+        <div class="setting-item">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="display_name_input" class="input"
+              placeholder="{{ t('settings.display_name_placeholder') }}" value="{!! session.display_name || '' !!}"
+              maxlength="32" style="max-width: 200px; height: 30px; font-size: 0.9em;">
+            <button type="button" id="btn-update-display-name" class="button"
+              style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save') }}</button>
+          </div>
+          <div id="display-name-status" class="avatar-status"></div>
+        </div>
+      </fieldset>
+
+      <!-- ═══════════════════════════════ PREFERENCES ═══════════════════════════════ -->
+      <h2 id="preferences">{{ t('settings.preferences') }}</h2>
       <div class="preferences-settings-wrapper">
         <fieldset
           style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
@@ -367,7 +406,8 @@
 
       </div>
       @if(enable_data_export)
-      <h2 id="sec-export">{{ t('settings.export_data_title') || 'Export Data' }}</h2>
+      <!-- ═══════════════════════════════ EXPORT ═══════════════════════════════ -->
+      <h2 id="export">{{ t('settings.export_data_title') || 'Export Data' }}</h2>
       <div class="export-settings-wrapper" style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
         <p>{{ t('settings.export_data_desc') || 'Download a copy of your data. This process happens entirely in your browser to protect your privacy and save server resources.' }}</p>
         
@@ -407,8 +447,8 @@
         </button>
       </div>
       @endif
-
-      <h2 id="sec-account">{{ t('settings.account') }}</h2>
+      <!-- ═══════════════════════════════ ACCOUNT ═══════════════════════════════ -->
+      <h2 id="account">{{ t('settings.account') }}</h2>
       <div class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
         <table class="table account-info-table"
@@ -423,17 +463,6 @@
               <td style="border: none;">{!! session.user !!}</td>
             </tr>
             <tr>
-              <td style="font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.display_name') }}
-              </td>
-              <td style="border: none; display: flex; align-items: center; gap: 10px;">
-                <input type="text" id="display_name_input" class="input"
-                  placeholder="{{ t('settings.display_name_placeholder') }}" value="{!! session.display_name || '' !!}"
-                  maxlength="32" style="max-width: 200px; height: 30px; font-size: 0.9em;">
-                <button type="button" id="btn-update-display-name" class="button"
-                  style="padding: 2px 10px; font-size: 0.8em; height: 30px;">{{ t('settings.save') }}</button>
-              </td>
-            </tr>
-            <tr>
               <td style="font-weight: bold; color: var(--text-muted); border: none;">{{ t('settings.email') }}</td>
               <td id="display-email" style="border: none;">{{ email || t('settings.email_not_set') }}</td>
             </tr>
@@ -443,7 +472,6 @@
             </tr>
           </tbody>
         </table>
-        <div id="display-name-status" class="avatar-status" style="margin-bottom: 20px;"></div>
 
         <div class="account-actions-grid"
           style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
@@ -479,7 +507,8 @@
         </div>
       </div>
       @if(matrix_enabled)
-      <h2 id="sec-linked">{{ t('settings.linked_accounts') }}</h2>
+      <!-- ═══════════════════════════════ LINKED ACCOUNTS ═══════════════════════════════ -->
+      <h2 id="linked">{{ t('settings.linked_accounts') }}</h2>
       <div class="linked-accounts-wrapper">
         <p>{{ t('settings.matrix_link_desc') }}</p>
 
@@ -510,7 +539,8 @@
       @endif
 
       @if(enable_user_api_keys)
-      <h2 id="sec-apikey">Upload API Key</h2>
+      <!-- ═══════════════════════════════ API KEY ═══════════════════════════════ -->
+      <h2 id="apikey">Upload API Key</h2>
       <div id="api-key-section" class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
         <p style="color: var(--text-muted); margin-bottom: 15px;">
@@ -544,7 +574,8 @@
       @endif
 
       @if(enable_user_invites)
-      <h2 id="sec-invites">{{ t('invites.section_title') }}</h2>
+      <!-- ═══════════════════════════════ INVITES ═══════════════════════════════ -->
+      <h2 id="invites">{{ t('invites.section_title') }}</h2>
       <div id="invite-section" class="account-settings-wrapper"
         style="background: rgba(0,0,0,0.1); padding: 20px; border-radius: 4px; border: 1px solid var(--nav-border-color); margin-bottom: 30px;">
 

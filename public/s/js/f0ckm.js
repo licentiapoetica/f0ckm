@@ -3223,9 +3223,9 @@ window.cancelAnimFrame = (function () {
           const targetEl = document.querySelector(hash);
           if (targetEl) {
             targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Clear any previous highlight, then permanently mark this element
+            document.querySelectorAll('.comment-highlighted').forEach(el => el.classList.remove('comment-highlighted'));
             targetEl.classList.add('comment-highlighted');
-            // Remove highlight after some time to keep UI clean
-            setTimeout(() => targetEl.classList.remove('comment-highlighted'), 3000);
           }
         }
         

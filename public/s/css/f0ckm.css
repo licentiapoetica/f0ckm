@@ -2539,7 +2539,7 @@ body.layout-legacy .comments-list {
 
 body.layout-legacy .scroll-nav-wrapper {
   position: absolute;
-  top: 0;
+  top: -30px;
   bottom: 0;
   right: -50px;
   width: 40px;
@@ -8015,12 +8015,6 @@ span.badge.badge-current {
   background: var(--metadata-bg);
   border-radius: 8px;
   margin-bottom: 20px;
-}
-
-@media (max-width: 900px) {
-  .avatar-settings-wrapper {
-    grid-template-columns: 1fr;
-  }
 }
 
 .avatar-preview-container {

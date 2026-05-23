@@ -711,9 +711,12 @@
       const id = contextLink.dataset.id;
       const target = commentsList.querySelector(`.comment-item[data-comment-id="${id}"]`);
       if (target) {
+        // Clear any previous persistent highlight
+        commentsList.querySelectorAll('.comment-linked').forEach(el => el.classList.remove('comment-linked'));
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        target.classList.add('highlight-comment');
-        setTimeout(() => target.classList.remove('highlight-comment'), 2000);
+        // Flash the animation for attention, then keep the persistent highlight
+        target.classList.add('highlight-comment', 'comment-linked');
+        setTimeout(() => target.classList.remove('highlight-comment'), 2500);
       }
     }
   });
