@@ -14701,6 +14701,31 @@ body.scroller-active #gchat-reopen-bubble {
   opacity: 0 !important;
 }
 
+/* Notification exclamation mark override for active blur states (both blurred and revealed) */
+.blur-nsfw-active div.posts > a.thumb[data-mode="nsfw"].has-notif p::after,
+.blur-nsfl-active div.posts > a.thumb[data-mode="nsfl"].has-notif p::after,
+.blur-sfw-active div.posts > a.thumb[data-mode="sfw"].has-notif p::after,
+.blur-untagged-active div.posts > a.thumb[data-mode="null"].has-notif p::after {
+  content: "!" !important;
+  color: var(--accent) !important;
+  font-size: 40px !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 10px #000, 0 0 20px rgba(var(--accent-rgb), 0.5) !important;
+  background: rgba(255, 0, 0, 0.28) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.blur-nsfw-active div.posts > a.thumb.revealed.has-notif p::after,
+.blur-nsfl-active div.posts > a.thumb.revealed.has-notif p::after,
+.blur-sfw-active div.posts > a.thumb.revealed.has-notif p::after,
+.blur-untagged-active div.posts > a.thumb.revealed.has-notif p::after {
+  opacity: 1 !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Premium corner hide button styled dynamically inside revealed cards */
 .blur-nsfw-active a.thumb p .hide-thumb-btn,
 .blur-nsfl-active a.thumb p .hide-thumb-btn,
