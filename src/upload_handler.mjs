@@ -662,7 +662,7 @@ export const handleUpload = async (req, res, self) => {
             itemid: itemid,
             manual_approval: manualApproval,
             redirect: !manualApproval ? `/${itemid}` : null,
-            url: !manualApproval ? `${cfg.main.url.full}/${itemid}` : null
+            url: !manualApproval ? `${cfg.main.url.full}/${itemid}` : `${cfg.main.url.full}/`
         });
 
     } catch (err) {

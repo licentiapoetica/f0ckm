@@ -668,7 +668,7 @@ process.on('uncaughtException', err => {
 
     // Private Society gate — require login for all content when enabled
     if (cfg.websrv.private_society && !req.session) {
-      const publicPaths = /^\/(s|login|logout|register|activate|forgot-password|reset-password|banned|api\/v2\/auth|manifest\.json|sw\.js|robots\.txt|favicon\.(ico|png|gif)|s\/img\/duck-icon-(192|512)\.png)(\/.*)?$/;
+      const publicPaths = /^\/(s|login|logout|register|activate|forgot-password|reset-password|banned|api\/v2\/auth|api\/v2\/upload|manifest\.json|sw\.js|robots\.txt|favicon\.(ico|png|gif)|s\/img\/duck-icon-(192|512)\.png)(\/.*)?$/;
       if (!publicPaths.test(req.url.pathname)) {
         // For AJAX requests, return 502 so it looks like the backend is down
         if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
