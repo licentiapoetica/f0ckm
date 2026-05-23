@@ -53,6 +53,12 @@ const tpl_player = (svg, size) => `<div class="v0ck_player_controls">
   </button>
 </div>
 <div class="v0ck_loader v0ck_hidden"><div></div></div>
+<div class="v0ck_speed_indicator v0ck_hidden">
+  <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: currentColor; display: inline-block; vertical-align: middle; margin-right: 6px;">
+    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+  </svg>
+  <span>2X Speed</span>
+</div>
 <div class="v0ck_overlay">
   <svg style="width: 60px; height: 60px;">
     <use href="${svg}#play"></use>
@@ -159,6 +165,13 @@ class v0ck {
     const defaultVolume = 0.5;
     let mousedown = false;
     let _volume;
+    
+    // Hold to speedup (2x) states
+    let speedUpTimeout;
+    let isSpeedingUp = false;
+    let restorePlaybackRate = 1;
+    let ignoreNextClick = false;
+    const speedIndicator = player.querySelector('.v0ck_speed_indicator');
 
     function handleVolumeButton(vol) {
       [...volumeSymbols].forEach(s => !s.classList.contains('v0ck_hidden') ? s.classList.add('v0ck_hidden') : null);
@@ -260,6 +273,12 @@ class v0ck {
     }
 
     player.addEventListener('click', e => {
+      if (ignoreNextClick) {
+        e.stopPropagation();
+        e.preventDefault();
+        ignoreNextClick = false;
+        return;
+      }
       const path = e.path || (e.composedPath && e.composedPath());
       const isControls = !!path.filter(f => f.classList?.contains('v0ck_player_controls')).length;
       if (!isControls) {
@@ -358,6 +377,8 @@ class v0ck {
       if (gestureType === 'none') {
         if (dy > dx && dy > 5) {
           gestureType = 'volume';
+          clearTimeout(speedUpTimeout);
+          endSpeedUp();
         } else if (dx > dy && dx > 5) {
           gestureType = 'other'; // Probably seeking or horizontal swipe
           return;
@@ -367,6 +388,9 @@ class v0ck {
       }
 
       if (gestureType === 'volume') {
+        clearTimeout(speedUpTimeout);
+        endSpeedUp();
+        
         const deltaY = startY - touch.clientY; // swipe up is positive
         const sensitivity = 200; // pixels for 0 to 1 range (reverted to original)
         let newVol = startVol + (deltaY / sensitivity);
@@ -574,6 +598,54 @@ class v0ck {
     video.addEventListener('play', resetControlsTimer);
     video.addEventListener('playing', resetControlsTimer);
     video.addEventListener('pause', () => clearTimeout(controlsTimer));
+
+    // Speedup 2x on Hold logic
+    function startSpeedUp(e) {
+      // Only speed up if the video is currently playing
+      if (video.paused) return;
+
+      // Only left mouse click or touch triggers speedup
+      if (e.type === 'mousedown' && e.button !== 0) return;
+
+      // Don't speed up if clicking on controls or settings panel
+      const path = e.path || (e.composedPath && e.composedPath());
+      const isControls = !!path.filter(f => f.classList?.contains('v0ck_player_controls')).length;
+      if (isControls) return;
+
+      clearTimeout(speedUpTimeout);
+      speedUpTimeout = setTimeout(() => {
+        isSpeedingUp = true;
+        ignoreNextClick = true;
+        restorePlaybackRate = video.playbackRate;
+        video.playbackRate = 2.0;
+
+        if (speedIndicator) {
+          speedIndicator.classList.remove('v0ck_hidden');
+        }
+      }, 500);
+    }
+
+    function endSpeedUp(e) {
+      clearTimeout(speedUpTimeout);
+      if (isSpeedingUp) {
+        isSpeedingUp = false;
+        video.playbackRate = restorePlaybackRate;
+        if (speedIndicator) {
+          speedIndicator.classList.add('v0ck_hidden');
+        }
+        // Brief timeout before allowing normal clicking again to bypass the immediate click event
+        setTimeout(() => {
+          ignoreNextClick = false;
+        }, 100);
+      }
+    }
+
+    player.addEventListener('mousedown', startSpeedUp);
+    player.addEventListener('touchstart', startSpeedUp, { passive: true });
+    player.addEventListener('mouseup', endSpeedUp);
+    player.addEventListener('mouseleave', endSpeedUp);
+    player.addEventListener('touchend', endSpeedUp);
+    player.addEventListener('touchcancel', endSpeedUp);
 
     this.toggleFullScreen = toggleFullScreen;
     this.enterFullScreen = enterFullScreen;

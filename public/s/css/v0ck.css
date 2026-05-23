@@ -510,3 +510,32 @@
   from { transform: translateX(calc(100vw + 100%)); }
   to   { transform: translateX(calc(-100% - 200px)); }
 }
+
+/* Speedup 2x HUD Pill */
+.v0ck_speed_indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%, -10px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.v0ck_speed_indicator:not(.v0ck_hidden) {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
