@@ -726,5 +726,29 @@
     "left_hand_desc": "You know why.",
     "replying_to": "Replying to {user}",
     "reply": "Reply"
+  },
+  "invites": {
+    "section_title": "Invites",
+    "section_desc": "Invite new users to join. You must meet all criteria below to generate invite tokens.",
+    "eligible": "✓ You are eligible to generate invites.",
+    "not_eligible": "✗ You do not yet meet all criteria.",
+    "slots_used": "{used} / {total} invite slots used",
+    "criteria_uploads": "Uploads",
+    "criteria_age": "Account age",
+    "criteria_comments": "Comments",
+    "criteria_tags": "Tags assigned",
+    "criteria_days": " days",
+    "generate_btn": "Generate invite",
+    "generating": "Generating…",
+    "loading": "Loading…",
+    "no_invites": "No invite tokens generated yet.",
+    "status_unused": "Unused",
+    "status_used_by": "Used by {user}",
+    "copy_btn": "Copy",
+    "copied": "Copied!",
+    "delete_btn": "Delete",
+    "delete_confirm": "Delete this invite token?",
+    "slot_refreshes_on": "slot refreshes on {date}",
+    "slot_refreshed": "slot refreshed"
   }
 }

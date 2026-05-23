@@ -724,5 +724,29 @@
     "left_hand_desc": "Du weißt bescheid.",
     "replying_to": "Antwort an {user}",
     "reply": "Antworten"
+  },
+  "invites": {
+    "section_title": "Einladungen",
+    "section_desc": "Lade neue Nutzer ein. Du musst alle unten stehenden Kriterien erfüllen, um Einladungstokens zu generieren.",
+    "eligible": "✓ Du bist berechtigt, Einladungen zu generieren.",
+    "not_eligible": "✗ Du erfüllst noch nicht alle Kriterien.",
+    "slots_used": "{used} / {total} Einladungsslots genutzt",
+    "criteria_uploads": "Uploads",
+    "criteria_age": "Kontoalter",
+    "criteria_comments": "Kommentare",
+    "criteria_tags": "Vergebene Tags",
+    "criteria_days": " Tage",
+    "generate_btn": "Einladung generieren",
+    "generating": "Wird generiert…",
+    "loading": "Wird geladen…",
+    "no_invites": "Noch keine Einladungstokens generiert.",
+    "status_unused": "Ungenutzt",
+    "status_used_by": "Genutzt von {user}",
+    "copy_btn": "Kopieren",
+    "copied": "Kopiert!",
+    "delete_btn": "Löschen",
+    "delete_confirm": "Diesen Einladungstoken löschen?",
+    "slot_refreshes_on": "Slot erneuert sich am {date}",
+    "slot_refreshed": "Slot erneuert"
   }
 }

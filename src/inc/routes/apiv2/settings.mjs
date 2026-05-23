@@ -811,6 +811,186 @@ export default router => {
       }
     });
 
+
+    // --- User Invite System ---
+    // Eligibility: ≥150 uploads, ≥30 days old, ≥66 comments, ≥200 tags
+    // Slots: configurable (default 2), refresh 30 days after a token is used.
+
+    const getInviteCriteria = () => {
+      const ic = cfg.websrv.invite_criteria || {};
+      return {
+        uploads:  Number.isFinite(+ic.uploads)  ? +ic.uploads  : 150,
+        age_days: Number.isFinite(+ic.age_days) ? +ic.age_days : 30,
+        comments: Number.isFinite(+ic.comments) ? +ic.comments : 66,
+        tags:     Number.isFinite(+ic.tags)     ? +ic.tags     : 200,
+      };
+    };
+
+    const getInviteSlots = () => {
+      const n = parseInt(cfg.websrv.user_invite_slots);
+      return Number.isFinite(n) && n > 0 ? n : 2;
+    };
+
+    // GET /api/v2/settings/invites
+    // Returns eligibility, criteria breakdown, tokens created by this user, and slot usage.
+    group.get(/\/invites$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_invites === false) {
+        return res.json({ success: false, msg: 'Invite system is disabled' }, 403);
+      }
+      try {
+        const userId = +req.session.id;
+        const username = req.session.user;
+        const totalSlots = getInviteSlots();
+        const refreshDays = 30;
+
+        // Gather eligibility stats in one query
+        const [stats] = await db`
+          SELECT
+            (SELECT COUNT(*) FROM items WHERE username = ${username} AND active = true AND is_deleted = false)::int AS upload_count,
+            EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400 AS age_days,
+            (SELECT COUNT(*) FROM comments WHERE user_id = ${userId} AND is_deleted = false)::int AS comment_count,
+            (SELECT COUNT(*) FROM tags_assign WHERE user_id = ${userId})::int AS tag_count
+          FROM "user" u
+          WHERE u.id = ${userId}
+        `;
+
+        const INVITE_CRITERIA = getInviteCriteria();
+        const criteria = {
+          uploads: { current: stats.upload_count, required: INVITE_CRITERIA.uploads, met: stats.upload_count >= INVITE_CRITERIA.uploads },
+          age_days: { current: Math.floor(stats.age_days), required: INVITE_CRITERIA.age_days, met: stats.age_days >= INVITE_CRITERIA.age_days },
+          comments: { current: stats.comment_count, required: INVITE_CRITERIA.comments, met: stats.comment_count >= INVITE_CRITERIA.comments },
+          tags: { current: stats.tag_count, required: INVITE_CRITERIA.tags, met: stats.tag_count >= INVITE_CRITERIA.tags },
+        };
+
+        const eligible = Object.values(criteria).every(c => c.met);
+
+        // Fetch all tokens this user created, join used_by name
+        const tokens = await db`
+          SELECT
+            it.id,
+            it.token,
+            it.is_used,
+            it.used_at,
+            it.created_at,
+            u.user AS used_by_name
+          FROM invite_tokens it
+          LEFT JOIN "user" u ON u.id = it.used_by
+          WHERE it.created_by = ${userId}
+          ORDER BY it.created_at DESC
+        `;
+
+        // Slots consumed = tokens used within the last 30 days
+        const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
+        const slotsConsumed = tokens.filter(t => t.is_used && t.used_at && new Date(t.used_at) > cutoff).length;
+        const slotsAvailable = Math.max(0, totalSlots - slotsConsumed);
+
+        return res.json({
+          success: true,
+          eligible,
+          criteria,
+          tokens,
+          slots_total: totalSlots,
+          slots_consumed: slotsConsumed,
+          slots_available: slotsAvailable,
+          refresh_days: refreshDays,
+        }, 200);
+      } catch (e) {
+        console.error('[INVITES] GET error:', e);
+        return res.json({ success: false, msg: 'Error fetching invite data' }, 500);
+      }
+    });
+
+    // POST /api/v2/settings/invites/create
+    // Generates a new invite token if eligible and slots remain.
+    group.post(/\/invites\/create$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_invites === false) {
+        return res.json({ success: false, msg: 'Invite system is disabled' }, 403);
+      }
+      try {
+        const userId = +req.session.id;
+        const username = req.session.user;
+        const totalSlots = getInviteSlots();
+        const refreshDays = 30;
+
+        // Eligibility check
+        const [stats] = await db`
+          SELECT
+            (SELECT COUNT(*) FROM items WHERE username = ${username} AND active = true AND is_deleted = false)::int AS upload_count,
+            EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400 AS age_days,
+            (SELECT COUNT(*) FROM comments WHERE user_id = ${userId} AND is_deleted = false)::int AS comment_count,
+            (SELECT COUNT(*) FROM tags_assign WHERE user_id = ${userId})::int AS tag_count
+          FROM "user" u WHERE u.id = ${userId}
+        `;
+
+        const INVITE_CRITERIA = getInviteCriteria();
+        const eligible =
+          stats.upload_count >= INVITE_CRITERIA.uploads &&
+          stats.age_days >= INVITE_CRITERIA.age_days &&
+          stats.comment_count >= INVITE_CRITERIA.comments &&
+          stats.tag_count >= INVITE_CRITERIA.tags;
+
+        if (!eligible) {
+          return res.json({ success: false, msg: 'You do not meet the eligibility criteria' }, 403);
+        }
+
+        // Check available slots (used within last 30 days)
+        const cutoff = new Date(Date.now() - refreshDays * 24 * 60 * 60 * 1000);
+        const [{ slots_consumed }] = await db`
+          SELECT COUNT(*)::int AS slots_consumed
+          FROM invite_tokens
+          WHERE created_by = ${userId}
+            AND is_used = true
+            AND used_at > ${cutoff}
+        `;
+
+        if (slots_consumed >= totalSlots) {
+          return res.json({ success: false, msg: 'No invite slots available. Slots refresh 30 days after use.' }, 403);
+        }
+
+        // Generate token
+        const token = crypto.randomBytes(16).toString('hex').toUpperCase();
+        await db`
+          INSERT INTO invite_tokens (token, created_at, created_by)
+          VALUES (${token}, ${~~(Date.now() / 1e3)}, ${userId})
+        `;
+
+        console.log(`[INVITES] User ${username} (${userId}) generated invite token ${token}`);
+        return res.json({ success: true, token }, 200);
+      } catch (e) {
+        console.error('[INVITES] Create error:', e);
+        return res.json({ success: false, msg: 'Error creating invite token' }, 500);
+      }
+    });
+
+    // POST /api/v2/settings/invites/delete
+    // Deletes an unused invite token owned by the calling user.
+    group.post(/\/invites\/delete$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_invites === false) {
+        return res.json({ success: false, msg: 'Invite system is disabled' }, 403);
+      }
+      try {
+        const { id } = req.post;
+        if (!id) return res.json({ success: false, msg: 'Missing token ID' }, 400);
+
+        const result = await db`
+          DELETE FROM invite_tokens
+          WHERE id = ${+id}
+            AND created_by = ${+req.session.id}
+            AND is_used = false
+          RETURNING id
+        `;
+
+        if (result.length === 0) {
+          return res.json({ success: false, msg: 'Token not found or already used' }, 404);
+        }
+
+        return res.json({ success: true }, 200);
+      } catch (e) {
+        console.error('[INVITES] Delete error:', e);
+        return res.json({ success: false, msg: 'Error deleting invite token' }, 500);
+      }
+    });
+
     return group;
   });
 

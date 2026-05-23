@@ -89,7 +89,7 @@
     "password_min_hint": "Muss mindestens 20 Zeichen lang sein.",
     "confirm_password": "Kennwort bestätigen",
     "email_placeholder": "E-Post",
-    "invite_token": "Einladungskennzeichen",
+    "invite_token": "Einladungskots",
     "tos_private": "Ich bin mindestens 18 Jahre alt und stimme der Befolgung des Regelwerks zu",
     "tos_public": "Ich habe die Nutzungsbedingungen gelesen und akzeptiere diese",
     "tos_terms": "Nutzungsbedingungen",
@@ -727,5 +727,29 @@
     "left_hand_desc": "Sie wissen schon wieso.",
     "replying_to": "Antwort an {user}",
     "reply": "Antworten"
+  },
+  "invites": {
+    "section_title": "Einladungswesen",
+    "section_desc": "Laden Sie neue Nutzer ein, beizutreten. Sie müssen alle nachstehenden Kriterien erfüllen, um Einladungskots zu erzeugen.",
+    "eligible": "✓ Sie sind berechtigt, Einladungen zu erzeugen.",
+    "not_eligible": "✗ Sie erfüllen noch nicht alle Kriterien.",
+    "slots_used": "{used} / {total} Einladungsplätze in Benutzung",
+    "criteria_uploads": "Aufladierungen",
+    "criteria_age": "Kontoalter",
+    "criteria_comments": "Kommentare",
+    "criteria_tags": "Vergebene Etiketten",
+    "criteria_days": " Tage",
+    "generate_btn": "Einladung erzeugen",
+    "generating": "Erzeugung wird durchgeführt…",
+    "loading": "Ladung wird aufbereitet…",
+    "no_invites": "Noch keine Einladungskots erzeugt.",
+    "status_unused": "Ungebraucht",
+    "status_used_by": "Gebraucht von {user}",
+    "copy_btn": "Kopieren",
+    "copied": "Kopiert!",
+    "delete_btn": "Löschen",
+    "delete_confirm": "Diesen Einladungskot löschen?",
+    "slot_refreshes_on": "Platz erneuert sich am {date}",
+    "slot_refreshed": "Platz erneuert"
   }
 }

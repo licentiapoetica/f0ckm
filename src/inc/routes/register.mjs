@@ -186,7 +186,7 @@ export default (router, tpl) => {
             if (tokenRow.length > 0) {
                 await db`
                     update invite_tokens 
-                    set is_used = true, used_by = ${userId}
+                    set is_used = true, used_by = ${userId}, used_at = now()
                     where id = ${tokenRow[0].id}
                 `;
             }

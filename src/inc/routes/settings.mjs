@@ -51,6 +51,7 @@ export default (router, tpl) => {
           enable_swf: cfg.enable_swf,
           enable_data_export: cfg.websrv.enable_data_export,
           enable_user_api_keys: cfg.websrv.enable_user_api_keys !== false,
+          enable_user_invites: cfg.websrv.enable_user_invites !== false,
           site_domain: cfg.main.url.domain,
           session: (req.session && req.session.user) ? { ...req.session } : false,
           page_meta: {

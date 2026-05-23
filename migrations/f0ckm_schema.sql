@@ -825,11 +825,24 @@ CREATE TABLE public.invite_tokens (
     used_by integer,
     is_used boolean DEFAULT false,
     created_by_discord character varying(255) DEFAULT NULL::character varying,
-    created_by_matrix character varying(255) DEFAULT NULL::character varying
+    created_by_matrix character varying(255) DEFAULT NULL::character varying,
+    used_at timestamp with time zone DEFAULT NULL
 );
 
 
 ALTER TABLE public.invite_tokens OWNER TO f0ckm;
+
+--
+-- Name: idx_invite_tokens_created_by; Type: INDEX; Schema: public; Owner: f0ckm
+--
+
+CREATE INDEX IF NOT EXISTS idx_invite_tokens_created_by ON public.invite_tokens (created_by);
+
+--
+-- Name: idx_invite_tokens_used_at; Type: INDEX; Schema: public; Owner: f0ckm
+--
+
+CREATE INDEX IF NOT EXISTS idx_invite_tokens_used_at ON public.invite_tokens (used_at) WHERE is_used = true;
 
 --
 -- Name: invite_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: f0ckm

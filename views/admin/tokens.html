@@ -15,6 +15,7 @@
                         <th>Source</th>
                         <th>Used By</th>
                         <th>Created</th>
+                        <th>Used At</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -43,11 +44,12 @@
                         '</td>' +
                         '<td data-label="Source">' +
                         (t.created_by_matrix ? '<span style="color: #0DBD8B">[Matrix] ' + t.created_by_matrix + '</span>' :
-                         (t.created_by_discord ? '<span style="color: #5865F2"><i class="fab fa-discord"></i> ' + t.created_by_discord + '</span>' : 
-                          (t.created_by_name ? 'Web/Admin (' + t.created_by_name + ')' : 'Web/Admin'))) +
+                         (t.created_by_discord ? '<span style="color: #5865F2"><i class="fab fa-discord"></i> ' + t.created_by_discord + '</span>' :
+                          (t.created_by_name ? '<span style="color: var(--accent)">👤 User: ' + t.created_by_name + '</span>' : '<span style="color: var(--text-muted)">Admin</span>'))) +
                         '</td>' +
-                        '<td data-label="Used By">' + (t.used_by_name || '-') + '</td>' +
-                        '<td data-label="Created">' + (t.created_at ? new Date(parseInt(t.created_at) * 1000).toLocaleString() : '-') + '</td>' +
+                        '<td data-label="Used By">' + (t.used_by_name || '—') + '</td>' +
+                        '<td data-label="Created">' + (t.created_at ? new Date(parseInt(t.created_at) * 1000).toLocaleString() : '—') + '</td>' +
+                        '<td data-label="Used At">' + (t.used_at ? new Date(t.used_at).toLocaleString() : '—') + '</td>' +
                         '<td data-label="Actions">' +
                         (!t.is_used ? '<button onclick="deleteToken(' + t.id + ')" class="btn-remove" style="padding: 5px 10px; font-size: 0.8em;">Delete</button>' : '') +
                         '</td>' +

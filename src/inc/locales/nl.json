@@ -722,5 +722,29 @@
     "left_hand_desc": "Je weet wel waarom.",
     "replying_to": "Antwoord aan {user}",
     "reply": "Antwoorden"
+  },
+  "invites": {
+    "section_title": "Uitnodigingen",
+    "section_desc": "Nodig nieuwe gebruikers uit. Je moet aan alle onderstaande criteria voldoen om uitnodigingstokens te genereren.",
+    "eligible": "✓ Je bent bevoegd om uitnodigingen te genereren.",
+    "not_eligible": "✗ Je voldoet nog niet aan alle criteria.",
+    "slots_used": "{used} / {total} uitnodigingsslots gebruikt",
+    "criteria_uploads": "Uploads",
+    "criteria_age": "Accountleeftijd",
+    "criteria_comments": "Opmerkingen",
+    "criteria_tags": "Toegewezen tags",
+    "criteria_days": " dagen",
+    "generate_btn": "Uitnodiging genereren",
+    "generating": "Genereren…",
+    "loading": "Laden…",
+    "no_invites": "Nog geen uitnodigingstokens gegenereerd.",
+    "status_unused": "Ongebruikt",
+    "status_used_by": "Gebruikt door {user}",
+    "copy_btn": "Kopiëren",
+    "copied": "Gekopieërd!",
+    "delete_btn": "Verwijderen",
+    "delete_confirm": "Dit uitnodigingstoken verwijderen?",
+    "slot_refreshes_on": "slot vernieuwd op {date}",
+    "slot_refreshed": "slot vernieuwd"
   }
 }

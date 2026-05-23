@@ -72,6 +72,14 @@
     "enable_cleanup": false,
     "enable_data_export": true,
     "enable_user_api_keys": true,
+    "enable_user_invites": true,
+    "user_invite_slots": 2,
+    "invite_criteria": {
+      "uploads": 10,
+      "age_days": 10,
+      "comments": 10,
+      "tags": 10
+    },
     "cleanup_timeframe_days": 30,
     "web_url_upload": true,
     "enable_youtube_upload": true,
