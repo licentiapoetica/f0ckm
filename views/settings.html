@@ -79,11 +79,34 @@
           setActive(firstLink.getAttribute('href'));
         }
 
+        // On load with a hash: highlight the target heading
+        if (initHash) {
+          var target = document.querySelector(initHash);
+          if (target) {
+            // Use rAF so the browser has scrolled to the target first
+            requestAnimationFrame(function() {
+              document.querySelectorAll('.comment-highlighted').forEach(function(el) {
+                el.classList.remove('comment-highlighted');
+              });
+              target.classList.add('comment-highlighted');
+            });
+          }
+        }
+
         // Delegated click on the nav container — fires before document-level handlers
         nav.addEventListener('click', function(e) {
           var link = e.target.closest('a[href^="#"]');
           if (!link) return;
           setActive(link.getAttribute('href'));
+          // Highlight the target section
+          var href = link.getAttribute('href');
+          var el = document.querySelector(href);
+          if (el) {
+            document.querySelectorAll('.comment-highlighted').forEach(function(c) {
+              c.classList.remove('comment-highlighted');
+            });
+            el.classList.add('comment-highlighted');
+          }
         });
       })();
       </script>
