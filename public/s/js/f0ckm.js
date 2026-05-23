@@ -3065,7 +3065,7 @@ window.cancelAnimFrame = (function () {
     }
 
     // Check for thumbnail links on index page
-    const thumbnail = target.closest('.posts > a');
+    const thumbnail = target.closest('.posts > a:not(.notif-item)');
     if (thumbnail && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       // Thumbnails inherit context (e.g. from Tag Index)
@@ -5984,6 +5984,8 @@ class NotificationSystem {
         } else {
           window.location.href = href;
         }
+      } else {
+        e.preventDefault();
       }
     };
 
