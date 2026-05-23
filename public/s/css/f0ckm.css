@@ -2176,7 +2176,7 @@ body.sidebar-right-hidden .global-sidebar-right {
 
 .item-layout-container .item-main-content .embed-responsive {
   width: 100%;
-  max-width: calc((100vh - 180px) * (16 / 9));
+  /*max-width: calc((100vh - 180px) * (16 / 9));*/
   /* Cap width based on viewport height to fit vertically */
   margin: 0 auto;
 }
