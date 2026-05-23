@@ -14681,8 +14681,8 @@ body.scroller-active #gchat-reopen-bubble {
 .blur-untagged-active a.thumb.revealed p .hide-thumb-btn {
   display: flex !important;
   position: absolute !important;
-  bottom: 25px !important;
-  left: 5px !important;
+  bottom: 15px !important;
+  right: 0 !important;
   width: 20px !important;
   height: 20px !important;
   border-radius: 50% !important;
