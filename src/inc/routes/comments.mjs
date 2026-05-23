@@ -4,6 +4,7 @@ import cfg from "../config.mjs";
 import lib from "../lib.mjs";
 import audit from "../audit.mjs";
 import { promises as fs } from "fs";
+import { applyWordFilter } from "../wordfilter.mjs";
 import path from "path";
 
 export default (router, tpl) => {
@@ -252,7 +253,8 @@ export default (router, tpl) => {
         const body = req.post || {};
         const item_id = parseInt(body.item_id, 10);
         const parent_id = body.parent_id ? parseInt(body.parent_id, 10) : null;
-        const content = body.content;
+        let content = body.content;
+        content = await applyWordFilter(content);
         const video_time = (body.video_time !== undefined && body.video_time !== '' && !isNaN(parseFloat(body.video_time)))
             ? parseFloat(body.video_time)
             : null;
@@ -713,7 +715,8 @@ export default (router, tpl) => {
 
         const commentId = req.params.id;
         const body = req.post || {};
-        const content = body.content;
+        let content = body.content;
+        content = await applyWordFilter(content);
 
         if (!content || !content.trim()) {
             return res.reply({ body: JSON.stringify({ success: false, message: "Empty content" }) });

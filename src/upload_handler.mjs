@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import db from "./inc/sql.mjs";
 import lib from "./inc/lib.mjs";
 import cfg from "./inc/config.mjs";
+import { applyWordFilter } from "./inc/wordfilter.mjs";
 import queue from "./inc/queue.mjs";
 import path from "path";
 import https from "https";
@@ -421,11 +422,12 @@ export const handleUpload = async (req, res, self) => {
         // Insert optional first comment
         if (comment && comment.length > 0) {
             try {
+                const filteredComment = await applyWordFilter(comment);
                 await db`
                     INSERT INTO comments ${db({
                         item_id: itemid,
                         user_id: req.session.id,
-                        content: comment
+                        content: filteredComment
                     })}
                 `;
             } catch (err) {

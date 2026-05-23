@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import db from '../../sql.mjs';
 import lib from '../../lib.mjs';
 import cfg from '../../config.mjs';
+import { applyWordFilter } from '../../wordfilter.mjs';
 import queue from '../../queue.mjs';
 import path from "path";
 
@@ -82,12 +83,13 @@ export default router => {
         const saveComment = async (itemid, userid, content) => {
             if (!content || !content.trim()) return;
             try {
+                const filteredContent = await applyWordFilter(content);
                 await db`
                     INSERT INTO comments ${db({
                         item_id: itemid,
                         user_id: userid,
                         parent_id: null,
-                        content: content.trim()
+                        content: filteredContent.trim()
                     }, 'item_id', 'user_id', 'parent_id', 'content')}
                 `;
             } catch (err) {
