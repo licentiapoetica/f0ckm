@@ -9330,7 +9330,7 @@ textarea.mod-reason {
 
 .notifications-page .notif-item {
   display: grid !important;
-  grid-template-columns: 0fr 1fr;
+  grid-template-columns: auto 1fr;
   width: 100%;
   align-items: center;
   padding: 8px 15px;
