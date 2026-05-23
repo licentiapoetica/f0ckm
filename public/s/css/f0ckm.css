@@ -2183,7 +2183,7 @@ body.sidebar-right-hidden .global-sidebar-right {
 
 .item-main-content video,
 .item-main-content img {
-  max-height: calc(100vh - 180px);
+  /*max-height: calc(100vh - 180px);*/
   /* Leave space for ID and Metadata bars */
   object-fit: contain;
 }
