@@ -145,17 +145,24 @@ window.cancelAnimFrame = (function () {
         document.querySelectorAll('.lazy-thumb').forEach(thumb => {
             let bg = thumb.dataset.bg;
             if (bg) {
-                const mode = thumb.getAttribute('data-mode');
-                const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
-                const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
-                if (mode === 'nsfw' && blurNsfw && !thumb.classList.contains('revealed')) {
-                    bg = bg.replace('.webp', '_blur.webp');
-                } else if (mode === 'nsfl' && blurNsfl && !thumb.classList.contains('revealed')) {
-                    bg = bg.replace('.webp', '_blur.webp');
-                }
-                const finalBg = window.applyThumbCacheBust(bg);
-                thumb.style.backgroundImage = `url('${finalBg}')`;
-                thumb.classList.remove('lazy-thumb');
+                 const mode = thumb.getAttribute('data-mode');
+                 const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+                 const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+                 const blurSfw = localStorage.getItem('blurSfw') === 'true';
+                 const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+                 
+                 let shouldBlurThis = false;
+                 if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+                 else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+                 else if (mode === 'sfw') shouldBlurThis = blurSfw;
+                 else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+                 
+                 if (shouldBlurThis && !thumb.classList.contains('revealed')) {
+                     bg = bg.replace('.webp', '_blur.webp');
+                 }
+                 const finalBg = window.applyThumbCacheBust(bg);
+                 thumb.style.backgroundImage = `url('${finalBg}')`;
+                 thumb.classList.remove('lazy-thumb');
             }
         });
         return;
@@ -171,9 +178,16 @@ window.cancelAnimFrame = (function () {
                         const mode = thumb.getAttribute('data-mode');
                         const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
                         const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
-                        if (mode === 'nsfw' && blurNsfw && !thumb.classList.contains('revealed')) {
-                            bg = bg.replace('.webp', '_blur.webp');
-                        } else if (mode === 'nsfl' && blurNsfl && !thumb.classList.contains('revealed')) {
+                        const blurSfw = localStorage.getItem('blurSfw') === 'true';
+                        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+                        
+                        let shouldBlurThis = false;
+                        if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+                        else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+                        else if (mode === 'sfw') shouldBlurThis = blurSfw;
+                        else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+                        
+                        if (shouldBlurThis && !thumb.classList.contains('revealed')) {
                             bg = bg.replace('.webp', '_blur.webp');
                         }
 
@@ -8831,7 +8845,13 @@ if (navigator.vibrate) {
         // Put the pre-blurred background image back if applicable
         const baseBg = thumb.dataset.bg;
         const mode = thumb.getAttribute('data-mode');
-        if (baseBg && (mode === 'nsfw' || mode === 'nsfl')) {
+        let shouldBlurThis = false;
+        if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+        else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+        else if (mode === 'sfw') shouldBlurThis = blurSfw;
+        else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+        
+        if (baseBg && shouldBlurThis) {
           const finalBg = window.applyThumbCacheBust(baseBg.replace('.webp', '_blur.webp'));
           thumb.style.backgroundImage = `url('${finalBg}')`;
         }
@@ -8858,7 +8878,7 @@ if (navigator.vibrate) {
         
         // Dynamically load the standard unblurred background image
         const baseBg = thumb.dataset.bg;
-        if (baseBg && (mode === 'nsfw' || mode === 'nsfl')) {
+        if (baseBg && shouldBlurThis) {
           const finalBg = window.applyThumbCacheBust(baseBg);
           thumb.style.backgroundImage = `url('${finalBg}')`;
         }

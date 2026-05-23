@@ -1082,12 +1082,10 @@ export default router => {
                 VALUES (${itemid}, ${newRatingId}, ${req.session.id})
             `;
 
-            // If switching to NSFW/NSFL, ensure blurred thumbnail exists
-            if (newRatingId === 2 || newRatingId === nsfl_id) {
-                await queue.genBlurredThumbnail(itemid).catch(err => {
-                    console.error(`[RATING_TOGGLE] Blurred thumbnail generation failed for ${itemid}:`, err);
-                });
-            }
+            // Ensure blurred thumbnail exists
+            await queue.genBlurredThumbnail(itemid).catch(err => {
+                console.error(`[RATING_TOGGLE] Blurred thumbnail generation failed for ${itemid}:`, err);
+            });
         });
 
         const newRating = newRatingId === 1 ? 'sfw' : (newRatingId === 2 ? 'nsfw' : 'nsfl');

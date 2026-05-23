@@ -130,16 +130,8 @@ export const handleRethumbUpload = async (req, res, itemId) => {
         try {
             await execFile('magick', [tmpPath, '-coalesce', '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', finalPath]);
             
-            // Check if item contains NSFW or NSFL tag
-            const tags = await db`
-              select tag_id from tags_assign 
-              where item_id = ${+item.id} 
-              and tag_id in (2, ${cfg.nsfl_tag_id || 3})
-            `;
-            if (tags.length > 0) {
-                // Generate blurred thumbnail
-                await queue.genBlurredThumbnail(item.id, !item.active);
-            }
+            // Generate blurred thumbnail
+            await queue.genBlurredThumbnail(item.id, !item.active);
 
         } catch (err) {
             console.error('[RETHUMB HANDLER] Magick error:', err);

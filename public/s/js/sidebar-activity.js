@@ -410,7 +410,7 @@
             else if (rClass === 'untagged' && blurUntagged) isBlurred = true;
 
             let thumbUrl = `/t/${c.item_id}.webp`;
-            if (isBlurred && (rClass === 'nsfw' || rClass === 'nsfl')) {
+            if (isBlurred) {
                 thumbUrl = `/t/${c.item_id}_blur.webp`;
             }
 

@@ -705,7 +705,7 @@ export default async bot => {
           // Generate Thumbnail
           try {
             await queue.genThumbnail(filename, mime, itemid, link, manualApproval);
-            if (isNSFW) await queue.genBlurredThumbnail(itemid, manualApproval);
+            await queue.genBlurredThumbnail(itemid, manualApproval);
           } catch (err) {
             const tDir = manualApproval ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
             await queue.spawn('magick', ['./mugge.png', path.join(tDir, `${itemid}.webp`)]);
@@ -815,7 +815,7 @@ export default async bot => {
             // Generate Thumbnail
             try {
               await queue.genThumbnail(filename, mime, itemid, link, manualApproval);
-              if (isNSFW) await queue.genBlurredThumbnail(itemid, manualApproval);
+              await queue.genBlurredThumbnail(itemid, manualApproval);
             } catch (err) {
               const tDir = manualApproval ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
               await queue.spawn('magick', ['./mugge.png', path.join(tDir, `${itemid}.webp`)]);

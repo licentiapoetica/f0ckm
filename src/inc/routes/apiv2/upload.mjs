@@ -301,9 +301,7 @@ export default router => {
                     if (effectiveRating) {
                         const ratingTagId = effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3));
                         await db`insert into tags_assign ${db({ item_id: itemid, tag_id: ratingTagId, user_id: req.session.id })} on conflict do nothing`;
-                        if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
-                            await queue.genBlurredThumbnail(itemid, isApprovalRequired).catch(() => {});
-                        }
+                        await queue.genBlurredThumbnail(itemid, isApprovalRequired).catch(() => {});
                     }
 
                     // Assign user tags + auto-tags
@@ -575,7 +573,7 @@ export default router => {
 
                             try {
                                 await queue.genThumbnail(filename, mime, itemid, url, isApprovalRequired);
-                                if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') await queue.genBlurredThumbnail(itemid, isApprovalRequired);
+                                await queue.genBlurredThumbnail(itemid, isApprovalRequired);
                             } catch (err) {
                                 const tDir = isApprovalRequired ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
                                 await queue.spawn('magick', ['-size', '128x128', 'xc:#1a1a1a', path.join(tDir, `${itemid}.webp`)]).catch(() => {});

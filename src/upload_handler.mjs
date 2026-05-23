@@ -406,10 +406,8 @@ export const handleUpload = async (req, res, self) => {
             }
         }
 
-        // Generate blurred thumbnail for NSFW/NSFL
-        if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
-            await queue.genBlurredThumbnail(itemid, isPending);
-        }
+        // Generate blurred thumbnail for all posts (SFW, NSFW, NSFL, Untagged)
+        await queue.genBlurredThumbnail(itemid, isPending);
 
         // Insert optional first comment
         if (comment && comment.length > 0) {
@@ -553,14 +551,12 @@ export const handleUpload = async (req, res, self) => {
                 console.error(`[BACKGROUND ERROR] genThumbnail failed for item ${itemid}:`, err);
             }
 
-            // Ensure blurred thumbnail exists if needed
-            if (effectiveRating === 'nsfw' || effectiveRating === 'nsfl') {
-                const tDir = isPending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
-                const blurPath = path.join(tDir, `${itemid}_blur.webp`);
-                const blurExists = await fs.access(blurPath).then(() => true).catch(() => false);
-                if (!blurExists) {
-                    await queue.genBlurredThumbnail(itemid, isPending).catch(err => console.error(`[BACKGROUND ERROR] genBlurredThumbnail failed:`, err));
-                }
+            // Ensure blurred thumbnail exists
+            const tDir = isPending ? path.join(cfg.paths.pending, 't') : cfg.paths.t;
+            const blurPath = path.join(tDir, `${itemid}_blur.webp`);
+            const blurExists = await fs.access(blurPath).then(() => true).catch(() => false);
+            if (!blurExists) {
+                await queue.genBlurredThumbnail(itemid, isPending).catch(err => console.error(`[BACKGROUND ERROR] genBlurredThumbnail failed:`, err));
             }
 
             // Note: video title metadata is surfaced to the user as a suggestion in the upload form.

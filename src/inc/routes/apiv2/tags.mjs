@@ -115,14 +115,12 @@ export default router => {
           await db`INSERT INTO tags_assign ${db({ tag_id: nextTagId, item_id: postid, user_id: +req.session.id })}`;
         }
 
-        // Automatically generate blurred thumbnail if cycling TO NSFW or NSFL
-        if (nextTagId === 2 || nextTagId === nsflId) {
-          const blurPath = path.join(cfg.paths.t, `${postid}_blur.webp`);
-          try {
-            await fs.promises.access(blurPath);
-          } catch {
-            await queue.genBlurredThumbnail(postid, false);
-          }
+        // Automatically generate/verify blurred thumbnail on cycle
+        const blurPath = path.join(cfg.paths.t, `${postid}_blur.webp`);
+        try {
+          await fs.promises.access(blurPath);
+        } catch {
+          await queue.genBlurredThumbnail(postid, false);
         }
 
         const labels = { 1: { label: 'SFW', cls: 'sfw' }, 2: { label: 'NSFW', cls: 'nsfw' }, [nsflId]: { label: 'NSFL', cls: 'nsfl' } };
@@ -180,16 +178,13 @@ export default router => {
 
       await audit.log(req.session.id, 'toggle_tag', 'item', postid, auditDetails);
 
-      // Generate blurred thumbnail if toggling TO NSFW
-      if (hasSFW && !hasNSFW) {
-        // Was SFW, now NSFW - check if blur exists and generate if not
-        const blurPath = path.join(cfg.paths.t, `${postid}_blur.webp`);
-        try {
-          await fs.promises.access(blurPath);
-        } catch {
-          // Doesn't exist - generate it
-          await queue.genBlurredThumbnail(postid, false);
-        }
+      // Ensure blurred thumbnail exists on toggle
+      const blurPath = path.join(cfg.paths.t, `${postid}_blur.webp`);
+      try {
+        await fs.promises.access(blurPath);
+      } catch {
+        // Doesn't exist - generate it
+        await queue.genBlurredThumbnail(postid, false);
       }
 
       const freshTags = await lib.getTags(postid);

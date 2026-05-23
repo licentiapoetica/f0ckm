@@ -449,7 +449,7 @@ export default (router) => {
         // Process thumbnail
         try {
             await queue.genThumbnail(filename, mime, itemid, url, isApprovalRequired);
-            if (rating === 'nsfw' || rating === 'nsfl') await queue.genBlurredThumbnail(itemid, isApprovalRequired);
+            await queue.genBlurredThumbnail(itemid, isApprovalRequired);
         } catch (err) {
             console.error('[REHOST] Thumbnail error:', err);
         }
