@@ -18,11 +18,23 @@ export async function applyWordFilter(content) {
     let filtered = content;
     for (const f of filters) {
       const escaped = escapeRegExp(f.word);
-      const startBoundary = /^\w/.test(f.word) ? '\\b' : '';
-      const endBoundary = /\w$/.test(f.word) ? '\\b' : '';
-      
-      const regex = new RegExp(`${startBoundary}${escaped}${endBoundary}`, 'gi');
-      filtered = filtered.replace(regex, f.replacement);
+      const regex = new RegExp(escaped, 'gi');
+      filtered = filtered.replace(regex, (match) => {
+        // 1. Check if the matched substring is entirely UPPERCASE
+        if (match === match.toUpperCase() && match !== match.toLowerCase()) {
+          return f.replacement.toUpperCase();
+        }
+        // 2. Check if the matched substring is Capitalized / Titlecase
+        if (match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+          return f.replacement.charAt(0).toUpperCase() + f.replacement.slice(1);
+        }
+        // 3. Check if the matched substring is lowercase
+        if (match === match.toLowerCase()) {
+          return f.replacement.toLowerCase();
+        }
+        // Fallback to exact replacement string
+        return f.replacement;
+      });
     }
     return filtered;
   } catch (err) {
