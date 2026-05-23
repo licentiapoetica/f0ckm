@@ -418,8 +418,23 @@ export default (router, tpl) => {
             }
 
             // Notify for live updates
-            // Fetch the trigger-updated xd_score from the DB (trigger runs synchronously before we get here)
-            const [xdRow] = await db`SELECT xd_score FROM items WHERE id = ${item_id}`;
+            // Fetch the trigger-updated xd_score and the item rating tag from the DB (trigger runs synchronously before we get here)
+            const itemQuery = await db`
+                SELECT 
+                    i.xd_score,
+                    (SELECT ta.tag_id FROM tags_assign ta
+                     WHERE ta.item_id = i.id AND ta.tag_id = ANY(${[1, 2, cfg.nsfl_tag_id || 3]}::int[])
+                     ORDER BY ta.tag_id LIMIT 1) AS rating_tag_id
+                FROM items i WHERE i.id = ${item_id}
+            `;
+            const xdRow = itemQuery[0];
+            const ratingTagId = itemQuery[0]?.rating_tag_id;
+            let ratingLabel = '?';
+            let ratingClass = 'untagged';
+            if (ratingTagId == 1) { ratingLabel = 'SFW'; ratingClass = 'sfw'; }
+            else if (ratingTagId == 2) { ratingLabel = 'NSFW'; ratingClass = 'nsfw'; }
+            else if (ratingTagId == (cfg.nsfl_tag_id || 3)) { ratingLabel = 'NSFL'; ratingClass = 'nsfl'; }
+
             // Truncate body to 500 chars: PostgreSQL NOTIFY has an 8000-byte hard limit.
             // Large comments would silently drop the notification. The client fetches
             // the full content via _silentSync; the NOTIFY only needs to trigger the update.
@@ -450,7 +465,14 @@ export default (router, tpl) => {
                 item_id: item_id,
                 type: 'comment',
                 body: notifyBody,
-                id: commentId
+                id: commentId,
+                item_rating_class: ratingClass,
+                item_rating_label: ratingLabel,
+                avatar: req.session.avatar,
+                avatar_file: req.session.avatar_file,
+                username: req.session.user,
+                username_color: req.session.username_color,
+                display_name: req.session.display_name || null
             }));
 
             // Automatically subscribe user to the thread
@@ -806,6 +828,9 @@ export default (router, tpl) => {
                     i.mime, 
                     i.id as item_id, 
                     i.dest as item_dest,
+                    (SELECT ta.tag_id FROM tags_assign ta
+                     WHERE ta.item_id = i.id AND ta.tag_id = ANY(${[1, 2, cfg.nsfl_tag_id || 3]}::int[])
+                     ORDER BY ta.tag_id LIMIT 1) AS rating_tag_id,
                     u.user as username,
                     uo.avatar,
                     uo.avatar_file,
@@ -827,10 +852,18 @@ export default (router, tpl) => {
             `;
 
             const processedComments = comments.map(c => {
+                let ratingLabel = '?';
+                let ratingClass = 'untagged';
+                if (c.rating_tag_id == 1) { ratingLabel = 'SFW'; ratingClass = 'sfw'; }
+                else if (c.rating_tag_id == 2) { ratingLabel = 'NSFW'; ratingClass = 'nsfw'; }
+                else if (c.rating_tag_id == (cfg.nsfl_tag_id || 3)) { ratingLabel = 'NSFL'; ratingClass = 'nsfl'; }
+
                 return {
                     ...c,
                     content: (c.content || '').trim(),
-                    username_color: c.username_color
+                    username_color: c.username_color,
+                    item_rating_class: ratingClass,
+                    item_rating_label: ratingLabel
                     // created_at stays as the raw ISO timestamp so the frontend f0ckTimeAgo can localize it
                 };
             });

@@ -397,13 +397,30 @@
         let itemPreview = '';
         if (c.item_id) {
             let mediaHtml = '';
+            const rClass = c.item_rating_class || 'untagged';
+            const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+            const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+            const blurSfw = localStorage.getItem('blurSfw') === 'true';
+            const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+
+            let isBlurred = false;
+            if (rClass === 'nsfw' && blurNsfw) isBlurred = true;
+            else if (rClass === 'nsfl' && blurNsfl) isBlurred = true;
+            else if (rClass === 'sfw' && blurSfw) isBlurred = true;
+            else if (rClass === 'untagged' && blurUntagged) isBlurred = true;
+
             let thumbUrl = `/t/${c.item_id}.webp`;
+            if (isBlurred && (rClass === 'nsfw' || rClass === 'nsfl')) {
+                thumbUrl = `/t/${c.item_id}_blur.webp`;
+            }
+
             if (window.applyThumbCacheBust) thumbUrl = window.applyThumbCacheBust(thumbUrl);
+
             mediaHtml = `<img src="${thumbUrl}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 2px;" loading="lazy" onerror="this.style.display='none'" />`;
 
             itemPreview = `
                 <div class="item-preview">
-                    <a href="/${c.item_id}">${mediaHtml}</a>
+                    <a href="/${c.item_id}" class="sidebar-thumb-link" data-mode="${rClass}">${mediaHtml}</a>
                     <a href="/${c.item_id}#c${c.id}" style="font-size: 0.8em; color: var(--accent); text-decoration: none;">${(window.f0ckI18n && window.f0ckI18n.sidebar_view) || 'View'} &raquo;</a>
                 </div>`;
         }

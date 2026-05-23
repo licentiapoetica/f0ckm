@@ -156,7 +156,7 @@
     "blur_sfw": "SFW weichzeichnen",
     "blur_sfw_hint": "Zeichnet SFW-Vorschaubilder weich.",
     "blur_untagged": "Unmarkierte weichzeichnen",
-    "blur_untagged_hint": "Zeichnet unmarkierte Vorschaubilder weich. Klicken zum Aufdecken, Klick auf das durchgestrichene Auge zum erneuten Falten.",
+    "blur_untagged_hint": "Zeichnet unmarkierte Vorschaubilder weich.",
     "render_emojis": "Emojis in Zitatantworten anzeigen",
     "render_emojis_hint": ":emoji:-Bilder in >zitierten Zeilen anzeigen",
     "embed_yt": "YouTube-Videos in Kommentaren einbetten",

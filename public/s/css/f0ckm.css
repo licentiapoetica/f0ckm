@@ -14410,10 +14410,10 @@ body.scroller-active #gchat-reopen-bubble {
 /* Filter badge style on navbar */
 .filter-badge {
   position: absolute;
-  bottom: -13px;
-  font-size: 8px;
+  bottom: -14px;
+  font-size: 9px;
   font-weight: 800;
-  padding: 1px 4px;
+  padding: 2px 4px;
   line-height: 1;
   text-transform: uppercase;
   color: #fff !important;
@@ -14705,4 +14705,10 @@ body.scroller-active #gchat-reopen-bubble {
   padding: 0 !important;
   font-size: 11px !important;
   line-height: 1 !important;
+}
+
+/* Sidebar activity thumbnails blur support (SFW/Untagged only; NSFW/NSFL use pre-blurred static images directly) */
+.blur-sfw-active .sidebar-thumb-link[data-mode="sfw"] img,
+.blur-untagged-active .sidebar-thumb-link[data-mode="untagged"] img {
+  filter: blur(8px) contrast(0.85) brightness(0.85);
 }
