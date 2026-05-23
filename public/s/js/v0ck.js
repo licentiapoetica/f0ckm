@@ -171,6 +171,7 @@ class v0ck {
     let isSpeedingUp = false;
     let restorePlaybackRate = 1;
     let ignoreNextClick = false;
+    let wasPausedWhenStarted = false;
     const speedIndicator = player.querySelector('.v0ck_speed_indicator');
 
     function handleVolumeButton(vol) {
@@ -601,9 +602,6 @@ class v0ck {
 
     // Speedup 2x on Hold logic
     function startSpeedUp(e) {
-      // Only speed up if the video is currently playing
-      if (video.paused) return;
-
       // Only left mouse click or touch triggers speedup
       if (e.type === 'mousedown' && e.button !== 0) return;
 
@@ -616,8 +614,13 @@ class v0ck {
       speedUpTimeout = setTimeout(() => {
         isSpeedingUp = true;
         ignoreNextClick = true;
+        wasPausedWhenStarted = video.paused;
         restorePlaybackRate = video.playbackRate;
         video.playbackRate = 2.0;
+
+        if (wasPausedWhenStarted) {
+          video.play();
+        }
 
         if (speedIndicator) {
           speedIndicator.classList.remove('v0ck_hidden');
@@ -630,6 +633,10 @@ class v0ck {
       if (isSpeedingUp) {
         isSpeedingUp = false;
         video.playbackRate = restorePlaybackRate;
+        if (wasPausedWhenStarted) {
+          video.pause();
+          wasPausedWhenStarted = false;
+        }
         if (speedIndicator) {
           speedIndicator.classList.add('v0ck_hidden');
         }
