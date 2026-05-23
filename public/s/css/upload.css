@@ -247,7 +247,7 @@
     align-items: center;
 }
 
-.upload-form.shitpost-mode-active .file-meta-row-small {
+.upload-form.shitpost-mode-active .file-name-small {
     padding-right: 30px; /* Space for X button */
 }
 
