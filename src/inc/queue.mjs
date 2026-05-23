@@ -497,7 +497,7 @@ export default new class queue {
     const src = path.join(tDir, `${itemid}.webp`);
     const dst = path.join(tDir, `${itemid}_blur.webp`);
     try {
-      await this.spawn('magick', [src, '-blur', '0x20', dst]);
+      await this.spawn('magick', [src, '-blur', '0x48', dst]);
       return true;
     } catch (err) {
       console.error(`[QUEUE] Failed to generate blurred thumbnail for ${itemid}:`, err);
