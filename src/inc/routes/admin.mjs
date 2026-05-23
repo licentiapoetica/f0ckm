@@ -1422,6 +1422,9 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
 
   // Chat Manager
   router.get(/^\/admin\/chat\/?$/, lib.auth, async (req, res) => {
+    if (!cfg.websrv.enable_global_chat) {
+      return res.redirect("/admin");
+    }
     res.reply({
       body: tpl.render('admin/chat', {
         session: req.session,
