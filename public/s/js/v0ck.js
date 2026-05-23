@@ -111,10 +111,7 @@ class v0ck {
           setTimeout(() => parent.classList.remove("v0ck_no_transition"), 50);
         }
 
-        if (!isMobile) {
-            parent.addEventListener('mouseenter', () => parent.classList.add("v0ck_hover"));
-            parent.addEventListener('mouseleave', () => parent.classList.remove("v0ck_hover"));
-        }
+
 
         if (!document.querySelector('link[href^="/s/css/v0ck.css"]')) {
           document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" href="/s/css/v0ck.css">`); // inject css
@@ -542,10 +539,9 @@ class v0ck {
         }
     }
 
-    // Mobile controls auto-hide logic (auto hide controls after 5 seconds of inactivity)
+    // Controls auto-hide logic (auto hide controls after 5 seconds of inactivity)
     let controlsTimer;
     function resetControlsTimer() {
-      if (!isMobile) return;
       clearTimeout(controlsTimer);
       if (!video.paused) {
         controlsTimer = setTimeout(() => {
@@ -558,16 +554,26 @@ class v0ck {
       }
     }
 
-    if (isMobile) {
-      // Use capturing phase so we intercept events before child elements stop propagation
-      const resetEvents = ['touchstart', 'touchmove', 'touchend', 'click'];
-      resetEvents.forEach(evt => {
-        player.addEventListener(evt, resetControlsTimer, { capture: true, passive: true });
-      });
-      video.addEventListener('play', resetControlsTimer);
-      video.addEventListener('playing', resetControlsTimer);
-      video.addEventListener('pause', () => clearTimeout(controlsTimer));
+    function showControlsAndReset() {
+      player.classList.add('v0ck_hover');
+      resetControlsTimer();
     }
+
+    // Events that should show controls and reset/extend the auto-hide timer
+    const resetEvents = ['touchstart', 'touchmove', 'touchend', 'click', 'mousemove', 'mouseenter'];
+    resetEvents.forEach(evt => {
+      player.addEventListener(evt, showControlsAndReset, { capture: true, passive: true });
+    });
+
+    // Make sure leaving the player immediately hides the controls and clears the timer on desktop
+    player.addEventListener('mouseleave', () => {
+      player.classList.remove('v0ck_hover');
+      clearTimeout(controlsTimer);
+    }, { capture: true, passive: true });
+
+    video.addEventListener('play', resetControlsTimer);
+    video.addEventListener('playing', resetControlsTimer);
+    video.addEventListener('pause', () => clearTimeout(controlsTimer));
 
     this.toggleFullScreen = toggleFullScreen;
     this.enterFullScreen = enterFullScreen;

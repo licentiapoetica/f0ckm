@@ -138,13 +138,11 @@
   transform: translateY(100%) translateY(-3px);
 }
 
-.v0ck:hover .v0ck_player_controls,
 .v0ck.v0ck_hover .v0ck_player_controls,
 .v0ck.v0ck_swf_active .v0ck_player_controls {
   transform: translateY(0);
 }
 
-.v0ck:hover .v0ck_progress,
 .v0ck.v0ck_hover .v0ck_progress,
 .v0ck.v0ck_swf_active .v0ck_progress {
   height: 8px;
