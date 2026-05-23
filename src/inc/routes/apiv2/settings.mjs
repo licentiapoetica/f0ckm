@@ -811,6 +811,51 @@ export default router => {
       }
     });
 
+    // GET /api/v2/settings/api-key/sharex-config
+    // Downloads a pre-filled ShareX custom uploader (.sxcu) for the requesting user.
+    group.get(/\/api-key\/sharex-config$/, lib.loggedin, async (req, res) => {
+      if (cfg.websrv.enable_user_api_keys === false) {
+        return res.status(403).reply({ body: 'API keys are disabled' });
+      }
+      try {
+        const row = (await db`
+          SELECT api_key FROM user_api_keys
+          WHERE user_id = ${+req.session.id}
+          LIMIT 1
+        `)[0];
+
+        if (!row) {
+          return res.status(404).reply({ body: 'No API key — generate one first in Settings.' });
+        }
+
+        const sxcu = {
+          Version: '15.0.0',
+          Name: cfg.main.url.domain,
+          DestinationType: 'ImageUploader, FileUploader',
+          RequestMethod: 'POST',
+          RequestURL: `${cfg.main.url.full}/api/v2/upload`,
+          Headers: {
+            'X-Api-Key': row.api_key
+          },
+          Body: 'MultipartFormData',
+          FileFormName: 'file',
+          URL: '$json:url$',
+          ErrorMessage: '$json:msg$'
+        };
+
+        const filename = `${cfg.main.url.domain}.sxcu`;
+        const body = JSON.stringify(sxcu, null, 2);
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Length': Buffer.byteLength(body)
+        }).end(body);
+      } catch (e) {
+        console.error('[API KEY] ShareX config error:', e);
+        return res.status(500).reply({ body: 'Error generating config' });
+      }
+    });
+
 
     // --- User Invite System ---
     // Eligibility: ≥150 uploads, ≥30 days old, ≥66 comments, ≥200 tags

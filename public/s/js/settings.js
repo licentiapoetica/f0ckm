@@ -1844,12 +1844,13 @@
     // ============================================================
     // Upload API Key Management
     // ============================================================
-    const apiKeyStatusBox   = document.getElementById('api-key-status-box');
-    const apiKeyRevealBox   = document.getElementById('api-key-reveal');
-    const apiKeyFullDisplay = document.getElementById('api-key-full-display');
-    const btnCopyApiKey     = document.getElementById('btn-copy-api-key');
-    const btnRegenApiKey    = document.getElementById('btn-regen-api-key');
-    const btnRevokeApiKey   = document.getElementById('btn-revoke-api-key');
+    const apiKeyStatusBox    = document.getElementById('api-key-status-box');
+    const apiKeyRevealBox    = document.getElementById('api-key-reveal');
+    const apiKeyFullDisplay  = document.getElementById('api-key-full-display');
+    const btnCopyApiKey      = document.getElementById('btn-copy-api-key');
+    const btnRegenApiKey     = document.getElementById('btn-regen-api-key');
+    const btnRevokeApiKey    = document.getElementById('btn-revoke-api-key');
+    const btnShareXDownload  = document.getElementById('btn-sharex-download');
     const apiKeyActionStatus = document.getElementById('api-key-action-status');
 
     const showApiKeyStatus = (msg, type) => {
@@ -1866,9 +1867,11 @@
                 `<span>Active key: <code style="font-size:0.9em;">${escHTML(preview)}</code></span>` +
                 `<span style="color:var(--text-muted); margin-left:12px; font-size:0.85em;">Created: ${escHTML(date)}</span>`;
             if (btnRevokeApiKey) btnRevokeApiKey.style.display = '';
+            if (btnShareXDownload) btnShareXDownload.style.display = '';
         } else {
             apiKeyStatusBox.innerHTML = '<span class="text-muted">No API key generated yet.</span>';
             if (btnRevokeApiKey) btnRevokeApiKey.style.display = 'none';
+            if (btnShareXDownload) btnShareXDownload.style.display = 'none';
         }
     };
 
@@ -1966,6 +1969,8 @@
                 const data = await res.json();
 
                 if (data.success) {
+                    btnRevokeApiKey.disabled = false;
+                    btnRevokeApiKey.textContent = 'Revoke Key';
                     renderApiKeyState(false, null, null);
                     if (apiKeyRevealBox) apiKeyRevealBox.style.display = 'none';
                     if (apiKeyFullDisplay) apiKeyFullDisplay.textContent = '';
