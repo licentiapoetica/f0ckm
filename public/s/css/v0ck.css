@@ -539,3 +539,9 @@
   opacity: 1;
   transform: translate(-50%, 0);
 }
+
+/* Hide mouse cursor on inactivity in fullscreen */
+.v0ck.v0ck_fullscreen:not(.v0ck_hover),
+.v0ck.v0ck_fullscreen:not(.v0ck_hover) * {
+  cursor: none !important;
+}
