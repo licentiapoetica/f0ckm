@@ -157,7 +157,7 @@
     "blur_sfw": "Blur SFW",
     "blur_sfw_hint": "Blur SFW-rated thumbnails.",
     "blur_untagged": "Blur Untagged",
-    "blur_untagged_hint": "Blur thumbnails with no tags or rating. Click to reveal, and click the eye-slash to hide again.",
+    "blur_untagged_hint": "Blur thumbnails with no tags or rating.",
     "render_emojis": "Render emojis in quote replies",
     "render_emojis_hint": "Show :emoji: images inside >quoted lines",
     "embed_yt": "Embed YouTube links in comments",
