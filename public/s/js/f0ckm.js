@@ -555,6 +555,8 @@ window.cancelAnimFrame = (function () {
       'content-warning-modal', 'gchat-img-modal', 'image-modal', 'info-modal'
     ];
     modalIds.forEach(id => {
+      // Don't close the filter modal during a background mime-filter reload
+      if (id === 'excluded-tags-overlay' && window._keepFilterModal) return;
       const el = document.getElementById(id);
       if (el) {
         el.classList.remove('show', 'visible');
@@ -3050,6 +3052,10 @@ window.cancelAnimFrame = (function () {
       // Sync state immediately via cookie to avoid race conditions
       document.cookie = `mode=${window.activeMode}; Path=/; Max-Age=31536000`;
 
+      // Keep filter modal open if the click came from inside it
+      const fromFilterModal = !!modeBtn.closest('#excluded-tags-overlay');
+      if (fromFilterModal) window._keepFilterModal = true;
+
       // Update mode via AJAX
       fetch(modeBtn.href, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -3068,21 +3074,28 @@ window.cancelAnimFrame = (function () {
             const isGridView = document.querySelector('.posts, .tags-grid');
             const isItemView = document.getElementById('prev') || document.getElementById('next');
 
+            let reloadPromise = null;
             if (isGridView) {
               // Reload current page without ?mode= in the URL — server picks up mode from session/cookie
               const currentUrl = new URL(window.location.href);
               currentUrl.searchParams.delete('mode');
-              loadPageAjax(currentUrl.toString(), true, { skipCache: true });
+              reloadPromise = loadPageAjax(currentUrl.toString(), true, { skipCache: true });
             } else if (isItemView) {
               // Directly update nav links for the new mode without keepMedia complexity
               updateNavForMode(window.activeMode);
             }
+
+            if (fromFilterModal) {
+              Promise.resolve(reloadPromise).finally(() => { window._keepFilterModal = false; });
+            }
           } else {
+            if (fromFilterModal) window._keepFilterModal = false;
             // Fallback
             window.location.href = modeBtn.href;
           }
         })
         .catch(err => {
+          if (fromFilterModal) window._keepFilterModal = false;
           console.error("Mode update failed:", err);
           window.location.href = modeBtn.href;
         });
@@ -6930,17 +6943,30 @@ document.addEventListener("DOMContentLoaded", function () {
     // Sync UI immediately (Before AJAX)
     if (window.updateMimeLabel) window.updateMimeLabel();
 
-     // Trigger reload context-aware
-     const postsEl = document.querySelector('.posts, .tags-grid');
-     if (postsEl) {
-         if (window.loadPageAjax) window.loadPageAjax(url.toString(), { skipPush: true });
-     } else if (document.getElementById('main')?.classList.contains('item-view') || document.querySelector('.item-layout-container, .item-main-content')) {
-         // On item view, refresh the context but KEEP media playing
-         if (window.loadItemAjax) window.loadItemAjax(url.toString(), true, { keepMedia: true });
-     } else {
-         // Fallback for non-AJAX pages
-         window.location.reload();
-     }
+    // Trigger reload context-aware
+    const fromModal = !!menu.closest('#excluded-tags-overlay');
+    const postsEl = document.querySelector('.posts, .tags-grid');
+    let reloadPromise = null;
+
+    // Set flag so hideAllModals (called inside loadPageAjax) skips the filter overlay
+    if (fromModal) window._keepFilterModal = true;
+
+    if (postsEl) {
+        reloadPromise = window.loadPageAjax ? window.loadPageAjax(url.toString(), { skipPush: true }) : null;
+    } else if (document.getElementById('main')?.classList.contains('item-view') || document.querySelector('.item-layout-container, .item-main-content')) {
+        // On item view, refresh the context but KEEP media playing
+        reloadPromise = window.loadItemAjax ? window.loadItemAjax(url.toString(), true, { keepMedia: true }) : null;
+    } else {
+        // Fallback for non-AJAX pages
+        if (!fromModal) window.location.reload();
+    }
+
+    // Clear the flag once the reload finishes (or immediately if no promise)
+    if (fromModal) {
+        Promise.resolve(reloadPromise).finally(() => {
+            window._keepFilterModal = false;
+        });
+    }
   };
 
   document.querySelectorAll('.nav-mime-menu').forEach(menu => {
