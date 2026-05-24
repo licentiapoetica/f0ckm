@@ -2307,8 +2307,6 @@ body.layout-modern .item-sidebar-left .tag-controls {
   padding: 5px;
   border: 1px solid var(--nav-border-color);
   border-radius: 0;
-  ;
-  margin: 5px;
 }
 
 .comment-input textarea {
