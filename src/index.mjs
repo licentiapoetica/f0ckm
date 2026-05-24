@@ -1105,6 +1105,7 @@ process.on('uncaughtException', err => {
     meme_creator: !!cfg.websrv.meme_creator,
     custom_favicon: cfg.websrv.custom_favicon || "",
     custom_brand_image: Array.isArray(cfg.websrv.custom_brand_image) ? cfg.websrv.custom_brand_image[0] : (cfg.websrv.custom_brand_image || ""),
+    custom_navbar_brand_text: cfg.websrv.custom_navbar_brand_text || "",
     site_description: cfg.websrv.description || "The webs dumpster",
     enable_nsfl: !!cfg.enable_nsfl,
     nsfl_tag_id: cfg.nsfl_tag_id || 3,
