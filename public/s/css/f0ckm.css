@@ -242,7 +242,7 @@ html[theme='amoled'] {
   background: black;
 }
 
-html[theme="amoled"] a.active {
+html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
   color: var(--black) !important;
 }
 
