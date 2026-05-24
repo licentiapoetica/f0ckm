@@ -8166,7 +8166,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (expandOnClick) {
             const wrapper = elfe.closest('.embed-responsive');
             if (wrapper) {
-                wrapper.classList.toggle('is-expanded');
+                // If already expanded, always allow collapsing
+                if (wrapper.classList.contains('is-expanded')) {
+                    wrapper.classList.remove('is-expanded');
+                    return;
+                }
+                // Only expand if the image is actually being clipped (not fully visible).
+                // Compare the image's rendered height to its natural height —
+                // if rendered >= natural, the image already fits fully in the box.
+                const img = wrapper.querySelector('img#f0ck-image');
+                if (img && img.complete && img.naturalHeight > 0) {
+                    const rendered = img.getBoundingClientRect();
+                    // Allow a 2px tolerance for subpixel rounding
+                    if (rendered.height + 2 >= img.naturalHeight) {
+                        // Fully visible — do nothing (no expand needed, no modal)
+                        return;
+                    }
+                }
+                wrapper.classList.add('is-expanded');
             }
         } else {
             openImageModal(elfe.href);

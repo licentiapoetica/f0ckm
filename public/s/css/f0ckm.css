@@ -1735,18 +1735,19 @@ body.sidebar-right-hidden .global-sidebar-right {
     overflow-y: scroll;
   }
 
-  /* When image is expanded: switch to flex column so image height pushes metadata below it */
+  /* When image is expanded: flex column so metadata stays below the image */
   body.layout-modern .item-layout-container .item-main-content:has(.embed-responsive.is-expanded) {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
-  /* Prevent flex children from shrinking inside the fixed-height container —
-     without this they compress to fit and the image overflows visually */
+  /* flex-shrink: 0 prevents children from compressing to fit the fixed-height container.
+     align-self: center overrides the grid-mode "align-self: start" rules — in flex-column
+     "start" means left, not top, so we explicitly center instead. */
   body.layout-modern .item-layout-container .item-main-content:has(.embed-responsive.is-expanded) > * {
     flex-shrink: 0;
-    width: 100%;
+    align-self: center;
   }
 
   body.layout-modern .item-layout-container .item-main-content ._204863 {
