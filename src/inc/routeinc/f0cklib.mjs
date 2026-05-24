@@ -577,6 +577,32 @@ export default {
       where "favorites".item_id = ${itemid}
     `;
 
+    // Detect reposts: items uploaded with bypass_duplicate_check have checksum = `{hash}_bypass_{ts}`
+    // Find all items (including this one) that share the same base checksum.
+    let repostItems = [];
+    if (actitem.checksum && actitem.checksum.includes('_bypass_')) {
+      const baseChecksum = actitem.checksum.split('_bypass_')[0];
+      const repostRows = await db`
+        SELECT id, username, stamp FROM items
+        WHERE active = true
+          AND id != ${itemid}
+          AND (checksum = ${baseChecksum} OR checksum LIKE ${baseChecksum + '_bypass_%'})
+        ORDER BY id ASC
+      `;
+      repostItems = repostRows.map(r => ({ id: r.id, username: r.username, stamp: r.stamp }));
+    } else if (actitem.checksum) {
+      // Even without bypass, check if other bypass-entries exist with this same hash
+      const baseChecksum = actitem.checksum;
+      const repostRows = await db`
+        SELECT id, username, stamp FROM items
+        WHERE active = true
+          AND id != ${itemid}
+          AND checksum LIKE ${baseChecksum + '_bypass_%'}
+        ORDER BY id ASC
+      `;
+      repostItems = repostRows.map(r => ({ id: r.id, username: r.username, stamp: r.stamp }));
+    }
+
     // Efficient coverart fallback
     const coverartUrl = actitem.has_coverart 
         ? `${cfg.websrv.paths.coverarts}/${actitem.id}.webp`
@@ -656,7 +682,9 @@ export default {
         is_sfw: isSfw,
         is_pinned: actitem.is_pinned || false,
         is_comments_locked: actitem.is_comments_locked || false,
-        is_oc: actitem.is_oc || false
+        is_oc: actitem.is_oc || false,
+        is_repost: actitem.checksum ? actitem.checksum.includes('_bypass_') : false,
+        reposts: repostItems
       },
       title: `${actitem.id} - ${cfg.websrv.domain}`,
       pagination: {

@@ -212,6 +212,16 @@
                     <td><code style="word-break: break-all;">{{ item.checksum.split('_bypass_')[0] }}</code></td>
                 </tr>
                 @endif
+                @if(item.is_repost || (item.reposts && item.reposts.length > 0))
+                <tr class="info-repost-row">
+                    <th>Repost</th>
+                    <td>
+                        @each(item.reposts as rp)
+                        <a href="/{{ rp.id }}" style="margin-right: 4px;">#{{ rp.id }}</a>
+                        @endeach
+                    </td>
+                </tr>
+                @endif
                 <tr>
                     <th>{{ t('info_modal.direct_url') || 'Direct URL' }}</th>
                     <td>
