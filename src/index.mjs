@@ -1204,11 +1204,14 @@ process.on('uncaughtException', err => {
     globals.lang = perRequestLang;
 
     // Resolve per-request infobox preference
+    // Guests always get false — the alternative infobox is a logged-in user preference only
     const useAltInfobox = (req && req.session && typeof req.session.use_alternative_infobox === 'boolean') 
       ? req.session.use_alternative_infobox 
-      : (data && typeof data.user_alternative_infobox === 'boolean'
-        ? data.user_alternative_infobox
-        : (cfg.websrv.user_alternative_infobox !== false));
+      : (req && !req.session
+        ? false
+        : (data && typeof data.user_alternative_infobox === 'boolean'
+          ? data.user_alternative_infobox
+          : (cfg.websrv.user_alternative_infobox !== false)));
 
     data = Object.assign({}, globals, data || {}, {
       t: perRequestT,
