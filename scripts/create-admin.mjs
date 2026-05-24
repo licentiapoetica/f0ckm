@@ -1,7 +1,6 @@
 import db from "../src/inc/sql.mjs";
 import lib from "../src/inc/lib.mjs";
 import cfg from "../src/inc/config.mjs";
-import { getDefaultLayout } from "../src/inc/settings.mjs";
 
 const [username, password] = process.argv.slice(2);
 
@@ -48,7 +47,7 @@ async function createAdmin() {
 
         await db`
             insert into user_options (user_id, mode, theme, fullscreen, avatar, avatar_file, use_new_layout, disable_autoplay, disable_swiping)
-            values (${userId}, 3, 'amoled', 0, null, 'default.png', ${getDefaultLayout() === 'modern'}, false, false)
+            values (${userId}, 3, 'amoled', 0, null, 'default.png', ${(cfg.websrv.default_layout ?? 'modern') !== 'legacy'}, false, false)
         `;
 
         console.log(`--- Admin User ${username} Created Successfully ---`);

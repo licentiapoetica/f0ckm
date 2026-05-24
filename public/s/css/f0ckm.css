@@ -242,6 +242,10 @@ html[theme='amoled'] {
   background: black;
 }
 
+html[theme="amoled"] a.active {
+  color: var(--black);
+}
+
 html[theme="amoled"] .metadata {
   border: none;
 }
