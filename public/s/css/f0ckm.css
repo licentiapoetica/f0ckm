@@ -8243,6 +8243,12 @@ span.badge.badge-current {
   max-height: 128px !important;
 }
 
+.sidebar-comment-img.emoji {
+  height: auto;
+  max-width: 60px !important;
+  vertical-align: middle;
+}
+
 .sidebar-activity .video-embed-wrap {
   display: block;
   max-width: 100%;
