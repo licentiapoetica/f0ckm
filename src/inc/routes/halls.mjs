@@ -94,8 +94,7 @@ export default (router, tpl) => {
         const util = await import('util');
         const execFilePromise = util.promisify(execFile);
 
-        // If only 1 or 2 items, just use what we have
-        await execFilePromise('magick', [...inputs, '+append', '-background', 'none', '-resize', '300x150^', '-gravity', 'center', '-extent', '300x150', cachePath]);
+        await execFilePromise('magick', [...inputs, '+append', '-background', 'none', '-resize', '600x300^', '-gravity', 'center', '-extent', '600x300', cachePath]);
 
         res.writeHead(200, { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=3600' });
         return res.end(await fs.readFile(cachePath));

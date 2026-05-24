@@ -268,7 +268,7 @@ export default (router, tpl) => {
         await fs.mkdir(CACHE_DIR, { recursive: true });
         await execFile('magick', [
           ...inputs, '+append', '-background', 'none',
-          '-resize', '300x150^', '-gravity', 'center', '-extent', '300x150', cachePath
+          '-resize', '600x300^', '-gravity', 'center', '-extent', '600x300', cachePath
         ]);
         res.writeHead(200, { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=3600' });
         return res.end(await fs.readFile(cachePath));

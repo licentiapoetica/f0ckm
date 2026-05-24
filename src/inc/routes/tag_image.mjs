@@ -40,7 +40,7 @@ export async function regenerateTagImage(tag, mode) {
       const inputs = items.map(item => path.join(cfg.paths.t, `${item.id}.webp`));
 
       await fs.mkdir(path.dirname(cachePath), { recursive: true });
-      await execFilePromise('magick', [...inputs, '+append', '-background', 'none', '-resize', '300x150^', '-gravity', 'center', '-extent', '300x150', cachePath]);
+      await execFilePromise('magick', [...inputs, '+append', '-background', 'none', '-resize', '600x300^', '-gravity', 'center', '-extent', '600x300', cachePath]);
       return cachePath;
     }
   } catch (err) {
@@ -123,17 +123,17 @@ function generateFallbackSvg(tag) {
   const n2 = parseInt(hash.substring(20, 22), 16);
 
   return `
-    <svg width="300" height="150" viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+    <svg width="600" height="300" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" style="stop-color:${c1};stop-opacity:1" />
           <stop offset="100%" style="stop-color:${c2};stop-opacity:1" />
         </linearGradient>
       </defs>
-      <rect width="300" height="150" fill="url(#grad)" />
-      <circle cx="${n1}%" cy="${n2}%" r="${(n1 + n2) / 4}" fill="${c3}" fill-opacity="0.3" />
-      <circle cx="${100 - n1}%" cy="${100 - n2}%" r="${(n1 + n2) / 3}" fill="${c3}" fill-opacity="0.2" />
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#fff" fill-opacity="0.9" font-weight="bold">${displayTag}</text>
+      <rect width="600" height="300" fill="url(#grad)" />
+      <circle cx="${n1}%" cy="${n2}%" r="${(n1 + n2) / 2}" fill="${c3}" fill-opacity="0.25" />
+      <circle cx="${100 - n1}%" cy="${100 - n2}%" r="${(n1 + n2) / 1.5}" fill="${c3}" fill-opacity="0.15" />
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="monospace, sans-serif" font-size="36" fill="#fff" fill-opacity="0.95" font-weight="bold">${displayTag}</text>
     </svg>
   `.trim();
 }
