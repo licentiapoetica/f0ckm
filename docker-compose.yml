@@ -11,12 +11,14 @@ services:
     networks:
       - f0ckm-net
     volumes:
-      - ./config.json:/opt/f0ckm/config.json:Z
+      - ./config.json:/opt/f0ckm/config.json:ro,Z
       - ./src/:/opt/f0ckm/src/:Z
       - ./views/:/opt/f0ckm/views/:Z
       - ./scripts/:/opt/f0ckm/scripts/:Z
       - ./f0ckm-data/a/:/opt/f0ckm/public/a/:Z
       - ./f0ckm-data/b/:/opt/f0ckm/public/b/:Z
+      - ./f0ckm-data/c/:/opt/f0ckm/public/c/:Z
+      - ./f0ckm-data/e/:/opt/f0ckm/public/e/:Z
       - ./f0ckm-data/t/:/opt/f0ckm/public/t/:Z
       - ./f0ckm-data/deleted/:/opt/f0ckm/deleted/:Z
       - ./f0ckm-data/pending/:/opt/f0ckm/pending/:Z
