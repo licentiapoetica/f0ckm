@@ -5,6 +5,14 @@
     {{-- LEFT SIDEBAR: comments + tags --}}
     <div class="item-sidebar-left">
 
+        @if(enable_xd_score && item.xd_score > 0)
+        <div class="xd-score-wrapper">
+        <span class="xd-score-badge xd-tier-{{ item.xd_tier }}" tooltip="xD Score: {{ item.xd_score }} pts" flow="up">
+            {{ item.xd_label }} <span class="xd-score-num">{{ item.xd_score }}</span>
+        </span>
+        </div>
+        @endif
+
         @if(session || !hide_comments_from_public)
         <div id="comments-container"
              data-item-id="{{ item.id }}"
@@ -148,13 +156,7 @@
                     <a href="/user/{{ fav.user.toLowerCase() }}" tooltip="{!! fav.display_name || fav.user !!}" flow="up"><img src="@if(fav.avatar_file)/a/{{ fav.avatar_file }}@elseif(fav.avatar)/t/{{ fav.avatar }}.webp@else/a/default.png@endif" style="height: 32px; width: 32px@if(fav.username_color); border-color: {{ fav.username_color }}@endif" loading="lazy" /></a>
                     @endeach
                 </span>
-                @if(enable_xd_score && item.xd_score > 0)
-                <div class="xd-score-wrapper">
-                <span class="xd-score-badge xd-tier-{{ item.xd_tier }}" tooltip="xD Score: {{ item.xd_score }} pts" flow="up">
-                    {{ item.xd_label }} <span class="xd-score-num">{{ item.xd_score }}</span>
-                </span>
-                </div>
-                @endif
+
             </div>
         </div>
 

@@ -12866,6 +12866,11 @@ textarea#profile_description {
   flex-wrap: wrap;
 }
 
+body.layout-modern .xd-score-wrapper {
+  margin: 0;
+  padding: 0px 5px 0px 5px;
+}
+
 @keyframes xd-pulse {
 
   0%,

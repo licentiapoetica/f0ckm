@@ -1262,9 +1262,34 @@ class CommentSystem {
         }
 
 
+        // Save xd-score-wrapper before innerHTML wipe.
+        // On first load it lives as a previous sibling (server-rendered); afterwards inside.
+        let xdWrapperHtml = null;
+        const xdInside = this.container.querySelector('.xd-score-wrapper');
+        if (xdInside) {
+            xdWrapperHtml = xdInside.outerHTML;
+        } else {
+            const prev = this.container.previousElementSibling;
+            if (prev && prev.classList.contains('xd-score-wrapper')) {
+                xdWrapperHtml = prev.outerHTML;
+                prev.remove();
+            }
+        }
+
         const mediaState = this.saveMediaState();
         this.container.innerHTML = html;
         this.restoreMediaState(mediaState);
+
+        // Re-inject xd-score-wrapper between the comment input and the comments list
+        if (xdWrapperHtml) {
+            const commentsList = this.container.querySelector('.comments-list');
+            if (commentsList) {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = xdWrapperHtml;
+                const xdEl = tmp.firstElementChild;
+                if (xdEl) this.container.insertBefore(xdEl, commentsList);
+            }
+        }
         this.syncSubscribeButton(isSubscribed);
         CommentSystem.autoplayConvertedGifs(this.container);
 

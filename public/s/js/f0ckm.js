@@ -4923,9 +4923,6 @@ window.cancelAnimFrame = (function () {
     const pageItemId = container.dataset.itemId;
     if (pageItemId && String(pageItemId) !== String(itemId)) return;
 
-    const favs = document.getElementById('favs');
-    if (!favs) return;
-
     document.querySelectorAll('.xd-score-wrapper').forEach(w => w.remove());
 
     if (score <= 0) return;
@@ -4935,7 +4932,15 @@ window.cancelAnimFrame = (function () {
     const newWrapper = document.createElement('div');
     newWrapper.className = 'xd-score-wrapper';
     newWrapper.innerHTML = `<span class="xd-score-badge ${meta.cls}" tooltip="xD Score: ${score} pts" flow="up">${meta.label} <span class="xd-score-num">${score}</span></span>`;
-    favs.parentNode.insertBefore(newWrapper, favs.nextSibling);
+
+    // Insert inside container, before .comments-list — matching the position
+    // that comments.js uses after each render.
+    const commentsList = container.querySelector('.comments-list');
+    if (commentsList) {
+      container.insertBefore(newWrapper, commentsList);
+    } else {
+      container.parentNode.insertBefore(newWrapper, container);
+    }
   };
 
   window.updateXdBadgeFromScore = (itemId, score) => {
