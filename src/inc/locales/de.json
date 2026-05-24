@@ -418,6 +418,10 @@
   },
   "sidebar": {
     "loading_activity": "Aktivität wird geladen...",
+    "no_activity": "Keine kürzliche Aktivität.",
+    "failed_to_load": "Laden fehlgeschlagen.",
+    "loading_more": "Laden…",
+    "end_of_activity": "─ Ende der Aktivität ─",
     "view": "Ansehen",
     "read_more": "mehr sehen",
     "see_less": "weniger anzeigen",

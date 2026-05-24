@@ -587,13 +587,13 @@
                 // Also check after a delay to account for image/emoji loading shifts
                 setTimeout(checkOverflow, 500);
             } else if (!hasCache) {
-                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No recent activity.</div>';
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">' + (window.f0ckI18n?.sidebar_no_activity || 'No recent activity.') + '</div>';
                 hasMore = false;
             }
         } catch (e) {
             console.error("Sidebar Activity: Failed to load activity", e);
             if (!hasCache) {
-                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">Failed to load.</div>';
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">' + (window.f0ckI18n?.sidebar_failed_to_load || 'Failed to load.') + '</div>';
             }
             hasMore = false;
         } finally {
@@ -615,7 +615,7 @@
         const sentinel = document.createElement('div');
         sentinel.id = 'sidebar-load-more-sentinel';
         sentinel.style.cssText = 'text-align:center;padding:8px 0;font-size:0.78em;color:#666;';
-        sentinel.textContent = 'Loading…';
+        sentinel.textContent = window.f0ckI18n?.sidebar_loading_more || 'Loading…';
         container.appendChild(sentinel);
 
         try {
@@ -664,7 +664,7 @@
                 // Show end-of-feed indicator
                 const end = document.createElement('div');
                 end.style.cssText = 'text-align:center;padding:8px 0;font-size:0.75em;color:#444;';
-                end.textContent = '─ end of activity ─';
+                end.textContent = window.f0ckI18n?.sidebar_end_of_activity || '─ end of activity ─';
                 container.appendChild(end);
             }
         } catch (e) {

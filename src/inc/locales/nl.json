@@ -418,6 +418,10 @@
   },
   "sidebar": {
     "loading_activity": "Activiteit laden...",
+    "no_activity": "Geen recente activiteit.",
+    "failed_to_load": "Laden mislukt.",
+    "loading_more": "Laden…",
+    "end_of_activity": "─ einde van activiteit ─",
     "view": "Bekijken",
     "read_more": "lees meer",
     "see_less": "zie minder",
