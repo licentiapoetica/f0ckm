@@ -1735,6 +1735,20 @@ body.sidebar-right-hidden .global-sidebar-right {
     overflow-y: scroll;
   }
 
+  /* When image is expanded: switch to flex column so image height pushes metadata below it */
+  body.layout-modern .item-layout-container .item-main-content:has(.embed-responsive.is-expanded) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Prevent flex children from shrinking inside the fixed-height container —
+     without this they compress to fit and the image overflows visually */
+  body.layout-modern .item-layout-container .item-main-content:has(.embed-responsive.is-expanded) > * {
+    flex-shrink: 0;
+    width: 100%;
+  }
+
   body.layout-modern .item-layout-container .item-main-content ._204863 {
     align-self: start;
   }
@@ -4549,8 +4563,15 @@ span.placeholder {
   position: static !important;
   height: auto !important;
   max-width: 100% !important;
-  max-height: 100% !important;
+  max-height: none !important;
 }
+
+/* In modern layout expanded state, explicitly lift the max-height cap */
+body.layout-modern .embed-responsive.is-expanded img#f0ck-image {
+  max-height: none !important;
+}
+
+
 
 a#elfe {
   height: 100%;
@@ -10103,9 +10124,11 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
   /* metadata + comment headers must sit above the grid overflow */
   body.layout-modern .metadata,
   body.layout-modern .comment-header {
-    z-index: 100 !important;
+    z-index: 1;
     position: relative;
   }
+
+
 
   body.layout-modern .sidebar-tags-container {
     overflow-y: visible !important;
