@@ -8409,6 +8409,12 @@ body.layout-legacy .comment-content img.emoji {
   background: rgba(17, 17, 17, 0.55) !important;
 }
 
+.anchor-target {
+  border-left: 3px solid var(--accent) !important;
+  background: rgba(17, 17, 17, 0.55) !important;
+  padding-left: 5px;
+}
+
 @keyframes activityGlow {
   0% {
     color: var(--accent);

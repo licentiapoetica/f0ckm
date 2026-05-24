@@ -3254,8 +3254,8 @@ window.cancelAnimFrame = (function () {
           if (targetEl) {
             targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // Clear any previous highlight, then permanently mark this element
-            document.querySelectorAll('.comment-highlighted').forEach(el => el.classList.remove('comment-highlighted'));
-            targetEl.classList.add('comment-highlighted');
+            document.querySelectorAll('.anchor-target').forEach(el => el.classList.remove('anchor-target'));
+            targetEl.classList.add('anchor-target');
           }
         }
         

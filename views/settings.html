@@ -41,10 +41,10 @@
           if (!hash) return;
           var el = document.querySelector(hash);
           if (!el) return;
-          document.querySelectorAll('.comment-highlighted').forEach(function(c) {
-            c.classList.remove('comment-highlighted');
+          document.querySelectorAll('.anchor-target').forEach(function(c) {
+            c.classList.remove('anchor-target');
           });
-          el.classList.add('comment-highlighted');
+          el.classList.add('anchor-target');
         }
 
         function initFromHash() {
