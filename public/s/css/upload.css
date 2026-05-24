@@ -406,22 +406,24 @@
 }
 
 .item-rating-option input:checked + .item-rating-label.sfw {
-    background: #40c057;
+    background: var(--badge-sfw);
     color: #fff;
-    border-color: #40c057;
+    border-color: var(--badge-sfw);
 }
 
 .item-rating-option input:checked + .item-rating-label.nsfw {
-    background: #fd7e14;
+    background: var(--badge-nsfw);
     color: #fff;
-    border-color: #fd7e14;
+    border-color: var(--badge-nsfw);
 }
 
 .item-rating-option input:checked + .item-rating-label.nsfl {
-    background: #fa5252;
+    background: var(--badge-nsfl);
     color: #fff;
-    border-color: #fa5252;
+    border-color: var(--badge-nsfl);
 }
+
+
 
 .item-rating-label:hover {
     background: rgba(255, 255, 255, 0.1);
