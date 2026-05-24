@@ -1721,10 +1721,27 @@ class CommentSystem {
                     return `[audio](${fullUrl})`;
                 });
 
-                // 3. Render Markdown for the line
-                let mdSafe = processedLine.replace(/\*/g, '\\*').replace(/_/g, '\\_');
-                const bs = String.fromCharCode(92);
-                mdSafe = mdSafe.split(bs + bs + '_').join(bs + bs + bs + '_');
+                // 3. Render Markdown for the line.
+                // Protect URLs and already-formed Markdown link/image tokens from the
+                // italic-prevention escaping pass so that underscores in query params
+                // (e.g. ?v=_FcvmypiHg4) are never turned into ?v=\_FcvmypiHg4.
+                const mdProtected = [];
+                // Match [text](url) / ![alt](url) tokens AND bare http(s) URLs
+                let mdSafe = processedLine.replace(
+                    /(!?\[[^\]]*\]\([^)]*\))|https?:\/\/\S+/g,
+                    (match) => {
+                        const idx = mdProtected.length;
+                        mdProtected.push(match);
+                        return `\x02MDURL${idx}\x03`;
+                    }
+                );
+                // Escape * and _ only in the non-URL portions
+                mdSafe = mdSafe
+                    .replace(/\\/g, '\\\\')
+                    .replace(/\*/g, '\\*')
+                    .replace(/_/g, '\\_');
+                // Restore protected URLs/tokens
+                mdSafe = mdSafe.replace(/\x02MDURL(\d+)\x03/g, (_, i) => mdProtected[+i]);
 
                 let rendered = marked.parseInline
                     ? marked.parseInline(mdSafe, { renderer: renderer })
