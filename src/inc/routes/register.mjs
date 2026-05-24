@@ -88,7 +88,23 @@ export default (router, tpl) => {
             return renderError("Passwords do not match.");
         }
 
-        // Registration Logic
+        // reCAPTCHA verification
+        if (cfg.recaptcha?.enabled && cfg.recaptcha?.secret_key) {
+            const rcToken = req.post['g-recaptcha-response'];
+            if (!rcToken) return renderError("Please complete the reCAPTCHA.");
+            try {
+                const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ secret: cfg.recaptcha.secret_key, response: rcToken, remoteip: ip })
+                });
+                const { success } = await verifyRes.json();
+                if (!success) return renderError("reCAPTCHA verification failed. Please try again.");
+            } catch (e) {
+                console.error('[REGISTER] reCAPTCHA error:', e.message);
+                return renderError("reCAPTCHA check failed. Please try again.");
+            }
+        }
         let activated = true;
         let activationToken = null;
 

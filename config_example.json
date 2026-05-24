@@ -206,5 +206,10 @@
     "password": "smtp_password",
     "from": "admin@example.com",
     "mail_reset_password": false
+  },
+  "recaptcha": {
+    "enabled": false,
+    "site_key": "YOUR_RECAPTCHA_V2_SITE_KEY",
+    "secret_key": "YOUR_RECAPTCHA_V2_SECRET_KEY"
   }
 }

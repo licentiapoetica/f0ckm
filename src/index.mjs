@@ -1092,6 +1092,8 @@ process.on('uncaughtException', err => {
     enable_userhall_image_upload: cfg.websrv.enable_userhall_image_upload !== false,
     abyss_enabled: cfg.websrv.abyss_enabled !== false,
     smtp_enabled: !!(cfg.smtp && cfg.smtp.enabled && cfg.smtp.mail_reset_password),
+    recaptcha_enabled: !!(cfg.recaptcha && cfg.recaptcha.enabled && cfg.recaptcha.site_key),
+    recaptcha_site_key: (cfg.recaptcha && cfg.recaptcha.site_key) || '',
     show_background_cfg: cfg.websrv.background !== false,
     allowed_mimes: Object.keys(cfg.mimes).concat([...new Set(Object.values(cfg.mimes))].map(ext => `.${ext}`)).join(','),
     mimes_json: JSON.stringify(cfg.mimes),

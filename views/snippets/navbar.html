@@ -348,6 +348,9 @@
         <input type="checkbox" id="tos-modal" name="tos" required />
         <label for="tos-modal">@if(private_society){{ t('auth.tos_private') }}@else{{ t('auth.tos_public') }} <a href="/terms" target="_blank" style="color: var(--accent); text-decoration: underline;">{{ t('auth.tos_terms') }}</a>, <a href="/rules" target="_blank" style="color: var(--accent); text-decoration: underline;">{{ t('auth.tos_rules') }}</a> {{ t('auth.tos_age') }}@endif</label>
       </p>
+      @if(recaptcha_enabled)
+      <div id="modal-register-recaptcha" style="margin: 10px 0;"></div>
+      @endif
       <button type="submit">{{ t('auth.create_account') }}</button>
       <div style="text-align: center; margin-top: 20px;">
         <a href="#" id="register-to-login" style="font-size: 0.9em; color: var(--accent); text-decoration: underline;">{{ t('auth.back_to_login') }}</a>
@@ -390,4 +393,42 @@
   </div>
 </div>
 
+@endif
+
+@if(recaptcha_enabled)
+<script>
+(function() {
+  var _rcModalWidgetId = null;
+  var _rcLoaded = false;
+
+  function renderModalRecaptcha() {
+    var el = document.getElementById('modal-register-recaptcha');
+    if (!el || !window.grecaptcha) return;
+    if (_rcModalWidgetId !== null) {
+      try { grecaptcha.reset(_rcModalWidgetId); } catch(e) {}
+    } else {
+      _rcModalWidgetId = grecaptcha.render(el, { sitekey: '{{ recaptcha_site_key }}', theme: 'dark' });
+    }
+  }
+
+  window.onRecaptchaModalReady = function() {
+    _rcLoaded = true;
+    renderModalRecaptcha();
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('register-modal');
+    if (!modal) return;
+    var obs = new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        if (m.attributeName === 'style') {
+          if (modal.style.display !== 'none' && _rcLoaded) renderModalRecaptcha();
+        }
+      });
+    });
+    obs.observe(modal, { attributes: true });
+  });
+})();
+</script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaModalReady&render=explicit" async defer></script>
 @endif
