@@ -7714,8 +7714,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Final clamp to screen
-        breakoutTooltip.style.top = Math.max(5, Math.min(top, window.innerHeight - bRect.height - 5)) + 'px';
-        breakoutTooltip.style.left = Math.max(5, Math.min(left, window.innerWidth - bRect.width - 5)) + 'px';
+        const clampedTop  = Math.max(5, Math.min(top,  window.innerHeight - bRect.height - 5));
+        const clampedLeft = Math.max(5, Math.min(left, window.innerWidth  - bRect.width  - 5));
+        breakoutTooltip.style.top  = clampedTop  + 'px';
+        breakoutTooltip.style.left = clampedLeft + 'px';
+
+        // Point the arrow at the actual target center regardless of clamping
+        if (flow === 'up' || flow === 'up-left' || flow === 'down') {
+            const targetCenterX = rect.left + rect.width / 2;
+            const arrowLeft = Math.round(targetCenterX - clampedLeft);
+            // Keep the arrow within the tooltip bounds (with a small margin)
+            const arrowClamped = Math.max(8, Math.min(arrowLeft, bRect.width - 8));
+            breakoutTooltip.style.setProperty('--arrow-left', arrowClamped + 'px');
+        }
     };
 
     const showTooltipFor = (target) => {

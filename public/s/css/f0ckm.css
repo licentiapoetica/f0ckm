@@ -10234,20 +10234,19 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
 #f0ck-breakout-tooltip[data-flow="up"]::before,
 #f0ck-breakout-tooltip[data-flow="up-left"]::before {
   top: 100%;
-  left: 50%;
+  left: var(--arrow-left, 50%);
   transform: translateX(-50%);
   border-top-color: #535050;
   border-bottom-width: 0;
 }
 
 #f0ck-breakout-tooltip[data-flow="up-left"]::before {
-  left: 10px;
-  transform: none;
+  /* arrow-left is now computed dynamically; no override needed */
 }
 
 #f0ck-breakout-tooltip[data-flow="down"]::before {
   bottom: 100%;
-  left: 50%;
+  left: var(--arrow-left, 50%);
   transform: translateX(-50%);
   border-bottom-color: var(--tooltip-bg, #131212);
   border-top-width: 0;
