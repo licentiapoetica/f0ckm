@@ -239,7 +239,7 @@ html[theme='amoled'] {
   --img-border-color: #363636;
   --maximize_button: #fff;
   --bg-gradient: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 10%, rgb(0, 0, 0) 100%);
-  background: black;
+  --motd-bg: #000;
 }
 
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
@@ -14310,7 +14310,7 @@ body.scroller-active #gchat-reopen-bubble {
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(20, 20, 20, 0.45);
+  background: var(--motd-bg);
   border-bottom: 1px solid var(--nav-border-color);
   position: fixed;
   top: var(--navbar-h, 50px);
