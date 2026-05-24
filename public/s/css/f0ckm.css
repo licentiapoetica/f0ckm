@@ -8308,10 +8308,10 @@ span.badge.badge-current {
 
 
 .sidebar-comment-img.emoji {
-  width: auto;
+  width: 60px !important;
   display: inline-block;
   vertical-align: middle;
-  height: min-content;
+  height: min-content !important;
 }
 
 .comment-content img:not(.emoji) {
