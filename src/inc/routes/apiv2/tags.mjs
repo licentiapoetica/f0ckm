@@ -105,8 +105,19 @@ export default router => {
       const cycle = [1, 2, nsflId];
       const currentTags = await lib.getTags(postid);
       const ratingTagId = currentTags.find(t => [1, 2, nsflId].includes(t.id))?.id ?? 0;
-      const cycleIdx = cycle.indexOf(ratingTagId); // -1 if untagged → (−1+1)%3 = 0 → SFW
-      const nextTagId = cycle[(cycleIdx + 1) % cycle.length];
+
+      let nextTagId;
+      const reqRating = req.body?.rating || req.post?.rating || req.url?.qs?.rating;
+      if (reqRating === 'sfw') {
+        nextTagId = 1;
+      } else if (reqRating === 'nsfw') {
+        nextTagId = 2;
+      } else if (reqRating === 'nsfl') {
+        nextTagId = nsflId;
+      } else {
+        const cycleIdx = cycle.indexOf(ratingTagId); // -1 if untagged → (−1+1)%3 = 0 → SFW
+        nextTagId = cycle[(cycleIdx + 1) % cycle.length];
+      }
 
       try {
         // Remove any existing rating tag

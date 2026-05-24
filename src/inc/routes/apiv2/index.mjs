@@ -1064,12 +1064,22 @@ export default router => {
 
         const currentRatingId = existingRating.length > 0 ? existingRating[0].tag_id : null;
         let newRatingId;
-        if (currentRatingId === 1) {
-            newRatingId = 2; // SFW -> NSFW
-        } else if (currentRatingId === 2) {
-            newRatingId = cfg.enable_nsfl ? nsfl_id : 1; // NSFW -> NSFL (if enabled) or SFW
+        const reqRating = req.body?.rating || req.post?.rating || req.url?.qs?.rating;
+        if (reqRating === 'sfw') {
+            newRatingId = 1;
+        } else if (reqRating === 'nsfw') {
+            newRatingId = 2;
+        } else if (reqRating === 'nsfl') {
+            newRatingId = nsfl_id;
         } else {
-            newRatingId = 1; // NSFL or none -> SFW
+            // fallback to cycling
+            if (currentRatingId === 1) {
+                newRatingId = 2; // SFW -> NSFW
+            } else if (currentRatingId === 2) {
+                newRatingId = cfg.enable_nsfl ? nsfl_id : 1; // NSFW -> NSFL (if enabled) or SFW
+            } else {
+                newRatingId = 1; // NSFL or none -> SFW
+            }
         }
 
         await db.begin(async sql => {

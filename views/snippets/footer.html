@@ -387,6 +387,7 @@
     disable_swiping: @if(session && session.disable_swiping) true @else false @endif,
     show_background: @if(session)@if(session.show_background !== false) true @else false @endif@else @if(show_background_cfg) true @else false @endif@endif,
     nsfl_tag_id: {{ nsfl_tag_id }},
+    enable_nsfl: @if(enable_nsfl) true @else false @endif,
     user: @if(session) "{{ session.user }}" @else null @endif,
     display_name: @if(session && session.display_name) "{!! session.display_name !!}" @else null @endif,
     is_admin: @if(session && session.admin) true @else false @endif,

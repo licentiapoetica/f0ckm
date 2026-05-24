@@ -3406,44 +3406,150 @@ window.cancelAnimFrame = (function () {
       if (!idLink) return;
       const postid = +idLink.innerText;
 
-      fetch(`/api/v2/item/${postid}/rating`, {
-        method: 'POST',
-        headers: { 
-          "X-CSRF-Token": window.f0ckSession?.csrf_token 
-        }
-      })
-      .then(r => r.json())
-      .then(res => {
-        if (res.success) {
-          // Update visual state (handled by classes in css)
-          toggleBtn.classList.remove('is-sfw', 'is-nsfw', 'is-nsfl', 'is-untagged');
-          toggleBtn.classList.add(`is-${res.rating}`);
-          // Update label text
-          const labels = { sfw: 'SFW', nsfw: 'NSFW', nsfl: 'NSFL', untagged: '?' };
-          toggleBtn.textContent = labels[res.rating] || res.rating.toUpperCase();
-          
-          window.flashMessage(`${(window.f0ckI18n && window.f0ckI18n.mode_activated && window.f0ckI18n.mode_activated.replace('{mode}', res.rating.toUpperCase())) || ('RATING UPDATED: ' + res.rating.toUpperCase())}`);
+      // Determine current rating
+      let currentRating = 'sfw';
+      if (toggleBtn.classList.contains('is-sfw')) currentRating = 'sfw';
+      else if (toggleBtn.classList.contains('is-nsfw')) currentRating = 'nsfw';
+      else if (toggleBtn.classList.contains('is-nsfl')) currentRating = 'nsfl';
+      else if (toggleBtn.classList.contains('is-untagged')) currentRating = 'untagged';
 
-          // Update tags in sidebar
-          if (window.renderTags) {
-            window.renderTags(res.tags);
-          } else {
-            // Fallback: manually update tags if renderTags is not global yet (or if not in admin mode)
-            const tagsContainer = document.getElementById('tags');
-            if (tagsContainer) {
-              // We could rebuild the whole tag list, but most items already have a rating tag
-              // A simpler way is to trigger a page refresh if needed, but let's try to be subtle
-              // For now, let's just show the flash message as the toggle itself changes color
-            }
+      // Cycle SFW -> NSFW -> NSFL (if enabled) -> SFW
+      let nextRating = 'sfw';
+      if (currentRating === 'sfw') {
+        nextRating = 'nsfw';
+      } else if (currentRating === 'nsfw') {
+        nextRating = (window.f0ckSession && window.f0ckSession.enable_nsfl) ? 'nsfl' : 'sfw';
+      }
+
+      const labels = { sfw: 'SFW', nsfw: 'NSFW', nsfl: 'NSFL', untagged: '?' };
+      const nextLabel = labels[nextRating] || nextRating.toUpperCase();
+
+      // Backup current state
+      const oldClasses = [...toggleBtn.classList];
+      const oldTextContent = toggleBtn.textContent;
+
+      // Track active request ID to ignore out-of-order race conditions on rapid keypresses
+      const reqId = (toggleBtn._lastCycleReqId || 0) + 1;
+      toggleBtn._lastCycleReqId = reqId;
+
+      // Increment active requests count to block incoming live SSE tag updates during cycle
+      toggleBtn._activeRequestsCount = (toggleBtn._activeRequestsCount || 0) + 1;
+
+      // Optimistically apply new state
+      toggleBtn.classList.remove('is-sfw', 'is-nsfw', 'is-nsfl', 'is-untagged');
+      toggleBtn.classList.add(`is-${nextRating}`);
+      toggleBtn.textContent = nextLabel;
+
+      // Optimistically update the sidebar tag list
+      let originalTags = [];
+      if (window.renderTags) {
+        const tagsContainer = document.querySelector("#tags");
+        const inner = tagsContainer ? (tagsContainer.querySelector(".tags-inner") || tagsContainer) : null;
+        if (inner) {
+          originalTags = [...inner.querySelectorAll(".badge")].filter(badge => {
+            return !badge.querySelector('#a_addtag') && !badge.querySelector('#a_toggle') && !badge.classList.contains('tag-ac-wrapper');
+          }).map(badge => {
+            const a = badge.querySelector('a[href*="/tag/"]');
+            const tagText = a ? a.innerText.trim() : '';
+            const normalized = a ? a.getAttribute('href').split('/').pop() : '';
+            const badgeClasses = [...badge.classList].filter(c => c !== 'badge' && c !== 'mr-2').join(' ');
+            return {
+              tag: tagText,
+              normalized: normalized,
+              badge: badgeClasses
+            };
+          });
+
+          // Create the optimistic rating tag object
+          const userStr = (window.f0ckSession && window.f0ckSession.user) || '';
+          const dispName = (window.f0ckSession && window.f0ckSession.display_name) || userStr;
+          let newRatingTag = null;
+          if (nextRating === 'sfw') {
+            newRatingTag = { id: 1, tag: 'sfw', normalized: 'sfw', badge: 'badge-success', user: userStr, display_name: dispName };
+          } else if (nextRating === 'nsfw') {
+            newRatingTag = { id: 2, tag: 'nsfw', normalized: 'nsfw', badge: 'badge-danger', user: userStr, display_name: dispName };
+          } else if (nextRating === 'nsfl') {
+            const nsfl_id = (window.f0ckSession && window.f0ckSession.nsfl_tag_id) || 3;
+            newRatingTag = { id: nsfl_id, tag: 'nsfl', normalized: 'nsfl', badge: 'badge-nsfl', user: userStr, display_name: dispName };
           }
-        } else {
-          window.flashMessage('Error: ' + (res.msg || 'Failed to update rating'), 3000, 'error');
+
+          // Combine tags: filter out old rating tags and place the new one at the front
+          const optimisticTags = [];
+          if (newRatingTag) {
+            optimisticTags.push(newRatingTag);
+          }
+          originalTags.filter(t => t.normalized !== 'sfw' && t.normalized !== 'nsfw' && t.normalized !== 'nsfl').forEach(t => {
+            optimisticTags.push(t);
+          });
+
+          window.renderTags(optimisticTags);
         }
-      })
-      .catch(err => {
-        console.error('[RATING_TOGGLE_ERROR]', err);
-        window.flashMessage('Failed to toggle rating', 3000, 'error');
+      }
+
+      const flashMsg = (window.f0ckI18n && window.f0ckI18n.mode_activated && window.f0ckI18n.mode_activated.replace('{mode}', nextLabel)) || ('RATING UPDATED: ' + nextLabel);
+      window.flashMessage(flashMsg);
+
+      // Enqueue the request to ensure sequential server execution in correct order
+      if (!toggleBtn._requestQueue) {
+        toggleBtn._requestQueue = Promise.resolve();
+      }
+
+      toggleBtn._requestQueue = toggleBtn._requestQueue.then(() => {
+        return fetch(`/api/v2/item/${postid}/rating`, {
+          method: 'POST',
+          headers: { 
+            "Content-Type": "application/json",
+            "X-CSRF-Token": window.f0ckSession?.csrf_token 
+          },
+          body: JSON.stringify({ rating: nextRating })
+        })
+        .then(r => r.json())
+        .then(res => {
+          toggleBtn._activeRequestsCount = Math.max(0, (toggleBtn._activeRequestsCount || 1) - 1);
+          
+          // Verify we are still on the same post (prevent dynamic/PJAX page leaks)
+          const activeIdLink = document.querySelector("a.id-link");
+          const currentPostId = activeIdLink ? +activeIdLink.innerText : null;
+          if (currentPostId !== postid) return;
+
+          if (toggleBtn._lastCycleReqId !== reqId) return; // ignore stale responses
+          if (res.success) {
+            // Verify visual state and sync tags
+            toggleBtn.classList.remove('is-sfw', 'is-nsfw', 'is-nsfl', 'is-untagged');
+            toggleBtn.classList.add(`is-${res.rating}`);
+            toggleBtn.textContent = labels[res.rating] || res.rating.toUpperCase();
+
+            if (window.renderTags) {
+              window.renderTags(res.tags);
+            }
+          } else {
+            revert();
+            window.flashMessage('Error: ' + (res.msg || 'Failed to update rating'), 3000, 'error');
+          }
+        })
+        .catch(err => {
+          toggleBtn._activeRequestsCount = Math.max(0, (toggleBtn._activeRequestsCount || 1) - 1);
+
+          // Verify we are still on the same post (prevent dynamic/PJAX page leaks)
+          const activeIdLink = document.querySelector("a.id-link");
+          const currentPostId = activeIdLink ? +activeIdLink.innerText : null;
+          if (currentPostId !== postid) return;
+
+          if (toggleBtn._lastCycleReqId !== reqId) return;
+          console.error('[RATING_TOGGLE_ERROR]', err);
+          revert();
+          window.flashMessage('Failed to toggle rating', 3000, 'error');
+        });
       });
+
+      function revert() {
+        toggleBtn.className = '';
+        oldClasses.forEach(cls => toggleBtn.classList.add(cls));
+        toggleBtn.textContent = oldTextContent;
+        if (window.renderTags && originalTags.length > 0) {
+          window.renderTags(originalTags);
+        }
+      }
     }
   });
 
@@ -6524,6 +6630,13 @@ class NotificationSystem {
 
     if (currentId !== parseInt(data.item_id)) {
       window.f0ckDebug("[NotificationSystem] Item ID mismatch, ignoring update.");
+      return;
+    }
+
+    // Ignore incoming live SSE tag updates if an optimistic rating cycle is currently active on the page
+    const toggleBtn = document.querySelector('button#a_toggle');
+    if (toggleBtn && toggleBtn._activeRequestsCount > 0) {
+      window.f0ckDebug("[NotificationSystem] Live Tag Update ignored - Optimistic rating cycle in progress.");
       return;
     }
 
