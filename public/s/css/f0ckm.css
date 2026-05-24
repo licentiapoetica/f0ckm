@@ -14304,15 +14304,13 @@ body.scroller-active #gchat-reopen-bubble {
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(20,20,20,0.92);
+  background: rgba(20, 20, 20, 0.45);
   border-bottom: 1px solid var(--nav-border-color);
   position: fixed;
   top: var(--navbar-h, 50px);
   left: 0;
   right: 0;
   z-index: 200;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 #settings-quicknav a {
   font-size: 0.82em;
