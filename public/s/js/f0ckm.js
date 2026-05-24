@@ -7249,24 +7249,37 @@ class ModAction {
     if (!modal) return window.flashMessage('Error: Mod modal not found', 3000, 'error');
     const titleEl = document.getElementById('mod-action-title');
     const contentEl = document.getElementById('mod-action-content');
-    const reasonEl = document.getElementById('mod-reason');
+    const textareaEl = document.getElementById('mod-reason');
+    const inputEl = document.getElementById('mod-reason-input');
     const confirmBtn = document.getElementById('mod-action-confirm');
     const cancelBtn = document.getElementById('mod-action-cancel');
     const errorEl = document.getElementById('mod-action-error');
 
+    // Pick the active input element based on singleLine option
+    const singleLine = options.singleLine || false;
+    const reasonEl = singleLine ? inputEl : textareaEl;
+    const inactiveEl = singleLine ? textareaEl : inputEl;
+
     titleEl.innerText = title;
-    contentEl.innerHTML = Sanitizer.clean(promptHtml);
+    if (options.unsafeContent) {
+      contentEl.innerHTML = promptHtml; // Trusted admin-only content — skip sanitizer
+    } else {
+      contentEl.innerHTML = Sanitizer.clean(promptHtml);
+    }
     reasonEl.value = '';
-    if (options.placeholder) reasonEl.placeholder = options.placeholder;
-    else reasonEl.placeholder = '';
+    inactiveEl.value = '';
+    inactiveEl.style.display = 'none';
     errorEl.style.display = 'none';
     modal.style.display = 'flex';
-    
+
     const hideReason = options.hideReason || false;
     const allowEmpty = options.allowEmpty || false;
     const i18n = window.f0ckI18n || {};
-    reasonEl.style.display = hideReason ? 'none' : 'block';
-    if (!hideReason) {
+
+    if (hideReason) {
+      reasonEl.style.display = 'none';
+    } else {
+      reasonEl.style.display = 'block';
       reasonEl.placeholder = options.placeholder ||
         (allowEmpty ? (i18n.reason_optional || 'Reason (optional)') : (i18n.reason_required_label || 'Reason (required)'));
       reasonEl.focus();
@@ -7305,8 +7318,20 @@ class ModAction {
     const cleanup = () => {
       confirmBtn.onclick = null;
       cancelBtn.onclick = null;
+      if (singleLine && inputEl._enterHandler) {
+        inputEl.removeEventListener('keydown', inputEl._enterHandler);
+        inputEl._enterHandler = null;
+      }
       confirmBtn.disabled = false;
     };
+
+    // For single-line input: submit on Enter
+    if (singleLine && !hideReason) {
+      inputEl._enterHandler = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
+      };
+      inputEl.addEventListener('keydown', inputEl._enterHandler);
+    }
 
     confirmBtn.onclick = onConfirm;
     cancelBtn.onclick = close;

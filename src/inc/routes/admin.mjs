@@ -803,8 +803,11 @@ export default (router, tpl) => {
 
   // User Management Routes
   router.get(/^\/admin\/users\/?$/, lib.auth, async (req, res) => {
-    const q = req.url.qs?.q || '';
-const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
+    const rawQ = req.url.qs?.q || '';
+    // Exact match mode: strip surrounding double quotes and match exactly
+    const exactMatch = rawQ.startsWith('"') && rawQ.endsWith('"') && rawQ.length > 2;
+    const q = exactMatch ? rawQ.slice(1, -1) : rawQ;
+    const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
     const limit = 50;
     const offset = (page - 1) * limit;
 
@@ -816,7 +819,10 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
               (SELECT token FROM invite_tokens WHERE used_by = u.id ORDER BY created_at DESC LIMIT 1) as reg_method
           FROM "user" u
           LEFT JOIN user_options uo ON uo.user_id = u.id
-          ${q ? db`WHERE u.login ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.user ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.email ILIKE ${'%' + lib.escapeLike(q) + '%'}` : db``}
+          ${q ? (exactMatch
+            ? db`WHERE lower(u.login) = lower(${q}) OR lower(u.user) = lower(${q}) OR lower(u.email) = lower(${q})`
+            : db`WHERE u.login ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.user ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.email ILIKE ${'%' + lib.escapeLike(q) + '%'}`
+          ) : db``}
       ),
       ghost_users AS (
           SELECT 
@@ -825,7 +831,10 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
               NULL::text as avatar_file, NULL::varchar as display_name, 0 as force_comment_display_mode, 0 as comment_display_mode, 'Legacy' as reg_method
           FROM items i
           WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.login = i.username OR u.user = i.username)
-          ${q ? db`AND (i.username ILIKE ${'%' + lib.escapeLike(q) + '%'})` : db``}
+          ${q ? (exactMatch
+            ? db`AND lower(i.username) = lower(${q})`
+            : db`AND (i.username ILIKE ${'%' + lib.escapeLike(q) + '%'})`
+          ) : db``}
           GROUP BY i.username
       ),
       all_users AS (
@@ -867,13 +876,19 @@ const page = Math.max(1, parseInt(req.url.qs?.page) || 1);
 
     const totalCountActual = await db`
         SELECT COUNT(*) as c FROM "user" u
-        ${q ? db`WHERE u.login ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.user ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.email ILIKE ${'%' + lib.escapeLike(q) + '%'}` : db``}
+        ${q ? (exactMatch
+          ? db`WHERE lower(u.login) = lower(${q}) OR lower(u.user) = lower(${q}) OR lower(u.email) = lower(${q})`
+          : db`WHERE u.login ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.user ILIKE ${'%' + lib.escapeLike(q) + '%'} OR u.email ILIKE ${'%' + lib.escapeLike(q) + '%'}`
+        ) : db``}
     `;
     const totalCountGhost = await db`
         SELECT COUNT(DISTINCT i.username) as c
         FROM items i
         WHERE NOT EXISTS (SELECT 1 FROM "user" u WHERE u.login = i.username OR u.user = i.username)
-        ${q ? db`AND (i.username ILIKE ${'%' + lib.escapeLike(q) + '%'})` : db``}
+        ${q ? (exactMatch
+          ? db`AND lower(i.username) = lower(${q})`
+          : db`AND (i.username ILIKE ${'%' + lib.escapeLike(q) + '%'})`
+        ) : db``}
     `;
     const total = parseInt(totalCountActual[0].c) + parseInt(totalCountGhost[0].c);
 

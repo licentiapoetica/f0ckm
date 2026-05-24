@@ -7,7 +7,7 @@
     @if(custom_brand_image)
       <img id="navbar-logo" src="{{ custom_brand_image }}" alt="{{ domain }}" style="max-height: 40px; vertical-align: middle; max-width: 180px; width: initial;">
     @else
-      <span class="f0ck">{{ domain }}</span>
+      <span class="f0ck">{{ domain.split('.')[0] }}</span>
     @endif
   </a>
 
@@ -166,7 +166,7 @@
     @if(custom_brand_image)
       <img id="navbar-logo" src="{{ custom_brand_image }}" alt="{{ domain }}" style="max-height: 40px; vertical-align: middle; max-width: 180px; width: auto;">
     @else
-      <span class="f0ck">{{ domain }}</span>
+      <span class="f0ck">{{ domain.split('.')[0] }}</span>
     @endif
   </a>
 

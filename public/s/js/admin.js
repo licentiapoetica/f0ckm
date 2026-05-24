@@ -379,40 +379,48 @@
   window.adminSetPassword = async (btn) => {
     const id = btn.dataset.id;
     const name = btn.dataset.name;
-    const password = prompt(`Enter new password for ${name} (min 20 chars):`);
-    if (!password) return;
-    if (password.length < 20) return alert('Password must be at least 20 characters.');
 
-    if (!confirm(`Are you sure you want to set a new password for ${name}? This will invalidate all their existing sessions and force them to change it on next login.`)) return;
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
 
-    try {
+    const hint =
+      'Set a new password for <strong>' + escHTML(name) + '</strong>. Must be at least 20 characters.<br><br>' +
+      '<input type="password" id="admin-pw-new" class="input" placeholder="New password (min 20 chars)" style="width:100%;margin-bottom:8px;" autocomplete="new-password">' +
+      '<input type="password" id="admin-pw-confirm" class="input" placeholder="Confirm new password" style="width:100%;" autocomplete="new-password">';
+
+    ModAction.confirm('Set Password', hint, async () => {
+      const password = document.getElementById('admin-pw-new')?.value || '';
+      const confirm = document.getElementById('admin-pw-confirm')?.value || '';
+      if (password.length < 20) throw new Error('Password must be at least 20 characters.');
+      if (password !== confirm) throw new Error('Passwords do not match.');
       const data = await post('/api/v2/admin/users/set-password', { user_id: id, password });
       if (data.success) {
-        alert(data.msg);
+        showFlash(data.msg, 'success');
       } else {
-        alert(data.msg || 'Failed to set password');
+        throw new Error(data.msg || 'Failed to set password');
       }
-    } catch (err) {
-      alert('Network error');
-    }
+    }, { hideReason: true, confirmText: 'Set Password', unsafeContent: true });
   };
 
   window.adminDeleteUser = async (btn) => {
     const id = btn.dataset.id;
     const name = btn.dataset.name;
-    if (!confirm(`CRITICAL ACTION: Are you sure you want to PERMANENTLY DELETE user ${name}? All their uploads and comments will be reassigned to 'deleted_user'. This cannot be undone.`)) return;
 
-    try {
-      const data = await post('/api/v2/admin/users/delete', { user_id: id });
-      if (data.success) {
-        alert(data.msg);
-        document.getElementById(`user-row-${id}`)?.remove();
-      } else {
-        alert(data.msg || 'Failed to delete user');
-      }
-    } catch (err) {
-      alert('Network error');
-    }
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Delete User',
+      '<strong style="color:#d9534f">CRITICAL ACTION</strong>: Permanently delete user <strong>' + escHTML(name) + '</strong>?<br><br>All their uploads and comments will be reassigned to <code>deleted_user</code>. <strong>This cannot be undone.</strong>',
+      async () => {
+        const data = await post('/api/v2/admin/users/delete', { user_id: id });
+        if (data.success) {
+          showFlash(data.msg, 'success');
+          document.getElementById(`user-row-${id}`)?.remove();
+        } else {
+          throw new Error(data.msg || 'Failed to delete user');
+        }
+      },
+      { hideReason: true, confirmText: 'Delete User' }
+    );
   };
 
   window.adminResetLoginAttempts = async (btn) => {
@@ -422,8 +430,13 @@
     try {
       const data = await post('/api/v2/admin/users/reset-login-attempts', { username });
       if (data.success) {
-        alert(data.msg);
-        window.location.reload(); // Quickest way to refresh badges
+        showFlash(data.msg, 'success');
+        // Remove the failed attempt badges and reset button from the row in-place
+        const row = btn.closest('tr');
+        if (row) {
+          row.querySelectorAll('.status-badge[style*="ffcc00"], .status-badge[style*="ff4d4d"]').forEach(el => el.remove());
+        }
+        btn.remove();
       } else {
         alert(data.msg || 'Failed to reset attempts');
       }
@@ -435,18 +448,22 @@
   window.adminBulkDeleteHalls = async (btn) => {
     const id = btn.dataset.id;
     const name = btn.dataset.name;
-    if (!confirm(`Are you sure you want to PERMANENTLY DELETE ALL HALLS for ${name}? This cannot be undone.`)) return;
 
-    try {
-      const data = await post('/api/v2/admin/users/bulk-delete-halls', { user_id: id });
-      if (data.success) {
-        alert(data.msg);
-      } else {
-        alert(data.msg || 'Failed to delete halls');
-      }
-    } catch (err) {
-      alert('Network error');
-    }
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Delete All Halls',
+      'Permanently delete <strong>ALL halls</strong> for <strong>' + escHTML(name) + '</strong>? <strong>This cannot be undone.</strong>',
+      async () => {
+        const data = await post('/api/v2/admin/users/bulk-delete-halls', { user_id: id });
+        if (data.success) {
+          showFlash(data.msg, 'success');
+        } else {
+          throw new Error(data.msg || 'Failed to delete halls');
+        }
+      },
+      { hideReason: true, confirmText: 'Delete Everything' }
+    );
   };
 
   window.adminReassignUploads = async (btn) => {
@@ -473,7 +490,7 @@
           throw new Error(res.msg || 'Reassignment failed');
         }
       },
-      { hideReason: false, confirmText: 'Reassign', placeholder: 'target username' }
+      { hideReason: false, singleLine: true, confirmText: 'Reassign', placeholder: 'target username' }
     );
   };
 
