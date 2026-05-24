@@ -8306,14 +8306,6 @@ span.badge.badge-current {
   text-decoration: underline;
 }
 
-
-.sidebar-comment-img.emoji {
-  width: 60px !important;
-  display: inline-block;
-  vertical-align: middle;
-  height: min-content !important;
-}
-
 .comment-content img:not(.emoji) {
   display: block;
   cursor: pointer;
