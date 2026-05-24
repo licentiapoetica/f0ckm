@@ -8322,13 +8322,13 @@ span.badge.badge-current {
 /* Smaller emojis in the narrow left sidebar */
 body.layout-modern .comment-content img.emoji {
   height: auto;
-  max-width: 200px !important;
+  max-width: 200px;
   vertical-align: middle;
 }
 
 body.layout-legacy .comment-content img.emoji {
   height: auto;
-  max-width: 200px !important;
+  max-width: 200px;
   vertical-align: middle;
 }
 
