@@ -7,6 +7,101 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         .replace(/'/g, "&#039;");
 });
 
+// Throttled queue to capture the first frame of video files asynchronously without blocking the browser
+class VideoThumbnailQueue {
+    constructor(concurrency = 3) {
+        this.concurrency = concurrency;
+        this.activeCount = 0;
+        this.queue = [];
+    }
+
+    add(file, callback) {
+        this.queue.push({ file, callback });
+        this.next();
+    }
+
+    next() {
+        if (this.activeCount >= this.concurrency || this.queue.length === 0) return;
+        const { file, callback } = this.queue.shift();
+        this.activeCount++;
+        this.capture(file)
+            .then(dataUrl => callback(dataUrl))
+            .catch(err => {
+                console.warn('[VideoThumbnailQueue] Error capturing thumbnail:', err);
+                callback(null);
+            })
+            .finally(() => {
+                this.activeCount--;
+                this.next();
+            });
+    }
+
+    capture(file) {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            const objectUrl = URL.createObjectURL(file);
+            video.src = objectUrl;
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'metadata';
+
+            let cleanedUp = false;
+            const cleanup = () => {
+                if (cleanedUp) return;
+                cleanedUp = true;
+                video.src = '';
+                video.load();
+                URL.revokeObjectURL(objectUrl);
+            };
+
+            video.onloadeddata = () => {
+                video.currentTime = 0.1;
+            };
+
+            video.onseeked = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 320;
+                    let width = video.videoWidth || 160;
+                    let height = video.videoHeight || 120;
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    cleanup();
+                    resolve(dataUrl);
+                } catch (e) {
+                    cleanup();
+                    reject(e);
+                }
+            };
+
+            video.onerror = () => {
+                cleanup();
+                reject(new Error('Video loading failed'));
+            };
+
+            setTimeout(() => {
+                if (!cleanedUp) {
+                    cleanup();
+                    reject(new Error('Capture timeout'));
+                }
+            }, 8000);
+        });
+    }
+}
+const videoThumbnailQueue = new VideoThumbnailQueue(3);
+
 window.initUploadForm = (selector) => {
     const form = (typeof selector === 'string') ? document.querySelector(selector) : selector;
     if (!form) return;
@@ -820,9 +915,25 @@ window.initUploadForm = (selector) => {
                     mediaElem = document.createElement('video');
                     mediaElem.src = URL.createObjectURL(file);
                     mediaElem.muted = true;
-                    mediaElem.autoplay = true;
                     mediaElem.controls = true;
                     mediaElem.loop = true;
+
+                    if (isShitpost) {
+                        mediaElem.autoplay = false;
+                        mediaElem.preload = 'none';
+                        mediaElem.classList.add('video-thumbnail-loading');
+
+                        videoThumbnailQueue.add(file, (dataUrl) => {
+                            if (dataUrl) {
+                                mediaElem.poster = dataUrl;
+                                mediaElem.classList.remove('video-thumbnail-loading');
+                            } else {
+                                mediaElem.classList.remove('video-thumbnail-loading');
+                            }
+                        });
+                    } else {
+                        mediaElem.autoplay = true;
+                    }
                 } else if (file.type.startsWith('audio/')) {
                     mediaElem = document.createElement('audio');
                     mediaElem.src = URL.createObjectURL(file);

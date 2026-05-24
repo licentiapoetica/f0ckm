@@ -1261,3 +1261,15 @@
         height: 200px;
     }
 }
+
+/* Video thumbnail loading animation */
+.video-thumbnail-loading {
+    animation: thumbPulse 1.5s ease-in-out infinite;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes thumbPulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.4; }
+}
