@@ -1027,6 +1027,8 @@ window.cancelAnimFrame = (function () {
     const elem = document.querySelector("#my-video") || document.querySelector("audio#my-video");
     if (elem) {
       video = new v0ck(elem);
+    } else {
+      video = null;
     }
   };
 
