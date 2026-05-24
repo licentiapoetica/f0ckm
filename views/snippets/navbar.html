@@ -395,7 +395,7 @@
 
 @endif
 
-@if(recaptcha_enabled)
+@if(recaptcha_enabled && !session)
 <script>
 (function() {
   var _rcModalWidgetId = null;
