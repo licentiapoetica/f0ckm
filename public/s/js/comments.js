@@ -4,6 +4,16 @@
 const _f0ckDebug = (...args) => (typeof window.f0ckDebug === 'function' ? window.f0ckDebug(...args) : void 0);
 
 class CommentSystem {
+    get isMainSubmitting() {
+        return this._globalState ? this._globalState.isMainSubmitting : false;
+    }
+    set isMainSubmitting(val) {
+        if (this._globalState) this._globalState.isMainSubmitting = val;
+    }
+    get pendingSubmissions() {
+        return this._globalState ? this._globalState.pendingSubmissions : new Set();
+    }
+
     constructor() {
         this.container = document.getElementById('comments-container');
         this.itemId = this.container ? this.container.dataset.itemId : null;
@@ -47,8 +57,24 @@ class CommentSystem {
         }
 
         this.initialLoadDone = false;
-        this.pendingSubmissions = new Set();
-        this.isMainSubmitting = false;
+        
+        // Retrieve or initialize global submission state for this item to survive f0ck:contentLoaded re-inits
+        if (this.itemId) {
+            window._f0ckActiveSubmissions = window._f0ckActiveSubmissions || {};
+            if (!window._f0ckActiveSubmissions[this.itemId]) {
+                window._f0ckActiveSubmissions[this.itemId] = {
+                    isMainSubmitting: false,
+                    pendingSubmissions: new Set()
+                };
+            }
+            this._globalState = window._f0ckActiveSubmissions[this.itemId];
+        } else {
+            this._globalState = {
+                isMainSubmitting: false,
+                pendingSubmissions: new Set()
+            };
+        }
+
         this.scrollListenerAdded = false;
         this.commentCache = new Map();
         this._anchorScrollDone = false; // true after the first hash-anchor scroll on initial load
@@ -280,6 +306,7 @@ class CommentSystem {
     saveState() {
         const state = {
             mainText: '',
+            isMainSubmitting: this.isMainSubmitting,
             openReplies: [],
             focused: null
         };
@@ -288,7 +315,7 @@ class CommentSystem {
 
         // 1. Save main input
         const mainInput = this.container.querySelector('.main-input textarea');
-        if (mainInput && !this.isMainSubmitting) {
+        if (mainInput) {
             state.mainText = mainInput.value;
             if (document.activeElement === mainInput) {
                 state.focused = { type: 'main', start: mainInput.selectionStart, end: mainInput.selectionEnd };
@@ -298,17 +325,19 @@ class CommentSystem {
         // 2. Save open replies
         this.container.querySelectorAll('.reply-input').forEach(form => {
             const parentId = form.dataset.parent;
-            if (!parentId || this.pendingSubmissions.has(parentId)) return;
+            if (!parentId) return;
 
             const textarea = form.querySelector('textarea');
             const text = textarea ? textarea.value : '';
-            if (parentId) {
-                const replyState = { parentId, text };
-                if (document.activeElement === textarea) {
-                    state.focused = { type: 'reply', parentId, start: textarea.selectionStart, end: textarea.selectionEnd };
-                }
-                state.openReplies.push(replyState);
+            const replyState = {
+                parentId,
+                text,
+                isPending: this.pendingSubmissions.has(parentId)
+            };
+            if (document.activeElement === textarea) {
+                state.focused = { type: 'reply', parentId, start: textarea.selectionStart, end: textarea.selectionEnd };
             }
+            state.openReplies.push(replyState);
         });
 
         return state;
@@ -318,7 +347,7 @@ class CommentSystem {
         if (!this.container) return;
 
         // 1. Restore open replies
-        state.openReplies.forEach(({ parentId, text }) => {
+        state.openReplies.forEach(({ parentId, text, isPending }) => {
             const commentBody = this.container.querySelector(`#c${parentId} > .comment-body`);
             if (commentBody && !commentBody.querySelector('.reply-input')) {
                 const div = document.createElement('div');
@@ -327,16 +356,37 @@ class CommentSystem {
                 const newForm = commentBody.querySelector('.reply-input');
                 if (newForm) {
                     const textarea = newForm.querySelector('textarea');
-                    if (textarea) textarea.value = text;
+                    if (textarea) {
+                        textarea.value = text;
+                        if (isPending) textarea.disabled = true;
+                    }
+                    if (isPending) {
+                        const submitBtn = newForm.querySelector('.submit-comment');
+                        if (submitBtn) {
+                            submitBtn.classList.add('loading');
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                        }
+                    }
                     this.setupEmojiPicker(newForm);
                 }
             }
         });
 
-        // 2. Restore main input text
+        // 2. Restore main input text & submitting state
         const mainInput = this.container.querySelector('.main-input textarea');
-        if (mainInput && state.mainText) {
+        if (mainInput) {
             mainInput.value = state.mainText;
+            if (state.isMainSubmitting) {
+                mainInput.disabled = true;
+                const wrap = mainInput.closest('.comment-input');
+                const submitBtn = wrap ? wrap.querySelector('.submit-comment') : null;
+                if (submitBtn) {
+                    submitBtn.classList.add('loading');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                }
+            }
         }
 
         // 3. Restore focus
@@ -348,7 +398,7 @@ class CommentSystem {
                 targetEl = this.container.querySelector(`#c${state.focused.parentId} .reply-input textarea`);
             }
 
-            if (targetEl) {
+            if (targetEl && !targetEl.disabled) {
                 targetEl.focus();
                 // Ensure selection is restored after focus
                 if (typeof targetEl.setSelectionRange === 'function') {
@@ -2149,11 +2199,15 @@ class CommentSystem {
         this.container.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.ctrlKey) {
                 const textarea = e.target.closest('textarea');
-                if (!textarea) return;
+                if (!textarea || textarea.disabled) return;
                 const wrap = textarea.closest('.comment-input');
                 if (!wrap) return;
                 const submitBtn = wrap.querySelector('.submit-comment');
-                if (submitBtn) submitBtn.click();
+                if (submitBtn && !submitBtn.disabled && !submitBtn.classList.contains('loading')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    submitBtn.click();
+                }
             } else if (e.key === 'Escape') {
                 const textarea = e.target.closest('textarea');
                 if (textarea) textarea.blur();
@@ -2760,11 +2814,13 @@ class CommentSystem {
         const parentId = wrap.dataset.parent || null;
 
         if (!text.trim()) return;
-        if (submitBtn.classList.contains('loading')) return;
+        if (submitBtn.classList.contains('loading') || submitBtn.disabled) return;
         if (wrap._pendingUploads > 0) return;
 
         // Start loading state
         submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        textarea.disabled = true;
         const originalBtnHtml = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
@@ -3038,14 +3094,34 @@ class CommentSystem {
     }
 
     _finishSubmit(btn, originalHtml, parentId) {
-        if (btn) {
-            btn.classList.remove('loading');
-            btn.innerHTML = originalHtml;
-        }
         if (parentId) {
             this.pendingSubmissions.delete(parentId);
         } else {
             this.isMainSubmitting = false;
+        }
+
+        // Surgical lookup of the active wrap in the live DOM
+        let activeWrap = null;
+        if (this.container) {
+            if (parentId) {
+                activeWrap = this.container.querySelector(`#c${parentId} .reply-input`);
+            } else {
+                activeWrap = this.container.querySelector('.main-input');
+            }
+        }
+
+        const wrap = activeWrap || (btn ? btn.closest('.comment-input') : null);
+        if (wrap) {
+            const activeBtn = wrap.querySelector('.submit-comment');
+            const activeTextarea = wrap.querySelector('textarea');
+            if (activeBtn) {
+                activeBtn.classList.remove('loading');
+                activeBtn.disabled = false;
+                activeBtn.innerHTML = originalHtml;
+            }
+            if (activeTextarea) {
+                activeTextarea.disabled = false;
+            }
         }
     }
 

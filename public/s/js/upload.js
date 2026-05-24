@@ -110,6 +110,8 @@ window.initUploadForm = (selector) => {
     if (form._f0ckInit) return form._f0ckUploader;
     form._f0ckInit = true;
 
+    let isUploading = false;
+
     // Use querySelector to find elements within this specific form instance
     const fileInput = form.querySelector('.file-input');
     const dropZone = form.querySelector('.drop-zone');
@@ -643,6 +645,11 @@ window.initUploadForm = (selector) => {
     };
 
     const updateSubmitButton = () => {
+        if (isUploading) {
+            if (submitBtn) submitBtn.disabled = true;
+            return;
+        }
+
         const isShitpost = !!window.f0ckShitpostMode;
         const rating = form.querySelector('input[name="rating"]:checked');
         
@@ -1795,7 +1802,7 @@ window.initUploadForm = (selector) => {
         if (e && e.preventDefault) e.preventDefault();
 
         // If already uploading, don't start again
-        if (submitBtn && submitBtn.disabled && submitBtn.querySelector('.btn-loading')?.style.display === 'inline') {
+        if (isUploading) {
             return;
         }
 
@@ -1826,6 +1833,7 @@ window.initUploadForm = (selector) => {
         const isOc = form.querySelector('#upload-oc-checkbox')?.checked || false;
 
         const setBtnLoading = (text) => {
+            isUploading = true;
             if (!submitBtn) return;
             submitBtn.disabled = true;
             const btnText = submitBtn.querySelector('.btn-text');
@@ -1838,12 +1846,14 @@ window.initUploadForm = (selector) => {
         };
 
         const restoreBtn = () => {
+            isUploading = false;
             if (!submitBtn) return;
             submitBtn.disabled = false;
             const btnText = submitBtn.querySelector('.btn-text');
             const btnLoading = submitBtn.querySelector('.btn-loading');
             if (btnText) btnText.style.display = 'inline';
             if (btnLoading) btnLoading.style.display = 'none';
+            updateSubmitButton();
         };
 
         if (activeMode === 'url') {
@@ -2106,6 +2116,7 @@ window.initUploadForm = (selector) => {
         handleFile: handleFile,
         performUpload: performUpload,
         reset: () => {
+            isUploading = false;
             form.reset();
             tags = [];
             selectedFiles = [];
