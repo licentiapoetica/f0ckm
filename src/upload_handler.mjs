@@ -18,6 +18,9 @@ const sendJson = (res, data, code = 200) => {
 // One-time migration: add original_filename column if it doesn't exist
 db`ALTER TABLE items ADD COLUMN IF NOT EXISTS original_filename text`.catch(() => {});
 
+// One-time migration: restore title column for backwards compatibility with old databases
+db`ALTER TABLE items ADD COLUMN IF NOT EXISTS title text`.catch(() => {});
+
 export const handleUpload = async (req, res, self) => {
     // Manual session lookup is required here because this handler is called from a 
     // bypass middleware that runs in parallel with the main session middleware.
@@ -106,6 +109,8 @@ export const handleUpload = async (req, res, self) => {
         const rating = parts.rating;
         const tagsRaw = parts.tags;
         const comment = parts.comment ? parts.comment.trim() : '';
+        const rawTitle = parts.title ? parts.title.trim() : '';
+        const title = rawTitle.length > 0 ? rawTitle.substring(0, 500) : null;
 
         const is_oc = (parts.is_oc === 'true' || parts.is_oc === '1');
 
@@ -354,8 +359,9 @@ export const handleUpload = async (req, res, self) => {
             stamp: ~~(Date.now() / 1000),
             active: !manualApproval,
             is_oc: is_oc,
-            original_filename: originalFilename
-        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'original_filename')
+            original_filename: originalFilename,
+            title: title
+        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'original_filename', 'title')
             }
         `;
 

@@ -551,6 +551,34 @@
     border-color: var(--accent);
 }
 
+.item-title-container {
+    margin-top: 6px;
+    width: 100%;
+}
+
+.item-title-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 5px 10px;
+    color: #fff;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.item-title-input::placeholder {
+    color: rgba(255,255,255,0.3);
+    font-style: italic;
+}
+
+.item-title-input:focus {
+    border-color: var(--accent);
+}
+
 .rating-options {
     display: flex;
     gap: 1rem;
@@ -676,6 +704,29 @@
     color: inherit;
     padding: 0.5rem;
     outline: none;
+}
+
+/* Global title input (normal mode) — matches tag-input-container style */
+.upload-title-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    padding: 0.5rem;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.upload-title-input:focus {
+    border-color: var(--accent, #7c5cbf);
+}
+
+.upload-title-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
 }
 
 .tag-count {

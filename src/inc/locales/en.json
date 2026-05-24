@@ -65,7 +65,7 @@
     "cancel_upload": "Cancel Upload",
     "shitpost_success": "Successfully shitposted {n} items!",
     "shitposting_status": "Uploading",
-    "item_comment_placeholder": "Comment (optional)...",
+    "item_comment_placeholder": "Write a Comment...",
     "item_tags_placeholder": "Tags...",
     "btn_add_urls": "Add URL(s)",
     "tags_required_shitpost": "All items need tags",

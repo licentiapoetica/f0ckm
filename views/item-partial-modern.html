@@ -60,6 +60,9 @@
             <div class="location">{{ link.main }}{{ item.id }}{{ link.suffix }}</div>
             <div class="gapLeft"></div>
         </div>
+        @if(item.title)
+        <div class="item_title">{{ item.title }}</div>
+        @endif
 
         <div class="content">
             <div class="previous-post">
@@ -172,6 +175,23 @@
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-body" style="padding: 20px 0; text-align: left;">
             <table class="info-table">
+                @if(can_manage_item)
+                <tr class="info-title-row">
+                    <th>Title</th>
+                    <td>
+                        <div class="info-title-edit-wrap">
+                            <input type="text" id="info-title-input" class="info-title-input" value="{{ item.title || '' }}" placeholder="Add a title…" maxlength="500" data-item-id="{{ item.id }}" />
+                            <button id="info-title-save" class="info-title-save-btn"><i class="fa-solid fa-check"></i></button>
+                        </div>
+                        <span id="info-title-status" class="info-title-status" style="display:none"></span>
+                    </td>
+                </tr>
+                @elseif(item.title)
+                <tr>
+                    <th>Title</th>
+                    <td>{{ item.title }}</td>
+                </tr>
+                @endif
                 <tr>
                     <th>{{ t('info_modal.file_size') || 'File Size' }}</th>
                     <td>{{ item.size }}</td>

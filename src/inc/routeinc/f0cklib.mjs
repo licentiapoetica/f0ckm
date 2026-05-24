@@ -657,6 +657,7 @@ export default {
         author_avatar: actitem.author_avatar,
         author_avatar_file: actitem.author_avatar_file,
         author_description: actitem.author_description,
+        title: actitem.title || null,
 
         src: {
           long: actitem.src,

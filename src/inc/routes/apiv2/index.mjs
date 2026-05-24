@@ -817,6 +817,33 @@ export default router => {
     });
 
 
+    // PATCH /api/v2/items/:id/title — set or clear the title for an item
+    // Allowed by: item owner, moderators, admins
+    group.patch(/\/items\/(?<id>\d+)\/title$/, lib.loggedin, async (req, res) => {
+      const id = +req.params.id;
+      if (!id) return res.json({ success: false, msg: 'Invalid item id' }, 400);
+
+      // Fetch item to check ownership
+      const rows = await db`SELECT id, username FROM items WHERE id = ${id} AND active = true LIMIT 1`;
+      if (!rows.length) return res.json({ success: false, msg: 'Item not found' }, 404);
+
+      const item = rows[0];
+      const isOwner    = req.session.user === item.username;
+      const isMod      = !!(req.session.is_moderator || req.session.admin);
+      if (!isOwner && !isMod) return res.json({ success: false, msg: 'Forbidden' }, 403);
+
+      // Accept title from JSON or URL-encoded body
+      let rawTitle = req.post?.title ?? req.body?.title ?? null;
+      if (rawTitle !== null) rawTitle = String(rawTitle).trim();
+      // Empty string → null (clears the title)
+      const title = (rawTitle === '' || rawTitle === null) ? null : rawTitle.substring(0, 500);
+
+      await db`UPDATE items SET title = ${title} WHERE id = ${id}`;
+
+      return res.json({ success: true, title });
+    });
+
+
     group.post(/\/admin\/deletepost$/, lib.modAuth, async (req, res) => {
       if (req.post.postid === undefined || req.post.postid === null) {
         return res.json({

@@ -8991,6 +8991,81 @@ if (navigator.vibrate) {
       return;
     }
 
+    // Title save button
+    const saveBtn = e.target.closest('#info-title-save');
+    if (saveBtn) {
+      e.preventDefault();
+      const input = document.getElementById('info-title-input');
+      const status = document.getElementById('info-title-status');
+      if (!input) return;
+
+      const itemId = input.dataset.itemId;
+      const newTitle = input.value.trim();
+      const csrf = window.f0ckSession?.csrf_token;
+
+      saveBtn.disabled = true;
+      const origIcon = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+      fetch(`/api/v2/items/${itemId}/title`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf
+        },
+        body: JSON.stringify({ title: newTitle })
+      })
+        .then(r => r.json())
+        .then(data => {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = origIcon;
+          if (data.success) {
+            // Update the live .item_title bar below the ID bar
+            let titleBar = document.querySelector('.item_title');
+            if (data.title) {
+              if (titleBar) {
+                titleBar.textContent = data.title;
+                titleBar.style.display = '';
+              } else {
+                // Create it if it doesn't exist yet
+                const idBar = document.querySelector('.item-main-content > ._204863');
+                if (idBar) {
+                  titleBar = document.createElement('div');
+                  titleBar.className = 'item_title';
+                  titleBar.textContent = data.title;
+                  idBar.insertAdjacentElement('afterend', titleBar);
+                }
+              }
+            } else {
+              // Title cleared
+              if (titleBar) titleBar.remove();
+            }
+            if (status) {
+              status.textContent = '✓ Saved';
+              status.style.color = 'var(--accent, #5cb85c)';
+              status.style.display = 'inline';
+              setTimeout(() => { status.style.display = 'none'; }, 2000);
+            }
+          } else {
+            if (status) {
+              status.textContent = data.msg || 'Error saving title';
+              status.style.color = '#e84040';
+              status.style.display = 'inline';
+            }
+          }
+        })
+        .catch(() => {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = origIcon;
+          if (status) {
+            status.textContent = 'Network error';
+            status.style.color = '#e84040';
+            status.style.display = 'inline';
+          }
+        });
+      return;
+    }
+
     // Close when clicking outside modal content
     const infoModal = document.getElementById('info-modal');
     if (infoModal && e.target === infoModal) {

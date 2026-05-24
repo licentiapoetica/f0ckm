@@ -590,7 +590,7 @@ window.initUploadForm = (selector) => {
             }
             lines.forEach(url => {
                 if (!selectedFiles.some(item => item.type === 'url' && item.url === url)) {
-                    selectedFiles.push({ type: 'url', url, rating: '', tags: [], comment: '', is_oc: false });
+                    selectedFiles.push({ type: 'url', url, rating: '', tags: [], comment: '', title: '', is_oc: false });
                 }
             });
             urlInput.value = '';
@@ -613,7 +613,7 @@ window.initUploadForm = (selector) => {
             const val = urlInput.value.trim();
             if (!val || !/^https?:\/\//i.test(val)) return;
             if (!selectedFiles.some(item => item.type === 'url' && item.url === val)) {
-                selectedFiles.push({ type: 'url', url: val, rating: '', tags: [], comment: '', is_oc: false });
+                selectedFiles.push({ type: 'url', url: val, rating: '', tags: [], comment: '', title: '', is_oc: false });
             }
             urlInput.value = '';
             if (urlBadge) urlBadge.style.display = 'none';
@@ -812,7 +812,7 @@ window.initUploadForm = (selector) => {
 
                 if (!selectedFiles.some(f => (f.file || f).name === file.name && (f.file || f).size === file.size)) {
                     if (isShitpost) {
-                        selectedFiles.push({ type: 'file', file: file, rating: '', tags: [], comment: '', is_oc: false });
+                        selectedFiles.push({ type: 'file', file: file, rating: '', tags: [], comment: '', title: '', is_oc: false });
                     } else {
                         selectedFiles.push(file); // Legacy single file mode uses raw File
                     }
@@ -978,6 +978,7 @@ window.initUploadForm = (selector) => {
             let tagsUI = '';
             let ocUI = '';
             let commentUI = '';
+            let titleUI = '';
             if (isShitpost) {
                 const nsflEnabled = !!form.querySelector('input[name="rating"][value="nsfl"]');
                 // Build per-item rating HTML
@@ -1012,8 +1013,13 @@ window.initUploadForm = (selector) => {
                     </div>
                 `;
 
+                titleUI = `
+                    <div class="item-title-container">
+                        <input type="text" class="item-title-input" placeholder="Add Title..." maxlength="500" value="${window.escapeHtmlUpload(item.title || '')}">
+                    </div>
+                `;
 
-                const commentPlaceholder = window.f0ckI18n?.upload_comment_placeholder || 'Comment (optional)...';
+                const commentPlaceholder = window.f0ckI18n?.upload_comment_placeholder || 'AddComment...';
                 const maxLenHtml = (commentMaxLen !== null && !isNaN(commentMaxLen)) ? ` maxlength="${commentMaxLen}"` : '';
                 commentUI = `
                     <div class="item-comment-container">
@@ -1035,6 +1041,7 @@ window.initUploadForm = (selector) => {
                     <span class="file-name-small" title="${window.escapeHtmlUpload(fileNameStr)}">${window.escapeHtmlUpload(fileNameStr)}</span>
                     <span class="file-size-small">${fileSizeStr}</span>
                 </div>
+                ${titleUI}
                 ${ratingSwitch}
                 ${tagsUI}
                 ${commentUI}
@@ -1055,6 +1062,12 @@ window.initUploadForm = (selector) => {
                 if (commentInput) {
                     commentInput.oninput = () => { item.comment = commentInput.value; };
                     if (emojiTrigger) setupItemEmojiPicker(commentInput, emojiTrigger);
+                }
+
+                // Handle Title
+                const titleInput = infoRow.querySelector('.item-title-input');
+                if (titleInput) {
+                    titleInput.oninput = () => { item.title = titleInput.value.trim(); };
                 }
 
                 // Handle Tags
@@ -1794,6 +1807,15 @@ window.initUploadForm = (selector) => {
         window.f0ckInitTagAutocomplete(tagInput, tagSuggestions, addTag, () => tags);
     }
 
+    // Prevent Enter in the title input from submitting the form and
+    // accidentally flushing whatever is currently typed in the tag input as a tag.
+    const titleInputEl = form.querySelector('.upload-title-input');
+    if (titleInputEl) {
+        titleInputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') e.preventDefault();
+        });
+    }
+
     form.querySelectorAll('input[name="rating"]').forEach(radio => {
         radio.addEventListener('change', updateSubmitButton);
     });
@@ -1831,6 +1853,7 @@ window.initUploadForm = (selector) => {
         const dragModal = form.closest('#upload-drag-modal');
         const comment = form.querySelector('.upload-comment')?.value.trim() || '';
         const isOc = form.querySelector('#upload-oc-checkbox')?.checked || false;
+        const titleVal = form.querySelector('.upload-title-input')?.value.trim() || '';
 
         const setBtnLoading = (text) => {
             isUploading = true;
@@ -1893,7 +1916,8 @@ window.initUploadForm = (selector) => {
                             rating: globalRatingEl.value, 
                             tags: tags.join(','),
                             comment: comment,
-                            is_oc: isOc
+                            is_oc: isOc,
+                            title: titleVal || undefined
                         })
                     });
 
@@ -1980,6 +2004,7 @@ window.initUploadForm = (selector) => {
                 const fileRating = isShitpost ? item.rating : (globalRatingEl ? globalRatingEl.value : 'sfw');
                 const fileTags = isShitpost ? item.tags : tags;
                 const fileComment = isShitpost ? item.comment : comment;
+                const fileTitle = isShitpost ? (item.title || '') : titleVal;
 
                 if (isShitpost) {
                     const statusMsg = window.f0ckI18n?.upload_shitposting_status || 'Shitposting';
@@ -1996,6 +2021,7 @@ window.initUploadForm = (selector) => {
                 formData.append('tags', fileTags.join(','));
                 formData.append('is_oc', (isShitpost ? item.is_oc : isOc) ? 'true' : 'false');
                 if (isShitpost) formData.append('is_shitpost', 'true');
+                if (fileTitle) formData.append('title', fileTitle);
 
                 // Add custom thumbnail if provided (only for single SWF files)
                 if (selectedFiles.length === 1 && thumbInput && thumbInput.files && thumbInput.files[0]) {
@@ -2046,7 +2072,8 @@ window.initUploadForm = (selector) => {
                                 tags: fileTags.join(','),
                                 is_oc: (isShitpost ? item.is_oc : isOc),
                                 comment: fileComment,
-                                is_shitpost: isShitpost ? true : undefined
+                                is_shitpost: isShitpost ? true : undefined,
+                                title: fileTitle || undefined
                             }));
                         } else {
                             xhr.send(formData);

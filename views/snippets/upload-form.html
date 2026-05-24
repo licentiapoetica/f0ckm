@@ -58,6 +58,13 @@
         </div>
     </div>
 
+    @if(!shitpost_mode)
+    <div class="form-section global-title-section">
+        <label>Title <span style="opacity: 0.5; font-weight: normal;">{{ t('upload.comment_optional') }}</span></label>
+        <input type="text" name="title" class="upload-title-input" placeholder="Add a title for this item…" maxlength="500" autocomplete="off">
+    </div>
+    @endif
+
     <div class="form-section global-rating-section">
         <label>{{ t('upload.rating') }} <span class="required">*</span></label>
         <div class="rating-options">

@@ -204,7 +204,8 @@ export default router => {
                     return res.json({ success: false, msg: 'URL uploads are disabled' }, 403);
                 }
 
-                const { url: inputUrl, rating, tags: tagsRaw, comment, is_oc, is_shitpost } = req.post || {};
+                const { url: inputUrl, rating, tags: tagsRaw, comment, is_oc, is_shitpost, title: rawTitle } = req.post || {};
+                const title = (rawTitle && typeof rawTitle === 'string' && rawTitle.trim()) ? rawTitle.trim().substring(0, 500) : null;
 
                 const maxLen = cfg.main.comment_max_length;
                 if (comment && maxLen !== null && maxLen !== undefined && comment.length > maxLen) {
@@ -280,8 +281,9 @@ export default router => {
                             usernetwork: 'web',
                             stamp: ~~(Date.now() / 1000),
                             active: !isApprovalRequired,
-                            is_oc: !!is_oc
-                        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc')}
+                            is_oc: !!is_oc,
+                            title: title
+                        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'title')}
                         RETURNING id
                     `;
 
@@ -564,8 +566,9 @@ export default router => {
                                     usernetwork: 'web',
                                     stamp: ~~(Date.now() / 1000),
                                     active: !isApprovalRequired,
-                                    is_oc: !!is_oc
-                                }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc')}
+                                    is_oc: !!is_oc,
+                                    title: title
+                                }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'title')}
                                 RETURNING id
                             `;
 
