@@ -8191,9 +8191,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Comment embedded images → open in image modal
+      // Comment embedded images → open in image modal (skip emoji images)
       const commentImg = e.target.closest('.comment-content img, .comment-attachments img');
-      if (commentImg) {
+      if (commentImg && !commentImg.classList.contains('emoji')) {
         e.preventDefault();
         e.stopPropagation();
         openImageModal(commentImg.src);
