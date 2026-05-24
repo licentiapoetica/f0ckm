@@ -5764,6 +5764,17 @@ class NotificationSystem {
                 if (contentEl) contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
               }
             });
+            // Also vanish from sidebar
+            const sidebarEl = document.getElementById('sc' + data.data.comment_id);
+            if (sidebarEl) {
+              sidebarEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+              sidebarEl.style.opacity = '0';
+              sidebarEl.style.transform = 'scale(0.95)';
+              setTimeout(() => sidebarEl.remove(), 300);
+            }
+            if (window._sidebarActivityCache) {
+              window._sidebarActivityCache = window._sidebarActivityCache.filter(c => String(c.id) !== String(data.data.comment_id));
+            }
           } else if (data.data.type === 'edit') {
             if (window.commentSystem && typeof window.commentSystem.handleLiveEdit === 'function') {
               window.commentSystem.handleLiveEdit(data.data);

@@ -543,8 +543,14 @@ export default (router, tpl) => {
             const comment = await db`SELECT content, item_id, user_id FROM comments WHERE id = ${commentId}`;
             if (!comment.length) return res.reply({ code: 404, body: JSON.stringify({ success: false, message: "Not found" }) });
 
-            if (!req.session.admin && !req.session.is_moderator && comment[0].user_id !== req.session.id) {
-                return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+            const { getAllowCommentDeletion } = await import("../settings.mjs");
+            const canDeleteOwn = getAllowCommentDeletion();
+            const isOwner = comment[0].user_id === req.session.id;
+
+            if (!req.session.admin && !req.session.is_moderator) {
+                if (!canDeleteOwn || !isOwner) {
+                    return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+                }
             }
 
             // Log all deletions in audit log

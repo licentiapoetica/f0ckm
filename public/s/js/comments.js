@@ -1891,6 +1891,13 @@ class CommentSystem {
             adminButtons = `<button class="admin-pin-btn ${isPinned ? 'active' : ''}" data-id="${comment.id}" title="${isPinned ? 'Unpin' : 'Pin'}">${pinIcon}</button><button class="admin-edit-btn" data-id="${comment.id}" data-content="${this.escapeHtml(comment.content)}">${this.icons.edit}</button><button class="admin-delete-btn" data-id="${comment.id}">${this.icons.delete}</button>`;
         }
 
+        let userDeleteButton = '';
+        if (!this.isAdmin && !isDeleted && window.f0ckSession?.logged_in && window.f0ckSession?.allow_comment_deletion) {
+            if (comment.username && comment.username === window.f0ckSession.user) {
+                userDeleteButton = `<button class="delete-btn" data-id="${comment.id}" title="Delete Comment">${this.icons.delete}</button>`;
+            }
+        }
+
         const pinnedBadge = isPinned ? `<span class="pinned-badge" title="Pinned">${this.icons.pinned}</span>` : '';
         const commentClass = isReply ? 'comment reply' : 'comment';
 
@@ -1938,6 +1945,7 @@ class CommentSystem {
                             <div class="comment-actions">
                                 ${!isDeleted && currentUserId ? `<button class="reply-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Reply"><i class="fa-solid fa-reply"></i></button><button class="quote-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Quote with Text"><i class="fa-solid fa-quote-left"></i></button><button class="report-comment-btn" data-id="${comment.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}
                                 ${adminButtons}
+                                 ${userDeleteButton}
                             </div>
                         </div>
                     </div>
@@ -2433,27 +2441,48 @@ class CommentSystem {
             // User Delete
             const delBtn = target.closest('.delete-btn');
             if (delBtn) {
-                if (delBtn.dataset.confirming !== 'true') {
-                    delBtn.dataset.confirming = 'true';
-                    const originalText = delBtn.innerHTML;
-                    delBtn.innerHTML = 'Sure?';
-                    delBtn.classList.add('btn-danger'); // Optional styling
-                    setTimeout(() => {
-                        delBtn.dataset.confirming = 'false';
-                        delBtn.innerHTML = originalText;
-                        delBtn.classList.remove('btn-danger');
-                    }, 3000);
-                    return;
-                }
-
                 const id = delBtn.dataset.id;
-                const res = await fetch(`/api/comments/${id}/delete`, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
-                });
-                const json = await res.json();
-                if (json.success) this.loadComments();
-                else alert('Failed to delete: ' + (json.message || 'Error'));
+                ModAction.confirm('Delete Comment', `Are you sure you want to delete comment <strong>${id}</strong>?`, async () => {
+                    const res = await fetch(`/api/comments/${id}/delete`, {
+                        method: 'POST',
+                        headers: {
+                            'x-csrf-token': window.f0ckSession?.csrf_token
+                        }
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        const sidebarEl = document.getElementById('sc' + id);
+                        if (sidebarEl) {
+                            sidebarEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                            sidebarEl.style.opacity = '0';
+                            sidebarEl.style.transform = 'scale(0.95)';
+                            setTimeout(() => sidebarEl.remove(), 300);
+                        }
+                        if (window._sidebarActivityCache) {
+                            window._sidebarActivityCache = window._sidebarActivityCache.filter(c => String(c.id) !== String(id));
+                        }
+
+                        const commentEl = document.getElementById(`c${id}`);
+                        if (commentEl) {
+                            commentEl.classList.add('deleted');
+                            const contentEl = commentEl.querySelector('.comment-content');
+                            if (contentEl) {
+                                contentEl.innerHTML = '<span class="deleted-msg">[deleted]</span>';
+                            }
+                            const actionsEl = commentEl.querySelector('.comment-actions');
+                            if (actionsEl) {
+                                actionsEl.innerHTML = ''; // Remove reply/quote/admin buttons
+                            }
+                            // Remove attachments if present
+                            const attachmentsEl = commentEl.querySelector('.comment-attachments, .media-pills');
+                            if (attachmentsEl) attachmentsEl.remove();
+                        } else {
+                            this.loadComments();
+                        }
+                    } else {
+                        throw new Error(json.message || 'Failed to delete');
+                    }
+                }, { hideReason: true });
                 return;
             }
 
@@ -2474,6 +2503,17 @@ class CommentSystem {
                     });
                     const json = await res.json();
                     if (json.success) {
+                        const sidebarEl = document.getElementById('sc' + id);
+                        if (sidebarEl) {
+                            sidebarEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                            sidebarEl.style.opacity = '0';
+                            sidebarEl.style.transform = 'scale(0.95)';
+                            setTimeout(() => sidebarEl.remove(), 300);
+                        }
+                        if (window._sidebarActivityCache) {
+                            window._sidebarActivityCache = window._sidebarActivityCache.filter(c => String(c.id) !== String(id));
+                        }
+
                         const commentEl = document.getElementById(`c${id}`);
                         if (commentEl) {
                             commentEl.classList.add('deleted');

@@ -1,4 +1,4 @@
-@if(session && (session.admin || session.is_moderator))
+@if(session)
 <div id="mod-action-modal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <h3 id="mod-action-title">{{ t('mod.confirm_action') }}</h3>
@@ -138,7 +138,7 @@
 @endif
 @if(private_society && !session)
 <script>
-  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }}, development: @if(development) true @else false @endif };
+  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }}, development: @if(development) true @else false @endif, allow_comment_deletion: @if(allow_comment_deletion) true @else false @endif };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   (() => {
     const loginModal = document.getElementById('login-modal');
@@ -414,7 +414,8 @@
     fileupload_comments_max: {{ fileupload_comments_max }},
     fileupload_comments_mode: "{{ fileupload_comments_mode }}",
     dm_attachments: @if(dm_attachments) true @else false @endif,
-    dm_unencrypted: @if(dm_unencrypted) true @else false @endif
+    dm_unencrypted: @if(dm_unencrypted) true @else false @endif,
+    allow_comment_deletion: @if(allow_comment_deletion) true @else false @endif
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   window.f0ckI18n = {

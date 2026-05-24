@@ -80,3 +80,7 @@ export const setLogUserIps = (val) => {}; // No-op, strictly config-based
 
 export const getHashUserIps = () => !!cfg.websrv.hash_user_ips;
 export const setHashUserIps = (val) => {}; // No-op, strictly config-based
+
+export const getAllowCommentDeletion = () => !!cfg.websrv.allow_comment_deletion;
+export const setAllowCommentDeletion = (val) => {}; // No-op, strictly config-based
+
