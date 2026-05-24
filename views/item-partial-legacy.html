@@ -98,11 +98,11 @@
                     @if(session && !user_alternative_infobox) — [<a id="a_username" data-username="{{ item.username || '' }}" data-author-id="{{ item.author_id || '' }}" href="/user/{{ (item.username || '').toLowerCase() }}" @if(item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
                     @if(item.is_oc)@if(!user_alternative_infobox) — @endif<span class="oc-badge" tooltip="Original Content">OC</span>@endif
                 </span>
-                @if(!user_alternative_infobox) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span> — @endif
+                @if(!user_alternative_infobox) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>@if(halls_enabled && item.primaryHall) — @endif @endif
                 @if(halls_enabled && item.primaryHall)
                 <span class="badge hall-badge-wrap">
                     <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary">{{ item.primaryHall.name }}</a>@if(is_mod_or_admin)&nbsp;<a class="remove-from-hall" href="#" data-hall="{{ item.primaryHall.slug }}" title="Remove from hall"><i class="fa-solid fa-xmark"></i></a>@endif@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
-                </span>@if(!user_alternative_infobox) —@endif
+                </span>
                 @endif
 
 
