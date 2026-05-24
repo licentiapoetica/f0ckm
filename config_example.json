@@ -114,6 +114,7 @@
     "swf_thumb": "/s/img/swf.png",
     "open_registration": true,
     "open_registration_web_toggle": false,
+    "open_registration_require_mail_andor_token": false,
     "private_society": false,
     "private_society_gate": "cloudflare",
     "paths": {

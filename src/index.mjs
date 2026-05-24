@@ -1075,6 +1075,7 @@ process.on('uncaughtException', err => {
     get min_tags() { return getMinTags(); },
     get registration_open() { return getRegistrationOpen(); },
     registration_web_toggle_enabled: cfg.websrv.open_registration_web_toggle !== false,
+    registration_require_mail_andor_token: !!cfg.websrv.open_registration_require_mail_andor_token,
     get trusted_uploads() { return getTrustedUploads(); },
     get shitpost_mode() { return getShitpostMode(); },
     shitpost_require_rating: !!cfg.websrv.shitpost_require_rating,

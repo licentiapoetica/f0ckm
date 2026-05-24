@@ -1,7 +1,7 @@
 import db from "../sql.mjs";
 import lib from "../lib.mjs";
 import security from "../security.mjs";
-import { getRegistrationOpen, getDefaultLayout } from "../settings.mjs";
+import { getRegistrationOpen, getRegistrationRequireMailAndorToken, getDefaultLayout } from "../settings.mjs";
 import { sendMail } from "../../lib/smtp.mjs";
 import cfg from "../config.mjs";
 import crypto from "crypto";
@@ -92,22 +92,28 @@ export default (router, tpl) => {
         let activated = true;
         let activationToken = null;
 
-        if (!token && !getRegistrationOpen()) {
+        const registrationOpen = getRegistrationOpen();
+        const requireMailOrToken = getRegistrationRequireMailAndorToken();
+
+        if (!registrationOpen && !token) {
+            // Closed registration — invite token is always required
             return renderError("Invite token is required for registration.");
         }
 
         if (token) {
+            // Invite token path — validate and activate immediately
             const tokenRow = await db`
                 select * from invite_tokens where token = ${token} and is_used = false
             `;
             if (tokenRow.length === 0) return renderError("Invalid or used invite token");
-            // Token used, so it will be activated by default
-        } else {
-            // No token, Open Registration
-            if (!email || !email.includes('@')) return renderError("A valid email is required for no-token registration.");
+            // Token is valid; account activated immediately
+        } else if (requireMailOrToken) {
+            // Open registration but email/token required — email path
+            if (!email || !email.includes('@')) return renderError("A valid email is required for registration.");
             activated = false;
             activationToken = crypto.randomBytes(32).toString('hex');
         }
+        // else: open registration, no mail/token required — just username+password, activated immediately
 
         // Check user existence
         const existing = await db`

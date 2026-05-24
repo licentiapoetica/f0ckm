@@ -23,10 +23,10 @@
         <input type="text" name="username" placeholder="{{ t('auth.username_placeholder') }}" autocomplete="off" required />
         <input type="password" name="password" placeholder="{{ t('auth.password_placeholder') }}" autocomplete="off" required minlength="20" title="{{ t('auth.password_min_hint') }}" />
         <input type="password" name="password_confirm" placeholder="{{ t('auth.confirm_password') }}" autocomplete="off" required minlength="20" /><br>
-        @if(registration_open)
-        <input type="email" name="email" placeholder="{{ t('auth.email_placeholder') }}" autocomplete="off" required />
-        @else
+        @if(!registration_open)
         <input type="text" name="token" placeholder="{{ t('auth.invite_token') }}" autocomplete="off" value="{{ typeof token !== 'undefined' ? token : '' }}" required />
+        @elseif(registration_require_mail_andor_token)
+        <input type="email" name="email" placeholder="{{ t('auth.email_placeholder') }}" autocomplete="off" required />
         @endif
         <input type="text" name="email_confirm_field" style="display: none !important;" tabindex="-1" autocomplete="off" />
         <p style="text-align: left; font-size: 0.9em; margin: 10px 0; color: #fff;">

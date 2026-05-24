@@ -49,6 +49,11 @@ export const getRegistrationOpen = () => {
 };
 export const setRegistrationOpen = (val) => registration_open = !!val;
 
+// When false (default): open_registration=true means anyone can register with just username+password, activated immediately.
+// When true: even in open registration, a valid email OR invite token is required.
+export const getRegistrationRequireMailAndorToken = () => !!cfg.websrv.open_registration_require_mail_andor_token;
+export const setRegistrationRequireMailAndorToken = (val) => {}; // No-op, strictly config-based
+
 export const getTrustedUploads = () => trusted_uploads;
 export const setTrustedUploads = (val) => trusted_uploads = Math.max(0, parseInt(val) ?? 3);
 
