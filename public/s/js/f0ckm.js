@@ -7249,16 +7249,15 @@ class ModAction {
     if (!modal) return window.flashMessage('Error: Mod modal not found', 3000, 'error');
     const titleEl = document.getElementById('mod-action-title');
     const contentEl = document.getElementById('mod-action-content');
-    const textareaEl = document.getElementById('mod-reason');
-    const inputEl = document.getElementById('mod-reason-input');
+    const reasonEl = document.getElementById('mod-reason');
     const confirmBtn = document.getElementById('mod-action-confirm');
     const cancelBtn = document.getElementById('mod-action-cancel');
     const errorEl = document.getElementById('mod-action-error');
 
-    // Pick the active input element based on singleLine option
     const singleLine = options.singleLine || false;
-    const reasonEl = singleLine ? inputEl : textareaEl;
-    const inactiveEl = singleLine ? textareaEl : inputEl;
+    const hideReason = options.hideReason || false;
+    const allowEmpty = options.allowEmpty || false;
+    const i18n = window.f0ckI18n || {};
 
     titleEl.innerText = title;
     if (options.unsafeContent) {
@@ -7266,15 +7265,23 @@ class ModAction {
     } else {
       contentEl.innerHTML = Sanitizer.clean(promptHtml);
     }
+
     reasonEl.value = '';
-    inactiveEl.value = '';
-    inactiveEl.style.display = 'none';
     errorEl.style.display = 'none';
     modal.style.display = 'flex';
 
-    const hideReason = options.hideReason || false;
-    const allowEmpty = options.allowEmpty || false;
-    const i18n = window.f0ckI18n || {};
+    // Apply single-line mode: style the textarea to look and act like a text input
+    if (singleLine) {
+      reasonEl.rows = 1;
+      reasonEl.style.resize = 'none';
+      reasonEl.style.overflow = 'hidden';
+      reasonEl.style.height = 'auto';
+    } else {
+      reasonEl.rows = 3;
+      reasonEl.style.resize = '';
+      reasonEl.style.overflow = '';
+      reasonEl.style.height = '';
+    }
 
     if (hideReason) {
       reasonEl.style.display = 'none';
@@ -7315,23 +7322,18 @@ class ModAction {
       }
     };
 
+    // Block Enter from inserting newlines in single-line mode; instead submit
+    const enterHandler = singleLine ? (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
+    } : null;
+    if (enterHandler) reasonEl.addEventListener('keydown', enterHandler);
+
     const cleanup = () => {
       confirmBtn.onclick = null;
       cancelBtn.onclick = null;
-      if (singleLine && inputEl._enterHandler) {
-        inputEl.removeEventListener('keydown', inputEl._enterHandler);
-        inputEl._enterHandler = null;
-      }
+      if (enterHandler) reasonEl.removeEventListener('keydown', enterHandler);
       confirmBtn.disabled = false;
     };
-
-    // For single-line input: submit on Enter
-    if (singleLine && !hideReason) {
-      inputEl._enterHandler = (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
-      };
-      inputEl.addEventListener('keydown', inputEl._enterHandler);
-    }
 
     confirmBtn.onclick = onConfirm;
     cancelBtn.onclick = close;

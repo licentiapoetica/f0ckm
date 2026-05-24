@@ -401,6 +401,49 @@
     }, { hideReason: true, confirmText: 'Set Password', unsafeContent: true });
   };
 
+  window.adminRenameUser = async (btn) => {
+    const id = btn.dataset.id;
+    const currentName = btn.dataset.name;
+    const currentUsername = btn.dataset.username;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Rename User',
+      'Enter a new login name for <strong>' + escHTML(currentName) + '</strong>.<br>' +
+      '<small style="color:#888;">Current login: <code>' + escHTML(currentUsername) + '</code> — All uploads will be reassigned. User sessions will be invalidated. And the user has to login with the NEW name from now on.</small>',
+      async (newUsername) => {
+        const data = await post('/api/v2/admin/users/rename', { user_id: id, new_username: newUsername });
+        if (data.success) {
+          showFlash(data.msg, 'success');
+          // Update the row in-place: links, text, and all button data attributes
+          const row = document.getElementById('user-row-' + id);
+          if (row) {
+            // Update the name link
+            const link = row.querySelector('.user-info-cell a');
+            if (link) {
+              link.href = '/user/' + data.new_login;
+              // Only overwrite text if there's no display_name (plain username link)
+              if (!link.querySelector('span[style*="accent"]')) {
+                link.textContent = data.new_user;
+              }
+            }
+            // Update all buttons in the row with the new name/username
+            row.querySelectorAll('[data-username]').forEach(el => { el.dataset.username = data.new_login; });
+            row.querySelectorAll('[data-name]').forEach(el => { el.dataset.name = data.new_user; });
+            // Update activity stat links
+            row.querySelectorAll('a[href^="/user/"]').forEach(a => {
+              a.href = a.href.replace(/\/user\/[^/]+/, '/user/' + data.new_login);
+            });
+          }
+        } else {
+          throw new Error(data.msg || 'Rename failed');
+        }
+      },
+      { hideReason: false, singleLine: true, confirmText: 'Rename', placeholder: 'new username' }
+    );
+  };
+
   window.adminDeleteUser = async (btn) => {
     const id = btn.dataset.id;
     const name = btn.dataset.name;

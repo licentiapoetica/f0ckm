@@ -16,17 +16,17 @@
     <td data-label="Activity">
         <div style="display: flex; align-items: center; gap: 15px; white-space: nowrap;">
             <a href="/user/{{ u.login }}" target="_blank" class="stat-box" title="Uploads" style="text-decoration: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                <i class="fa fa-upload" style="opacity: 0.6; font-size: 13px;"></i>
                 <strong>{{ u.upload_count }}</strong>
             </a>
             <a href="/user/{{ u.login }}/comments" target="_blank" class="stat-box" title="Comments" style="text-decoration: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <i class="fa fa-comment" style="opacity: 0.6; font-size: 13px;"></i>
                 <strong>{{ u.comment_count }}</strong>
             </a>
         </div>
     </td>
     <td data-label="Registration">
-        <div style="font-size: 0.85rem; color: #eee; font-weight: 600; cursor: help;" tooltip="Method: {{ u.reg_method }}">{{ new Date(u.created_at).toLocaleDateString() }}</div>
+        <div style="font-size: 0.85rem; color: #eee; font-weight: 600; cursor: help;" tooltip="Method: {{ u.reg_method === 'Legacy' ? 'Legacy Account' : (u.reg_method ? 'Invite Token: ' + u.reg_method.slice(0, 8) + '…' : (u.activated ? 'Open Registration' : 'Email Verification')) }}">{{ new Date(u.created_at).toLocaleDateString() }}</div>
     </td>
     <td data-label="Account Age">
         <div style="font-size: 0.85rem; font-weight: 600; color: #aaa;">{{ Math.floor(u.age_days) }} Days</div>
@@ -85,6 +85,7 @@
 
             @if(u.id && u.login !== 'deleted_user')
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" data-display="{!! u.display_name || '' !!}" onclick="adminSetDisplayName(this)" class="btn-modern btn-nick" style="background: rgba(100, 200, 100, 0.1); color: #64c864; border: 1px solid rgba(100, 200, 100, 0.2);" title="Set stylized display name">✏ Nick</button>
+                <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminRenameUser(this)" class="btn-modern" style="background: rgba(255, 165, 0, 0.1); color: #ffa500; border: 1px solid rgba(255, 165, 0, 0.2);" title="Rename username (updates all uploads)"><i class="fa fa-at"></i> Rename</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminSetPassword(this)" class="btn-modern btn-pw" style="background: rgba(var(--accent-rgb, 0, 150, 255), 0.1); color: var(--accent, #0096ff); border: 1px solid rgba(var(--accent-rgb, 0, 150, 255), 0.2);">Set PW</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" data-locked="{{ u.force_comment_display_mode }}" data-mode="{{ u.comment_display_mode }}" onclick="adminLockLayout(this)" class="btn-modern" style="background: rgba(255, 100, 0, 0.1); color: #ff6400; border: 1px solid rgba(255, 100, 0, 0.2);" title="{{ u.force_comment_display_mode ? 'Unlock Layout' : 'Lock Layout' }}"><i class="fa fa-{{ u.force_comment_display_mode ? 'lock-open' : 'lock' }}"></i> {{ u.force_comment_display_mode ? 'Unlock' : 'Lock' }}</button>
                 <button data-id="{{ u.id }}" data-name="{!! u.user !!}" data-username="{{ u.login }}" onclick="adminDeleteUser(this)" class="btn-modern btn-delete" style="background: rgba(217, 83, 79, 0.1); color: #d9534f; border: 1px solid rgba(217, 83, 79, 0.2);">Delete</button>

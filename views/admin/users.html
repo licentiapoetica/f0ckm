@@ -128,10 +128,10 @@
             <table class="admin-users-table responsive-table">
                 <thead>
                     <tr>
-                        <th>User & Contact</th>
+                        <th>User</th>
                         <th>Activity</th>
-                        <th>Registration</th>
-                        <th>Account Age</th>
+                        <th>Date</th>
+                        <th>Age</th>
                         <th>Status</th>
                         <th style="text-align: right;">Actions</th>
                     </tr>
@@ -283,7 +283,7 @@
 
             var hint = currentDisplay
                 ? 'Current nick: <strong style="color: var(--accent);">' + escHTML(currentDisplay) + '</strong><br>Enter a new stylized name, or leave empty to clear it.'
-                : 'Enter a stylized display name for <strong>' + escHTML(userName) + '</strong> (e.g. <code>F.O.O</code>). Leave empty to clear.';
+                : 'Enter a stylized display name for <strong>' + escHTML(userName) + '</strong>. Leave empty to clear.';
 
             ModAction.confirm('Set Display Name', hint, async (newName) => {
                 var res = await fetch('/api/v2/admin/users/set-display-name', {
@@ -310,7 +310,7 @@
                 } else {
                     throw new Error(data.msg || 'Failed to set display name');
                 }
-            }, { hideReason: false, allowEmpty: true, confirmText: 'Set Nick', placeholder: currentDisplay || 'e.g. F.O.O' });
+            }, { hideReason: false, singleLine: true, allowEmpty: true, confirmText: 'Set Nick', placeholder: currentDisplay || 'Set nickname' });
         }
 
         async function adminLockLayout(btn) {

@@ -1272,6 +1272,71 @@ export default (router, tpl) => {
   });
 
 
+  router.post(/^\/api\/v2\/admin\/users\/rename\/?$/, lib.auth, async (req, res) => {
+    try {
+      const { user_id, new_username } = req.post;
+      if (!user_id) throw new Error('Missing user_id');
+      if (!new_username || !new_username.trim()) throw new Error('Missing new_username');
+
+      const newName = new_username.trim();
+
+      // Validate format (same rules as registration)
+      if (!/^[a-zA-Z0-9._-]+$/.test(newName)) {
+        throw new Error('Invalid username. Only A-Z, 0-9, _, -, and . are allowed.');
+      }
+      if (newName.length < 2 || newName.length > 32) {
+        throw new Error('Username must be between 2 and 32 characters.');
+      }
+
+      // Get current user info
+      const target = await db`SELECT id, login, "user" FROM "user" WHERE id = ${+user_id} LIMIT 1`;
+      if (!target.length) throw new Error('User not found');
+      if (target[0].login === 'deleted_user') throw new Error('The deleted_user account is protected and cannot be renamed.');
+
+      const oldLogin = target[0].login;
+      const oldUser = target[0].user;
+      const newLogin = newName.toLowerCase();
+
+      if (newLogin === oldLogin && newName === oldUser) throw new Error('New username is the same as the current one.');
+
+      // Check for conflicts
+      const conflict = await db`SELECT id FROM "user" WHERE (lower(login) = ${newLogin} OR lower("user") = lower(${newName})) AND id != ${+user_id} LIMIT 1`;
+      if (conflict.length) throw new Error(`Username "${newName}" is already taken.`);
+
+      await db.begin(async sql => {
+        // 1. Update the user record
+        await sql`UPDATE "user" SET login = ${newLogin}, "user" = ${newName} WHERE id = ${+user_id}`;
+
+        // 2. Update items.username (matches both old login and old display name)
+        await sql`UPDATE items SET username = ${newLogin} WHERE username ILIKE ${oldLogin} OR username ILIKE ${oldUser}`;
+
+        // 3. Clear old login_attempts so the new name starts clean
+        await sql`DELETE FROM login_attempts WHERE username = ${oldLogin}`;
+      });
+
+      // Invalidate all sessions so the user must re-log with the new name
+      await db`DELETE FROM user_sessions WHERE user_id = ${+user_id}`;
+
+      // Log it in audit
+      await audit.log(req.session.id, 'admin_rename_user', 'user', +user_id, {
+        old_login: oldLogin,
+        new_login: newLogin,
+        old_user: oldUser,
+        new_user: newName
+      });
+
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        success: true,
+        new_login: newLogin,
+        new_user: newName,
+        msg: `User renamed from "${oldLogin}" to "${newLogin}". All uploads updated. Sessions invalidated.`
+      }));
+    } catch (err) {
+      console.error('[ADMIN] Rename failed:', err);
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
+    }
+  });
+
   // About page text editor
   router.get(/^\/admin\/about\/?$/, lib.auth, async (req, res) => {
     const settings = await db`SELECT value FROM site_settings WHERE key = 'about_text' LIMIT 1`;
