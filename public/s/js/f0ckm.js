@@ -4727,7 +4727,7 @@ window.cancelAnimFrame = (function () {
     ];
     const getNavXdTier = (s) => {
       s = +s;
-      if (s < 5)           return 0;
+      if (s < 1)           return 0;
       if (s < 200)         return 1;
       if (s < 1000)        return 2;
       if (s < 100000)      return 3;
@@ -4879,7 +4879,7 @@ window.cancelAnimFrame = (function () {
   //   2. Any grid thumbnail indicators for that item (on any page)
   const XD_TIER_META = [
     null,
-    { cls: 'xd-tier-1', label: 'xD',      min: 5         },
+    { cls: 'xd-tier-1', label: 'xD',      min: 1         },
     { cls: 'xd-tier-2', label: 'xDD',     min: 200       },
     { cls: 'xd-tier-3', label: 'xDDD',    min: 1000      },
     { cls: 'xd-tier-4', label: 'xDDDD',   min: 100000    },
@@ -4887,7 +4887,7 @@ window.cancelAnimFrame = (function () {
   ];
 
   const getXdTierFromScore = (score) => {
-    if (score < 5)           return 0;
+    if (score < 1)           return 0;
     if (score < 200)         return 1;
     if (score < 1000)        return 2;
     if (score < 100000)      return 3;

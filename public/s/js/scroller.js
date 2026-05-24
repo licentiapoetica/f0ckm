@@ -1553,24 +1553,13 @@
     const rBadge = slide.querySelector('.scroll-rating[data-item-id]');
     if (rBadge) {
       if (window.scrollerIsMod || item.local_id) rBadge.classList.add('can-cycle');
-      rBadge.addEventListener('click', async e => {
+      rBadge.addEventListener('click', e => {
         if (Date.now() - speedEndedAt < 200) return; // ignore click if we just ended a speed-hold
         e.stopPropagation();
         const slideEl = rBadge.closest('.scroll-slide');
         const id = slideEl?.dataset.localId || rBadge.dataset.itemId;
         if (!id || isNaN(id)) { showShareToast('Rehost first to change rating'); return; }
-        try {
-          const resp = await fetch(`/api/v2/tags/${id}/cycle-rating`, {
-            method: 'PUT',
-            headers: { 'x-csrf-token': window.scrollerCsrf || '' }
-          });
-          const data = await resp.json();
-          if (data.success) {
-            rBadge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
-            rBadge.textContent = data.rating_label;
-            rBadge.dataset.rating = data.rating_class;
-          }
-        } catch {}
+        cycleRatingOptimistic(rBadge, id, false);
       });
     }
 
@@ -1932,6 +1921,73 @@
     }
   }
 
+  function cycleRatingOptimistic(badge, id, showToast = false) {
+    if (!badge || !id || isNaN(id)) return;
+
+    let currentRating = badge.dataset.rating || '';
+    if (!currentRating) {
+      if (badge.classList.contains('sfw')) currentRating = 'sfw';
+      else if (badge.classList.contains('nsfw')) currentRating = 'nsfw';
+      else if (badge.classList.contains('nsfl')) currentRating = 'nsfl';
+    }
+
+    let nextRating = 'sfw';
+    if (currentRating === 'sfw') nextRating = 'nsfw';
+    else if (currentRating === 'nsfw') nextRating = 'nsfl';
+
+    const mapping = {
+      sfw: { label: 'SFW', cls: 'sfw', toast: '🛡 SFW' },
+      nsfw: { label: 'NSFW', cls: 'nsfw', toast: '🔥 NSFW' },
+      nsfl: { label: 'NSFL', cls: 'nsfl', toast: '💀 NSFL' }
+    };
+
+    const info = mapping[nextRating];
+
+    const oldClassName = badge.className;
+    const oldTextContent = badge.textContent;
+    const oldDatasetRating = badge.dataset.rating;
+
+    // Track active request ID to ignore out-of-order race conditions on rapid keypresses
+    const reqId = (badge._lastCycleReqId || 0) + 1;
+    badge._lastCycleReqId = reqId;
+
+    // Optimistically apply new state
+    badge.className = `scroll-rating ${info.cls}${window.scrollerIsMod ? ' can-cycle' : ''}`;
+    badge.textContent = info.label;
+    badge.dataset.rating = info.cls;
+
+    if (showToast) {
+      showShareToast(info.toast);
+    }
+
+    fetch(`/api/v2/tags/${id}/cycle-rating`, {
+      method: 'PUT',
+      headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (badge._lastCycleReqId !== reqId) return; // ignore stale responses
+        if (!data.success) {
+          revert();
+          return;
+        }
+        // Verify we match actual server result
+        badge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
+        badge.textContent = data.rating_label;
+        badge.dataset.rating = data.rating_class;
+      })
+      .catch(() => {
+        if (badge._lastCycleReqId !== reqId) return; // ignore stale responses
+        revert();
+      });
+
+    function revert() {
+      badge.className = oldClassName;
+      badge.textContent = oldTextContent;
+      badge.dataset.rating = oldDatasetRating;
+      showShareToast('⚠️ Failed to update rating');
+    }
+  }
 
   function reloadFeed() {
     clearCache();
@@ -3143,26 +3199,12 @@
     else if (e.key === 'p' || e.key === 'P') {
       e.preventDefault();
       if (!currentSlide || !window.scrollerLoggedIn) return;
-      const itemId = currentSlide.dataset.id;
+      const itemId = currentSlide.dataset.localId || currentSlide.dataset.id;
       if (!itemId) return;
-      fetch(`/api/v2/tags/${itemId}/cycle-rating`, {
-        method: 'PUT',
-        headers: { 'x-csrf-token': window.scrollerCsrf || '' }
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (!data.success) return;
-          // Update the badge on the slide immediately
-          const badge = currentSlide.querySelector('.scroll-rating[data-item-id]');
-          if (badge) {
-            badge.className = `scroll-rating ${data.rating_class}${window.scrollerIsMod ? ' can-cycle' : ''}`;
-            badge.textContent = data.rating_label;
-            badge.dataset.rating = data.rating_class;
-          }
-          const labels = { sfw: '🛡 SFW', nsfw: '🔥 NSFW', nsfl: '💀 NSFL' };
-          showShareToast(labels[data.rating_class] ?? data.rating_label);
-        })
-        .catch(() => {});
+      const badge = currentSlide.querySelector('.scroll-rating[data-item-id]');
+      if (badge) {
+        cycleRatingOptimistic(badge, itemId, true);
+      }
     }
     else if (e.key === 'l' || e.key === 'L') { e.preventDefault(); if (currentSlide) toggleFav(currentSlide); }
     else if (e.key === 'i' || e.key === 'I') { e.preventDefault(); if (currentSlide) openTagBar(currentSlide.dataset.id); }

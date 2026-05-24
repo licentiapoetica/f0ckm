@@ -1346,7 +1346,7 @@
 
     const getXdTier = (score) => {
         score = +score;
-        if (score < 5)           return 0;
+        if (score < 1)           return 0;
         if (score < 200)         return 1;
         if (score < 1000)        return 2;
         if (score < 100000)      return 3;

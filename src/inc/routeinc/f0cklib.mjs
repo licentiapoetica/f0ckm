@@ -86,11 +86,11 @@ const computeXdScore = (comments) => {
 };
 
 const xdScoreMeta = (score) => {
-  if (score < 5)           return { tier: 0, label: '' };
+  if (score < 1)           return { tier: 0, label: '' };
   if (score < 200)         return { tier: 1, label: 'xD' };
   if (score < 1000)        return { tier: 2, label: 'xDD' };
   if (score < 100000)      return { tier: 3, label: 'xDDD' };
-  if (score < 200000000)   return { tier: 4, label: 'xDDDD' };
+  if (score < 20000000)   return { tier: 4, label: 'xDDDD' };
   return                      { tier: 5, label: 'xDDDDD+' };
 };
 
