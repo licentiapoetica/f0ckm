@@ -2028,7 +2028,7 @@ class CommentSystem {
                             ${contextMarker}
                             ${backlinkHtml}
                         </div>
-                        <a href="#c${comment.id}" class="comment-time timeago" title="${fullDate}" tooltip="${fullDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
+                        <a href="#c${comment.id}" class="comment-time timeago" tooltip="${fullDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
                     </div>
                     <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
                     ${this.renderCommentAttachments(comment.files, comment.content)}
