@@ -8316,7 +8316,7 @@ span.badge.badge-current {
 }
 
 .comment-content img {
-  max-height: 200px;
+  /*max-height: 200px;*/
   max-width: 100%;
   border-radius: 4px;
 
