@@ -130,7 +130,7 @@
                     
                     <div class="layer-font-size-control" style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 0.8em; color: #888; white-space: nowrap;">${(window.f0ckI18n?.meme?.size_label) || 'Size'}: <span class="layer-fs-val">${layer.fontSize}</span>px</span>
-                        <input type="range" class="layer-fs-input" min="10" max="200" value="${layer.fontSize}" style="flex: 1;">
+                        <input type="range" class="layer-fs-input" min="10" max="200" value="${layer.fontSize}" inputmode="none" style="flex: 1;">
                     </div>
                 `;
                 

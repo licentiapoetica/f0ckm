@@ -185,6 +185,8 @@ canvas#memeCanvas {
 .meme-layout-wrapper input[type="range"] {
     width: 100%;
     accent-color: var(--accent, #9f0);
+    touch-action: pan-x;
+    cursor: pointer;
 }
 
 .meme-layout-wrapper .layer-input-group {
