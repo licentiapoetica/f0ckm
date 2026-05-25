@@ -767,6 +767,28 @@ export default router => {
       }
     });
 
+    group.get(/\/items\/suggest$/, async (req, res) => {
+      const searchString = req.url.qs.q;
+      if (!searchString || searchString.length < 1) {
+        return res.json({ success: false, suggestions: [] });
+      }
+
+      try {
+        const items = await db`
+          SELECT id, title
+          FROM items
+          WHERE title IS NOT NULL
+            AND active = true
+            AND title ILIKE ${'%' + searchString + '%'}
+          ORDER BY id DESC
+          LIMIT 8
+        `;
+        return res.json({ success: true, suggestions: items });
+      } catch (err) {
+        return res.json({ success: false, error: 'Item title suggestion error', suggestions: [] });
+      }
+    });
+
     // tags lol
 
     group.put(/\/tags\/rename\/(?<tagname>.*)/, lib.modAuth, async (req, res) => {

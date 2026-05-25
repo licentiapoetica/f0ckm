@@ -4269,44 +4269,102 @@ window.cancelAnimFrame = (function () {
         }
       };
 
-      const renderSuggestions = (items) => {
+      const renderSuggestions = (tagItems, titleItems) => {
         suggestions.innerHTML = '';
         highlightIdx = -1;
-        if (!items.length) {
+        const totalItems = (tagItems || []).length + (titleItems || []).length;
+        if (!totalItems) {
           suggestions.style.display = 'none';
           return;
         }
-        items.forEach(s => {
-          const div = document.createElement('div');
-          div.className = 'tag-suggestion-item';
 
-          const name = document.createElement('span');
-          name.className = 'tag-suggestion-name';
-          name.textContent = s.tag;
+        const addSectionHeader = (label) => {
+          const hdr = document.createElement('div');
+          hdr.className = 'tag-suggestion-header';
+          hdr.textContent = label;
+          suggestions.appendChild(hdr);
+        };
 
-          const meta = document.createElement('span');
-          meta.className = 'tag-suggestion-meta';
-          meta.textContent = `${s.tagged}× · ${s.score.toFixed(2)}`;
+        // --- Tag results ---
+        if (tagItems && tagItems.length) {
+          if (titleItems && titleItems.length) addSectionHeader('Tags');
+          tagItems.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'tag-suggestion-item';
+            div.dataset.type = 'tag';
+            div.dataset.value = s.tag;
 
-          div.appendChild(name);
-          div.appendChild(meta);
+            const name = document.createElement('span');
+            name.className = 'tag-suggestion-name';
+            name.textContent = s.tag;
 
-          div.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            const isStrict = strict && strict.checked;
-            if (isStrict) {
-              const parts = input.value.split(',');
-              parts[parts.length - 1] = s.tag;
-              input.value = parts.join(',') + ',';
-            } else {
-              input.value = s.tag;
-            }
-            suggestions.style.display = 'none';
-            highlightIdx = -1;
-            input.focus();
+            const meta = document.createElement('span');
+            meta.className = 'tag-suggestion-meta';
+            meta.textContent = `${s.tagged}× · ${s.score.toFixed(2)}`;
+
+            div.appendChild(name);
+            div.appendChild(meta);
+
+            div.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              const isStrict = strict && strict.checked;
+              if (isStrict) {
+                const parts = input.value.split(',');
+                parts[parts.length - 1] = s.tag;
+                input.value = parts.join(',') + ',';
+              } else {
+                input.value = s.tag;
+              }
+              suggestions.style.display = 'none';
+              highlightIdx = -1;
+              input.focus();
+            });
+            suggestions.appendChild(div);
           });
-          suggestions.appendChild(div);
-        });
+        }
+
+        // --- Title results ---
+        if (titleItems && titleItems.length) {
+          if (tagItems && tagItems.length) addSectionHeader('Titles');
+          titleItems.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'tag-suggestion-item tag-suggestion-item--title';
+            div.dataset.type = 'title';
+            div.dataset.id = s.id;
+            div.dataset.title = s.title;
+
+            const icon = document.createElement('span');
+            icon.className = 'tag-suggestion-icon';
+            icon.innerHTML = '<i class="fa-regular fa-file" aria-hidden="true"></i>';
+
+            const name = document.createElement('span');
+            name.className = 'tag-suggestion-name';
+            name.textContent = s.title.length > 60 ? s.title.substring(0, 60) + '…' : s.title;
+
+            const meta = document.createElement('span');
+            meta.className = 'tag-suggestion-meta';
+            meta.textContent = `#${s.id}`;
+
+            div.appendChild(icon);
+            div.appendChild(name);
+            div.appendChild(meta);
+
+            div.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              suggestions.style.display = 'none';
+              highlightIdx = -1;
+              toggleSearch(false);
+              const target = `/search/?tag=title:${encodeURIComponent(s.title)}`;
+              if (typeof loadPageAjax === 'function') {
+                loadPageAjax(target, true);
+              } else {
+                window.location.href = target;
+              }
+            });
+            suggestions.appendChild(div);
+          });
+        }
+
         suggestions.style.display = 'block';
       };
 
@@ -4321,10 +4379,14 @@ window.cancelAnimFrame = (function () {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
           try {
-            const res = await fetch(`/api/v2/tags/suggest?q=${encodeURIComponent(q)}`);
-            const json = await res.json();
-            if (json.success && json.suggestions) {
-              renderSuggestions(json.suggestions.slice(0, 8));
+            const [tagRes, titleRes] = await Promise.all([
+              fetch(`/api/v2/tags/suggest?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ success: false })),
+              fetch(`/api/v2/items/suggest?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ success: false }))
+            ]);
+            const tagSuggestions = (tagRes.success && tagRes.suggestions) ? tagRes.suggestions.slice(0, 6) : [];
+            const titleSuggestions = (titleRes.success && titleRes.suggestions) ? titleRes.suggestions.slice(0, 4) : [];
+            if (tagSuggestions.length || titleSuggestions.length) {
+              renderSuggestions(tagSuggestions, titleSuggestions);
             } else {
               suggestions.style.display = 'none';
             }
@@ -4467,7 +4529,22 @@ window.cancelAnimFrame = (function () {
           if (highlightIdx >= 0) {
             const items = suggestions.querySelectorAll('.tag-suggestion-item');
             if (items[highlightIdx]) {
-              const selectedTag = items[highlightIdx].querySelector('.tag-suggestion-name').textContent;
+              const el = items[highlightIdx];
+              // Title results: go to the search page showing all items with this title
+              if (el.dataset.type === 'title') {
+                suggestions.style.display = 'none';
+                highlightIdx = -1;
+                toggleSearch(false);
+                const target = `/search/?tag=title:${encodeURIComponent(el.dataset.title)}`;
+                if (typeof loadPageAjax === 'function') {
+                  loadPageAjax(target, true);
+                } else {
+                  window.location.href = target;
+                }
+                return;
+              }
+              // Tag results: fill input
+              const selectedTag = el.querySelector('.tag-suggestion-name').textContent;
               const isStrict = strict && strict.checked;
               if (isStrict) {
                 const parts = input.value.split(',');
@@ -4481,7 +4558,22 @@ window.cancelAnimFrame = (function () {
               return;
             }
           }
+          // Snapshot before hiding — if there are only title matches and no tag matches,
+          // go to the title search page instead of a futile tag search.
+          const tagItems   = suggestions.querySelectorAll('.tag-suggestion-item[data-type="tag"]');
+          const titleItems = suggestions.querySelectorAll('.tag-suggestion-item[data-type="title"]');
           suggestions.style.display = 'none';
+          if (tagItems.length === 0 && titleItems.length > 0) {
+            toggleSearch(false);
+            const q = input.value.trim();
+            const target = `/search/?tag=title:${encodeURIComponent(q)}`;
+            if (typeof loadPageAjax === 'function') {
+              loadPageAjax(target, true);
+            } else {
+              window.location.href = target;
+            }
+            return;
+          }
           doSearch();
         }
       });

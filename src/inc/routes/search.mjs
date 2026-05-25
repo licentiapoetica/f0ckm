@@ -56,6 +56,48 @@ export default (router, tpl) => {
           path: '&page='
         };
       }
+      else if (tag.startsWith('title:')) {
+        const titleQuery = tag.substring(6).trim();
+        const q = '%' + titleQuery + '%';
+
+        total = (await db`
+          select count(*) as total
+          from "items"
+          where title ilike ${q} and active = true
+        `)[0]?.total ?? 0;
+        total = +total;
+
+        const pages = +Math.ceil(total / _eps);
+        const act_page = Math.min(Math.max(pages, 1), page || 1);
+        const offset = Math.max(0, (act_page - 1) * _eps);
+
+        ret = await db`
+          select *
+          from "items"
+          where title ilike ${q} and active = true
+          order by id desc
+          offset ${offset}
+          limit ${_eps}
+        `;
+
+        const cheat = [];
+        for (let i = Math.max(1, act_page - 3); i <= Math.min(act_page + 3, pages); i++)
+          cheat.push(i);
+
+        pagination = {
+          start: 1,
+          end: pages,
+          prev: (act_page > 1) ? act_page - 1 : null,
+          next: (act_page < pages) ? act_page + 1 : null,
+          page: act_page,
+          cheat: cheat,
+          uff: false
+        };
+        link = {
+          main: `/search/?tag=${encodeURIComponent(tag)}`,
+          path: '&page='
+        };
+      }
       else if (mode === 'strict') {
         const tags = tag.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
