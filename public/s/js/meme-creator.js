@@ -117,13 +117,13 @@
             container.style.cssText = 'position:relative;height:28px;display:flex;align-items:center;flex:1;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;';
 
             const track = document.createElement('div');
-            track.style.cssText = 'position:absolute;left:8px;right:8px;height:4px;background:#333;border-radius:2px;';
+            track.style.cssText = 'position:absolute;left:8px;right:8px;height:4px;background:#333;border-radius:2px;top:50%;transform:translateY(-50%);';
 
             const fill = document.createElement('div');
             fill.style.cssText = 'position:absolute;left:0;height:100%;background:var(--accent,#9f0);border-radius:2px;pointer-events:none;';
 
             const thumb = document.createElement('div');
-            thumb.style.cssText = 'position:absolute;width:18px;height:18px;background:var(--accent,#9f0);border-radius:50%;transform:translateX(-50%);box-shadow:0 0 6px rgba(0,0,0,.6);pointer-events:none;transition:transform .1s;';
+            thumb.style.cssText = 'position:absolute;width:18px;height:18px;background:var(--accent,#9f0);border-radius:50%;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 6px rgba(0,0,0,.6);pointer-events:none;transition:transform .1s;';
 
             const setRatio = (r) => {
                 fill.style.width = (r * 100) + '%';
@@ -145,7 +145,7 @@
             container.addEventListener('pointerdown', (e) => {
                 e.preventDefault(); // block keyboard + scroll takeover
                 container.setPointerCapture(e.pointerId);
-                thumb.style.transform = 'translateX(-50%) scale(1.25)';
+                thumb.style.transform = 'translate(-50%,-50%) scale(1.25)';
                 onChange(valueFromClientX(e.clientX));
             }, { passive: false });
 
@@ -157,7 +157,7 @@
             const onEnd = (e) => {
                 if (!container.hasPointerCapture(e.pointerId)) return;
                 container.releasePointerCapture(e.pointerId);
-                thumb.style.transform = 'translateX(-50%) scale(1)';
+                thumb.style.transform = 'translate(-50%,-50%) scale(1)';
             };
             container.addEventListener('pointerup',     onEnd);
             container.addEventListener('pointercancel', onEnd);
