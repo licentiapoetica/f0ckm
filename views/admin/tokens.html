@@ -1,6 +1,7 @@
 @include(snippets/header)
 <div class="pagewrapper">
-<div id="main" class="admin-container">
+<div id="main">
+<div class="container">
         <div class="admin-header-flex">
             <h2>Invite Tokens</h2>
             <button id="generate-token" class="btn-upload" style="width: auto; padding: 10px 20px;">Generate New Token</button>
@@ -45,7 +46,7 @@
                         '<td data-label="Source">' +
                         (t.created_by_matrix ? '<span style="color: #0DBD8B">[Matrix] ' + t.created_by_matrix + '</span>' :
                          (t.created_by_discord ? '<span style="color: #5865F2"><i class="fab fa-discord"></i> ' + t.created_by_discord + '</span>' :
-                          (t.created_by_name ? '<span style="color: var(--accent)">👤 User: ' + t.created_by_name + '</span>' : '<span style="color: var(--text-muted)">Admin</span>'))) +
+                          (t.created_by_name ? '<span style="color: var(--accent)">' + t.created_by_name + '</span>' : '<span style="color: var(--text-muted)">Admin</span>'))) +
                         '</td>' +
                         '<td data-label="Used By">' + (t.used_by_name || '—') + '</td>' +
                         '<td data-label="Created">' + (t.created_at ? new Date(parseInt(t.created_at) * 1000).toLocaleString() : '—') + '</td>' +
@@ -99,6 +100,7 @@
         if (btnGenToken) btnGenToken.addEventListener('click', generateToken);
         loadTokens();
     </script>
+</div>
 </div>
 </div>
 @include(snippets/footer)

@@ -7895,7 +7895,7 @@ video.autoplay-gif {
 
 /* Session Page Grid Layout */
 .session-grid {
-  display: grid !important;
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
   padding: 20px;
@@ -10138,7 +10138,7 @@ body.layout-legacy .navbar-header {
 /* For generic pages in layout-modern, reset #main to plain block flow so children
    fill the full available width — mirrors layout-legacy exactly and prevents any
    flex child centering (e.g. margin:0 auto shrinking content like on /subscriptions). */
-body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)):not(:has(.messages-convo-page))>#main:not(.session-grid) {
+body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)):not(:has(.messages-convo-page))>#main {
   display: block !important;
   width: 100%;
 }
