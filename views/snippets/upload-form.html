@@ -58,7 +58,7 @@
         </div>
     </div>
 
-    @if(!shitpost_mode)
+    @if(!shitpost_mode && enable_item_title)
     <div class="form-section global-title-section">
         <label>Title <span style="opacity: 0.5; font-weight: normal;">{{ t('upload.comment_optional') }}</span></label>
         <input type="text" name="title" class="upload-title-input" placeholder="Add a title for this item…" maxlength="500" autocomplete="off">

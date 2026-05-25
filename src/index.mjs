@@ -1133,6 +1133,7 @@ process.on('uncaughtException', err => {
     comment_max_length: cfg.main.comment_max_length ?? null,
     enable_swf: !!cfg.websrv.enable_swf,
     enable_danmaku: cfg.websrv.enable_danmaku !== false,
+    enable_item_title: cfg.websrv.enable_item_title !== false,
     enable_global_chat: !!cfg.websrv.enable_global_chat,
     embed_youtube_in_comments: cfg.websrv.embed_youtube_in_comments !== false,
     koepfe_json: JSON.stringify(cfg.websrv.koepfe || []),

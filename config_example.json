@@ -112,6 +112,7 @@
     "user_alternative_infobox": false,
     "enable_swf": false,
     "swf_thumb": "/s/img/swf.png",
+    "enable_item_title": true,
     "open_registration": true,
     "open_registration_web_toggle": false,
     "open_registration_require_mail_andor_token": false,

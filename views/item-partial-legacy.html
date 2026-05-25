@@ -9,7 +9,7 @@
             <div class="location">{{ link.main }}{{ item.id }}{{ link.suffix }}</div>
             <div class="gapLeft"></div>
         </div>
-        @if(item.title)
+        @if(enable_item_title && item.title)
         <div class="item_title">{!! item.title !!}</div>
         @endif
 
@@ -201,7 +201,7 @@
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-body" style="padding: 20px 0; text-align: left;">
             <table class="info-table">
-                @if(can_manage_item)
+                @if(enable_item_title && can_manage_item)
                 <tr class="info-title-row">
                     <th>Title</th>
                     <td>
@@ -212,7 +212,7 @@
                         <span id="info-title-status" class="info-title-status" style="display:none"></span>
                     </td>
                 </tr>
-                @elseif(item.title)
+                @elseif(enable_item_title && item.title)
                 <tr>
                     <th>Title</th>
                     <td>{!! item.title !!}</td>

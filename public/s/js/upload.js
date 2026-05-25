@@ -1013,11 +1013,13 @@ window.initUploadForm = (selector) => {
                     </div>
                 `;
 
-                titleUI = `
-                    <div class="item-title-container">
-                        <input type="text" class="item-title-input" placeholder="Add Title..." maxlength="500" value="${window.escapeHtmlUpload(item.title || '')}">
-                    </div>
-                `;
+                if (window.f0ckEnableItemTitle !== false) {
+                    titleUI = `
+                        <div class="item-title-container">
+                            <input type="text" class="item-title-input" placeholder="Add Title..." maxlength="500" value="${window.escapeHtmlUpload(item.title || '')}">
+                        </div>
+                    `;
+                }
 
                 const commentPlaceholder = window.f0ckI18n?.upload_comment_placeholder || 'AddComment...';
                 const maxLenHtml = (commentMaxLen !== null && !isNaN(commentMaxLen)) ? ` maxlength="${commentMaxLen}"` : '';
