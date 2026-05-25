@@ -4712,11 +4712,13 @@ window.cancelAnimFrame = (function () {
     });
 
     // ── xD Score filter ────────────────────────────────────────────────────
-    const navXdInput    = document.getElementById('nav_min_xd_score');
-    const navXdSaveBtn  = document.getElementById('nav_xd_save_btn');
-    const navXdTier     = document.getElementById('nav_xd_tier_label');
-    const navXdStatus   = document.getElementById('nav_xd_status');
-    const navXdVal      = document.getElementById('nav_xd_val');
+    const navXdInput         = document.getElementById('nav_min_xd_score');
+    const navXdSaveBtn        = document.getElementById('nav_xd_save_btn');
+    const navXdTier           = document.getElementById('nav_xd_tier_label');
+    const navXdStatus         = document.getElementById('nav_xd_status');
+    const navXdVal            = document.getElementById('nav_xd_val');
+    const navXdSliderContainer = document.getElementById('nav_xd_slider_container');
+    let   navXdCustomFill     = null; // set during custom slider init below
 
     const XD_TIERS_NAV = [null,
       { cls: 'xd-tier-1', label: 'xD' },
@@ -4739,14 +4741,12 @@ window.cancelAnimFrame = (function () {
       score = +score;
       if (navXdVal) navXdVal.textContent = score;
       const tier = getNavXdTier(score);
-      // Update slider track fill
-      if (navXdInput) {
-        const pct = Math.round((score / +navXdInput.max) * 100);
-        const color = XD_TIER_COLORS[tier];
-        navXdInput.style.setProperty('--xd-fill', color);
-        navXdInput.style.setProperty('--xd-pct', pct + '%');
-        if (navXdVal) navXdVal.style.color = color;
-      }
+      const color = XD_TIER_COLORS[tier];
+      // Update custom slider fill colour
+      if (navXdCustomFill) navXdCustomFill.style.background = color;
+      if (navXdVal) navXdVal.style.color = color;
+      // Keep hidden native input in sync (save button reads it)
+      if (navXdInput) navXdInput.value = score;
       if (!navXdTier) return;
       if (!tier || score <= 0) { navXdTier.style.display = 'none'; return; }
       const t = XD_TIERS_NAV[tier];
@@ -4757,7 +4757,68 @@ window.cancelAnimFrame = (function () {
 
     if (navXdInput) {
       updateNavXdUI(+navXdInput.value);
-      navXdInput.addEventListener('input', () => updateNavXdUI(+navXdInput.value));
+    }
+
+    // Custom mobile-friendly slider for xD score
+    if (navXdInput && navXdSliderContainer) {
+      const xdMin = 0, xdMax = +navXdInput.max || 100;
+      const xdContainer = navXdSliderContainer;
+      xdContainer.style.cssText = 'position:relative;height:28px;flex:1;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;';
+
+      const xdTrack = document.createElement('div');
+      xdTrack.style.cssText = 'position:absolute;left:8px;right:8px;height:4px;background:#333;border-radius:2px;top:50%;transform:translateY(-50%);';
+
+      const xdFill = document.createElement('div');
+      xdFill.style.cssText = 'position:absolute;left:0;height:100%;background:#888;border-radius:2px;pointer-events:none;';
+      navXdCustomFill = xdFill;
+
+      const xdThumb = document.createElement('div');
+      xdThumb.style.cssText = 'position:absolute;width:18px;height:18px;background:#888;border-radius:50%;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 6px rgba(0,0,0,.6);pointer-events:none;transition:transform .1s;';
+
+      const xdSetRatio = (r) => {
+        xdFill.style.width  = (r * 100) + '%';
+        xdThumb.style.left  = `calc(8px + ${r} * (100% - 16px))`;
+      };
+      xdSetRatio((+navXdInput.value - xdMin) / (xdMax - xdMin));
+
+      xdTrack.appendChild(xdFill);
+      xdContainer.appendChild(xdTrack);
+      xdContainer.appendChild(xdThumb);
+
+      const xdValueFromClientX = (clientX) => {
+        const rect = xdTrack.getBoundingClientRect();
+        const r    = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        xdSetRatio(r);
+        return Math.round(xdMin + r * (xdMax - xdMin));
+      };
+
+      xdContainer.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        xdContainer.setPointerCapture(e.pointerId);
+        xdThumb.style.transform = 'translate(-50%,-50%) scale(1.25)';
+        updateNavXdUI(xdValueFromClientX(e.clientX));
+        // also tint thumb with current tier colour
+        xdThumb.style.background = XD_TIER_COLORS[getNavXdTier(+navXdInput.value)];
+      }, { passive: false });
+
+      xdContainer.addEventListener('pointermove', (e) => {
+        if (!xdContainer.hasPointerCapture(e.pointerId)) return;
+        const val = xdValueFromClientX(e.clientX);
+        xdThumb.style.background = XD_TIER_COLORS[getNavXdTier(val)];
+        updateNavXdUI(val);
+      });
+
+      const xdOnEnd = (e) => {
+        if (!xdContainer.hasPointerCapture(e.pointerId)) return;
+        xdContainer.releasePointerCapture(e.pointerId);
+        xdThumb.style.transform = 'translate(-50%,-50%) scale(1)';
+      };
+      xdContainer.addEventListener('pointerup',     xdOnEnd);
+      xdContainer.addEventListener('pointercancel', xdOnEnd);
+
+      // Sync thumb colour on init
+      updateNavXdUI(+navXdInput.value);
+      xdThumb.style.background = XD_TIER_COLORS[getNavXdTier(+navXdInput.value)];
     }
 
     if (navXdSaveBtn && navXdInput) {

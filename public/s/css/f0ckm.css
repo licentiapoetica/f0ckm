@@ -12919,6 +12919,12 @@ body.layout-modern .xd-score-wrapper {
   min-width: 120px;
 }
 
+/* Custom mobile-friendly slider that replaces the native range input */
+.nav-xd-custom-slider {
+  flex: 1;
+  min-width: 120px;
+}
+
 .xd-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
