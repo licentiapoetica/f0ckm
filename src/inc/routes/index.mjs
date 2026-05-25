@@ -212,9 +212,12 @@ export default (router, tpl) => {
       req.session.strict_mode = (req.query?.strict === '1' || req.url.qs?.strict === '1');
     }
 
+    // Decode tag param once — browsers send title%3A... on hard reload, title:... via AJAX
+    const reqTag = req.params.tag ? decodeURIComponent(req.params.tag) : req.params.tag;
+
     const data = await (req.params.itemid ? f0cklib.getf0ck : f0cklib.getf0cks)({
       user: req.params.user,
-      tag: req.params.tag,
+      tag: reqTag,
       mime: req.cookies.mime !== undefined ? req.cookies.mime : (req.query?.mime || req.url.qs?.mime || req.params.mime || null),
       page: req.params.page,
       itemid: req.params.itemid,
@@ -243,7 +246,7 @@ export default (router, tpl) => {
         data.success = true;
         if (!data.link) {
           if (req.params.hall) data.link = { main: '/h/' + encodeURIComponent(req.params.hall) + '/', path: 'p/', suffix: '' };
-          else if (req.params.tag) data.link = { main: '/tag/' + encodeURIComponent(req.params.tag) + '/', path: 'p/', suffix: '' };
+          else if (reqTag) data.link = { main: '/tag/' + encodeURIComponent(reqTag) + '/', path: 'p/', suffix: '' };
           else data.link = { main: '/', path: 'p/', suffix: '' };
         }
         data.tmp = data.tmp || {};
@@ -251,7 +254,7 @@ export default (router, tpl) => {
           const hallRow = await db`SELECT id, name, slug, description FROM halls WHERE slug = ${req.params.hall} LIMIT 1`;
           data.tmp.hall = hallRow.length ? hallRow[0] : req.params.hall;
         }
-        if (req.params.tag && !data.tmp.tag) data.tmp.tag = req.params.tag;
+        if (reqTag && !data.tmp.tag) data.tmp.tag = reqTag;
       } else {
         // Return 200 for filtered NSFW items (has item data) so Discord parses og:image
         // Return 404 only for truly missing items
