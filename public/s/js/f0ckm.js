@@ -252,26 +252,38 @@ window.cancelAnimFrame = (function () {
   };
 
   window.flashMessage = (text, duration = 2000, type = 'info') => {
-    const existing = document.getElementById('f0ck-flash');
-    if (existing) existing.remove();
-    
+    // Ensure the stacking container exists
+    let container = document.getElementById('f0ck-flash-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'f0ck-flash-container';
+      container.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:9999;display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none;';
+      document.body.appendChild(container);
+    }
+
     const flash = document.createElement('div');
-    flash.id = 'f0ck-flash';
     flash.textContent = text;
-    
-    let baseStyle = 'position:fixed;bottom:20px;left:20px;color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);';
+
+    let baseStyle = 'color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;opacity:0;transition:opacity 0.3s,transform 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);transform:translateY(6px);';
     if (type === 'error') {
       baseStyle += 'background:rgba(200,30,30,0.95);';
+    } else if (type === 'success') {
+      baseStyle += 'background:rgba(30,130,60,0.95);';
     } else {
       baseStyle += 'background:rgba(30,30,30,0.95);';
     }
-    
+
     flash.style.cssText = baseStyle;
-    document.body.appendChild(flash);
-    
-    requestAnimationFrame(() => { flash.style.opacity = '1'; });
+    container.appendChild(flash);
+
+    requestAnimationFrame(() => {
+      flash.style.opacity = '1';
+      flash.style.transform = 'translateY(0)';
+    });
+
     setTimeout(() => {
       flash.style.opacity = '0';
+      flash.style.transform = 'translateY(6px)';
       setTimeout(() => flash.remove(), 300);
     }, duration);
   };
