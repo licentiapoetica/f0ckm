@@ -722,7 +722,12 @@ export default {
   }, getRandom: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, mode, fav, session, strict, exclude, userHall: rawUserHall, userHallOwner: rawUserHallOwner } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
     const hall = rawHall || null;
-    const tag = lib.parseTag(rawTag ?? null);
+
+    // --- title: prefix — search items.title instead of the tags table ---
+    const isTitleSearch = (rawTag ?? '').startsWith('title:');
+    const titleQuery = isTitleSearch ? (rawTag ?? '').substring(6).trim() : null;
+    const tag = isTitleSearch ? null : lib.parseTag(rawTag ?? null);
+
     const mime = (rawMime ?? "");
     const userHallSlug = rawUserHall || null;
     const userHallOwner = rawUserHallOwner || null;
@@ -758,7 +763,23 @@ export default {
 
     let item;
 
-    if (fav && user) {
+    if (isTitleSearch && titleQuery) {
+      // Title search random: filter by items.title, no tag join needed
+      item = await db`
+        SELECT items.id
+        FROM items
+        WHERE
+          ${db.unsafe(modequery)}
+          AND items.active = true
+          AND items.title ILIKE ${'%' + titleQuery + '%'}
+          AND items.title IS NOT NULL
+          ${mimeSQL}
+          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
+        ORDER BY random()
+        LIMIT 1
+      `;
+    } else if (fav && user) {
       // Special case: random from user's favorites
       item = await db`
         select
