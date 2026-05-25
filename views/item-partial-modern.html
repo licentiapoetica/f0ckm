@@ -60,8 +60,8 @@
             <div class="location">{{ link.main }}{{ item.id }}{{ link.suffix }}</div>
             <div class="gapLeft"></div>
         </div>
-        @if(enable_item_title && item.title)
-        <div class="item_title">{!! item.title !!}</div>
+        @if(enable_item_title)
+        <div class="item_title">{!! item.title || '' !!}</div>
         @endif
 
         <div class="content">

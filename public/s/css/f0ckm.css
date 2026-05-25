@@ -4281,6 +4281,10 @@ span.placeholder {
   position: relative;
 }
 
+.item_title:empty::before {
+  content: '\00a0';
+}
+
 .location {
   padding-left: 5px;
 }

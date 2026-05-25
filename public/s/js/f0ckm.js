@@ -9200,24 +9200,18 @@ if (navigator.vibrate) {
           saveBtn.innerHTML = origIcon;
           if (data.success) {
             // Update the live .item_title bar below the ID bar
-            let titleBar = document.querySelector('.item_title');
-            if (data.title) {
-              if (titleBar) {
-                titleBar.textContent = data.title;
-                titleBar.style.display = '';
-              } else {
-                // Create it if it doesn't exist yet
-                const idBar = document.querySelector('.item-main-content > ._204863');
-                if (idBar) {
-                  titleBar = document.createElement('div');
-                  titleBar.className = 'item_title';
-                  titleBar.textContent = data.title;
-                  idBar.insertAdjacentElement('afterend', titleBar);
-                }
+            const titleBar = document.querySelector('.item_title');
+            if (titleBar) {
+              titleBar.textContent = data.title || '';
+            } else if (data.title) {
+              // Fallback: create it if somehow missing (e.g. enable_item_title was toggled)
+              const idBar = document.querySelector('.item-main-content > ._204863');
+              if (idBar) {
+                const newBar = document.createElement('div');
+                newBar.className = 'item_title';
+                newBar.textContent = data.title;
+                idBar.insertAdjacentElement('afterend', newBar);
               }
-            } else {
-              // Title cleared
-              if (titleBar) titleBar.remove();
             }
             if (status) {
               status.textContent = '✓ Saved';
