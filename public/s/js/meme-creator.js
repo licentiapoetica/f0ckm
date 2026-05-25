@@ -20,6 +20,12 @@
         let img = new Image();
         let hasLoadedImage = window.memeTemplate.id !== 'custom' && window.memeTemplate.category !== 'Custom';
 
+        // Show the local file picker only when no pre-selected template exists
+        if (!hasLoadedImage) {
+            const customSelector = document.getElementById('customTemplateSelector');
+            if (customSelector) customSelector.style.display = '';
+        }
+
         const memeFont = 'Impact, Charcoal, sans-serif';
 
         function wrapText(ctx, text, maxWidth) {
