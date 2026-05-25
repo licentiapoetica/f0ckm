@@ -1,5 +1,19 @@
 
+// Normalize percent-encoded characters in the URL bar that are safe to show decoded.
+// Runs immediately so the address bar is clean before any other JS runs.
+(function () {
+  try {
+    const p = window.location.pathname;
+    // Decode colon and space; leave %2F (/), %3F (?), %23 (#), %26 (&) encoded.
+    const clean = p.replace(/%3A/gi, ':').replace(/%20/gi, ' ');
+    if (clean !== p) {
+      history.replaceState(null, '', clean + window.location.search + window.location.hash);
+    }
+  } catch (_) {}
+})();
+
 window.requestAnimFrame = (function () {
+
   return window.requestAnimationFrame
     || window.webkitRequestAnimationFrame
     || window.mozRequestAnimationFrame

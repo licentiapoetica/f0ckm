@@ -99,8 +99,9 @@ export default {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
 
     // --- title: prefix — search items.title instead of the tags table ---
-    const isTitleSearch = (rawTag ?? '').startsWith('title:');
-    const titleQuery = isTitleSearch ? (rawTag ?? '').substring(6).trim() : null;
+    const _decodedTag = rawTag ? decodeURIComponent(rawTag) : '';
+    const isTitleSearch = _decodedTag.startsWith('title:');
+    const titleQuery = isTitleSearch ? _decodedTag.substring(6).trim() : null;
 
     const tag = isTitleSearch ? null : lib.parseTag(rawTag ?? null);
     let hall = rawHall ?? null;
@@ -147,7 +148,7 @@ export default {
     const strictParams = ((strict || (tag && tag.includes(','))) && tag) ? tag.split(',').map(t => lib.slugify(t)).filter(t => t) : [];
     const isStrict = strictParams.length > 0;
 
-    const tmp = { user, tag: isTitleSearch ? rawTag : tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
+    const tmp = { user, tag: isTitleSearch ? _decodedTag : tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
     const baseMode = lib.getMode(mode ?? 0);
     const modequery = baseMode;
 
@@ -339,7 +340,12 @@ export default {
   },
   getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, session, strict, exclude, user_id, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, lang } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
-    const tag = lib.parseTag(rawTag ?? null);
+
+    // --- title: prefix — search items.title instead of the tags table ---
+    const _decodedTag = rawTag ? decodeURIComponent(rawTag) : '';
+    const isTitleSearch = _decodedTag.startsWith('title:');
+    const titleQuery = isTitleSearch ? _decodedTag.substring(6).trim() : null;
+    const tag = isTitleSearch ? null : lib.parseTag(rawTag ?? null);
     let hall = rawHall ?? null;
     if (hall) {
         const hallData = await db`SELECT name, slug, description FROM halls WHERE slug = ${hall} LIMIT 1`;
@@ -376,7 +382,7 @@ export default {
     const strictParams = ((strict || (tag && tag.includes(','))) && tag) ? tag.split(',').map(t => lib.slugify(t)).filter(t => t) : [];
     const isStrict = strictParams.length > 0;
 
-    const tmp = { user, tag, hall, mime, itemid, strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
+    const tmp = { user, tag: isTitleSearch ? _decodedTag : tag, hall, mime, itemid, strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
 
     const effMode = Number(mode ?? 0);
     const modequery = lib.getMode(effMode);
@@ -389,7 +395,10 @@ export default {
     }
 
     let tagFilter = db``;
-    if (tag) {
+    let titleFilter = db``;
+    if (isTitleSearch && titleQuery) {
+      titleFilter = db`and items.title ILIKE ${'%' + titleQuery + '%'} and items.title IS NOT NULL`;
+    } else if (tag) {
       const terms = tag.split(',').map(t => t.trim()).filter(Boolean);
       if (terms.length > 0) {
         if (isStrict) {
@@ -426,6 +435,7 @@ export default {
             ${db.unsafe(modequery)}
             and items.active = true
             ${tagFilter}
+            ${titleFilter}
             ${hallFilter}
             ${userHallFilter}
             ${fav ? db`and "user"."user" ilike ${user}` : db``}
@@ -724,8 +734,9 @@ export default {
     const hall = rawHall || null;
 
     // --- title: prefix — search items.title instead of the tags table ---
-    const isTitleSearch = (rawTag ?? '').startsWith('title:');
-    const titleQuery = isTitleSearch ? (rawTag ?? '').substring(6).trim() : null;
+    const _decodedTag = rawTag ? decodeURIComponent(rawTag) : '';
+    const isTitleSearch = _decodedTag.startsWith('title:');
+    const titleQuery = isTitleSearch ? _decodedTag.substring(6).trim() : null;
     const tag = isTitleSearch ? null : lib.parseTag(rawTag ?? null);
 
     const mime = (rawMime ?? "");
