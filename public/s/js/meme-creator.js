@@ -113,6 +113,56 @@
             });
         }
 
+        function createSlider(container, min, max, initValue, onChange) {
+            container.style.cssText = 'position:relative;height:28px;display:flex;align-items:center;flex:1;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;';
+
+            const track = document.createElement('div');
+            track.style.cssText = 'position:absolute;left:8px;right:8px;height:4px;background:#333;border-radius:2px;';
+
+            const fill = document.createElement('div');
+            fill.style.cssText = 'position:absolute;left:0;height:100%;background:var(--accent,#9f0);border-radius:2px;pointer-events:none;';
+
+            const thumb = document.createElement('div');
+            thumb.style.cssText = 'position:absolute;width:18px;height:18px;background:var(--accent,#9f0);border-radius:50%;transform:translateX(-50%);box-shadow:0 0 6px rgba(0,0,0,.6);pointer-events:none;transition:transform .1s;';
+
+            const setRatio = (r) => {
+                fill.style.width = (r * 100) + '%';
+                thumb.style.left   = (r * 100) + '%';
+            };
+            setRatio((initValue - min) / (max - min));
+
+            track.appendChild(fill);
+            track.appendChild(thumb);
+            container.appendChild(track);
+
+            const valueFromClientX = (clientX) => {
+                const rect = track.getBoundingClientRect();
+                const r    = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                setRatio(r);
+                return Math.round(min + r * (max - min));
+            };
+
+            container.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // block keyboard + scroll takeover
+                container.setPointerCapture(e.pointerId);
+                thumb.style.transform = 'translateX(-50%) scale(1.25)';
+                onChange(valueFromClientX(e.clientX));
+            }, { passive: false });
+
+            container.addEventListener('pointermove', (e) => {
+                if (!container.hasPointerCapture(e.pointerId)) return;
+                onChange(valueFromClientX(e.clientX));
+            });
+
+            const onEnd = (e) => {
+                if (!container.hasPointerCapture(e.pointerId)) return;
+                container.releasePointerCapture(e.pointerId);
+                thumb.style.transform = 'translateX(-50%) scale(1)';
+            };
+            container.addEventListener('pointerup',     onEnd);
+            container.addEventListener('pointercancel', onEnd);
+        }
+
         function renderInputs() {
             layersContainer.innerHTML = '';
             textLayers.forEach((layer, index) => {
@@ -130,7 +180,7 @@
                     
                     <div class="layer-font-size-control" style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 0.8em; color: #888; white-space: nowrap;">${(window.f0ckI18n?.meme?.size_label) || 'Size'}: <span class="layer-fs-val">${layer.fontSize}</span>px</span>
-                        <input type="range" class="layer-fs-input" min="10" max="200" value="${layer.fontSize}" inputmode="none" style="flex: 1;">
+                        <div class="layer-fs-slider" style="flex: 1;"></div>
                     </div>
                 `;
                 
@@ -140,11 +190,11 @@
                     draw();
                 });
 
-                const fsInput = div.querySelector('.layer-fs-input');
-                const fsVal = div.querySelector('.layer-fs-val');
-                fsInput.addEventListener('input', (e) => {
-                    layer.fontSize = parseInt(e.target.value);
-                    fsVal.textContent = layer.fontSize;
+                const fsSlider = div.querySelector('.layer-fs-slider');
+                const fsVal    = div.querySelector('.layer-fs-val');
+                createSlider(fsSlider, 10, 200, layer.fontSize, (val) => {
+                    layer.fontSize    = val;
+                    fsVal.textContent = val;
                     draw();
                 });
 
