@@ -97,7 +97,12 @@ const xdScoreMeta = (score) => {
 export default {
   getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, fav, session, limit, strict, newer, exclude, user_id, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
-    const tag = lib.parseTag(rawTag ?? null);
+
+    // --- title: prefix — search items.title instead of the tags table ---
+    const isTitleSearch = (rawTag ?? '').startsWith('title:');
+    const titleQuery = isTitleSearch ? (rawTag ?? '').substring(6).trim() : null;
+
+    const tag = isTitleSearch ? null : lib.parseTag(rawTag ?? null);
     let hall = rawHall ?? null;
     let hallObj = null;
     if (hall) {
@@ -142,12 +147,16 @@ export default {
     const strictParams = ((strict || (tag && tag.includes(','))) && tag) ? tag.split(',').map(t => lib.slugify(t)).filter(t => t) : [];
     const isStrict = strictParams.length > 0;
 
-    const tmp = { user, tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
+    const tmp = { user, tag: isTitleSearch ? rawTag : tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
     const baseMode = lib.getMode(mode ?? 0);
     const modequery = baseMode;
 
     let tagFilter = db``;
-    if (tag) {
+    let titleFilter = db``;
+    if (isTitleSearch && titleQuery) {
+      // Title search: match items.title ILIKE '%query%'
+      titleFilter = db`and items.title ILIKE ${'%' + titleQuery + '%'} and items.title IS NOT NULL`;
+    } else if (tag) {
       const terms = tag.split(',').map(t => t.trim()).filter(Boolean);
       if (terms.length > 0) {
         if (isStrict) {
@@ -188,6 +197,7 @@ export default {
         ${db.unsafe(modequery)}
         and items.active = true
         ${tagFilter}
+        ${titleFilter}
         ${fav ? db`and fav_u.user ilike ${user}` : db``}
         ${!fav && user ? db`and items.username ilike ${user}` : db``}
         ${mimeSQL}
@@ -245,6 +255,7 @@ export default {
         ${db.unsafe(modequery)}
         and items.active = true
         ${tagFilter}
+        ${titleFilter}
         ${fav ? db`and fav_u.user ilike ${user}` : db``}
         ${!fav && user ? db`and items.username ilike ${user}` : db``}
         ${mimeSQL}
@@ -290,6 +301,13 @@ export default {
       cheat.push(i);
 
     const link = lib.genLink({ user, tag, hall: hallObj ? hallObj.slug : hall, mime, type: fav ? 'favs' : 'uploads', path: 'p/', strict: strict });
+
+    // Override link for title searches — pagination must use the /tag/title:... prefix
+    if (isTitleSearch && titleQuery) {
+      link.main = `/tag/${encodeURIComponent('title:' + titleQuery)}/`;
+      link.path = 'p/';
+      link.suffix = '';
+    }
 
     // Override link for user hall context
     if (userHallObj && userHallOwner) {
