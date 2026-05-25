@@ -236,7 +236,7 @@ canvas#memeCanvas {
     .meme-editor-layout {
         display: grid !important;
         grid-template-columns: 1fr !important;
-        grid-template-rows: 0.6fr 1fr !important;
+        grid-template-rows: 0.6fr auto !important;
         gap: 20px;
     }
     .meme-controls {
