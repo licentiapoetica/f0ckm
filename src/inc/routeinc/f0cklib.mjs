@@ -305,7 +305,7 @@ export default {
 
     // Override link for title searches — pagination must use the /tag/title:... prefix
     if (isTitleSearch && titleQuery) {
-      link.main = `/tag/${encodeURIComponent('title:' + titleQuery)}/`;
+      link.main = `/tag/title:${encodeURIComponent(titleQuery)}/`;
       link.path = 'p/';
       link.suffix = '';
     }

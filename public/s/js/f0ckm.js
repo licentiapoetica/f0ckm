@@ -4368,7 +4368,7 @@ window.cancelAnimFrame = (function () {
               suggestions.style.display = 'none';
               highlightIdx = -1;
               toggleSearch(false);
-              const target = `/tag/${encodeURIComponent('title:' + s.title)}/`;
+              const target = `/tag/title:${encodeURIComponent(s.title)}/`;
               if (typeof loadPageAjax === 'function') {
                 loadPageAjax(target, true);
               } else {
@@ -4549,7 +4549,7 @@ window.cancelAnimFrame = (function () {
                 suggestions.style.display = 'none';
                 highlightIdx = -1;
                 toggleSearch(false);
-                const target = `/tag/${encodeURIComponent('title:' + el.dataset.title)}/`;
+                const target = `/tag/title:${encodeURIComponent(el.dataset.title)}/`;
                 if (typeof loadPageAjax === 'function') {
                   loadPageAjax(target, true);
                 } else {
@@ -4580,7 +4580,7 @@ window.cancelAnimFrame = (function () {
           if (tagItems.length === 0 && titleItems.length > 0) {
             toggleSearch(false);
             const q = input.value.trim();
-            const target = `/tag/${encodeURIComponent('title:' + q)}/`;
+            const target = `/tag/title:${encodeURIComponent(q)}/`;
             if (typeof loadPageAjax === 'function') {
               loadPageAjax(target, true);
             } else {
