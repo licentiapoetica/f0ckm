@@ -367,14 +367,16 @@
             }
             const category = (window.memeTemplate && window.memeTemplate.category) ? window.memeTemplate.category.toLowerCase() : '';
             const subCategory = (window.memeTemplate && window.memeTemplate.sub_category) ? window.memeTemplate.sub_category.toLowerCase() : '';
+            const templateId = (window.memeTemplate && window.memeTemplate.id) ? window.memeTemplate.id.toLowerCase() : '';
             
             const isOrakelVon10 = subCategory === 'von10';
             const isOrakelUser = subCategory === 'user';
-            const isOrakelNormal = category === 'orakel' && !isOrakelUser && !isOrakelVon10;
+            const isOrakelBingoApu = subCategory === 'bingoapu' || templateId === 'bingoapu';
+            const isOrakelNormal = category === 'orakel' && !isOrakelUser && !isOrakelVon10 && !isOrakelBingoApu;
 
             let uploadCanvas = canvas;
 
-            if (isOrakelNormal || isOrakelUser || isOrakelVon10) {
+            if (isOrakelNormal || isOrakelUser || isOrakelVon10 || isOrakelBingoApu) {
                 // Create an off-screen canvas to apply the orakel answer silently
                 uploadCanvas = document.createElement('canvas');
                 uploadCanvas.width = canvas.width;
@@ -385,6 +387,7 @@
                 uCtx.drawImage(canvas, 0, 0);
                 
                 let result = '';
+                let selectedCorner = null;
                 if (isOrakelNormal) {
                     const outcomes = ['JA', 'NEIN', 'VIELLEICHT', 'AUF JEDEN FALL', 'NIEMALS', 'SOWAS VON JA', 'VERGISS ES', 'FRAG SPÄTER', 'KOMMT DRAUF AN'];
                     result = outcomes[Math.floor(Math.random() * outcomes.length)];
@@ -398,92 +401,115 @@
                     }
                 } else if (isOrakelVon10) {
                     result = Math.floor(Math.random() * 11).toString();
+                } else if (isOrakelBingoApu) {
+                    const corners = [
+                        { x: 60, y: 100, label: 'YES' },
+                        { x: 573, y: 100, label: 'NO' },
+                        { x: 60, y: 615, label: 'NO' },
+                        { x: 573, y: 615, label: 'YES' }
+                    ];
+                    selectedCorner = corners[Math.floor(Math.random() * corners.length)];
+                    result = selectedCorner.label;
                 }
                 
                 // Draw Orakel result on the hidden canvas
                 uCtx.save();
-                uCtx.font = (isOrakelVon10) ? 'bold 150px Impact' : 'bold 80px Impact'; // Bigger font for the rating
-                uCtx.textAlign = 'center';
-                uCtx.textBaseline = 'middle';
-                
-                if (isOrakelNormal) {
-                    uCtx.shadowBlur = 20;
-                    uCtx.shadowColor = 'rgba(101, 37, 212, 1)';
-                } else if (isOrakelVon10) {
-                    uCtx.shadowBlur = 0; // No shadow as requested
-                } else {
-                    // No shadow for the User Orakel
-                    uCtx.shadowBlur = 0;
-                }
-                
-                uCtx.fillStyle = '#fff';
-                uCtx.strokeStyle = '#000';
-                uCtx.lineWidth = 10;
-                uCtx.miterLimit = 2;
-                
-                // Adjust position for user Orakel (reverting to +10 offset)
-                let yPos = Math.round(isOrakelUser ? (uploadCanvas.height / 2 + 10) : (uploadCanvas.height / 2 + 50));
-                
-                if (isOrakelVon10) {
-                    yPos = Math.round(uploadCanvas.height / 2 ); // 1px lower
-                }
-
-                const xPos = Math.round(uploadCanvas.width / 2);
-                
-                // Auto-fit font size for user orakel — shrink until text fits within image width
-                let orakelFontSize = isOrakelVon10 ? 150 : 80;
-                const maxTextWidth = uploadCanvas.width - 80; // 40px padding each side
-
-                if (isOrakelUser) {
-                    const parts = result.split('|||');
-                    const namePart = parts[0];
-                    const idPart = parts.length > 1 ? `(${parts[1]})` : '';
-                    const combinedText = idPart ? `${namePart} ${idPart}` : namePart;
-
-                    // Even tighter threshold for User Orakel (approx 25% total padding)
-                    const userMaxWidth = Math.round(uploadCanvas.width * 0.75);
-
-                    let currentFontSize = 74;
-                    uCtx.font = `bold ${currentFontSize}px Impact`;
+                if (isOrakelBingoApu) {
+                    // Draw "KOPS" in normal meme text style on the selected corner
+                    uCtx.font = `bold 28px ${memeFont}`;
+                    uCtx.textAlign = 'center';
+                    uCtx.textBaseline = 'middle';
+                    uCtx.fillStyle = '#fff';
+                    uCtx.strokeStyle = '#000';
+                    uCtx.lineWidth = 4;
+                    uCtx.miterLimit = 2;
                     
-                    // First attempt: Shrink entire text on one line down to 58px if needed
-                    while (uCtx.measureText(combinedText).width > userMaxWidth && currentFontSize > 58) {
-                        currentFontSize -= 2;
-                        uCtx.font = `bold ${currentFontSize}px Impact`;
-                    }
-
-                    const combinedFits = uCtx.measureText(combinedText).width <= userMaxWidth;
-
-                    if (combinedFits) {
-                        // Single line — potentially shrunk for long names
-                        uCtx.fillText(combinedText, xPos, yPos);
-                    } else {
-                        // Two lines — auto-fit just the name, ID below
-                        let nameFontSize = 74;
-                        uCtx.font = `bold ${nameFontSize}px Impact`;
-                        while (uCtx.measureText(namePart).width > userMaxWidth && nameFontSize > 16) {
-                            nameFontSize -= 2;
-                            uCtx.font = `bold ${nameFontSize}px Impact`;
-                        }
-
-                        const idFontSize = Math.max(18, Math.round(nameFontSize * 0.45));
-                        const lineGap = Math.round(nameFontSize * 0.65);
-                        const nameY = Math.round(yPos - lineGap / 2);
-                        const idY = Math.round(yPos + lineGap / 2) + 2;
-
-                        uCtx.font = `bold ${nameFontSize}px Impact`;
-                        uCtx.fillText(namePart, xPos, nameY);
-
-                        if (idPart) {
-                            uCtx.font = `bold ${idFontSize}px Impact`;
-                            uCtx.fillText(idPart, xPos, idY);
-                        }
-                    }
+                    uCtx.strokeText('KOPS', selectedCorner.x, selectedCorner.y);
+                    uCtx.fillText('KOPS', selectedCorner.x, selectedCorner.y);
                 } else {
-                    // Normal / von10 — single line as before
-                    uCtx.font = `bold ${orakelFontSize}px Impact`;
-                    uCtx.strokeText(result, xPos, yPos);
-                    uCtx.fillText(result, xPos, yPos);
+                    uCtx.font = (isOrakelVon10) ? 'bold 150px Impact' : 'bold 80px Impact'; // Bigger font for the rating
+                    uCtx.textAlign = 'center';
+                    uCtx.textBaseline = 'middle';
+                    
+                    if (isOrakelNormal) {
+                        uCtx.shadowBlur = 20;
+                        uCtx.shadowColor = 'rgba(101, 37, 212, 1)';
+                    } else if (isOrakelVon10) {
+                        uCtx.shadowBlur = 0; // No shadow as requested
+                    } else {
+                        // No shadow for the User Orakel
+                        uCtx.shadowBlur = 0;
+                    }
+                    
+                    uCtx.fillStyle = '#fff';
+                    uCtx.strokeStyle = '#000';
+                    uCtx.lineWidth = 10;
+                    uCtx.miterLimit = 2;
+                    
+                    // Adjust position for user Orakel (reverting to +10 offset)
+                    let yPos = Math.round(isOrakelUser ? (uploadCanvas.height / 2 + 10) : (uploadCanvas.height / 2 + 50));
+                    
+                    if (isOrakelVon10) {
+                        yPos = Math.round(uploadCanvas.height / 2 ); // 1px lower
+                    }
+
+                    const xPos = Math.round(uploadCanvas.width / 2);
+                    
+                    // Auto-fit font size for user orakel — shrink until text fits within image width
+                    let orakelFontSize = isOrakelVon10 ? 150 : 80;
+                    const maxTextWidth = uploadCanvas.width - 80; // 40px padding each side
+
+                    if (isOrakelUser) {
+                        const parts = result.split('|||');
+                        const namePart = parts[0];
+                        const idPart = parts.length > 1 ? `(${parts[1]})` : '';
+                        const combinedText = idPart ? `${namePart} ${idPart}` : namePart;
+
+                        // Even tighter threshold for User Orakel (approx 25% total padding)
+                        const userMaxWidth = Math.round(uploadCanvas.width * 0.75);
+
+                        let currentFontSize = 74;
+                        uCtx.font = `bold ${currentFontSize}px Impact`;
+                        
+                        // First attempt: Shrink entire text on one line down to 58px if needed
+                        while (uCtx.measureText(combinedText).width > userMaxWidth && currentFontSize > 58) {
+                            currentFontSize -= 2;
+                            uCtx.font = `bold ${currentFontSize}px Impact`;
+                        }
+
+                        const combinedFits = uCtx.measureText(combinedText).width <= userMaxWidth;
+
+                        if (combinedFits) {
+                            // Single line — potentially shrunk for long names
+                            uCtx.fillText(combinedText, xPos, yPos);
+                        } else {
+                            // Two lines — auto-fit just the name, ID below
+                            let nameFontSize = 74;
+                            uCtx.font = `bold ${nameFontSize}px Impact`;
+                            while (uCtx.measureText(namePart).width > userMaxWidth && nameFontSize > 16) {
+                                nameFontSize -= 2;
+                                uCtx.font = `bold ${nameFontSize}px Impact`;
+                            }
+
+                            const idFontSize = Math.max(18, Math.round(nameFontSize * 0.45));
+                            const lineGap = Math.round(nameFontSize * 0.65);
+                            const nameY = Math.round(yPos - lineGap / 2);
+                            const idY = Math.round(yPos + lineGap / 2) + 2;
+
+                            uCtx.font = `bold ${nameFontSize}px Impact`;
+                            uCtx.fillText(namePart, xPos, nameY);
+
+                            if (idPart) {
+                                uCtx.font = `bold ${idFontSize}px Impact`;
+                                uCtx.fillText(idPart, xPos, idY);
+                            }
+                        }
+                    } else {
+                        // Normal / von10 — single line as before
+                        uCtx.font = `bold ${orakelFontSize}px Impact`;
+                        uCtx.strokeText(result, xPos, yPos);
+                        uCtx.fillText(result, xPos, yPos);
+                    }
                 }
                 uCtx.restore();
             }
