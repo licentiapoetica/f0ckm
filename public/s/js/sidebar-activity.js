@@ -399,7 +399,7 @@
             const url = `/c/${f.dest}`;
             if (content.includes(url)) return ''; // Skip if already rendered in content
             if (f.mime.startsWith('image/')) {
-                return `<a href="${url}" target="_blank" class="cf-attachment cf-image" style="display: inline-block; max-width: 100%;"><img src="${url}" alt="${escapeHtml(f.original_filename || 'image')}" loading="lazy" style="max-width: 100%; max-height: 150px; object-fit: contain; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></a>`;
+                return `<a href="${url}" target="_blank" class="cf-attachment cf-image" style="display: inline-block; max-width: 100%;"><img src="${url}" class="sidebar-comment-img" alt="${escapeHtml(f.original_filename || 'image')}" loading="lazy" style="max-width: 100%; max-height: 150px; object-fit: contain; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></a>`;
             } else if (f.mime.startsWith('video/')) {
                 return `<div class="cf-attachment cf-video" style="max-width: 100%;"><video src="${url}" controls preload="metadata" style="max-width: 100%; max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></video></div>`;
             } else if (f.mime.startsWith('audio/')) {
