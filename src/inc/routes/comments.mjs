@@ -253,7 +253,7 @@ export default (router, tpl) => {
         const body = req.post || {};
         const item_id = parseInt(body.item_id, 10);
         const parent_id = body.parent_id ? parseInt(body.parent_id, 10) : null;
-        let content = body.content;
+        let content = body.content || '';
         content = await applyWordFilter(content);
         const video_time = (body.video_time !== undefined && body.video_time !== '' && !isNaN(parseFloat(body.video_time)))
             ? parseFloat(body.video_time)
@@ -261,7 +261,10 @@ export default (router, tpl) => {
 
         if (cfg.main.development) console.log("DEBUG: Posting comment:", { item_id, parent_id, content: content?.substring(0, 20) });
 
-        if (!content || !content.trim()) {
+        const fileIdsRaw = body.file_ids || '';
+        const fileIds = fileIdsRaw ? fileIdsRaw.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0) : [];
+
+        if ((!content || !content.trim()) && fileIds.length === 0) {
             return res.reply({ body: JSON.stringify({ success: false, message: "Empty comment" }) });
         }
 
@@ -283,7 +286,7 @@ export default (router, tpl) => {
                 item_id,
                 user_id: req.session.id,
                 parent_id: parent_id || null,
-                content: content
+                content: content || ''
             };
             if (video_time !== null) insertData.video_time = video_time;
 

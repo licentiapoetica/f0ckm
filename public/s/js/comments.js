@@ -2368,6 +2368,9 @@ class CommentSystem {
                             previewItem.classList.remove('cf-uploading');
                             previewItem.dataset.url = url;
                             previewItem.dataset.fileId = fileData.id;
+                            previewItem.dataset.dest = fileData.dest;
+                            previewItem.dataset.mime = fileData.mime;
+                            previewItem.dataset.originalFilename = file.name;
                             previewItem.innerHTML = '';
 
                             if (fileData.mime.startsWith('image/')) {
@@ -2855,7 +2858,25 @@ class CommentSystem {
         const text = textarea.value.trim();
         const parentId = wrap.dataset.parent || null;
 
-        if (!text.trim()) return;
+        // Collect file IDs and files from upload previews
+        const fileIds = [];
+        const files = [];
+        const previewArea = wrap.querySelector('.comment-file-preview');
+        if (previewArea) {
+            previewArea.querySelectorAll('.cf-preview-item').forEach(item => {
+                if (item.dataset.fileId) {
+                    fileIds.push(item.dataset.fileId);
+                    files.push({
+                        id: parseInt(item.dataset.fileId, 10),
+                        dest: item.dataset.dest,
+                        mime: item.dataset.mime,
+                        original_filename: item.dataset.originalFilename
+                    });
+                }
+            });
+        }
+
+        if (!text && fileIds.length === 0) return;
         if (submitBtn.classList.contains('loading') || submitBtn.disabled) return;
         if (wrap._pendingUploads > 0) return;
 
@@ -2890,16 +2911,6 @@ class CommentSystem {
                 params.append('content', text);
                 if (videoTime !== null) params.append('video_time', videoTime.toFixed(3));
 
-                // Collect file IDs from upload previews
-                const fileIds = [];
-                const previewArea = wrap.querySelector('.comment-file-preview');
-                if (previewArea) {
-                    previewArea.querySelectorAll('.cf-preview-item').forEach(item => {
-                        if (item.dataset.fileId) {
-                            fileIds.push(item.dataset.fileId);
-                        }
-                    });
-                }
                 if (fileIds.length > 0) {
                     params.append('file_ids', fileIds.join(','));
                 }
@@ -2981,6 +2992,7 @@ class CommentSystem {
                         item_id: this.itemId,
                         parent_id: parentId ? parseInt(parentId, 10) : null,
                         content: text,
+                        files: files,
                         created_at: json.comment.created_at || new Date().toISOString(),
                         username: currentUsername,
                         user_id: session.id || null,
