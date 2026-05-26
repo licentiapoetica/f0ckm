@@ -280,10 +280,10 @@ export default {
       row.xd_label = meta.label;
     }
 
-    // Dynamic thumb sizing: only on the unfiltered main feed.
-    // Profile pages, tag searches, halls, favorites, mime filters all use tier 1 (1×1).
+    // Dynamic thumb sizing: applies to the main feed including mime/rating filters.
+    // Only per-user profiles, tag searches, halls, and favorites disable it.
     const isMainFeed = cfg.websrv.enable_dynamic_thumbs
-      && !rawUser && !rawTag && !rawHall && !rawUserHall && !rawMime && !fav;
+      && !rawUser && !rawTag && !rawHall && !rawUserHall && !fav;
 
     if (isMainFeed) {
       for (const row of rows) {
