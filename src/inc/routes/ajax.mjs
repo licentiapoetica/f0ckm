@@ -31,11 +31,14 @@ export default (router, tpl) => {
         if (cfg.main.development) console.log(`[${new Date().toISOString()}] [AJAX] Starting item load for ${req.params.itemid}`);
 
         const isRandom = query.random === '1' || req.cookies.random_mode === '1';
+        const ratingsRaw = req.cookies.ratings;
+        const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
 
         const itemid = req.params.itemid || req.url.pathname.match(/\/ajax\/item\/(\d+)/)?.[1];
         const data = await f0cklib.getf0ck({
             itemid: itemid,
             mode: query.mode !== undefined ? +query.mode : req.mode,
+            ratings: ratingsArr,
             session: !!req.session,
             url: contextUrl,
             user: query.user,
@@ -191,6 +194,8 @@ export default (router, tpl) => {
 
         const page = parseInt(query.page) || 1;
         const isRandom = query.random === '1' || req.cookies.random_mode === '1';
+        const ratingsRaw = req.cookies.ratings;
+        const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
 
         const data = await f0cklib.getf0cks({
             page: page,
@@ -199,6 +204,7 @@ export default (router, tpl) => {
             user: query.user || null,
             mime: query.mime || (req.cookies.mime || null),
             mode: query.mode !== undefined ? +query.mode : req.mode,
+            ratings: ratingsArr,
             session: !!req.session,
             exclude: req.session ? (req.session.excluded_tags || []) : [],
             user_id: req.session?.id,

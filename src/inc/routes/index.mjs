@@ -62,9 +62,12 @@ export default (router, tpl) => {
     };
     try {
       const isRandom = req.cookies.random_mode === '1';
+      const ratingsRaw = req.cookies.ratings;
+      const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
       f0cks = await f0cklib.getf0cks({
         user: user,
         mode: req.mode,
+        ratings: ratingsArr,
         mime: mime,
         fav: false,
         session: !!req.session,
@@ -83,9 +86,12 @@ export default (router, tpl) => {
     if (!userData.is_ghost) {
       try {
         const isRandom = req.cookies.random_mode === '1';
+        const ratingsRaw = req.cookies.ratings;
+        const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
         favs = await f0cklib.getf0cks({
           user: user,
           mode: req.mode,
+          ratings: ratingsArr,
           mime: mime,
           fav: true,
           session: !!req.session,
@@ -224,6 +230,7 @@ export default (router, tpl) => {
       hall: req.params.hall,
       fav: req.params.mode == 'favs',
       mode: req.mode,
+      ratings: (() => { const r = req.cookies.ratings; return r ? decodeURIComponent(r).split(/[|,]/).filter(x => ['sfw','nsfw','nsfl','untagged'].includes(x)) : null; })(),
       session: !!req.session,
       user_id: req.session?.id,
       exclude: req.session ? (req.session.excluded_tags || []) : [],

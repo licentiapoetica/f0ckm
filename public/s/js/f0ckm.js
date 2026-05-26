@@ -358,6 +358,16 @@ window.cancelAnimFrame = (function () {
       }
     }
 
+    // Check multi-rating cookie
+    const ratingsRaw = document.cookie.split('; ').find(row => row.startsWith('ratings='));
+    const activeRatings = window.getRatingsCookie ? window.getRatingsCookie() : (() => {
+      if (!ratingsRaw) return [];
+      const val = ratingsRaw.split('=').slice(1).join('=');
+      const decoded = decodeURIComponent(val);
+      const parts = decoded.includes('|') ? decoded.split('|') : decoded.split(',');
+      return parts.filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r));
+    })();
+
     let hasMimeFilter = false;
     let mimeStr = '';
     const cookieMime = document.cookie.split('; ').find(row => row.startsWith('mime='));
@@ -372,30 +382,53 @@ window.cancelAnimFrame = (function () {
     let badgeText = '';
     let badgeClass = 'filter-badge';
 
-    switch (activeMode) {
-      case 0:
-        badgeText = 'SFW';
-        badgeClass += ' filter-badge-sfw';
-        break;
-      case 1:
-        badgeText = 'NSFW';
-        badgeClass += ' filter-badge-nsfw';
-        break;
-      case 4:
-        badgeText = 'NSFL';
-        badgeClass += ' filter-badge-nsfl';
-        break;
-      case 2:
-        badgeText = 'UNT';
-        badgeClass += ' filter-badge-unt';
-        break;
-      case 3:
+    if (activeRatings.length > 0) {
+      // If every available rating is selected, treat as ALL
+      const nsflEnabled = !!(window.f0ckSession?.enable_nsfl ?? true); // default true if unknown
+      const allRatings = nsflEnabled
+        ? ['sfw', 'nsfw', 'nsfl', 'untagged']
+        : ['sfw', 'nsfw', 'untagged'];
+      const isAll = allRatings.every(r => activeRatings.includes(r));
+
+      if (isAll) {
         badgeText = 'ALL';
         badgeClass += ' filter-badge-all';
-        break;
-      default:
-        badgeText = 'SFW';
-        badgeClass += ' filter-badge-sfw';
+      } else {
+        // Multi-rating mode: show abbreviated names
+        const abbr = { sfw: 'SFW', nsfw: 'NSFW', nsfl: 'NSFL', untagged: 'UNT' };
+        badgeText = activeRatings.map(r => abbr[r] || r.toUpperCase()).join('+');
+        // Use most prominent active rating for colour hint
+        if (activeRatings.includes('nsfw')) badgeClass += ' filter-badge-nsfw';
+        else if (activeRatings.includes('nsfl')) badgeClass += ' filter-badge-nsfl';
+        else if (activeRatings.includes('sfw')) badgeClass += ' filter-badge-sfw';
+        else badgeClass += ' filter-badge-unt';
+      }
+    } else {
+      switch (activeMode) {
+        case 0:
+          badgeText = 'SFW';
+          badgeClass += ' filter-badge-sfw';
+          break;
+        case 1:
+          badgeText = 'NSFW';
+          badgeClass += ' filter-badge-nsfw';
+          break;
+        case 4:
+          badgeText = 'NSFL';
+          badgeClass += ' filter-badge-nsfl';
+          break;
+        case 2:
+          badgeText = 'UNT';
+          badgeClass += ' filter-badge-unt';
+          break;
+        case 3:
+          badgeText = 'ALL';
+          badgeClass += ' filter-badge-all';
+          break;
+        default:
+          badgeText = 'SFW';
+          badgeClass += ' filter-badge-sfw';
+      }
     }
 
     const isRandom = document.cookie.includes('random_mode=1');
@@ -445,12 +478,173 @@ window.cancelAnimFrame = (function () {
     img.src = randomImg;
   };
 
-  // Initialize active mode from UI
-  const activeModeBtn = document.querySelector('.mode-btn.active');
-  if (activeModeBtn) {
-    const modeMatch = activeModeBtn.href.match(/\/mode\/(\d)/);
-    if (modeMatch) window.activeMode = +modeMatch[1];
+  // Initialize active mode: prefer mode cookie, then session, then legacy mode-btn
+  const _modeCookieRaw = document.cookie.split('; ').find(r => r.startsWith('mode='));
+  if (_modeCookieRaw) {
+    window.activeMode = +_modeCookieRaw.split('=')[1];
+  } else if (window.f0ckSession && window.f0ckSession.mode !== undefined) {
+    window.activeMode = +window.f0ckSession.mode;
+  } else {
+    // Legacy fallback: read from old .mode-btn.active if present
+    const activeModeBtn = document.querySelector('.mode-btn.active');
+    if (activeModeBtn && activeModeBtn.href) {
+      const modeMatch = activeModeBtn.href.match(/\/mode\/(\d)/);
+      if (modeMatch) window.activeMode = +modeMatch[1];
+    }
   }
+
+  // ---- Multi-select Rating Toggles ----
+  // Reads/writes a `ratings` cookie (e.g. "sfw|untagged") and syncs with server via /mode/3 (ALL).
+  const getRatingsCookie = () => {
+    const raw = document.cookie.split('; ').find(r => r.startsWith('ratings='));
+    if (!raw) return [];
+    const val = raw.split('=').slice(1).join('='); // handle any = in value
+    // Support both | separator (new) and , (legacy/encoded)
+    const decoded = decodeURIComponent(val);
+    const parts = decoded.includes('|') ? decoded.split('|') : decoded.split(',');
+    return parts.filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r));
+  };
+  window.getRatingsCookie = getRatingsCookie;
+
+  const setRatingsCookie = (ratings) => {
+    const val = ratings.join('|'); // Use | separator — no encoding needed, no ambiguity
+    document.cookie = `ratings=${val}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  };
+
+  const clearRatingsCookie = () => {
+    document.cookie = 'ratings=; Path=/; Max-Age=0';
+  };
+
+  const syncRatingButtonUI = () => {
+    const activeRatings = getRatingsCookie();
+    const selector = document.getElementById('rating-selector');
+    if (!selector) return;
+    selector.querySelectorAll('.rating-toggle-btn').forEach(btn => {
+      const r = btn.dataset.rating;
+      if (!r) return; // ALL button handled separately
+      btn.classList.toggle('active', activeRatings.includes(r));
+    });
+    // ALL button: active when ratings cookie is empty/absent (server mode is the authority)
+    const allBtn = document.getElementById('rating-btn-all');
+    if (allBtn) {
+      allBtn.classList.toggle('active', activeRatings.length === 0 && window.activeMode === 3);
+    }
+  };
+
+  // Wire up rating toggle buttons
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rating-toggle-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isAllBtn = btn.classList.contains('rating-toggle-all');
+    const fromFilterModal = !!btn.closest('#excluded-tags-overlay');
+
+    if (isAllBtn) {
+      // ALL: clear ratings cookie, set mode=3 on server
+      clearRatingsCookie();
+      syncRatingButtonUI();
+      if (fromFilterModal) window._keepFilterModal = true;
+      window.activeMode = 3;
+      document.cookie = `mode=3; Path=/; Max-Age=31536000`;
+      document.dispatchEvent(new CustomEvent('f0ck:modeChanged', { detail: { mode: 3 } }));
+      fetch('/mode/3', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            window.flashMessage('ALL MODE ACTIVATED');
+            gridCacheMap.clear();
+            const isGridView = document.querySelector('.posts, .tags-grid');
+            let reloadPromise = null;
+            if (isGridView) {
+              const currentUrl = new URL(window.location.href);
+              currentUrl.searchParams.delete('mode');
+              reloadPromise = loadPageAjax(currentUrl.toString(), true, { skipCache: true });
+            }
+            if (fromFilterModal) Promise.resolve(reloadPromise).finally(() => { window._keepFilterModal = false; });
+          }
+        })
+        .catch(() => { if (fromFilterModal) window._keepFilterModal = false; });
+      return;
+    }
+
+    const rating = btn.dataset.rating;
+    if (!rating) return;
+
+    // Toggle rating in cookie
+    const activeRatings = getRatingsCookie();
+    const idx = activeRatings.indexOf(rating);
+    if (idx === -1) {
+      activeRatings.push(rating);
+    } else {
+      activeRatings.splice(idx, 1);
+    }
+
+    if (activeRatings.length === 0) {
+      // Nothing selected: default back to SFW
+      clearRatingsCookie();
+      window.activeMode = 0;
+      document.cookie = `mode=0; Path=/; Max-Age=31536000`;
+    } else {
+      setRatingsCookie(activeRatings);
+      // Use mode=3 (ALL) on server when multi-select; single-select maps to native mode
+      const singleModeMap = { sfw: 0, nsfw: 1, nsfl: 4, untagged: 2 };
+      const serverMode = activeRatings.length === 1 ? (singleModeMap[activeRatings[0]] ?? 3) : 3;
+      window.activeMode = serverMode;
+      document.cookie = `mode=${serverMode}; Path=/; Max-Age=31536000`;
+    }
+
+    syncRatingButtonUI();
+    document.dispatchEvent(new CustomEvent('f0ck:modeChanged', { detail: { mode: window.activeMode } }));
+
+    if (fromFilterModal) window._keepFilterModal = true;
+
+    // Sync server mode and reload content
+    fetch(`/mode/${window.activeMode}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const label = activeRatings.length > 0
+            ? activeRatings.map(r => r.toUpperCase()).join('+') + ' ACTIVE'
+            : 'SFW MODE ACTIVATED';
+          window.flashMessage(label);
+          gridCacheMap.clear();
+          const isGridView = document.querySelector('.posts, .tags-grid');
+          const isItemView = document.getElementById('prev') || document.getElementById('next');
+          let reloadPromise = null;
+          if (isGridView) {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('mode');
+            reloadPromise = loadPageAjax(currentUrl.toString(), true, { skipCache: true });
+          } else if (isItemView) {
+            updateNavForMode(window.activeMode);
+          }
+          if (fromFilterModal) Promise.resolve(reloadPromise).finally(() => { window._keepFilterModal = false; });
+        } else {
+          if (fromFilterModal) window._keepFilterModal = false;
+        }
+      })
+      .catch(() => { if (fromFilterModal) window._keepFilterModal = false; });
+  });
+
+  // Initialize rating toggle UI on page load
+  window.syncRatingButtonUI = syncRatingButtonUI;
+
+  // Migrate old URL-encoded ratings cookie to new pipe-separated format
+  (function migrateRatingsCookie() {
+    const raw = document.cookie.split('; ').find(r => r.startsWith('ratings='));
+    if (!raw) return;
+    const val = raw.split('=').slice(1).join('=');
+    if (val.includes('%')) {
+      // Cookie is URL-encoded — rewrite it with new format
+      const decoded = decodeURIComponent(val);
+      const cleaned = decoded.replace(/,/g, '|');
+      document.cookie = `ratings=${cleaned}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    }
+  })();
+
+  syncRatingButtonUI();
 
   // Cleanup strict param from URL bar on initial load if present (legacy or external link)
   if (window.location.search.includes('strict=1')) {
@@ -3076,9 +3270,9 @@ window.cancelAnimFrame = (function () {
   document.addEventListener('click', (e) => {
     const target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
 
-    // Check for mode selection
+    // Check for mode selection (only applies to <a href="/mode/..."> links, not plain buttons)
     const modeBtn = target.closest('.mode-btn');
-    if (modeBtn && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+    if (modeBtn && modeBtn.href && modeBtn.href.includes('/mode/') && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       // Update UI immediately for better UX
       const parent = modeBtn.parentElement;
@@ -4613,6 +4807,7 @@ window.cancelAnimFrame = (function () {
         overlay.classList.add('visible');
         document.body.style.overflow = 'hidden';
         renderTags();
+        if (window.syncRatingButtonUI) window.syncRatingButtonUI();
         if (window.innerWidth > 768) input.focus();
       } else {
         overlay.classList.remove('visible');

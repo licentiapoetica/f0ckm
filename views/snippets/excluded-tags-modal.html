@@ -9,16 +9,16 @@
     <!-- modes -->
     <div class="mode-filter">
       <button id="nav-shuffle-btn" class="shuffle-btn" title="Random Mode — shuffle all items"><span class="shuffle-icon">( - _ - )</span> {{ t('filter.random_mode') }}</button>
-      <div class="mode-selector">
-        <a href="/mode/0" class="mode-btn @if(mode==0) active @endif">SFW</a>
-        <a href="/mode/1" class="mode-btn @if(mode==1) active @endif">NSFW</a>
+      <div class="rating-selector" id="rating-selector">
+        <button class="rating-toggle-btn" data-rating="sfw" id="rating-btn-sfw" title="SFW">SFW</button>
+        <button class="rating-toggle-btn" data-rating="nsfw" id="rating-btn-nsfw" title="NSFW">NSFW</button>
         @if(enable_nsfl)
-        <a href="/mode/4" class="mode-btn @if(mode==4) active @endif">NSFL</a>
+        <button class="rating-toggle-btn" data-rating="nsfl" id="rating-btn-nsfl" title="NSFL">NSFL</button>
         @endif
-        @if(session.admin || session.is_moderator)
-        <a href="/mode/2" class="mode-btn @if(mode==2) active @endif">UNT</a>
+        @if(session && session.admin || session && session.is_moderator)
+        <button class="rating-toggle-btn" data-rating="untagged" id="rating-btn-untagged" title="Untagged">UNT</button>
         @endif
-        <a href="/mode/3" class="mode-btn @if(mode==3) active @endif">ALL</a>
+        <button class="rating-toggle-btn rating-toggle-all" id="rating-btn-all" title="Show All Ratings">ALL</button>
       </div>
     </div>
     <!-- mimes -->

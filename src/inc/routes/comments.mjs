@@ -146,7 +146,14 @@ export default (router, tpl) => {
                 mode = parseInt(req.url.qs.mode);
             }
             /* </mode-override> */
-            const modequery = lib.getMode(mode).replace(/items\.id/g, 'i.id');
+
+            // Multi-rating cookie support (same logic as other routes)
+            const ratingsRaw = req.cookies.ratings;
+            const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
+            const multiRatingSQL = (ratingsArr && ratingsArr.length > 0) ? lib.getMultiRatingMode(ratingsArr) : null;
+
+            // Build mode SQL — replace items.id alias with i.id used in the activity query
+            const modequery = (multiRatingSQL ?? lib.getMode(mode)).replace(/items\.id/g, 'i.id');
 
             const comments = await db`
                 SELECT c.*, i.mime, i.id as item_id
@@ -843,7 +850,14 @@ export default (router, tpl) => {
                 mode = parseInt(req.url.qs.mode);
             }
             /* </mode-override> */
-            const modequery = lib.getMode(mode).replace(/items\.id/g, 'i.id');
+
+            // Multi-rating cookie support (same logic as other routes)
+            const ratingsRaw = req.cookies.ratings;
+            const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
+            const multiRatingSQL = (ratingsArr && ratingsArr.length > 0) ? lib.getMultiRatingMode(ratingsArr) : null;
+
+            // Build mode SQL — replace items.id alias with i.id used in the activity query
+            const modequery = (multiRatingSQL ?? lib.getMode(mode)).replace(/items\.id/g, 'i.id');
             const globalfilter = cfg.nsfp.map(n => `tag_id = ${n}`).join(' or ');
             const excludedTags = req.session ? (req.session.excluded_tags || []) : [];
 

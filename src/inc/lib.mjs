@@ -81,6 +81,37 @@ export default new class {
     }
     return tmp;
   };
+
+  /**
+   * Build a multi-rating SQL WHERE clause fragment from an array of rating strings.
+   * Supported values: 'sfw', 'nsfw', 'nsfl', 'untagged'
+   * Returns null if the ratings array is empty or contains all possible values (treat as ALL).
+   */
+  getMultiRatingMode(ratings) {
+    if (!Array.isArray(ratings) || ratings.length === 0) return null;
+    const valid = ['sfw', 'nsfw', 'nsfl', 'untagged'];
+    const filtered = ratings.filter(r => valid.includes(r));
+    if (filtered.length === 0) return null;
+    // If all 4 are selected, treat as ALL
+    if (filtered.includes('sfw') && filtered.includes('nsfw') && filtered.includes('untagged') &&
+        (!cfg.enable_nsfl || filtered.includes('nsfl'))) return '1 = 1';
+
+    const parts = [];
+    if (filtered.includes('sfw')) {
+      parts.push('items.id in (select item_id from tags_assign where tag_id = 1)');
+    }
+    if (filtered.includes('nsfw')) {
+      parts.push('items.id in (select item_id from tags_assign where tag_id = 2)');
+    }
+    if (filtered.includes('nsfl') && cfg.enable_nsfl) {
+      parts.push(`items.id in (select item_id from tags_assign where tag_id = ${parseInt(cfg.nsfl_tag_id, 10) || 3})`);
+    }
+    if (filtered.includes('untagged')) {
+      parts.push('not exists (select 1 from tags_assign where item_id = items.id)');
+    }
+    if (parts.length === 0) return null;
+    return '(' + parts.join(' OR ') + ')';
+  };
   createID() {
     return crypto.randomBytes(16).toString("hex") + Date.now().toString(24);
   };

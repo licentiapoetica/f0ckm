@@ -39,6 +39,10 @@ export default (router, tpl) => {
       }
     }
 
+    const ratingsRaw = req.cookies.ratings;
+    const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
+    console.log('[RANDOM] ratings cookie:', ratingsRaw, '→ parsed:', ratingsArr);
+
     const data = await f0cklib.getRandom({
       user: opts.user,
       tag: opts.tag,
@@ -47,6 +51,7 @@ export default (router, tpl) => {
       page: opts.page,
       fav: opts.mode === 'favs',
       mode: req.mode,
+      ratings: ratingsArr,
       strict: opts.strict,
       session: !!req.session
     });

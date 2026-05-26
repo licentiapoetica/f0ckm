@@ -9254,6 +9254,73 @@ input:checked+.slider:before {
   border-right: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* ---------- Multi-select rating toggles (filter modal) ---------- */
+.rating-selector {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+  grid-column: 1;
+}
+
+.rating-toggle-btn {
+  display: inline-block;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  line-height: 18px;
+  font-family: inherit;
+  user-select: none;
+}
+
+.rating-toggle-btn:last-child {
+  border-right: none;
+}
+
+.rating-toggle-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Per-rating active colours */
+.rating-toggle-btn.active[data-rating="sfw"] {
+  background: #2e7d32;
+  color: #fff;
+  font-weight: bold;
+}
+
+.rating-toggle-btn.active[data-rating="nsfw"] {
+  background: #c62828;
+  color: #fff;
+  font-weight: bold;
+}
+
+.rating-toggle-btn.active[data-rating="nsfl"] {
+  background: #6a1b9a;
+  color: #fff;
+  font-weight: bold;
+}
+
+.rating-toggle-btn.active[data-rating="untagged"] {
+  background: #37474f;
+  color: #fff;
+  font-weight: bold;
+}
+
+.rating-toggle-btn.rating-toggle-all.active {
+  background: var(--accent);
+  color: var(--bg, #000);
+  font-weight: bold;
+}
+
+
 /* ---------- Random / Shuffle mode button ---------- */
 .shuffle-btn {
   background: none;

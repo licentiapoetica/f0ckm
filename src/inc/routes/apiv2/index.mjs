@@ -497,6 +497,8 @@ export default router => {
       const isFav = req.url.qs.fav === 'true';
       const isStrict = req.url.qs.strict === '1';
       const mode = req.session?.mode ?? 0;
+      const ratingsRaw = req.cookies.ratings;
+      const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
 
       const data = await f0cklib.getRandom({
         user,
@@ -507,6 +509,7 @@ export default router => {
         mime,
         fav: isFav,
         mode,
+        ratings: ratingsArr && ratingsArr.length > 0 ? ratingsArr : null,
         strict: isStrict,
         session: !!req.session,
         exclude: req.session?.excluded_tags || []

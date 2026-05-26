@@ -95,7 +95,7 @@ const xdScoreMeta = (score) => {
 };
 
 export default {
-  getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, fav, session, limit, strict, newer, exclude, user_id, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore } = {}) => {
+  getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, ratings, fav, session, limit, strict, newer, exclude, user_id, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
 
     // --- title: prefix — search items.title instead of the tags table ---
@@ -149,7 +149,9 @@ export default {
     const isStrict = strictParams.length > 0;
 
     const tmp = { user, tag: isTitleSearch ? _decodedTag : tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
-    const baseMode = lib.getMode(mode ?? 0);
+    // Multi-rating support: if `ratings` array provided, build an OR-based SQL fragment
+    const multiRatingSQL = (Array.isArray(ratings) && ratings.length > 0) ? lib.getMultiRatingMode(ratings) : null;
+    const baseMode = multiRatingSQL ?? lib.getMode(mode ?? 0);
     const modequery = baseMode;
 
     let tagFilter = db``;
@@ -340,7 +342,7 @@ export default {
       view_mode: fav ? 'favs' : 'uploads'
     };
   },
-  getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, session, strict, exclude, user_id, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, lang } = {}) => {
+  getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, ratings, session, strict, exclude, user_id, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, lang } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
 
     // --- title: prefix — search items.title instead of the tags table ---
@@ -387,7 +389,8 @@ export default {
     const tmp = { user, tag: isTitleSearch ? _decodedTag : tag, hall, mime, itemid, strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
 
     const effMode = Number(mode ?? 0);
-    const modequery = lib.getMode(effMode);
+    const multiRatingSQL = (Array.isArray(ratings) && ratings.length > 0) ? lib.getMultiRatingMode(ratings) : null;
+    const modequery = multiRatingSQL ?? lib.getMode(effMode);
 
     if (itemid === null) {
       return {
@@ -739,7 +742,7 @@ export default {
       tmp
     };
     return data;
-  }, getRandom: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, mode, fav, session, strict, exclude, userHall: rawUserHall, userHallOwner: rawUserHallOwner } = {}) => {
+  }, getRandom: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, mode, ratings, fav, session, strict, exclude, userHall: rawUserHall, userHallOwner: rawUserHallOwner } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
     const hall = rawHall || null;
 
@@ -779,7 +782,8 @@ export default {
     const strictParams = ((strict || (tag && tag.includes(','))) && tag) ? tag.split(',').map(t => lib.slugify(t)).filter(t => t) : [];
     const isStrict = strictParams.length > 0;
     
-    const baseMode = lib.getMode(mode ?? 0);
+    const multiRatingSQL = (Array.isArray(ratings) && ratings.length > 0) ? lib.getMultiRatingMode(ratings) : null;
+    const baseMode = multiRatingSQL ?? lib.getMode(mode ?? 0);
     const modequery = baseMode;
 
     let item;
@@ -897,10 +901,13 @@ export default {
         limit 1
       `;
     } else {
-      // Uniform random logic for global requests (no user/tag)
-      const baseMode = lib.getMode(mode ?? 0);
-      const modequery = baseMode;
-      const tagId = (mode === 0 || mode === 1 || mode === 4) ? (mode === 4 ? (cfg.nsfl_tag_id || 3) : (mode === 1 ? 2 : 1)) : null;
+      // Uniform random logic for global requests (no user/tag/hall)
+      // When multi-rating SQL is active, use it directly. Otherwise use the tag-join optimisation.
+      const globalModeQuery = multiRatingSQL ?? lib.getMode(mode ?? 0);
+      // tagId optimisation only applies for single native modes (not multi-rating)
+      const tagId = !multiRatingSQL && (mode === 0 || mode === 1 || mode === 4)
+        ? (mode === 4 ? (cfg.nsfl_tag_id || 3) : (mode === 1 ? 2 : 1))
+        : null;
       // If audio is included, we avoid the strict tagId optimization to ensure audio is visible
       const useTagIdOpt = tagId && !mimeParts.includes('audio');
       const nsfpIds = cfg.nsfp || [];
@@ -917,7 +924,7 @@ export default {
           ${mimeSQL}
           ${checkFilter ? db`AND filter_ta.tag_id IS NULL` : db``}
           ${excludedTags.length > 0 ? db`AND NOT EXISTS (SELECT 1 FROM tags_assign WHERE item_id = items.id AND tag_id = ANY(${excludedTags}::int[]))` : db``}
-          ${!useTagIdOpt ? db`AND ${db.unsafe(modequery)}` : db``}
+          ${!useTagIdOpt ? db`AND ${db.unsafe(globalModeQuery)}` : db``}
         ORDER BY random()
         LIMIT 1
       `;
