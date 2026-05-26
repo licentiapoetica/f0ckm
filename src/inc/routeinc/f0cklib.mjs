@@ -306,6 +306,7 @@ export default {
     // Override link for title searches — pagination must use the /tag/title:... prefix
     if (isTitleSearch && titleQuery) {
       link.main = `/tag/title:${encodeURIComponent(titleQuery)}/`;
+      link.mainDisplay = `/tag/title:${titleQuery}/`;
       link.path = 'p/';
       link.suffix = '';
     }
@@ -314,6 +315,7 @@ export default {
     if (userHallObj && userHallOwner) {
       const ownerName = userHallObj.owner_name || userHallOwner;
       link.main = `/user/${encodeURIComponent(ownerName)}/hall/${encodeURIComponent(userHallObj.slug)}/`;
+      link.mainDisplay = `/user/${ownerName}/hall/${userHallObj.slug}/`;
       link.path = 'p/';
       link.suffix = '';
     }
@@ -590,10 +592,18 @@ export default {
       ? await db`select uh.name, uh.slug from user_halls uh join user_halls_assign uha on uha.hall_id = uh.id where uha.item_id = ${itemid} and uh.user_id = ${user_id}`
       : [];
     const link = lib.genLink({ user, tag, hall: (hall && typeof hall === 'object') ? hall.slug : hall, mime, type: fav ? 'favs' : 'uploads', path: '', strict: false });
+    // Override link for title searches — pagination must use the /tag/title:... prefix
+    if (isTitleSearch && titleQuery) {
+      link.main = `/tag/title:${encodeURIComponent(titleQuery)}/`;
+      link.mainDisplay = `/tag/title:${titleQuery}/`;
+      link.path = '';
+      link.suffix = '';
+    }
     // Override link for user hall context
     if (userHallObj && userHallOwner) {
       const ownerName = userHallObj.owner_name || userHallOwner;
       link.main = `/user/${encodeURIComponent(ownerName)}/hall/${encodeURIComponent(userHallObj.slug)}/`;
+      link.mainDisplay = `/user/${ownerName}/hall/${userHallObj.slug}/`;
       link.path = '';
       link.suffix = '';
     }

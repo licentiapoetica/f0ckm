@@ -102,8 +102,14 @@ export default new class {
     // Build suffix with query params
     let suffix = env.strict ? '?strict=1' : '';
 
+    // mainDisplay: decoded for human-readable display (e.g. div.location)
+    // main: keeps percent-encoding for use in href attributes
+    let mainDisplay = tmp;
+    try { mainDisplay = decodeURIComponent(tmp); } catch (_) {}
+
     return {
       main: tmp,
+      mainDisplay,
       path: env.path ? env.path : '',
       suffix: suffix
     };
