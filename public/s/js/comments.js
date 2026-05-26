@@ -3023,16 +3023,29 @@ class CommentSystem {
                     }
 
                     if (!this.lastData) this.lastData = [];
-                    if (this.sort === 'new') this.lastData.unshift(newComment);
-                    else this.lastData.push(newComment);
+                    const existingInLastData = this.lastData.find(c => c.id === newComment.id);
+                    if (existingInLastData) {
+                        existingInLastData.files = files;
+                    } else {
+                        if (this.sort === 'new') this.lastData.unshift(newComment);
+                        else this.lastData.push(newComment);
+                    }
 
                     if (parentId) {
                         const existingReply = document.getElementById('c' + newComment.id);
                         if (existingReply) {
-                            requestAnimationFrame(() => {
-                                existingReply.classList.add('comment-entering', 'new-item-fade');
-                                existingReply.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            });
+                            const parent = existingReply.parentNode;
+                            const commentHtml = this.renderComment(existingInLastData || newComment, this.lastUserId, true);
+                            const tmp = document.createElement('div');
+                            tmp.innerHTML = commentHtml;
+                            const newEl = tmp.firstElementChild;
+                            if (newEl) {
+                                parent.replaceChild(newEl, existingReply);
+                                requestAnimationFrame(() => {
+                                    newEl.classList.add('comment-entering', 'new-item-fade');
+                                    newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                });
+                            }
                         } else {
                             const parentEl = document.getElementById('c' + parentId);
                             if (parentEl) {
@@ -3059,10 +3072,18 @@ class CommentSystem {
                     } else {
                         const existingTop = document.getElementById('c' + newComment.id);
                         if (existingTop) {
-                            requestAnimationFrame(() => {
-                                existingTop.classList.add('comment-entering', 'new-item-fade');
-                                existingTop.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            });
+                            const parent = existingTop.parentNode;
+                            const commentHtml = this.renderComment(existingInLastData || newComment, this.lastUserId, false);
+                            const tmp = document.createElement('div');
+                            tmp.innerHTML = commentHtml;
+                            const newEl = tmp.firstElementChild;
+                            if (newEl) {
+                                parent.replaceChild(newEl, existingTop);
+                                requestAnimationFrame(() => {
+                                    newEl.classList.add('comment-entering', 'new-item-fade');
+                                    newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                });
+                            }
                         } else {
                             const list = this.container.querySelector('.comments-list');
                             if (list) {
