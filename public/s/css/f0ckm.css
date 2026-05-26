@@ -14605,7 +14605,8 @@ body.scroller-active #gchat-reopen-bubble {
 /* Filter badge style on navbar */
 .filter-badge {
   position: absolute;
-  bottom: -14px;
+  bottom: -20px;
+  right: 0;
   font-size: 9px;
   font-weight: 800;
   padding: 2px 4px;
