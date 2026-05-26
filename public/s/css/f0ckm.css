@@ -8322,9 +8322,9 @@ span.badge.badge-current {
 
 }
 
-.sidebar-comment-img {
+/*.sidebar-comment-img {
   max-height: 128px !important;
-}
+}*/
 
 .sidebar-comment-img.emoji {
   height: auto;
