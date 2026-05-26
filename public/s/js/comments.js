@@ -365,7 +365,6 @@ class CommentSystem {
                         if (submitBtn) {
                             submitBtn.classList.add('loading');
                             submitBtn.disabled = true;
-                            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                         }
                     }
                     this.setupEmojiPicker(newForm);
@@ -384,7 +383,6 @@ class CommentSystem {
                 if (submitBtn) {
                     submitBtn.classList.add('loading');
                     submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                 }
             }
         }
@@ -2118,7 +2116,7 @@ class CommentSystem {
                     ${counter}
                     ${attachBtn}
                     ${parentId ? `<button class="cancel-reply" title="${cancelLabel}"><i class="fa-solid fa-xmark"></i></button>` : ''}
-                    <button class="submit-comment">${postLabel}</button>
+                    <button class="submit-comment"><span class="submit-label">${postLabel}</span><i class="fa-solid fa-spinner fa-spin submit-spinner"></i></button>
                 </div>
             </div>
         `;
@@ -2884,8 +2882,12 @@ class CommentSystem {
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
         textarea.disabled = true;
-        const originalBtnHtml = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        const originalBtnHtml = null; // no longer needed — loading state is CSS-only
+
+        if (window.f0ckDebugSpinner) {
+            console.log('[DEBUG] window.f0ckDebugSpinner is true. Freezing spinner state for inspection.');
+            return;
+        }
 
         // Mark as pending to prevent state restoration while in flight
         if (parentId) {
@@ -3192,7 +3194,6 @@ class CommentSystem {
             if (activeBtn) {
                 activeBtn.classList.remove('loading');
                 activeBtn.disabled = false;
-                activeBtn.innerHTML = originalHtml;
             }
             if (activeTextarea) {
                 activeTextarea.disabled = false;

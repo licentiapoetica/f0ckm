@@ -2349,6 +2349,16 @@ body.layout-modern .item-sidebar-left .tag-controls {
   align-items: center;
   justify-content: center;
   height: 28px;
+  position: relative;
+}
+
+.submit-comment .submit-spinner {
+  display: none;
+  position: absolute;
+}
+
+.submit-comment .submit-label {
+  display: inline;
 }
 
 .submit-comment.loading {
@@ -2357,9 +2367,12 @@ body.layout-modern .item-sidebar-left .tag-controls {
   cursor: wait;
 }
 
-.submit-comment.loading .fa-spinner {
-  font-size: 11px;
-  vertical-align: middle;
+.submit-comment.loading .submit-label {
+  visibility: hidden;
+}
+
+.submit-comment.loading .submit-spinner {
+  display: inline;
 }
 
 .submit-comment.uploading {
@@ -3157,7 +3170,6 @@ body.layout-legacy .scroll-to-bottom svg {
 .loading,
 .error {
   text-align: center;
-  padding: 20px;
   color: #888;
 }
 
