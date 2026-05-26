@@ -248,10 +248,27 @@
                     return `[video](${fullUrl})`;
                 });
 
-                // Use marked for each line individually
-                let mdSafe = processedLine.replace(/\*/g, '\\*').replace(/_/g, '\\_');
-                const bs = String.fromCharCode(92);
-                mdSafe = mdSafe.split(bs + bs + '_').join(bs + bs + bs + '_');
+                // Use marked for each line individually.
+                // Protect URLs and already-formed Markdown link/image tokens from the
+                // italic-prevention pass so that underscores in query params
+                // (e.g. ?v=_FcvmypiHg4) are never turned into ?v=\_FcvmypiHg4.
+                const mdProtected = [];
+                // Match [text](url) / ![alt](url) tokens AND bare http(s) URLs
+                let mdSafe = processedLine.replace(
+                    /(!?\[[^\]]*\]\([^)]*\))|https?:\/\/\S+/g,
+                    (match) => {
+                        const idx = mdProtected.length;
+                        mdProtected.push(match);
+                        return `\x02MDURL${idx}\x03`;
+                    }
+                );
+                // Escape * and _ only in the non-URL portions
+                mdSafe = mdSafe
+                    .replace(/\\/g, '\\\\')
+                    .replace(/\*/g, '\\*')
+                    .replace(/_/g, '\\_');
+                // Restore protected URLs/tokens
+                mdSafe = mdSafe.replace(/\x02MDURL(\d+)\x03/g, (_, i) => mdProtected[+i]);
 
                 let rendered = marked.parseInline ? marked.parseInline(mdSafe, { renderer: renderer }) : marked.parse(mdSafe, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
 
@@ -376,9 +393,27 @@
     const SIDEBAR_MAX_CHARS = 200;
     const SIDEBAR_MAX_EMOJIS = 12;
 
+    const renderCommentAttachments = (files, content = '') => {
+        if (!files || files.length === 0) return '';
+        const items = files.map(f => {
+            const url = `/c/${f.dest}`;
+            if (content.includes(url)) return ''; // Skip if already rendered in content
+            if (f.mime.startsWith('image/')) {
+                return `<a href="${url}" target="_blank" class="cf-attachment cf-image" style="display: inline-block; max-width: 100%;"><img src="${url}" alt="${escapeHtml(f.original_filename || 'image')}" loading="lazy" style="max-width: 100%; max-height: 150px; object-fit: contain; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></a>`;
+            } else if (f.mime.startsWith('video/')) {
+                return `<div class="cf-attachment cf-video" style="max-width: 100%;"><video src="${url}" controls preload="metadata" style="max-width: 100%; max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></video></div>`;
+            } else if (f.mime.startsWith('audio/')) {
+                return `<div class="cf-attachment cf-audio" style="max-width: 100%;"><audio src="${url}" controls preload="metadata" style="width: 100%; max-height: 40px; margin-top: 4px;"></audio></div>`;
+            }
+            return '';
+        }).join('');
+        return items ? `<div class="comment-attachments" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">${items}</div>` : '';
+    };
+
     const renderActivityItem = (c) => {
         const rawContent = c.content || c.body || '';
         const displayContent = renderCommentContent(rawContent, c.id, c.item_id);
+        const attachmentsHtml = renderCommentAttachments(c.files, rawContent);
 
         // Build avatar URL — same priority as the rest of the app
         let avatarSrc = '/a/default.png';
@@ -437,7 +472,7 @@
                         </div>
                         <span class="comment-time timeago" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content"><div class="comment-content-inner">${displayContent}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content"><div class="comment-content-inner">${displayContent}${attachmentsHtml}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;

@@ -298,6 +298,7 @@ export default (router, tpl) => {
             const commentId = parseInt(newComment[0].id, 10);
 
             // Link uploaded files to this comment (if any)
+            let activityFiles = [];
             const fileIdsRaw = body.file_ids || '';
             if (fileIdsRaw) {
                 const fileIds = fileIdsRaw.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
@@ -310,6 +311,13 @@ export default (router, tpl) => {
                             WHERE id = ANY(${fileIds}::int[])
                             AND user_id = ${req.session.id}
                             AND comment_id IS NULL
+                        `;
+                        // Fetch the linked files to send with live notification and post response
+                        activityFiles = await db`
+                            SELECT id, comment_id, dest, mime, size, original_filename
+                            FROM comment_files
+                            WHERE comment_id = ${commentId}
+                            ORDER BY id ASC
                         `;
                     } catch (err) {
                         console.error('[COMMENTS] Failed to link files to comment:', err);
@@ -458,7 +466,8 @@ export default (router, tpl) => {
                 username_color: req.session.username_color,
                 display_name: req.session.display_name || null,
                 xd_score: xdRow?.xd_score ?? null,
-                video_time: newComment[0]?.video_time ?? null
+                video_time: newComment[0]?.video_time ?? null,
+                files: activityFiles
             };
 
             // 1. Thread live update
@@ -477,7 +486,8 @@ export default (router, tpl) => {
                 avatar_file: req.session.avatar_file,
                 username: req.session.user,
                 username_color: req.session.username_color,
-                display_name: req.session.display_name || null
+                display_name: req.session.display_name || null,
+                files: activityFiles
             }));
 
             // Automatically subscribe user to the thread
@@ -493,7 +503,10 @@ export default (router, tpl) => {
                 headers: { 'Content-Type': 'application/json; charset=utf-8' },
                 body: JSON.stringify({ 
                     success: true, 
-                    comment: newComment[0],
+                    comment: {
+                        ...newComment[0],
+                        files: activityFiles
+                    },
                     xd_score: xdRow?.xd_score ?? null,
                     is_new_subscription
                 })
@@ -863,6 +876,26 @@ export default (router, tpl) => {
                 LIMIT ${limit} OFFSET ${offset}
             `;
 
+            // Fetch comment file attachments
+            const filesMap = new Map();
+            if (comments.length > 0) {
+                const commentIds = comments.map(c => c.id);
+                try {
+                    const files = await db`
+                        SELECT id, comment_id, dest, mime, size, original_filename
+                        FROM comment_files
+                        WHERE comment_id = ANY(${commentIds}::int[])
+                        ORDER BY id ASC
+                    `;
+                    for (const f of files) {
+                        if (!filesMap.has(f.comment_id)) filesMap.set(f.comment_id, []);
+                        filesMap.get(f.comment_id).push(f);
+                    }
+                } catch (e) {
+                    console.error('[ACTIVITY] Failed to fetch comment files:', e);
+                }
+            }
+
             const processedComments = comments.map(c => {
                 let ratingLabel = '?';
                 let ratingClass = 'untagged';
@@ -875,7 +908,8 @@ export default (router, tpl) => {
                     content: (c.content || '').trim(),
                     username_color: c.username_color,
                     item_rating_class: ratingClass,
-                    item_rating_label: ratingLabel
+                    item_rating_label: ratingLabel,
+                    files: filesMap.get(c.id) || []
                     // created_at stays as the raw ISO timestamp so the frontend f0ckTimeAgo can localize it
                 };
             });
