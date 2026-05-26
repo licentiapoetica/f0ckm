@@ -2563,7 +2563,7 @@ body.layout-legacy .comments-list {
 
 body.layout-legacy .scroll-nav-wrapper {
   position: absolute;
-  top: -30px;
+  top: -75px;
   bottom: 0;
   right: -50px;
   width: 40px;
