@@ -6278,7 +6278,6 @@ table img {
   .admin-users-table td {
     display: flex;
     padding: 5px;
-    margin: 5px;
   }
 
   /*.results table.table tr td:first-child,
