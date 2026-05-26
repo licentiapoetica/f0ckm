@@ -6281,10 +6281,10 @@ table img {
     margin: 5px;
   }
 
-  .results table.table tr td:first-child,
+  /*.results table.table tr td:first-child,
   .admin-users-table tr td:first-child {
     float: right;
-  }
+  }*/
 
   .results table.table tbody td,
   .admin-users-table tbody td {
@@ -14393,7 +14393,7 @@ body.scroller-active #gchat-reopen-bubble {
 #settings-quicknav a:hover,
 #settings-quicknav a.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--black);
   border-color: var(--accent);
 }
 
