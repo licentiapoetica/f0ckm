@@ -2344,6 +2344,11 @@ body.layout-modern .item-sidebar-left .tag-controls {
   cursor: pointer;
   border-radius: 0;
   /* No rounded corners */
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
 }
 
 .submit-comment.loading {
@@ -2371,6 +2376,11 @@ body.layout-modern .item-sidebar-left .tag-controls {
   padding: 5px 10px;
   cursor: pointer;
   border-radius: 0;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
 }
 
 .char-counter {
@@ -7609,6 +7619,11 @@ video.autoplay-gif {
   cursor: pointer;
   font-weight: bold;
   opacity: 0.8;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
 }
 
 .submit-comment:hover,
