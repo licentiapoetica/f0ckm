@@ -2116,7 +2116,7 @@ class CommentSystem {
                     ${counter}
                     ${attachBtn}
                     ${parentId ? `<button class="cancel-reply" title="${cancelLabel}"><i class="fa-solid fa-xmark"></i></button>` : ''}
-                    <button class="submit-comment"><span class="submit-label">${postLabel}</span></button>
+                    <button class="submit-comment"><span class="submit-label">${postLabel}</span><i class="fa-solid fa-spinner fa-spin submit-spinner"></i></button>
                 </div>
             </div>
         `;
@@ -2476,7 +2476,7 @@ class CommentSystem {
             }
 
             // Submit Comment
-            if (target.matches('.submit-comment')) {
+            if (target.closest('.submit-comment')) {
                 this.handleSubmit(e);
                 return;
             }

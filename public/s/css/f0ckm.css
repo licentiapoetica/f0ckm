@@ -2352,10 +2352,31 @@ body.layout-modern .item-sidebar-left .tag-controls {
   position: relative;
 }
 
+.submit-comment .submit-spinner {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
+
+.submit-comment .submit-label {
+  display: inline;
+}
+
 .submit-comment.loading {
   pointer-events: none;
   opacity: 0.7;
   cursor: wait;
+}
+
+.submit-comment.loading .submit-label {
+  visibility: hidden;
+}
+
+.submit-comment.loading .submit-spinner {
+  display: inline;
 }
 
 .submit-comment.uploading {
@@ -3150,7 +3171,7 @@ body.layout-legacy .scroll-to-bottom svg {
   }
 }
 
-.loading,
+.loading:not(.submit-comment),
 .error {
   text-align: center;
   color: #888;
@@ -7637,7 +7658,7 @@ video.autoplay-gif {
   margin-bottom: 10px;
 }
 
-.loading,
+.loading:not(.submit-comment),
 .error {
   text-align: center;
   padding: 20px;
