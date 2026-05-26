@@ -8345,7 +8345,6 @@ span.badge.badge-current {
   color: var(--accent);
   text-decoration: none;
   margin: 4px 0;
-  font-style: italic;
 }
 
 .sidebar-video-link .yt-title {
