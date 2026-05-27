@@ -2575,21 +2575,12 @@ body.layout-legacy #comments-container.faded-out {
 
 .cf-attachment.cf-image img {
   max-width: 300px;
-  max-height: 220px;
   object-fit: contain;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.cf-attachment.cf-image img:hover {
-  opacity: 0.85;
 }
 
 .cf-attachment.cf-video video {
   max-width: 400px;
-  max-height: 280px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cf-attachment.cf-audio audio {

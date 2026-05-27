@@ -6040,7 +6040,12 @@ class NotificationSystem {
         const container = window.commentSystem.container;
         const isAttached = container && document.contains(container);
         const userTyping = isAttached && container.querySelector('textarea:focus, input:focus');
-        if (isAttached && !userTyping) {
+        // Also skip if a file upload is in progress (e.g. mobile: file picker dismisses
+        // keyboard so textarea loses focus, but _pendingUploads is still set).
+        const hasPendingUpload = isAttached && Array.from(
+          container.querySelectorAll('.comment-input')
+        ).some(wrap => (wrap._pendingUploads || 0) > 0);
+        if (isAttached && !userTyping && !hasPendingUpload) {
           // Kill the stabilization ResizeObserver SYNCHRONOUSLY before anything else.
           // If it's still alive from the initial anchor-load, it will fire when the
           // browser repaints the tab and re-scroll to the comment — that's the bug.
