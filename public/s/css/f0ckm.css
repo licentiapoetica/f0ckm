@@ -2193,9 +2193,14 @@ body.sidebar-right-hidden .global-sidebar-right {
 
 .item-layout-container .item-main-content .embed-responsive {
   width: 100%;
-  /*max-width: calc((100vh - 180px) * (16 / 9));*/
-  /* Cap width based on viewport height to fit vertically */
   margin: 0 auto;
+}
+
+/* Modern layout: cap embed width so height ≈ viewport height regardless of column width.
+   padding-top:56.25% means height = width × 0.5625, so max-width = max-height × (16/9).
+   This prevents the embed from becoming huge when sidebars are hidden (wider center column). */
+body.layout-modern .item-layout-container .item-main-content .embed-responsive:not(.is-expanded) {
+  max-width: calc((100vh - var(--navbar-h, 50px) - 80px) * (16 / 9));
 }
 
 .item-main-content video,
@@ -4910,36 +4915,36 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
 
 @media(max-height: 820px) {
   .embed-responsive-16by9::before {
-    padding-top: 50.25%;
+    padding-top: 45.25%;
   }
 }
 
 @media(max-height: 755px) {
   .embed-responsive-16by9::before {
-    padding-top: 45.25%;
+    padding-top: 40.25%;;
   }
 }
 
 @media(max-height: 640px) {
-  body:not(.layout-modern) .embed-responsive-16by9::before {
+  .embed-responsive-16by9::before {
     padding-top: 36.25%;
   }
 }
 
 @media(max-height: 525px) {
-  body:not(.layout-modern) .embed-responsive-16by9::before {
+  .embed-responsive-16by9::before {
     padding-top: 26.25%;
   }
 }
 
 @media(max-height: 414px) {
-  body:not(.layout-modern) .embed-responsive-16by9::before {
+  .embed-responsive-16by9::before {
     padding-top: 16.25%;
   }
 }
 
 @media(max-height: 300px) {
-  body:not(.layout-modern) .embed-responsive-16by9::before {
+  .embed-responsive-16by9::before {
     padding-top: 14.5%;
   }
 }
