@@ -5532,15 +5532,15 @@ input {
 
 @media (max-width: 555px) {
   .tag-suggestions {
-    position: fixed;
-    /*left: 10px;*/
-    right: 10px;
+    position: absolute;
+    right: auto;
     top: auto;
-    bottom: 5px;
+    bottom: 20px;
     min-width: unset;
     max-width: unset;
     max-height: 40vh;
-    border-radius: 10px;
+    border-radius: 0px;
+    margin-bottom: 5px;
   }
 
   .tag-suggestion-item {
