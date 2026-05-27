@@ -2170,6 +2170,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   /* Optional cap to prevent excessive width on huge screens */
   min-height: 0;
   min-width: 0;
+  z-index: 1;
 }
 
 .item-layout-container .item-main-content>.content {
@@ -15122,6 +15123,7 @@ body.scroller-active #gchat-reopen-bubble {
   pointer-events: none !important;
   user-select: none !important;
   transition: filter 0.35s ease, -webkit-filter 0.35s ease !important;
+  z-index: 1;
 }
 
 .media-object.revealed > * {
