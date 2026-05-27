@@ -4921,25 +4921,25 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
 }
 
 @media(max-height: 640px) {
-  .embed-responsive-16by9::before {
+  body:not(.layout-modern) .embed-responsive-16by9::before {
     padding-top: 36.25%;
   }
 }
 
 @media(max-height: 525px) {
-  .embed-responsive-16by9::before {
+  body:not(.layout-modern) .embed-responsive-16by9::before {
     padding-top: 26.25%;
   }
 }
 
 @media(max-height: 414px) {
-  .embed-responsive-16by9::before {
+  body:not(.layout-modern) .embed-responsive-16by9::before {
     padding-top: 16.25%;
   }
 }
 
 @media(max-height: 300px) {
-  .embed-responsive-16by9::before {
+  body:not(.layout-modern) .embed-responsive-16by9::before {
     padding-top: 14.5%;
   }
 }
