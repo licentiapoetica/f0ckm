@@ -14639,8 +14639,9 @@ body.scroller-active #gchat-reopen-bubble {
 /* Filter badge style on navbar */
 .filter-badge {
   position: absolute;
-  bottom: -20px;
-  right: 0;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 9px;
   font-weight: 800;
   padding: 2px 4px;
@@ -14653,6 +14654,7 @@ body.scroller-active #gchat-reopen-bubble {
   letter-spacing: 0.5px;
   z-index: 10;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   user-select: none;
 }
@@ -14679,11 +14681,47 @@ body.scroller-active #gchat-reopen-bubble {
   /* Slate grey */
 }
 
+/* Multi-rating mode: neutral wrapper + individual colored letter chips */
+.filter-badge-multi {
+  background: transparent;
+  padding: 0;
+  gap: 2px;
+  box-shadow: none;
+}
+
+.filter-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+
+.filter-letter-sfw  { background: var(--badge-sfw,  #68a728); }
+.filter-letter-nsfw { background: var(--badge-nsfw, #E10DC3); }
+.filter-letter-nsfl { background: var(--badge-nsfl, #660000); }
+.filter-letter-unt  { background: #ff9800; }
+
+
 /* Dynamic MIME icons styles */
+.filter-rating-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: center;
+}
+
 .filter-mime-icons {
   display: inline-flex;
   gap: 3px;
-  margin-left: 4px;
+  margin-left: 0;
+  margin-top: 2px;
+  justify-content: center;
   align-items: center;
 }
 

@@ -393,15 +393,23 @@ window.cancelAnimFrame = (function () {
       if (isAll) {
         badgeText = 'ALL';
         badgeClass += ' filter-badge-all';
-      } else {
-        // Multi-rating mode: show abbreviated names
+      } else if (activeRatings.length === 1) {
+        // Single rating — keep existing single-color badge style
+        const single = activeRatings[0];
         const abbr = { sfw: 'SFW', nsfw: 'NSFW', nsfl: 'NSFL', untagged: 'UNT' };
-        badgeText = activeRatings.map(r => abbr[r] || r.toUpperCase()).join('+');
-        // Use most prominent active rating for colour hint
-        if (activeRatings.includes('nsfw')) badgeClass += ' filter-badge-nsfw';
-        else if (activeRatings.includes('nsfl')) badgeClass += ' filter-badge-nsfl';
-        else if (activeRatings.includes('sfw')) badgeClass += ' filter-badge-sfw';
+        badgeText = abbr[single] || single.toUpperCase();
+        if (single === 'nsfw') badgeClass += ' filter-badge-nsfw';
+        else if (single === 'nsfl') badgeClass += ' filter-badge-nsfl';
+        else if (single === 'sfw') badgeClass += ' filter-badge-sfw';
         else badgeClass += ' filter-badge-unt';
+      } else {
+        // Multi-rating: render individual colored letter chips, neutral container
+        const letterMap = { sfw: 'S', nsfw: 'N', nsfl: 'N', untagged: 'U' };
+        const colorMap = { sfw: 'filter-letter-sfw', nsfw: 'filter-letter-nsfw', nsfl: 'filter-letter-nsfl', untagged: 'filter-letter-unt' };
+        badgeText = activeRatings.map(r =>
+          `<span class="filter-letter ${colorMap[r] || ''}" title="${r.toUpperCase()}">${letterMap[r] || r[0].toUpperCase()}</span>`
+        ).join('');
+        badgeClass += ' filter-badge-multi';
       }
     } else {
       switch (activeMode) {
@@ -438,7 +446,8 @@ window.cancelAnimFrame = (function () {
     }
 
     badge.className = badgeClass;
-    badge.innerHTML = badgeText + zomgHtml;
+    // Always wrap rating text in a row container so mime icons can sit on the next row cleanly
+    badge.innerHTML = `<span class="filter-rating-row">${badgeText}${zomgHtml}</span>`;
 
     if (hasMimeFilter) {
       const iconsContainer = document.createElement('span');
@@ -582,10 +591,10 @@ window.cancelAnimFrame = (function () {
     }
 
     if (activeRatings.length === 0) {
-      // Nothing selected: default back to SFW
+      // Nothing selected: treat as ALL (no filter = show everything)
       clearRatingsCookie();
-      window.activeMode = 0;
-      document.cookie = `mode=0; Path=/; Max-Age=31536000`;
+      window.activeMode = 3;
+      document.cookie = `mode=3; Path=/; Max-Age=31536000`;
     } else {
       setRatingsCookie(activeRatings);
       // Use mode=3 (ALL) on server when multi-select; single-select maps to native mode
@@ -607,7 +616,7 @@ window.cancelAnimFrame = (function () {
         if (data.success) {
           const label = activeRatings.length > 0
             ? activeRatings.map(r => r.toUpperCase()).join('+') + ' ACTIVE'
-            : 'SFW MODE ACTIVATED';
+            : 'ALL MODE ACTIVATED';
           window.flashMessage(label);
           gridCacheMap.clear();
           const isGridView = document.querySelector('.posts, .tags-grid');
@@ -5234,7 +5243,10 @@ window.cancelAnimFrame = (function () {
     const btn = e.target.closest('.shuffle-btn');
     if (btn) {
       e.preventDefault();
-      handleShuffleBtnClick(btn);
+      const fromFilterModal = !!btn.closest('#excluded-tags-overlay');
+      if (fromFilterModal) window._keepFilterModal = true;
+      const result = handleShuffleBtnClick(btn);
+      if (fromFilterModal) Promise.resolve(result).finally(() => { window._keepFilterModal = false; });
     }
   });
 
