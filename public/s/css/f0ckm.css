@@ -3618,7 +3618,7 @@ body {
   margin: 0;
   font-family: var(--font);
   line-height: 2;
-  overflow-x: clip;
+  overflow-x: hidden;
   font-size: 14px;
 }
 
@@ -6189,12 +6189,15 @@ i.iconset.active {
 
 /* favorites */
 span#favs {
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   margin-left: 0;
   grid-column: 1/4;
   padding: 5px;
   margin: 5px;
-  line-height: 0;
   background: var(--badge-bg);
 }
 

@@ -189,7 +189,6 @@
 
           a.appendChild(img);
           favcontainer.appendChild(a);
-          favcontainer.appendChild(document.createTextNode('\u00A0'));
         });
         favcontainer.hidden = false;
       } else {
