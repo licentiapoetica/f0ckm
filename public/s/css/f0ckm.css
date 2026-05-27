@@ -5535,7 +5535,7 @@ input {
     /*left: 10px;*/
     right: 10px;
     top: auto;
-    bottom: 10px;
+    bottom: 5px;
     min-width: unset;
     max-width: unset;
     max-height: 40vh;
