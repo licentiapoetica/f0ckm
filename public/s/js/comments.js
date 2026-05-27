@@ -3331,28 +3331,31 @@ class CommentSystem {
         if (!this.container) return;
 
         const layout = this.container.closest('.item-layout-container');
+        const sidebar = this.container.closest('.item-sidebar-left');
+        const siblings = sidebar ? [
+            ...sidebar.querySelectorAll('.sidebar-tags-container, .tag-controls')
+        ] : [];
 
-        // Check if currently hidden (or fading out)
+        // Check if currently hidden (or slid out)
         const isHidden = this.container.classList.contains('faded-out') || this.container.style.display === 'none';
 
         if (isHidden) {
-            // SHOW
-            this.container.style.display = 'block';
+            // SHOW: expand grid first, then slide content in
             if (layout) layout.classList.remove('sidebar-hidden');
+            this.container.style.display = '';
             localStorage.setItem('comments_hidden', 'false');
-            // Force reflow to enable transition
-            void this.container.offsetWidth;
+            void this.container.offsetWidth; // force reflow so transition fires
             this.container.classList.remove('faded-out');
+            siblings.forEach(el => el.classList.remove('faded-out'));
         } else {
-            // HIDE
+            // HIDE: slide content out first, then collapse grid
             localStorage.setItem('comments_hidden', 'true');
             this.container.classList.add('faded-out');
-            if (layout) layout.classList.add('sidebar-hidden');
-            // Wait for transition, then set display none
+            siblings.forEach(el => el.classList.add('faded-out'));
             setTimeout(() => {
-                if (this.container.classList.contains('faded-out')) {
-                    this.container.style.display = 'none';
-                }
+                if (!this.container.classList.contains('faded-out')) return;
+                this.container.style.display = 'none';
+                if (layout) layout.classList.add('sidebar-hidden');
             }, 300);
         }
     }

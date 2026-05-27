@@ -1694,7 +1694,7 @@ body.sidebar-right-hidden .global-sidebar-right {
      ---------------------------------------------------------- */
   body.layout-modern .item-layout-container {
     display: grid;
-    grid-template-columns: 400px minmax(0, 1fr) 300px;
+    grid-template-columns: min(400px, 30vw) minmax(0, 1fr) 300px;
     grid-template-rows: auto;
     flex: 1;
     height: calc(100vh - var(--navbar-h, 50px));
@@ -1705,7 +1705,7 @@ body.sidebar-right-hidden .global-sidebar-right {
 
   /* Collapsed right sidebar — grid track shrinks to 0 */
   body.layout-modern.sidebar-right-hidden .item-layout-container {
-    grid-template-columns: 400px minmax(0, 1fr) 0px;
+    grid-template-columns: min(400px, 30vw) minmax(0, 1fr) 0px;
   }
 
   body.layout-modern .item-sidebar-left {
@@ -1776,6 +1776,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     grid-template-columns: 1fr;
   }
 
+  /* By the time sidebar-hidden is added (post-slide), content is already off-screen */
   body.layout-modern .item-layout-container.sidebar-hidden .item-sidebar-left {
     display: none;
   }
@@ -1802,15 +1803,6 @@ body.sidebar-right-hidden .global-sidebar-right {
   }
 
   /* Removed local sidebar and toggle overrides — now using universal rules */
-
-  /* Collapse right sidebar on narrower screens in modern view */
-  @media (max-width: 1400px) {
-    body.layout-modern .item-layout-container {
-      grid-template-columns: 400px minmax(0, 1fr);
-    }
-
-    /* Uses universal fixed slide-out logic; no need for display: none at this breakpoint */
-  }
 
   /* ----------------------------------------------------------
      LAYOUT: LEGACY — 2-column, natural page scroll
@@ -2219,6 +2211,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
 /* Modern: comments fill all remaining left-sidebar space; list scrolls internally */
@@ -2249,9 +2242,23 @@ body.layout-modern .item-sidebar-left .tag-controls {
   flex-shrink: 0;
 }
 
-#comments-container.faded-out {
+/* Modern layout: slide left inside the clipped sidebar column */
+.item-sidebar-left #comments-container.faded-out,
+.item-sidebar-left .sidebar-tags-container.faded-out,
+.item-sidebar-left .tag-controls.faded-out {
+  transform: translateX(-110%);
+  pointer-events: none;
+}
+
+/* Legacy layout: simple opacity fade (overflow:visible means translateX hangs visible) */
+body.layout-legacy #comments-container.faded-out {
   opacity: 0;
   pointer-events: none;
+}
+
+.item-sidebar-left .sidebar-tags-container,
+.item-sidebar-left .tag-controls {
+  transition: transform 0.3s ease-in-out;
 }
 
 
