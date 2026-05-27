@@ -2326,10 +2326,15 @@ class CommentSystem {
                     submitBtn.classList.add('uploading');
                 }
 
-                // Insert placeholder at cursor position
-                const cursorPos = textarea.selectionStart;
-                const before = textarea.value.substring(0, cursorPos);
-                const after = textarea.value.substring(textarea.selectionEnd);
+                // Use saved cursor position (set when attach btn was clicked, before file picker
+                // dismissed the keyboard on mobile causing selectionStart to become 0).
+                const savedPos = wrap._savedCursorPos ?? textarea.selectionStart;
+                const savedEnd = wrap._savedCursorEnd ?? textarea.selectionEnd;
+                wrap._savedCursorPos = null;
+                wrap._savedCursorEnd = null;
+
+                const before = textarea.value.substring(0, savedPos);
+                const after = textarea.value.substring(savedEnd);
                 const placeholder = `[${uploadingText} ${file.name}]`;
                 const sep = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
                 textarea.value = before + sep + placeholder + after;
@@ -2358,13 +2363,14 @@ class CommentSystem {
                     const json = await res.json();
                     if (json.success && json.files && json.files.length > 0) {
                         const fileData = json.files[0];
-                        const url = `/c/${fileData.dest}${fileData.converted_gif ? '#gif' : ''}`;
+                        const rawUrl = `/c/${fileData.dest}${fileData.converted_gif ? '#gif' : ''}`;
+                        const url = rawUrl;
                         textarea.value = textarea.value.replace(placeholder, url);
 
                         // Update preview with actual thumbnail
                         if (previewItem) {
                             previewItem.classList.remove('cf-uploading');
-                            previewItem.dataset.url = url;
+                            previewItem.dataset.url = rawUrl;
                             previewItem.dataset.fileId = fileData.id;
                             previewItem.dataset.dest = fileData.dest;
                             previewItem.dataset.mime = fileData.mime;
@@ -2373,12 +2379,12 @@ class CommentSystem {
 
                             if (fileData.mime.startsWith('image/')) {
                                 const img = document.createElement('img');
-                                img.src = url;
+                                img.src = rawUrl;
                                 img.loading = 'lazy';
                                 previewItem.appendChild(img);
                             } else if (fileData.mime.startsWith('video/')) {
                                 const vid = document.createElement('video');
-                                vid.src = url;
+                                vid.src = rawUrl;
                                 vid.muted = true;
                                 vid.preload = 'metadata';
                                 previewItem.appendChild(vid);
@@ -2393,10 +2399,18 @@ class CommentSystem {
                             nameEl.textContent = file.name;
                             previewItem.appendChild(nameEl);
 
+                            const spoilerBtn = document.createElement('button');
+                            spoilerBtn.className = 'cf-spoiler-btn';
+                            spoilerBtn.title = 'Toggle spoiler';
+                            spoilerBtn.innerHTML = '<i class="fa-solid fa-paperclip"></i><span class="spoiler-attach-badge">S</span>';
+                            spoilerBtn.type = 'button';
+                            previewItem.appendChild(spoilerBtn);
+
                             const removeBtn = document.createElement('button');
                             removeBtn.className = 'cf-remove-btn';
                             removeBtn.title = removeLabel;
                             removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                            removeBtn.type = 'button';
                             previewItem.appendChild(removeBtn);
                         }
                     } else {
@@ -2452,8 +2466,40 @@ class CommentSystem {
             // Attach file button
             if (target.matches('.comment-attach-btn') || target.closest('.comment-attach-btn')) {
                 const wrap = target.closest('.comment-input');
+                const textarea = wrap?.querySelector('textarea');
+                if (textarea) {
+                    wrap._savedCursorPos = textarea.selectionStart;
+                    wrap._savedCursorEnd = textarea.selectionEnd;
+                }
                 const fileInput = wrap?.querySelector('.comment-file-input');
                 if (fileInput) fileInput.click();
+                return;
+            }
+
+            // Attach file as spoiler: toggle [spoiler] wrapping on a preview item
+            const spoilerToggle = target.closest('.cf-spoiler-btn');
+            if (spoilerToggle) {
+                const previewItem = spoilerToggle.closest('.cf-preview-item');
+                if (previewItem) {
+                    const rawUrl = previewItem.dataset.url;
+                    const wrap = previewItem.closest('.comment-input');
+                    const textarea = wrap?.querySelector('textarea');
+                    if (textarea && rawUrl) {
+                        const escapedUrl = rawUrl.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+                        const spoilerPattern = new RegExp('\\[spoiler\\]' + escapedUrl + '\\[\/spoiler\\]', 'i');
+                        if (spoilerPattern.test(textarea.value)) {
+                            // Unwrap
+                            textarea.value = textarea.value.replace(spoilerPattern, rawUrl);
+                            previewItem.classList.remove('cf-is-spoiler');
+                            spoilerToggle.title = 'Toggle spoiler';
+                        } else {
+                            // Wrap
+                            textarea.value = textarea.value.replace(new RegExp(escapedUrl), `[spoiler]${rawUrl}[/spoiler]`);
+                            previewItem.classList.add('cf-is-spoiler');
+                            spoilerToggle.title = 'Remove spoiler';
+                        }
+                    }
+                }
                 return;
             }
 
@@ -2461,13 +2507,20 @@ class CommentSystem {
             if (target.matches('.cf-remove-btn') || target.closest('.cf-remove-btn')) {
                 const previewItem = target.closest('.cf-preview-item');
                 if (previewItem) {
-                    const url = previewItem.dataset.url;
-                    if (url) {
+                    const rawUrl = previewItem.dataset.url;
+                    if (rawUrl) {
                         const wrap = previewItem.closest('.comment-input');
                         const textarea = wrap?.querySelector('textarea');
                         if (textarea) {
-                            // Remove the URL and any surrounding newline
-                            textarea.value = textarea.value.replace(new RegExp('\\n?' + url.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&') + '\\n?'), '\n').replace(/^\n|\n$/g, '');
+                            // Build patterns for both plain URL and spoiler-wrapped URL
+                            const escapedUrl = rawUrl.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+                            const spoilerPattern = new RegExp('\\n?\\[spoiler\\]' + escapedUrl + '\\[\\/spoiler\\]\\n?', 'i');
+                            const plainPattern = new RegExp('\\n?' + escapedUrl + '\\n?');
+                            if (spoilerPattern.test(textarea.value)) {
+                                textarea.value = textarea.value.replace(spoilerPattern, '\n').replace(/^\n|\n$/g, '');
+                            } else {
+                                textarea.value = textarea.value.replace(plainPattern, '\n').replace(/^\n|\n$/g, '');
+                            }
                         }
                     }
                     previewItem.remove();

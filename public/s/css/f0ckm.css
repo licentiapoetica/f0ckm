@@ -2447,6 +2447,38 @@ body.layout-legacy #comments-container.faded-out {
   font-size: 14px;
 }
 
+.cf-spoiler-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 12px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.15s;
+}
+
+.cf-spoiler-btn:hover,
+.cf-is-spoiler .cf-spoiler-btn {
+  color: #f0a500;
+}
+
+.cf-is-spoiler {
+  border-color: rgba(240, 165, 0, 0.4);
+  background: rgba(240, 165, 0, 0.06);
+}
+
+.spoiler-attach-badge {
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  color: #f0a500;
+  letter-spacing: 0.03em;
+}
+
 .comment-file-preview {
   display: flex;
   flex-wrap: wrap;
