@@ -10474,7 +10474,7 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
   display: flex;
   align-items: center;
   padding: 5px;
-  gap: 5px;
+  gap: 10px;
 }
 
 .tag-btn {
