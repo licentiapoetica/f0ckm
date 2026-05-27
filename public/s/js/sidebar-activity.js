@@ -399,15 +399,15 @@
             const url = `/c/${f.dest}`;
             if (content.includes(url)) return ''; // Skip if already rendered in content
             if (f.mime.startsWith('image/')) {
-                return `<a href="${url}" target="_blank" class="cf-attachment cf-image" style="display: inline-block; max-width: 100%;"><img src="${url}" class="sidebar-comment-img" alt="${escapeHtml(f.original_filename || 'image')}" loading="lazy" style="max-width: 100%; max-height: 150px; object-fit: contain; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></a>`;
+                return `<a href="${url}" target="_blank" class="cf-attachment cf-image"><img src="${url}" class="sidebar-comment-img" alt="${escapeHtml(f.original_filename || 'image')}" loading="lazy"></a>`;
             } else if (f.mime.startsWith('video/')) {
-                return `<div class="cf-attachment cf-video" style="max-width: 100%;"><video src="${url}" controls preload="metadata" style="max-width: 100%; max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; margin-top: 4px;"></video></div>`;
+                return `<div class="cf-attachment cf-video"><video src="${url}" class="sidebar-comment-img" controls preload="metadata"></video></div>`;
             } else if (f.mime.startsWith('audio/')) {
-                return `<div class="cf-attachment cf-audio" style="max-width: 100%;"><audio src="${url}" controls preload="metadata" style="width: 100%; max-height: 40px; margin-top: 4px;"></audio></div>`;
+                return `<div class="cf-attachment cf-audio"><audio src="${url}" controls preload="metadata"></audio></div>`;
             }
             return '';
         }).join('');
-        return items ? `<div class="comment-attachments" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">${items}</div>` : '';
+        return items ? `<div class="comment-attachments">${items}</div>` : '';
     };
 
     const renderActivityItem = (c) => {
