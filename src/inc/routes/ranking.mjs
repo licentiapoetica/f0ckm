@@ -78,6 +78,11 @@ export default (router, tpl) => {
         where items.active = true
       `)[0].total;
 
+      const totalUsers = +(await db`
+        select count(*) as total
+        from "user"
+      `)[0].total;
+
       const hoster = await db`
         with t as (
           select
@@ -135,6 +140,7 @@ export default (router, tpl) => {
           xdtop,
           totalComments,
           totalFavs,
+          totalUsers,
           enable_nsfl: config.enable_nsfl,
           diskSize: cachedDiskSize,
           tmp: null,
