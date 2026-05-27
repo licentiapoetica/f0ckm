@@ -319,7 +319,7 @@ export default (router) => {
   // POST /api/v2/scroller/rehost
   // Downloads an external item and adds it to the platform
   router.post(/^\/api\/v2\/scroller\/rehost\/?$/, lib.loggedin, async (req, res) => {
-    const { url, rating: initialRating, tags: tagsRaw, comment, is_oc } = req.post || {};
+    const { url, rating: initialRating, tags: tagsRaw, comment, is_oc, original_filename } = req.post || {};
 
     if (!url) return res.reply({ code: 400, body: JSON.stringify({ success: false, msg: 'URL is required' }) });
 
@@ -436,8 +436,9 @@ export default (router) => {
                 usernetwork: 'web',
                 stamp: ~~(Date.now() / 1000),
                 active: !isApprovalRequired,
-                is_oc: !!is_oc
-            }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc')}
+                is_oc: !!is_oc,
+                original_filename: original_filename || null
+            }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'original_filename')}
             RETURNING id
         `;
 

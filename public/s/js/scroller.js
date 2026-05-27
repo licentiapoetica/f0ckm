@@ -209,6 +209,12 @@
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  function decodeHtmlEntities(str) {
+    if (!str) return '';
+    const txt = document.createElement('textarea');
+    txt.innerHTML = String(str);
+    return txt.value;
+  }
   function timeAgo(iso) {
     const s = Math.floor((Date.now() - new Date(iso)) / 1000);
     const i = window.f0ckI18n || {};
@@ -1690,7 +1696,8 @@
               is_audio: false,
               comment_count: p.replies || 0,
               rating_label: isWsg ? 'SFW' : (isGif ? 'NSFW' : 'External'),
-              rating_class: isWsg ? 'sfw' : (isGif ? 'nsfw' : 'untagged')
+              rating_class: isWsg ? 'sfw' : (isGif ? 'nsfw' : 'untagged'),
+              original_filename: p.filename ? `${decodeHtmlEntities(p.filename)}${ext}` : null
             };
           })
           .filter(Boolean);
@@ -1855,7 +1862,8 @@
           url: item.external_media_url || item.dest,
           rating: rating,
           tags: '4chan',
-          comment: `Rehosted from 4chan thread: ${applied.externalUrl || 'unknown'}`
+          comment: `Rehosted from 4chan thread: ${applied.externalUrl || 'unknown'}`,
+          ...(item.original_filename ? { original_filename: item.original_filename } : {})
         })
       });
       const data = await resp.json();
