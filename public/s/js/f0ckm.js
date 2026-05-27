@@ -6044,7 +6044,7 @@ class NotificationSystem {
         // keyboard so textarea loses focus, but _pendingUploads is still set).
         const hasPendingUpload = isAttached && Array.from(
           container.querySelectorAll('.comment-input')
-        ).some(wrap => (wrap._pendingUploads || 0) > 0);
+        ).some(wrap => (wrap._pendingUploads || 0) > 0 || wrap._attachPending === true);
         if (isAttached && !userTyping && !hasPendingUpload) {
           // Kill the stabilization ResizeObserver SYNCHRONOUSLY before anything else.
           // If it's still alive from the initial anchor-load, it will fire when the

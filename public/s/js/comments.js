@@ -2287,6 +2287,8 @@ class CommentSystem {
             const fileInput = e.target;
             const wrap = fileInput.closest('.comment-input');
             if (!wrap) return;
+            // Clear the attach-pending flag set in the click handler.
+            wrap._attachPending = false;
             const textarea = wrap.querySelector('textarea');
             if (!textarea) return;
             const previewArea = wrap.querySelector('.comment-file-preview');
@@ -2471,6 +2473,12 @@ class CommentSystem {
                     wrap._savedCursorPos = textarea.selectionStart;
                     wrap._savedCursorEnd = textarea.selectionEnd;
                 }
+                // Flag that a file picker is open. Checked by the visibilitychange
+                // guard in f0ckm.js so it doesn't call loadComments (and replace the
+                // textarea DOM) while the mobile file picker is open.
+                // Cleared at the start of the change handler, or left to expire
+                // harmlessly if the user cancels the picker.
+                if (wrap) wrap._attachPending = true;
                 const fileInput = wrap?.querySelector('.comment-file-input');
                 if (fileInput) fileInput.click();
                 return;
