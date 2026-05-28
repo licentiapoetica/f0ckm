@@ -2155,11 +2155,6 @@ body.sidebar-right-hidden .global-sidebar-right {
     right: -280px !important;
   }
 
-  /* Mobile: pagination container right-edge tracks the 280px mobile sidebar */
-  .pagination-container-fluid {
-    right: 280px;
-  }
-
   #sidebar-right-toggle {
     top: 80% !important;
     transform: none !important;
