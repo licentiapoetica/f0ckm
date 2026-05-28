@@ -4465,7 +4465,7 @@ span.placeholder {
 }
 
 .embed-responsive-16by9::before {
-  padding-top: 56.25%;
+  padding-top: 54.25%;
 }
 
 .embed-responsive-4by3::before {
