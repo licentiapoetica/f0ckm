@@ -2620,7 +2620,7 @@ body.layout-modern .comments-list {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0;
   flex: 1 1 auto;
   /* Grow to fill #comments-container */
   overflow-y: auto;
