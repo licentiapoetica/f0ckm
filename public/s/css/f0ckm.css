@@ -2634,12 +2634,16 @@ body.layout-legacy .comments-list {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0;
   flex: 0 0 auto;
   /* Natural height */
   overflow: visible;
   /* Unified scrolling */
   min-height: 0;
+  border: 1px solid var(--nav-border-color);
+  padding-right: 0px;
+  padding-left: 0px;
+  padding-top: 0px;
 }
 
 body.layout-legacy .scroll-nav-wrapper {
