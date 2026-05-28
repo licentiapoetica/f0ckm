@@ -5354,11 +5354,37 @@ window.cancelAnimFrame = (function () {
     timeout: 500  // 500ms
   };
 
+  let edgeZoneTimeout = null;
+
   document.addEventListener('touchstart', e => {
     if (window.f0ckSession?.disable_swiping) return;
     if (document.body.classList.contains('modal-open')) return;
     
     const touch = e.touches[0];
+
+    // Check if touch is over a video player, controls, or video element
+    let isOverVideo = false;
+    if (document.fullscreenElement) {
+      isOverVideo = true;
+    } else {
+      const ez = document.getElementById('sidebar-drag-zone');
+      if (ez) {
+        const originalPointerEvents = ez.style.pointerEvents;
+        ez.style.pointerEvents = 'none';
+        const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        ez.style.pointerEvents = originalPointerEvents;
+        if (elUnder && (elUnder.closest('.v0ck') || elUnder.closest('video') || elUnder.closest('.v0ck_player_controls') || elUnder.tagName === 'VIDEO')) {
+          isOverVideo = true;
+        }
+      }
+    }
+
+    if (isOverVideo) {
+      if (edgeZoneTimeout) clearTimeout(edgeZoneTimeout);
+      const ez = document.getElementById('sidebar-drag-zone');
+      if (ez) ez.style.pointerEvents = 'none';
+      return;
+    }
     swipeRT.startEl = e.target;
     swipeRT.timeDown = Date.now();
     swipeRT.xDown = touch.clientX;
@@ -5583,6 +5609,16 @@ window.cancelAnimFrame = (function () {
     swipeRT.yDown = null;
     swipeRT.timeDown = null;
 
+    // Restore edgeZone pointer events after a short delay to allow clicks to pass through
+    const ez = document.getElementById('sidebar-drag-zone');
+    if (ez && ez.style.pointerEvents === 'none') {
+      if (edgeZoneTimeout) clearTimeout(edgeZoneTimeout);
+      edgeZoneTimeout = setTimeout(() => {
+        if (typeof syncEdgeZone === 'function') syncEdgeZone();
+        else ez.style.pointerEvents = 'all';
+      }, 250);
+    }
+
     if (elem) {
       changePage(elem);
     }
@@ -5597,6 +5633,20 @@ window.cancelAnimFrame = (function () {
       swipeRT._steuerungPreventedTarget = null;
     }
   }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
+    const ez = document.getElementById('sidebar-drag-zone');
+    if (ez && ez.style.pointerEvents === 'none') {
+      if (edgeZoneTimeout) clearTimeout(edgeZoneTimeout);
+      edgeZoneTimeout = setTimeout(() => {
+        if (typeof syncEdgeZone === 'function') syncEdgeZone();
+        else ez.style.pointerEvents = 'all';
+      }, 250);
+    }
+    swipeRT.xDown = null;
+    swipeRT.yDown = null;
+    swipeRT.timeDown = null;
+  });
   // </swipe>
 
   // iOS Safari: non-passive touchstart on .steuerung to prevent native history-swipe gesture
