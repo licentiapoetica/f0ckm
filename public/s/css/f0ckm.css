@@ -2155,6 +2155,12 @@ body.sidebar-right-hidden .global-sidebar-right {
     right: -280px !important;
   }
 
+  /* Mobile: sidebar is an overlay, so pagination always spans full viewport */
+  .pagination-container-fluid,
+  body.sidebar-right-hidden .pagination-container-fluid {
+    right: 0 !important;
+  }
+
   #sidebar-right-toggle {
     top: 80% !important;
     transform: none !important;
