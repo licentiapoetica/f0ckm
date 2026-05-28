@@ -554,7 +554,8 @@
     "direct_url": "Direct URL",
     "view_file": "View File",
     "metadata": "Metadata",
-    "sha256": "SHA-256 Hash"
+    "sha256": "SHA-256 Hash",
+    "dimensions": "Dimensions"
   },
   "meme": {
     "add_text_layer": "Add Text Layer",

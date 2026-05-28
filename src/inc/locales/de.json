@@ -550,7 +550,8 @@
     "direct_url": "Direkt-Link",
     "view_file": "Datei anzeigen",
     "metadata": "Metadaten",
-    "sha256": "SHA-256-Hash"
+    "sha256": "SHA-256-Hash",
+    "dimensions": "Abmessungen"
   },
   "meme": {
     "add_text_layer": "Textebene hinzufügen",

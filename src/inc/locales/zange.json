@@ -551,7 +551,8 @@
     "direct_url": "Direktelfe",
     "view_file": "Datei betrachten",
     "metadata": "Metadaten",
-    "sha256": "SHA-256-Streuwert"
+    "sha256": "SHA-256-Streuwert",
+    "dimensions": "Abmessungen"
   },
   "meme": {
     "add_text_layer": "Textebene hinzufügen",

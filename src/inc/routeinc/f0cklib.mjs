@@ -726,7 +726,9 @@ export default {
         is_comments_locked: actitem.is_comments_locked || false,
         is_oc: actitem.is_oc || false,
         is_repost: actitem.checksum ? actitem.checksum.includes('_bypass_') : false,
-        reposts: repostItems
+        reposts: repostItems,
+        width: actitem.width || null,
+        height: actitem.height || null
       },
       title: `${actitem.id} - ${cfg.websrv.domain}`,
       pagination: {

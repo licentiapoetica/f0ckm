@@ -550,7 +550,8 @@
     "direct_url": "Directe URL",
     "view_file": "Bestand bekijken",
     "metadata": "Metadata",
-    "sha256": "SHA-256 Hash"
+    "sha256": "SHA-256 Hash",
+    "dimensions": "Afmetingen"
   },
   "meme": {
     "add_text_layer": "Tekstlaag Toevoegen",

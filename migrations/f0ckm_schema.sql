@@ -906,7 +906,9 @@ CREATE TABLE public.items (
     is_oc boolean DEFAULT false,
     xd_score integer DEFAULT 0 NOT NULL,
     original_filename text,
-    title text
+    title text,
+    width integer,
+    height integer
 );
 
 

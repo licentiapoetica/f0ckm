@@ -21,6 +21,10 @@ db`ALTER TABLE items ADD COLUMN IF NOT EXISTS original_filename text`.catch(() =
 // One-time migration: restore title column for backwards compatibility with old databases
 db`ALTER TABLE items ADD COLUMN IF NOT EXISTS title text`.catch(() => {});
 
+// One-time migration: add width/height columns for image and video dimension storage
+db`ALTER TABLE items ADD COLUMN IF NOT EXISTS width integer`.catch(() => {});
+db`ALTER TABLE items ADD COLUMN IF NOT EXISTS height integer`.catch(() => {});
+
 export const handleUpload = async (req, res, self) => {
     // Manual session lookup is required here because this handler is called from a 
     // bypass middleware that runs in parallel with the main session middleware.
@@ -343,6 +347,44 @@ export const handleUpload = async (req, res, self) => {
         // Suffix it so the INSERT can proceed — the file is genuinely a new item entry.
         const insertChecksum = getBypassDuplicateCheck() ? `${checksum}_bypass_${Date.now()}` : checksum;
 
+        // Probe pixel dimensions for images and videos (null for audio/flash/pdf/youtube)
+        let itemWidth = null;
+        let itemHeight = null;
+        try {
+            if (actualMime.startsWith('image/')) {
+                // Use magick identify — handles all image formats, already present for thumbnailing
+                const { stdout: magickOut } = await queue.spawn('magick', [
+                    'identify', '-format', '%wx%h\n', destPath + '[0]'
+                ], { quiet: true, ignoreExitCode: true });
+                const line = magickOut.trim().split('\n')[0];
+                const match = line.match(/^(\d+)x(\d+)$/);
+                if (match) {
+                    itemWidth  = parseInt(match[1], 10);
+                    itemHeight = parseInt(match[2], 10);
+                }
+            } else if (actualMime.startsWith('video/') && actualMime !== 'video/youtube') {
+                // Use ffprobe for videos — reads first video stream dimensions
+                const { stdout: probeOut } = await queue.spawn('ffprobe', [
+                    '-v', 'error',
+                    '-select_streams', 'v:0',
+                    '-show_entries', 'stream=width,height',
+                    '-of', 'csv=p=0',
+                    destPath
+                ], { quiet: true, ignoreExitCode: true });
+                const parts = probeOut.trim().split(',');
+                if (parts.length >= 2) {
+                    const w = parseInt(parts[0], 10);
+                    const h = parseInt(parts[1], 10);
+                    if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+                        itemWidth  = w;
+                        itemHeight = h;
+                    }
+                }
+            }
+        } catch (dimErr) {
+            console.warn(`[UPLOAD] Dimension probe failed for ${actualMime} (non-fatal):`, dimErr.message);
+        }
+
         // Insert
         const originalFilename = file.filename || null;
         await db`
@@ -360,9 +402,10 @@ export const handleUpload = async (req, res, self) => {
             active: !manualApproval,
             is_oc: is_oc,
             original_filename: originalFilename,
-            title: title
-        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'original_filename', 'title')
-            }
+            title: title,
+            width: itemWidth,
+            height: itemHeight
+        }, 'src', 'dest', 'mime', 'size', 'checksum', 'phash', 'username', 'userchannel', 'usernetwork', 'stamp', 'active', 'is_oc', 'original_filename', 'title', 'width', 'height')}
         `;
 
         const itemid = await queue.getItemID(filename);

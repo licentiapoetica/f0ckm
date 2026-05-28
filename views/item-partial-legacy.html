@@ -222,6 +222,12 @@
                     <th>{{ t('info_modal.file_size') || 'File Size' }}</th>
                     <td>{{ item.size }}</td>
                 </tr>
+                @if(item.width && item.height)
+                <tr>
+                    <th>{{ t('info_modal.dimensions') || 'Dimensions' }}</th>
+                    <td>{{ item.width }} × {{ item.height }}</td>
+                </tr>
+                @endif
                 <tr>
                     <th>{{ t('info_modal.mime_type') || 'MIME Type' }}</th>
                     <td><code>{{ item.mime }}</code></td>
