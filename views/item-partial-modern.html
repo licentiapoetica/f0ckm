@@ -154,7 +154,7 @@
                 <i class="iconset fa-solid fa-circle-info" id="a_info" data-item-id="{{ item.id }}" title="{{ t('info_modal.button_title') || 'Post & File Info' }}"></i>
                 @endif
             </div>
-                <span id="favs" @if(!item.favorites.length) hidden@endif style="margin-top: 5px; display: block;">
+                <span id="favs" @if(!item.favorites.length) hidden@endif style="margin-top: 5px;">
                     @each(item.favorites as fav)
                     <a href="/user/{{ fav.user.toLowerCase() }}" tooltip="{!! fav.display_name || fav.user !!}" flow="up"><img src="@if(fav.avatar_file)/a/{{ fav.avatar_file }}@elseif(fav.avatar)/t/{{ fav.avatar }}.webp@else/a/default.png@endif" style="height: 32px; width: 32px@if(fav.username_color); border-color: {{ fav.username_color }}@endif" loading="lazy" /></a>
                     @endeach
