@@ -4217,6 +4217,15 @@ body.sidebar-right-hidden .pagination-container-fluid {
   border: 1px solid var(--accent) !important;
 }
 
+@media (max-width: 768px) {
+  .pagination>a,
+  .pagination>span {
+    font-size: 19px;
+    min-width: 26px;
+    padding: 2px 7px;
+  }
+}
+
 .pagination :first-child {
   margin-left: 0;
 }
