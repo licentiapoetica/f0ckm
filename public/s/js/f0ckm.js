@@ -552,11 +552,13 @@ window.cancelAnimFrame = (function () {
 
     if (isAllBtn) {
       // ALL: clear ratings cookie, set mode=3 on server
+      // Must set activeMode BEFORE syncRatingButtonUI so the ALL button
+      // active-state check (activeRatings.length === 0 && window.activeMode === 3) passes.
       clearRatingsCookie();
-      syncRatingButtonUI();
-      if (fromFilterModal) window._keepFilterModal = true;
       window.activeMode = 3;
       document.cookie = `mode=3; Path=/; Max-Age=31536000`;
+      syncRatingButtonUI();
+      if (fromFilterModal) window._keepFilterModal = true;
       document.dispatchEvent(new CustomEvent('f0ck:modeChanged', { detail: { mode: 3 } }));
       fetch('/mode/3', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'include' })
         .then(r => r.json())

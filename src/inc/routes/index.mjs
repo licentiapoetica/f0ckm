@@ -63,7 +63,9 @@ export default (router, tpl) => {
     try {
       const isRandom = req.cookies.random_mode === '1';
       const ratingsRaw = req.cookies.ratings;
-      const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
+      // In All mode (mode=3), ignore the ratings cookie — it would otherwise
+      // filter out e.g. NSFW uploads even though the user is in "All" mode.
+      const ratingsArr = (req.mode === 3) ? null : (ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null);
       f0cks = await f0cklib.getf0cks({
         user: user,
         mode: req.mode,
@@ -87,7 +89,9 @@ export default (router, tpl) => {
       try {
         const isRandom = req.cookies.random_mode === '1';
         const ratingsRaw = req.cookies.ratings;
-        const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
+        // In All mode (mode=3), ignore the ratings cookie — a stale ratings cookie
+        // (e.g. only 'sfw') would cause NSFW favorites to show 0 on the profile.
+        const ratingsArr = (req.mode === 3) ? null : (ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null);
         favs = await f0cklib.getf0cks({
           user: user,
           mode: req.mode,
