@@ -4974,7 +4974,7 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
 
   /* layout-modern: both sidebar AND comments visible — column is narrow, full 16:9 fits */
   body.layout-modern:not(.sidebar-right-hidden) .item-layout-container:not(.sidebar-hidden) .embed-responsive-16by9::before {
-    padding-top: 56.25%;
+    padding-top: 54.25%;
   }
 
   /* layout-modern: either sidebar OR comments hidden (or both) — column is wider, reduce */
