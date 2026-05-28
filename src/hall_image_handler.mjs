@@ -269,6 +269,9 @@ export const handleHallUpdate = async (req, res) => {
 
 // POST /api/v2/admin/halls — create a new hall
 export const handleHallCreate = async (req, res) => {
+    const session = await lookupSession(req);
+    if (!session || (!session.admin && !session.is_moderator)) return sendJson(res, { success: false, msg: 'Unauthorized' }, 403);
+
     // CSRF check
     const token = req.headers['x-csrf-token'] || req.url?.qs?.csrf_token;
     if (!token || token !== session.csrf_token) {
