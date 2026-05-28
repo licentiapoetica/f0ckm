@@ -2333,7 +2333,7 @@ body.layout-legacy #comments-container.faded-out {
 }
 
 .admin-pin-btn:hover,
-.admin-edit-btn:hover {
+.admin-edit-btn:hover {^
   color: var(--accent);
 }
 
@@ -3415,6 +3415,7 @@ html[theme='f0ck95d'] {
   --posts-meta-bg: #000000b8;
   --badge-sfw: teal;
   --badge-nsfw: #a72828;
+  --badge-nsfl: #660000;
   --badge-tag: #2f2f2f;
   --scrollbar-color: #555;
   --scroller-bg: #424242;
