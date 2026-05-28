@@ -8481,8 +8481,9 @@ document.addEventListener('DOMContentLoaded', () => {
       resetTransform();
     };
 
-    // Expose globally for guaranteed navigation cleanup
+    // Expose globally for guaranteed navigation cleanup and spoiler integration
     window.closeImageModal = closeImageModal;
+    window.openImageModal = openImageModal;
 
     // Zoom Logic
     const handleWheel = (e) => {
@@ -8653,9 +8654,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Comment embedded images → open in image modal (skip emoji images)
+      // Comment embedded images → open in image modal (skip emoji images, skip unrevealed spoilers)
       const commentImg = e.target.closest('.comment-content img, .comment-attachments img');
       if (commentImg && !commentImg.classList.contains('emoji')) {
+        // If this image is inside an unrevealed spoiler, let the spoiler handler deal with it
+        const parentSpoiler = commentImg.closest('.spoiler');
+        if (parentSpoiler && !parentSpoiler.classList.contains('revealed')) return;
         e.preventDefault();
         e.stopPropagation();
         openImageModal(commentImg.src);
@@ -9105,6 +9109,14 @@ if (navigator.vibrate) {
         if (!hiddenEl.classList.contains('revealed')) {
             hiddenEl.classList.add('revealed');
             hiddenEl.querySelectorAll('video, audio, img, iframe, .video-embed-wrap, .yt-embed-wrap, .audio-embed-wrap').forEach(m => m.classList.add('revealed'));
+            return;
+        }
+
+        // Spoiler is already revealed — check if the click is on an image
+        const clickedImg = path.find(el => el.tagName === 'IMG' && !el.classList.contains('emoji'));
+        if (clickedImg && typeof window.openImageModal === 'function') {
+            // Let the click event through; the image modal handler will pick it up.
+            // We just need to make sure we don't re-hide the spoiler.
             return;
         }
 

@@ -1669,7 +1669,7 @@ class CommentSystem {
                 });
             }
             const hostsRegexPart = allowedHosts.join('|');
-            const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?<!\\S)(?=\\/[a-zA-Z0-9_\\-]))`;
+            const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?:(?<!\\S)|(?<=\\]))(?=\\/[a-zA-Z0-9_\\-]))`;
 
             // "Safe non-whitespace" — matches any \S except the start of an https?:// boundary.
             // Prevents concatenated URLs (url1.webpurl2.webp) being consumed as one giant src.

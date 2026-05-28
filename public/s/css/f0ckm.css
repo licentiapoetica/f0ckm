@@ -3088,31 +3088,27 @@ body.layout-legacy .scroll-to-bottom svg {
 }
 
 /* Ensure spoilers properly envelope media */
-.spoiler:has(img, video, iframe, audio) {
-  display: inline-block;
-  max-width: 100%;
-}
-
 .spoiler:has(.vocaroo-embed-wrap, .video-embed-wrap, .yt-embed-wrap, .audio-embed-wrap, img, video, iframe, audio) {
-  display: inline-grid;
-  grid-auto-flow: column;
+  display: inline-block;
+  width: max-content;
   max-width: 100%;
   vertical-align: middle;
 }
 
 .spoiler .vocaroo-embed-wrap,
 .spoiler .video-embed-wrap,
-.spoiler .yt-embed-wrap,
 .spoiler .audio-embed-wrap {
-  display: inline-block;
+  display: inline-block !important;
   vertical-align: middle;
-  width: auto;
-  max-width: 100%;
+  width: auto !important;
+  max-width: 480px;
   margin: 4px 2px;
 }
 
 .spoiler .yt-embed-wrap {
+  display: inline-block !important;
   width: 480px;
+  max-width: 100%;
   /* YouTube needs a base width for the aspect ratio padding trick */
 }
 
@@ -7867,7 +7863,8 @@ video.autoplay-gif {
 .image-embed-wrap {
   position: relative;
   display: inline-block;
-  max-width: 100%;
+  width: 100%;
+  max-width: 480px;
 }
 
 .admin-delete-attachment-btn {
@@ -8445,9 +8442,9 @@ span.badge.badge-current {
 
 .comment-content img {
   /*max-height: 200px;*/
-  max-width: 100%;
+  max-width: 480px;
+  width: 100%;
   border-radius: 4px;
-
 }
 
 /*.sidebar-comment-img {
@@ -8490,6 +8487,8 @@ span.badge.badge-current {
 .comment-content img:not(.emoji) {
   display: block;
   cursor: pointer;
+  max-width: 480px;
+  width: 100%;
 }
 
 /* Smaller emojis in the narrow left sidebar */
