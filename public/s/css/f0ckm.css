@@ -2646,6 +2646,10 @@ body.layout-legacy .comments-list {
   padding-top: 0px;
 }
 
+body.layout-legacy .comments-list:empty {
+  border: none;
+}
+
 body.layout-legacy .scroll-nav-wrapper {
   position: absolute;
   top: -75px;
