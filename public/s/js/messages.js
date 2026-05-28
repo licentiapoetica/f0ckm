@@ -2073,27 +2073,45 @@ if (window.__dmLoaded) {
     // Recovery modal (shown when vault exists but no local key)
     // ─────────────────────────────────────────────────────────────────────────
 
-    function showRecoveryModal() {
+    function showRecoveryModal({ dismissible = false } = {}) {
         return new Promise(resolve => {
             const modal = document.createElement('div');
             modal.id = 'dm-recovery-modal';
-            modal.className = 'dm-modal-overlay dm-modal-blocking';
+            modal.className = 'dm-modal-overlay' + (dismissible ? '' : ' dm-modal-blocking');
             modal.innerHTML = `
                 <div class="dm-modal">
-                    <h2>🔑 Restore your key</h2>
+                    ${dismissible ? '<button class="dm-modal-close" id="dm-recovery-close">\u00d7</button>' : ''}
+                    <h2>Restore your key</h2>
                     <p class="dm-modal-sub">Enter your 12 recovery words to regain access to your messages.</p>
                     <div class="dm-recovery-grid" id="dm-recovery-inputs"></div>
                     <div class="dm-key-msg" id="dm-recovery-msg"></div>
-                    <button class="dm-key-btn dm-key-btn-primary" id="dm-recovery-btn">🔓 Restore key</button>
+                    <button class="dm-key-btn dm-key-btn-primary" id="dm-recovery-btn">Restore key</button>
                     <hr style="border-color:rgba(255,255,255,0.1);margin:16px 0">
                     <p style="font-size:0.82em;color:#888">Forgot your words? You can create a new key — <strong>all old messages will become unreadable.</strong></p>
-                    <button class="dm-key-btn dm-key-btn-danger" id="dm-recovery-reset">⚠️ Start fresh (lose old messages)</button>
+                    <button class="dm-key-btn dm-key-btn-danger" id="dm-recovery-reset">Start fresh (lose old messages)</button>
                 </div>
             `;
 
-            modal.addEventListener('click', e => e.stopPropagation());
+            const dismiss = () => {
+                document.removeEventListener('keydown', trapEsc2, true);
+                modal.remove();
+                resolve();
+            };
+
+            if (dismissible) {
+                modal.querySelector('#dm-recovery-close').onclick = dismiss;
+                modal.addEventListener('click', e => { if (e.target === modal) dismiss(); });
+            } else {
+                modal.addEventListener('click', e => e.stopPropagation());
+            }
+
             document.addEventListener('keydown', trapEsc2, true);
-            function trapEsc2(e) { if (e.key === 'Escape') e.stopImmediatePropagation(); }
+            function trapEsc2(e) {
+                if (e.key === 'Escape') {
+                    if (dismissible) { e.stopImmediatePropagation(); dismiss(); }
+                    else e.stopImmediatePropagation();
+                }
+            }
 
             const grid = modal.querySelector('#dm-recovery-inputs');
             for (let i = 0; i < 12; i++) {
@@ -2212,24 +2230,19 @@ if (window.__dmLoaded) {
         modal.innerHTML = `
             <div class="dm-modal">
                 <button class="dm-modal-close" id="dm-key-modal-close">×</button>
-                <h2>🔑 Encryption Key</h2>
+                <h2>Encryption Key</h2>
                 <p class="dm-modal-sub">Your private key is secured with your recovery phrase and stored encrypted on the server.</p>
 
                 <div class="dm-key-status" id="dm-key-status">${hasKey() ? '✅ Key loaded and backed up.' : '❌ No key found.'}</div>
 
                 <div class="dm-key-section">
-                    <h3>🔓 Recover from phrase</h3>
+                    <h3>Recover from phrase</h3>
                     <p>Already have a recovery phrase? Enter it here to restore access to previous messages on this device.</p>
                     <button class="dm-key-btn" id="dm-recover-phrase-btn" style="background:rgba(255,255,255,0.07);border:1px solid #444;color:var(--fg,#ddd);width:100%">Enter recovery phrase</button>
                     <div class="dm-key-msg" id="dm-recover-phrase-msg"></div>
                 </div>
 
-                <div class="dm-key-section dm-key-danger">
-                    <h3>Create new key</h3>
-                    <p>⚠️ Creates a new key pair. <strong>Old messages will become unreadable.</strong></p>
-                    <button class="dm-key-btn dm-key-btn-danger" id="dm-regen-btn">🔄 Create new key</button>
-                    <div class="dm-key-msg" id="dm-regen-msg"></div>
-                </div>
+
             </div>
         `;
 
@@ -2240,7 +2253,7 @@ if (window.__dmLoaded) {
         // Recover from existing phrase
         modal.querySelector('#dm-recover-phrase-btn').onclick = async () => {
             modal.style.display = 'none';
-            await showRecoveryModal();
+            await showRecoveryModal({ dismissible: true });
 
             // REFRESH UI after recovery
             if (typeof initMessagesPage === 'function') await initMessagesPage();
@@ -2250,25 +2263,7 @@ if (window.__dmLoaded) {
             if (statusEl) statusEl.textContent = hasKey() ? '✅ Key loaded and backed up.' : '❌ No key found.';
         };
 
-        modal.querySelector('#dm-regen-btn').onclick = async () => {
-            const msg = modal.querySelector('#dm-regen-msg');
-            if (!confirm('Really create a new key? All old messages will become unreadable.')) return;
-            try {
-                await dmFetch('DELETE', '/api/dm/keyvault');
-                localStorage.removeItem(DM_KEY_NAME);
-                localStorage.removeItem(DM_PUBKEY_NAME);
-                localStorage.removeItem(DM_KEY_VERSION);
-                _privateKey = null; _publicKeyJwk = null; pubkeyCache.clear();
-                modal.style.display = 'none';
-                const status = await loadOrCreateKeyPair();
-                uploadPublicKey().catch(() => {});
-                if (status === 'new') await showSeedSetupModal();
-                // REFRESH UI after regen/setup
-                if (typeof initMessagesPage === 'function') await initMessagesPage();
-            } catch (e) {
-                setMsg(msg, '❌ Error: ' + e.message, 'err');
-            }
-        };
+
 
         return modal;
     }
