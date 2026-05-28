@@ -15041,8 +15041,6 @@ body.scroller-active #gchat-reopen-bubble {
   letter-spacing: 2px !important;
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
   background: rgba(10, 10, 12, 0.6) !important;
-  backdrop-filter: blur(28px) !important;
-  -webkit-backdrop-filter: blur(28px) !important;
   pointer-events: none !important;
   opacity: 1 !important;
   transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
@@ -15062,8 +15060,6 @@ body.scroller-active #gchat-reopen-bubble {
   letter-spacing: 2px !important;
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9) !important;
   background: rgba(10, 10, 12, 0.65) !important;
-  backdrop-filter: blur(32px) !important;
-  -webkit-backdrop-filter: blur(32px) !important;
   pointer-events: none !important;
   opacity: 1 !important;
   transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1) !important;
