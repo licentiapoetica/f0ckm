@@ -1075,14 +1075,12 @@ export default {
       ? db`AND NOT EXISTS (SELECT 1 FROM tags_assign ta_ex WHERE ta_ex.item_id = i.id AND ta_ex.tag_id = ANY(${excludedTags}::int[]))`
       : db``;
 
-    // Build mode condition using alias 'i' (getMode uses raw 'items' table name, incompatible with subquery alias)
     const modeNum = Number(mode) || 0;
-    const modeFilter = modeNum === 1 ? db`AND i.id IN (SELECT item_id FROM tags_assign WHERE tag_id = 2)`
-      : modeNum === 2 ? db`AND NOT EXISTS (SELECT 1 FROM tags_assign WHERE item_id = i.id)`
-      : modeNum === 3 ? db``
-      : db`AND i.id IN (SELECT item_id FROM tags_assign WHERE tag_id = 1)`;  // default: sfw
 
-    // Filter halls by their rating column to match the current mode
+    // Filter halls by their rating column to match the current mode.
+    // The hall's own rating is the source of truth for mode gating — the old
+    // item-level modeFilter (tag_id check) caused NSFW halls to show 0 posts
+    // when items didn't carry the exact NSFW tag_id.
     // mode 0=sfw -> rating='sfw', mode 1=nsfw -> rating='nsfw', mode 4=nsfl -> rating='nsfl'
     // mode 3=all and mode 2=untagged show all halls
     const hallRating = modeNum === 0 ? 'sfw' : modeNum === 1 ? 'nsfw' : modeNum === 4 ? 'nsfl' : null;
@@ -1108,7 +1106,6 @@ export default {
           FROM halls_assign ha
           JOIN items i ON i.id = ha.item_id
           WHERE i.active = true
-            ${modeFilter}
             ${userExcludeFilter}
           GROUP BY ha.hall_id
         ) counts ON counts.hall_id = h.id
