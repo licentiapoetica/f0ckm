@@ -4950,21 +4950,26 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
 /* .navbar.pbwork::after handles the top progress bar now */
 
 @media(max-height: 820px) {
-  .embed-responsive-16by9::before {
+  /*.embed-responsive-16by9::before {
     padding-top: 45.25%;
-  }
+  }*/
 }
 
 @media(max-height: 755px) {
-  .embed-responsive-16by9::before {
+  /*.embed-responsive-16by9::before {
     padding-top: 40.25%;
-  }
+  }*/
 }
 
 @media(max-height: 640px) {
   /* Generic fallback */
-  .embed-responsive-16by9::before {
+  /*.embed-responsive-16by9::before {
     padding-top: 36.25%;
+  }*/
+
+  body.layout-legacy .item-layout-container .item-main-content {
+    margin-left: 120px;
+    margin-right: 120px;
   }
 
   /* layout-modern: both sidebar AND comments visible — column is narrow, full 16:9 fits */
