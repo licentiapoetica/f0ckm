@@ -2155,6 +2155,11 @@ body.sidebar-right-hidden .global-sidebar-right {
     right: -280px !important;
   }
 
+  /* Mobile: pagination container right-edge tracks the 280px mobile sidebar */
+  .pagination-container-fluid {
+    right: 280px;
+  }
+
   #sidebar-right-toggle {
     top: 80% !important;
     transform: none !important;
@@ -4152,15 +4157,22 @@ span.placeholder {
 .pagination-container-fluid {
   display: flex;
   margin-left: 0;
-  width: 100%;
+  /* width is auto so right-edge offset shrinks the available space */
   justify-content: center;
   position: fixed;
   bottom: 0;
   left: 0;
-  right: 0;
+  /* Match sidebar width so centering is relative to the content area */
+  right: 300px;
   pointer-events: none;
-  /* Allow clicking through container if needed, but not on wrapper */
   z-index: 10;
+  /* Mirror the sidebar slide transition */
+  transition: right 0.3s ease-in-out;
+}
+
+/* Sidebar hidden — reclaim the full width */
+body.sidebar-right-hidden .pagination-container-fluid {
+  right: 0;
 }
 
 .bottom-pagination.fixed-pagination {
