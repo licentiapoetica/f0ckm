@@ -10757,10 +10757,11 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
 .image-modal-container img#image-modal-img {
   display: block;
   margin: auto;
-  max-width: none !important;
-  max-height: none !important;
+  max-width: calc(100vw - 80px) !important;
+  max-height: calc(100vh - 80px) !important;
   width: auto !important;
   height: auto !important;
+  object-fit: contain;
   border-radius: 2px;
   animation: modalZoomIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
   cursor: move !important;
