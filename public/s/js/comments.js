@@ -1585,6 +1585,23 @@ class CommentSystem {
                     href = href.href;
                 }
                 if (!href) return text || '';
+
+                // Strip playlist and tracking params from YouTube URLs so the embed regex always
+                // gets a clean URL (e.g. ?list=RDU-... breaks the regex / embed player).
+                if (/https?:\/\/(?:www\.)?(?:youtube\.com\/watch|youtu\.be\/)/i.test(href)) {
+                    try {
+                        const ytUrl = new URL(href);
+                        const videoId = ytUrl.searchParams.get('v') || (ytUrl.hostname === 'youtu.be' ? ytUrl.pathname.slice(1) : null);
+                        if (videoId) {
+                            if (ytUrl.hostname === 'youtu.be') {
+                                href = `https://youtu.be/${videoId}`;
+                            } else {
+                                href = `https://www.youtube.com/watch?v=${videoId}`;
+                            }
+                        }
+                    } catch (e) { /* keep original href on parse failure */ }
+                }
+
                 const titleAttr = title ? ` title="${title}"` : '';
                 const isExternal = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
                 let isSameSite = false;
