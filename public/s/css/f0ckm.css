@@ -2338,7 +2338,6 @@ body.layout-legacy #comments-container.faded-out {
 }
 
 .comment-input {
-  margin-bottom: 5px;
   background: rgba(255, 255, 255, 0.05);
   padding: 5px;
   border: 1px solid var(--nav-border-color);
@@ -2646,7 +2645,7 @@ body.layout-legacy .comments-list {
   padding-top: 0px;
 }
 
-body.layout-legacy .comments-list:empty {
+body.layout-legacy .comments-list:not(:has(.comment)) {
   border: none;
 }
 
