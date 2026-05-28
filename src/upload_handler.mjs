@@ -157,7 +157,18 @@ export const handleUpload = async (req, res, self) => {
         }
 
         // Validate MIME type
-        const allowedMimes = Object.keys(cfg.mimes);
+        // cfg.allowedMimes entries can be category prefixes ("image", "video", "audio")
+        // OR exact MIME types ("application/pdf"). Entries with "/" are matched exactly.
+        const allowedCats = Array.isArray(cfg.allowedMimes)
+            ? cfg.allowedMimes.map(c => c.toLowerCase())
+            : null;
+        const allowedMimes = allowedCats
+            ? Object.keys(cfg.mimes).filter(m =>
+                allowedCats.some(cat =>
+                    cat.includes('/') ? m === cat : m.startsWith(`${cat}/`)
+                )
+              )
+            : Object.keys(cfg.mimes);
         let mime = file.contentType;
 
         if (!allowedMimes.includes(mime)) {
@@ -224,7 +235,7 @@ export const handleUpload = async (req, res, self) => {
         // Save temporarily to detect actual MIME
         await fs.writeFile(tmpPath, file.data);
 
-        // Verify MIME
+        // Verify actual MIME (second check after file-command detection)
         let actualMime = (await queue.spawn('file', ['--mime-type', '-b', tmpPath])).stdout.trim();
         if (!allowedMimes.includes(actualMime)) {
             await fs.unlink(tmpPath).catch(() => { });

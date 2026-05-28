@@ -92,12 +92,19 @@ const parseMultipartFiles = (buffer, boundary) => {
 };
 
 /**
- * Build the allowed MIME list for comment uploads (image/*, video/*, audio/*).
- * Filters from cfg.mimes, excluding PDF, SWF, etc.
+ * Build the allowed MIME list for comment uploads.
+ * Respects cfg.websrv.fileupload_comments_mimes (e.g. ["image", "video", "audio"]) to
+ * allow a different set of categories than the global allowedMimes used for page uploads.
+ * Falls back to image/video/audio if the setting is absent.
  */
 const getAllowedCommentMimes = () => {
+    const allowedCats = Array.isArray(cfg.websrv.fileupload_comments_mimes)
+        ? cfg.websrv.fileupload_comments_mimes.map(c => c.toLowerCase())
+        : ['image', 'video', 'audio'];
     return Object.keys(cfg.mimes).filter(mime =>
-        mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/')
+        allowedCats.some(cat =>
+            cat.includes('/') ? mime === cat : mime.startsWith(`${cat}/`)
+        )
     );
 };
 

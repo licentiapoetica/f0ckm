@@ -1147,6 +1147,7 @@ process.on('uncaughtException', err => {
     fileupload_comments_size: cfg.websrv.fileupload_comments_size || (10 * 1024 * 1024),
     fileupload_comments_max: cfg.websrv.fileupload_comments_max || 5,
     fileupload_comments_mode: cfg.websrv.fileupload_comments_mode || 'attachment',
+    fileupload_comments_mimes: Array.isArray(cfg.websrv.fileupload_comments_mimes) ? cfg.websrv.fileupload_comments_mimes : ['image', 'video', 'audio'],
 
     get fonts() {
       try {
