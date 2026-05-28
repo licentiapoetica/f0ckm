@@ -2173,6 +2173,16 @@ body.sidebar-right-hidden .global-sidebar-right {
   z-index: 1;
 }
 
+/* Reset z-index in fullscreen to prevent sibling stacking contexts from showing metadata/comments over the player */
+#main:fullscreen .item-layout-container .item-main-content>._204863,
+#main:fullscreen .item-layout-container .item-main-content>.item_title,
+#main:fullscreen .item-layout-container .item-main-content>.content,
+#main:fullscreen .item-layout-container .item-main-content>.metadata,
+#main:fullscreen .item-layout-container .item-main-content #comments-container {
+  z-index: auto;
+}
+
+
 .item-layout-container .item-main-content>.content {
   display: flex;
   flex-direction: row;
@@ -10487,6 +10497,7 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   text-decoration: none !important;
+  padding: 5px;
 }
 
 
