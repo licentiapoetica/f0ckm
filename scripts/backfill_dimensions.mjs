@@ -78,31 +78,36 @@ async function run() {
   const [{ count }] = await db`
     SELECT count(*) FROM items
     WHERE width IS NULL
-      AND active = true
       AND (mime LIKE 'image/%' OR (mime LIKE 'video/%' AND mime != 'video/youtube'))
   `;
   const total = parseInt(count, 10);
   const toProcess = limit ? Math.min(total, limit) : total;
   console.log(`[BACKFILL] ${total} items need backfill${limit ? `, processing up to ${toProcess}` : ''}`);
 
-  let offset   = 0;
+  let processed = 0;
   let updated  = 0;
   let skipped  = 0;
   let failed   = 0;
 
-  while (offset < toProcess) {
+  // NOTE: Always query at OFFSET 0 — updated rows leave the WHERE width IS NULL set,
+  // so the result set shrinks naturally each batch. Using a moving OFFSET would skip
+  // as many rows as were just updated (pagination-with-mutation bug).
+  while (processed < toProcess) {
+    const batchSize = limit ? Math.min(BATCH, toProcess - processed) : BATCH;
     const rows = await db`
       SELECT id, dest, mime FROM items
       WHERE width IS NULL
-        AND active = true
         AND (mime LIKE 'image/%' OR (mime LIKE 'video/%' AND mime != 'video/youtube'))
       ORDER BY id DESC
-      LIMIT ${BATCH} OFFSET ${offset}
+      LIMIT ${batchSize}
     `;
 
     if (rows.length === 0) break;
 
     for (const row of rows) {
+      if (processed >= toProcess) break;
+      processed++;
+
       const filePath = path.join(cfg.paths.b, row.dest);
 
       // Check file exists (may be deleted/purged)
@@ -111,6 +116,8 @@ async function run() {
       } catch {
         console.log(`[BACKFILL] SKIP #${row.id} — file missing: ${row.dest}`);
         skipped++;
+        // Mark with 0 so it doesn't re-appear in future runs
+        if (!isDryRun) await db`UPDATE items SET width = 0, height = 0 WHERE id = ${row.id}`;
         continue;
       }
 
@@ -130,6 +137,8 @@ async function run() {
       if (!dims) {
         console.log(`[BACKFILL] SKIP #${row.id} — no dimensions found (${row.mime})`);
         skipped++;
+        // Mark with 0 so it doesn't re-appear in future runs and cause infinite loops
+        if (!isDryRun) await db`UPDATE items SET width = 0, height = 0 WHERE id = ${row.id}`;
         continue;
       }
 
@@ -140,8 +149,7 @@ async function run() {
       updated++;
     }
 
-    offset += rows.length;
-    console.log(`[BACKFILL] Progress: ${Math.min(offset, toProcess)} / ${toProcess} (updated=${updated}, skipped=${skipped}, failed=${failed})`);
+    console.log(`[BACKFILL] Progress: ${processed} / ${toProcess} (updated=${updated}, skipped=${skipped}, failed=${failed})`);
   }
 
   console.log(`[BACKFILL] Done. updated=${updated}, skipped=${skipped}, failed=${failed}`);
