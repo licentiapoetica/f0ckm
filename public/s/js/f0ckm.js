@@ -8506,7 +8506,9 @@ document.addEventListener('DOMContentLoaded', () => {
       startY = e.clientY - posY;
       modalImg.style.transition = 'none'; // Disable transition during drag for snappiness
       
-      // Let hardened CSS handle multiple cursor fallbacks via class:
+      // Apply grabbing cursor directly on the image (overrides the CSS grab !important rules)
+      // and also set body class for full-page cursor coverage while dragging:
+      modalImg.style.setProperty('cursor', 'grabbing', 'important');
       document.body.classList.add('modal-is-grabbing');
     });
 
@@ -8522,7 +8524,8 @@ document.addEventListener('DOMContentLoaded', () => {
       isDragging = false;
       modalImg.style.transition = 'transform 0.05s ease-out';
       
-      // Reset cursor class
+      // Restore grab cursor and remove body class
+      modalImg.style.setProperty('cursor', 'grab', 'important');
       document.body.classList.remove('modal-is-grabbing');
     });
 
