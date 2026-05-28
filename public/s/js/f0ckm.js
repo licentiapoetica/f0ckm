@@ -3962,7 +3962,7 @@ window.cancelAnimFrame = (function () {
     const cwModal = document.getElementById('content-warning-modal');
     if (cwModal && cwModal.style.display !== 'none') return;
 
-    if (event.target.closest('.media-object, .steuerung') && !event.target.closest('#favs') && !event.target.closest('#ruffle-container')) {
+    if (event.target.closest('.media-object') && !event.target.closest('#favs') && !event.target.closest('#ruffle-container')) {
       event.preventDefault(); // Prevent default scroll
       if (event.deltaY < 0) {
         const el = document.getElementById('prev');
