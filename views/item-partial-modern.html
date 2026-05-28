@@ -122,7 +122,7 @@
                 </span>@if(halls_enabled && item.primaryHall) — @endif
                 @if(halls_enabled && item.primaryHall)
                 <span class="badge hall-badge-wrap">
-                    <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary">{{ item.primaryHall.name }}</a>@if(is_mod_or_admin)&nbsp;<a class="remove-from-hall" href="#" data-hall="{{ item.primaryHall.slug }}" title="Remove from hall"><i class="fa-solid fa-xmark"></i></a>@endif@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
+                    <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary"><i class="fa-solid fa-layer-group"></i> {{ item.primaryHall.name }}</a>@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
                 </span> —
                 @endif
                 <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>

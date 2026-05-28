@@ -1,8 +1,10 @@
-<div class="container" style="padding-top: 20px;">
+<div class="index-layout-wrapper">
+  <div class="container" style="padding-top: 20px;">
     <h3 style="text-align: center;">{{ t('nav.halls') }}</h3>
     <div class="tags-grid no-infinite-scroll" id="halls-container">
         @include(hall-cards)
     </div>
+  </div>
 </div>
 
 <div class="pagination-container-fluid" @if(typeof hidePagination !=='undefined' && hidePagination) style="display: none;" @endif>
