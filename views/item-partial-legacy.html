@@ -143,7 +143,7 @@
                     <span class="tags-inner">
                         @if(typeof item.tags !== "undefined")
                         @each(item.tags as tag)
-                        <span tooltip="{!! tag.display_name || tag.user !!}" class="badge {{ tag.badge }} mr-2">
+                        <span tooltip="{!! tag.display_name || tag.user !!}" class="badge {{ tag.badge }}">
                             <a href="/tag/{{ tag.normalized }}">{!! tag.tag !!}</a>@if(is_mod_or_admin)&nbsp;<a class="removetag" href="#"><i class="fa-solid fa-xmark"></i></a>@endif
                         </span>
                         @endeach
