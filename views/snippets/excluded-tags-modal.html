@@ -24,10 +24,18 @@
     <!-- mimes -->
     @if(show_mime_picker)
       <div class="nav-mime-filter nav-mime-menu" id="nav-mime-menu">
+        @if(scroller_mime_cats && scroller_mime_cats.includes('video'))
         <label class="nav-mime-item"><input type="checkbox" value="video" id="mime-video">{{ t('filter.video') }}</label>
+        @endif
+        @if(scroller_mime_cats && scroller_mime_cats.includes('audio'))
         <label class="nav-mime-item"><input type="checkbox" value="audio" id="mime-audio">{{ t('filter.audio') }}</label>
+        @endif
+        @if(scroller_mime_cats && scroller_mime_cats.includes('image'))
         <label class="nav-mime-item"><input type="checkbox" value="image" id="mime-image">{{ t('filter.image') }}</label>
+        @endif
+        @if(enable_swf)
         <label class="nav-mime-item"><input type="checkbox" value="flash" id="mime-flash">{{ t('filter.flash') }}</label>
+        @endif
       </div>
     @endif
     @if(session && enable_xd_score)
