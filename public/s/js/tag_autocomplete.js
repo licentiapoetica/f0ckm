@@ -71,6 +71,8 @@ window.TagAutocomplete = (() => {
 
     // Flag to prevent focusout from destroying dropdown while touching it
     let dropdownTouching = false;
+    // Flag set when we intentionally blur to dismiss the keyboard on mobile
+    let keyboardDismissed = false;
     dropdown.addEventListener('touchstart', () => { dropdownTouching = true; }, { passive: true });
     dropdown.addEventListener('touchend', () => {
       dropdownTouching = false;
@@ -267,18 +269,51 @@ window.TagAutocomplete = (() => {
       open(opts);
     });
 
-    // Close when clicking/tapping outside
-    const onDocClick = (e) => {
+    // Close when clicking/tapping outside.
+    // Desktop (mousedown): close immediately.
+    // Mobile (touchstart): first tap outside dismisses the keyboard only (blur),
+    //   leaving suggestions visible so the user can scroll up to see them.
+    //   A second tap outside within 500 ms actually closes the dropdown.
+    let outsideTapCount = 0;
+    let outsideTapTimer = null;
+
+    const onDocMousedown = (e) => {
       if (!wrapper.contains(e.target) && e.target !== anchorEl) {
-        document.removeEventListener('mousedown', onDocClick);
-        document.removeEventListener('touchstart', onDocClick);
+        document.removeEventListener('mousedown', onDocMousedown);
         destroy();
       }
     };
-    // Delay attaching to avoid capturing the opening click
+
+    const onDocTouchstart = (e) => {
+      if (wrapper.contains(e.target) || e.target === anchorEl) return;
+
+      outsideTapCount++;
+
+      if (outsideTapCount === 1) {
+        // First outside tap — just blur to dismiss the keyboard.
+        // Suggestions remain visible so the user can scroll up to see them.
+        keyboardDismissed = true;
+        input.blur();
+        // Reset the flag after the blur event has fired.
+        setTimeout(() => { keyboardDismissed = false; }, 100);
+
+        // Reset the counter after the double-tap window expires.
+        outsideTapTimer = setTimeout(() => {
+          outsideTapCount = 0;
+        }, 500);
+      } else {
+        // Second outside tap — close the dropdown.
+        clearTimeout(outsideTapTimer);
+        outsideTapCount = 0;
+        document.removeEventListener('touchstart', onDocTouchstart);
+        destroy();
+      }
+    };
+
+    // Delay attaching to avoid capturing the opening touch.
     setTimeout(() => {
-      document.addEventListener('mousedown', onDocClick);
-      document.addEventListener('touchstart', onDocClick, { passive: true });
+      document.addEventListener('mousedown', onDocMousedown);
+      document.addEventListener('touchstart', onDocTouchstart, { passive: true });
     }, 0);
 
     // Click on the wrapper area should refocus the input
@@ -293,6 +328,7 @@ window.TagAutocomplete = (() => {
       // Delay to allow suggestion tap/scroll to complete first
       setTimeout(() => {
         if (dropdownTouching) return; // user is interacting with dropdown
+        if (keyboardDismissed) return;  // intentional blur to hide mobile keyboard
         // Don't close if focus is still within the wrapper
         if (activeInstance && wrapper.contains(document.activeElement)) return;
         if (activeInstance && input.value.length === 0 && document.activeElement !== input) {

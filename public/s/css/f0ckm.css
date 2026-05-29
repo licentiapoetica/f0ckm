@@ -3722,10 +3722,6 @@ h5 {
   font-size: x-large;
 }
 
-.mr-2 {
-  margin-right: 0.5rem !important;
-}
-
 div.posts {
   width: 100%;
   display: grid;
