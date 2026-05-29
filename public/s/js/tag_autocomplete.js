@@ -76,8 +76,8 @@ window.TagAutocomplete = (() => {
     dropdown.addEventListener('touchstart', () => { dropdownTouching = true; }, { passive: true });
     dropdown.addEventListener('touchend', () => {
       dropdownTouching = false;
-      // Re-focus input so user can keep typing after scrolling
-      input.focus();
+      // Note: do NOT re-focus input here — that would reopen the mobile keyboard.
+      // The keyboard only comes back when the user explicitly taps the input.
     }, { passive: true });
     dropdown.addEventListener('touchcancel', () => { dropdownTouching = false; }, { passive: true });
 
