@@ -503,12 +503,17 @@ export default {
         `;
         if (unfilteredItem[0]) {
           // Item exists but was filtered - return minimal data for OG tags with blurred thumbnail
+          const hallSlug = hall && typeof hall === 'object' ? hall.slug : hall;
           return {
             success: false,
             message: "Sorry, this post is currently not visible.",
             item: {
               id: itemid,
-              og_thumbnail: `${cfg.websrv.paths.thumbnails}/${itemid}_blur.webp`
+              og_thumbnail: `${cfg.websrv.paths.thumbnails}/${itemid}_blur.webp`,
+              og_url: hallSlug
+                ? `https://${cfg.main.url.domain}/h/${encodeURIComponent(hallSlug)}/${itemid}`
+                : `https://${cfg.main.url.domain}/${itemid}`,
+              og_description: `Content not visible in current mode`
             }
           };
         }
@@ -669,12 +674,17 @@ export default {
       else if (userMode === 2 && isTagged) modeBlocked = true; // Untagged mode, item has tags
 
       if (modeBlocked) {
+        const hallSlug = hall && typeof hall === 'object' ? hall.slug : hall;
         return {
           success: false,
           message: "Sorry, this post is currently not visible.",
           item: {
             id: itemid,
-            og_thumbnail: `${cfg.websrv.paths.thumbnails}/${itemid}${isNsfw ? '_blur' : ''}.webp`
+            og_thumbnail: `${cfg.websrv.paths.thumbnails}/${itemid}${isNsfw ? '_blur' : ''}.webp`,
+            og_url: hallSlug
+              ? `https://${cfg.main.url.domain}/h/${encodeURIComponent(hallSlug)}/${itemid}`
+              : `https://${cfg.main.url.domain}/${itemid}`,
+            og_description: `Content not visible in current mode`
           }
         };
       }
@@ -706,6 +716,18 @@ export default {
         },
         thumbnail: `${cfg.websrv.paths.thumbnails}/${actitem.id}.webp`,
         og_thumbnail: `${cfg.websrv.paths.thumbnails}/${actitem.id}${(isNsfw || isNsfl) ? '_blur' : ''}.webp`,
+        // og_url: canonical URL for OG/bots — hall context preserved, plain /<id> as fallback
+        og_url: (() => {
+          const hallSlug = hall && typeof hall === 'object' ? hall.slug : hall;
+          if (hallSlug) return `https://${cfg.main.url.domain}/h/${encodeURIComponent(hallSlug)}/${actitem.id}`;
+          return `https://${cfg.main.url.domain}/${actitem.id}`;
+        })(),
+        // og_description: include rating + uploader for bots (Matrix, Discord, etc.)
+        og_description: (() => {
+          const ratingLabel = isNsfl ? 'NSFL' : (isNsfw ? 'NSFW' : (isSfw ? 'SFW' : 'Untagged'));
+          const titlePart = actitem.title ? ` · "${actitem.title}"` : '';
+          return `${ratingLabel}${titlePart} · uploaded by ${actitem.username}`;
+        })(),
         coverart: coverartUrl,
         dest: actitem.mime === 'video/youtube' ? actitem.dest : `${cfg.websrv.paths.images}/${actitem.dest}`,
         mime: actitem.mime,

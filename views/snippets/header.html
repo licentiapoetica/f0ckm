@@ -54,18 +54,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   @if(typeof item !== 'undefined')
-  <link rel="canonical" href="https://{{ domain }}/{{ item.id }}" />
+  <link rel="canonical" href="{{ item.og_url }}" />
   <meta property="og:site_name" content="{{ domain }}" />
-  <meta property="og:title" content="{{ item.id }}" />
-  <meta property="og:url" content="https://{{ domain }}/{{ item.id }}" />
+  <meta property="og:title" content="{{ item.id }} [{{ item.is_nsfl ? 'NSFL' : (item.is_nsfw ? 'NSFW' : (item.is_sfw ? 'SFW' : '?')) }}] - {{ domain }}" />
+  <meta property="og:url" content="{{ item.og_url }}" />
   <meta property="og:image" content="https://{{ domain }}{{ item.og_thumbnail }}" />
-  <meta name="description" content="{{ site_description }}" />
-  <meta property="og:description" content="{{ site_description }}" />
+  <meta name="description" content="{{ item.og_description }}" />
+  <meta property="og:description" content="{{ item.og_description }}" />
   <meta property="og:type" content="website" />
   <meta property="twitter:card" content="summary" />
-  <meta property="twitter:title" content="{{ item.id }}" />
+  <meta property="twitter:title" content="{{ item.id }} [{{ item.is_nsfl ? 'NSFL' : (item.is_nsfw ? 'NSFW' : (item.is_sfw ? 'SFW' : '?')) }}] - {{ domain }}" />
   <meta property="twitter:image" content="https://{{ domain }}{{ item.og_thumbnail }}" />
-  <meta property="twitter:url" content="https://{{ domain }}/{{ item.id }}" />
+  <meta property="twitter:url" content="{{ item.og_url }}" />
   @else
   <meta property="og:site_name" content="{{ domain }}" />
   <meta property="og:title" content="@if(typeof page_meta !== 'undefined' && page_meta.title){{ page_meta.title }} - {{ domain }}@else{{ domain }}@endif" />
