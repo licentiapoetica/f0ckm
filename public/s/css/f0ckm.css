@@ -10394,6 +10394,10 @@ body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-color) transparent;
   }
+
+  body.layout-modern #tags .mr-2 {
+    margin-right: 0 !important;
+  }
 }
 
 /* ===== layout-legacy: natural page scroll (2-column, body scrolls) ===== */
@@ -10828,6 +10832,17 @@ body.modal-open {
 body.layout-modern .tag-controls {
   background: rgba(0, 0, 0, 0.2);
   border-top: 1px solid var(--nav-border-color);
+}
+
+body.layout-modern .tag-ac-wrapper {
+  margin-left: 4px !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+body.layout-modern .tag-ac-input {
+  padding: 0 2px;
+  min-width: 60px;
 }
 
 .phrase {
