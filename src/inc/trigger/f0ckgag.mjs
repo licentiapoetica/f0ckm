@@ -2,7 +2,7 @@ import cfg from "../config.mjs";
 import db from "../sql.mjs";
 import lib from "../lib.mjs";
 
-const regex = new RegExp(`(https?:\\/\\/${cfg.main.url.regex})(\\/(?:video|image|audio|tag\\/[^/\\s]+|user\\/[^/\\s]+(?:\\/favs)?))?\\/(\\d+|(?:b\\/)\\w{8}\\.(?:jpg|webm|gif|mp4|png|mov|mp3|ogg|flac))`, 'gi');
+const regex = new RegExp(`(https?:\\/\\/${cfg.main.url.regex})(\\/(?:video|image|audio|tag\\/[^/\\s]+|user\\/[^/\\s]+(?:\\/favs)?|h\\/[^/\\s]+))?\\/(\\d+|(?:b\\/)\\w{8}\\.(?:jpg|webm|gif|mp4|png|mov|mp3|ogg|flac))`, 'gi');
 
 export default async bot => {
 
@@ -12,9 +12,10 @@ export default async bot => {
     active: true,
     f: async e => {
       const dat = e.message.match(regex)[0].split(/\//).pop();
+      const nsflId = cfg.nsfl_tag_id || 3;
       const rows = await db`
         select i.id, i.mime, i.size, i.username, i.stamp,
-        (select t.tag from tags_assign ta join tags t on t.id = ta.tag_id where ta.item_id = i.id and t.id in (1,2) limit 1) as rating
+        (select t.tag from tags_assign ta join tags t on t.id = ta.tag_id where ta.item_id = i.id and ta.tag_id in (1, 2, ${nsflId}) order by ta.tag_id asc limit 1) as rating
         from "items" i
         ${dat.includes('.')
           ? db`where i.dest = ${dat}`
@@ -32,15 +33,6 @@ export default async bot => {
       if (e.type === 'irc') {
         const color = rating === 'sfw' ? 'green' : (rating === 'nsfw' ? 'red' : 'brown');
         ratingStr = `[color=${color}]${rating}[/color]`;
-      } else if (e.type === 'matrix') {
-        const color = rating === 'sfw' ? '#00ff00' : (rating === 'nsfw' ? '#ff0000' : '#888888');
-        ratingStr = `[b][color=${color}]${rating}[/color][/b]`;
-        // matrix.mjs format() handles [b], but not [color]. 
-        // However, matrix.mjs send() handles objects with formatted_body.
-        // Let's use a simpler approach that works with the existing formatter if possible, 
-        // or just construct the object.
-      } else if (e.type === 'tg') {
-          ratingStr = `[b]${rating}[/b]`;
       }
 
       const link = `${cfg.main.url.full}/${row.id}`.replace('http://', 'https://');
