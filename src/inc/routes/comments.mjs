@@ -930,6 +930,49 @@ export default (router, tpl) => {
                 }
             }
 
+            // Fetch poll data for these comments
+            const pollMap = new Map();
+            if (comments.length > 0 && cfg.websrv.enable_comment_polls) {
+                try {
+                    const commentIds = comments.map(c => c.id);
+                    const pollRows = await db`
+                        SELECT
+                            cp.id as poll_id,
+                            cp.comment_id,
+                            cp.question,
+                            cp.expires_at,
+                            COALESCE(cp.is_anonymous, true) as is_anonymous,
+                            json_agg(
+                                json_build_object(
+                                    'id', cpo.id,
+                                    'text', cpo.text,
+                                    'sort_order', cpo.sort_order,
+                                    'vote_count', COALESCE(vc.cnt, 0)
+                                ) ORDER BY cpo.sort_order ASC, cpo.id ASC
+                            ) AS options,
+                            COALESCE(SUM(vc.cnt), 0)::int AS total_votes
+                        FROM comment_polls cp
+                        JOIN comment_poll_options cpo ON cpo.poll_id = cp.id
+                        LEFT JOIN (SELECT option_id, COUNT(*) AS cnt FROM comment_poll_votes GROUP BY option_id) vc ON vc.option_id = cpo.id
+                        WHERE cp.comment_id = ANY(${commentIds}::int[])
+                        GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at, cp.is_anonymous
+                    `;
+                    for (const p of pollRows) {
+                        pollMap.set(p.comment_id, {
+                            id: p.poll_id,
+                            question: p.question,
+                            expires_at: p.expires_at,
+                            is_anonymous: p.is_anonymous,
+                            options: p.options,
+                            total_votes: parseInt(p.total_votes) || 0,
+                            user_vote_option_id: null
+                        });
+                    }
+                } catch (e) {
+                    console.error('[ACTIVITY] Failed to fetch polls:', e.message);
+                }
+            }
+
             const processedComments = comments.map(c => {
                 let ratingLabel = '?';
                 let ratingClass = 'untagged';
@@ -943,7 +986,8 @@ export default (router, tpl) => {
                     username_color: c.username_color,
                     item_rating_class: ratingClass,
                     item_rating_label: ratingLabel,
-                    files: filesMap.get(c.id) || []
+                    files: filesMap.get(c.id) || [],
+                    poll: pollMap.get(c.id) || null
                     // created_at stays as the raw ISO timestamp so the frontend f0ckTimeAgo can localize it
                 };
             });
@@ -1008,16 +1052,17 @@ export default (router, tpl) => {
     // ──────────────────────────────────────────────────────────────────────────
     const createPollForComment = async (commentId, pollData) => {
         if (!cfg.websrv.enable_comment_polls) return null;
-        const { question, options } = pollData || {};
+        const { question, options, is_anonymous } = pollData || {};
         if (!question || !question.trim()) return null;
         if (!Array.isArray(options) || options.length < 2) return null;
         const cleanOptions = options.map(o => (typeof o === 'string' ? o : String(o)).trim()).filter(Boolean);
         if (cleanOptions.length < 2 || cleanOptions.length > 10) return null;
+        const anonymous = is_anonymous !== false; // default true
 
         const [poll] = await db`
-            INSERT INTO comment_polls (comment_id, question)
-            VALUES (${commentId}, ${question.trim()})
-            RETURNING id
+            INSERT INTO comment_polls (comment_id, question, is_anonymous)
+            VALUES (${commentId}, ${question.trim()}, ${anonymous})
+            RETURNING id, is_anonymous
         `;
         const pollId = poll.id;
         for (let i = 0; i < cleanOptions.length; i++) {
@@ -1030,7 +1075,8 @@ export default (router, tpl) => {
         return {
             id: pollId,
             question: question.trim(),
-            options: optRows.map(o => ({ id: o.id, text: o.text, sort_order: o.sort_order, vote_count: 0 })),
+            is_anonymous: poll.is_anonymous,
+            options: optRows.map(o => ({ id: o.id, text: o.text, sort_order: o.sort_order, vote_count: 0, voters: [] })),
             total_votes: 0,
             user_vote_option_id: null
         };
@@ -1083,7 +1129,7 @@ export default (router, tpl) => {
         try {
             const pollRows = await db`
                 SELECT
-                    cp.id as poll_id, cp.comment_id, cp.question, cp.expires_at,
+                    cp.id as poll_id, cp.comment_id, cp.question, cp.expires_at, COALESCE(cp.is_anonymous, true) as is_anonymous,
                     json_agg(
                         json_build_object(
                             'id', cpo.id, 'text', cpo.text, 'sort_order', cpo.sort_order,
@@ -1095,7 +1141,7 @@ export default (router, tpl) => {
                 JOIN comment_poll_options cpo ON cpo.poll_id = cp.id
                 LEFT JOIN (SELECT option_id, COUNT(*) AS cnt FROM comment_poll_votes GROUP BY option_id) vc ON vc.option_id = cpo.id
                 WHERE cp.id = ${pollId}
-                GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at
+                GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at, cp.is_anonymous
             `;
             if (!pollRows.length) return res.reply({ code: 404, body: JSON.stringify({ success: false }) });
             const p = pollRows[0];
@@ -1104,6 +1150,24 @@ export default (router, tpl) => {
             if (req.session) {
                 const vote = await db`SELECT option_id FROM comment_poll_votes WHERE poll_id = ${pollId} AND user_id = ${req.session.id} LIMIT 1`;
                 if (vote.length) userVoteOptionId = vote[0].option_id;
+            }
+
+            // If not anonymous, attach voter usernames to each option
+            let options = p.options;
+            if (!p.is_anonymous) {
+                const voterRows = await db`
+                    SELECT cpv.option_id, u."user" as username, uo.avatar, uo.avatar_file
+                    FROM comment_poll_votes cpv
+                    JOIN public."user" u ON u.id = cpv.user_id
+                    LEFT JOIN public.user_options uo ON uo.user_id = cpv.user_id
+                    WHERE cpv.poll_id = ${pollId}
+                `;
+                const voterMap = new Map();
+                for (const v of voterRows) {
+                    if (!voterMap.has(v.option_id)) voterMap.set(v.option_id, []);
+                    voterMap.get(v.option_id).push({ username: v.username, avatar: v.avatar, avatar_file: v.avatar_file });
+                }
+                options = options.map(o => ({ ...o, voters: voterMap.get(o.id) || [] }));
             }
 
             return res.reply({
@@ -1115,7 +1179,8 @@ export default (router, tpl) => {
                         comment_id: p.comment_id,
                         question: p.question,
                         expires_at: p.expires_at,
-                        options: p.options,
+                        is_anonymous: p.is_anonymous,
+                        options,
                         total_votes: parseInt(p.total_votes) || 0,
                         user_vote_option_id: userVoteOptionId
                     }
@@ -1149,14 +1214,29 @@ export default (router, tpl) => {
                 return res.reply({ code: 403, body: JSON.stringify({ success: false, message: 'Poll has expired' }) });
             }
 
-            // Upsert vote (change allowed)
-            await db`
-                INSERT INTO comment_poll_votes (poll_id, option_id, user_id)
-                VALUES (${pollId}, ${optionId}, ${req.session.id})
-                ON CONFLICT (poll_id, user_id) DO UPDATE SET option_id = ${optionId}, created_at = now()
+            // Upsert vote (change allowed) — manual check avoids needing a unique constraint
+            const existing = await db`
+                SELECT poll_id FROM comment_poll_votes
+                WHERE poll_id = ${pollId} AND user_id = ${req.session.id}
+                LIMIT 1
             `;
+            if (existing.length) {
+                await db`
+                    UPDATE comment_poll_votes
+                    SET option_id = ${optionId}, created_at = now()
+                    WHERE poll_id = ${pollId} AND user_id = ${req.session.id}
+                `;
+            } else {
+                await db`
+                    INSERT INTO comment_poll_votes (poll_id, option_id, user_id)
+                    VALUES (${pollId}, ${optionId}, ${req.session.id})
+                `;
+            }
 
             // Return updated tally
+            const pollMeta = await db`SELECT COALESCE(is_anonymous, true) as is_anonymous FROM comment_polls WHERE id = ${pollId} LIMIT 1`;
+            const isAnon = pollMeta.length ? pollMeta[0].is_anonymous : true;
+
             const rows = await db`
                 SELECT cpo.id, cpo.text, cpo.sort_order, COALESCE(vc.cnt, 0)::int AS vote_count
                 FROM comment_poll_options cpo
@@ -1166,9 +1246,26 @@ export default (router, tpl) => {
             `;
             const totalVotes = rows.reduce((s, r) => s + r.vote_count, 0);
 
+            let options = rows;
+            if (!isAnon) {
+                const voterRows = await db`
+                    SELECT cpv.option_id, u."user" as username, uo.avatar, uo.avatar_file
+                    FROM comment_poll_votes cpv
+                    JOIN public."user" u ON u.id = cpv.user_id
+                    LEFT JOIN public.user_options uo ON uo.user_id = cpv.user_id
+                    WHERE cpv.poll_id = ${pollId}
+                `;
+                const voterMap = new Map();
+                for (const v of voterRows) {
+                    if (!voterMap.has(v.option_id)) voterMap.set(v.option_id, []);
+                    voterMap.get(v.option_id).push({ username: v.username, avatar: v.avatar, avatar_file: v.avatar_file });
+                }
+                options = rows.map(o => ({ ...o, voters: voterMap.get(o.id) || [] }));
+            }
+
             return res.reply({
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ success: true, options: rows, total_votes: totalVotes, user_vote_option_id: optionId })
+                body: JSON.stringify({ success: true, is_anonymous: isAnon, options, total_votes: totalVotes, user_vote_option_id: optionId })
             });
         } catch (err) {
             console.error('[POLLS] vote error:', err);
