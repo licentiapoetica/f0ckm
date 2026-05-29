@@ -2166,7 +2166,7 @@ class CommentSystem {
             ? `<button class="comment-attach-btn" title="${attachLabel}" type="button"><i class="fa-solid fa-paperclip"></i></button><input type="file" class="comment-file-input" accept="image/*,video/*,audio/*" ${multiFile ? 'multiple' : ''} style="display:none;">`
             : '';
         const pollEnabled = session.logged_in && session.enable_comment_polls;
-        const pollBtn = pollEnabled && !parentId
+        const pollBtn = pollEnabled
             ? `<button class="comment-poll-btn" title="${pollLabel}" type="button"><i class="fa-solid fa-chart-bar"></i></button>`
             : '';
         return `
@@ -3196,6 +3196,10 @@ class CommentSystem {
 
                 if (fileIds.length > 0) {
                     params.append('file_ids', fileIds.join(','));
+                }
+
+                if (pollPayload) {
+                    params.append('has_poll', '1');
                 }
 
                 const res = await fetch('/api/comments', {
