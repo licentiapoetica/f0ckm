@@ -2548,6 +2548,19 @@ class CommentSystem {
                             }
                         }
                     }
+
+                    // Fire-and-forget: tell the server to delete the orphaned upload record.
+                    // Only possible once upload has finished (fileId is set); silently ignored on failure —
+                    // the server-side orphan sweep will clean up any leftovers after 1 hour.
+                    const fileId = previewItem.dataset.fileId;
+                    if (fileId) {
+                        const csrf = (window.f0ckSession || {}).csrf_token || '';
+                        fetch(`/api/v2/comments/upload/${fileId}`, {
+                            method: 'DELETE',
+                            headers: csrf ? { 'X-CSRF-Token': csrf } : {}
+                        }).catch(() => {});
+                    }
+
                     previewItem.remove();
                 }
                 return;

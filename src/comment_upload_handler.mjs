@@ -181,6 +181,24 @@ export const handleCommentUpload = async (req, res) => {
             return sendJson(res, { success: false, msg: 'Only one file allowed per comment' }, 400);
         }
 
+        // Per-user cap on unlinked (staged) attachments.
+        // A normal user only ever has a handful of files queued up in their compose box at once.
+        // Capping at (max attachments per comment) × 3 gives plenty of headroom for legitimate
+        // multi-file workflows while blocking upload-and-abandon abuse.
+        const maxAttachmentsPerComment = cfg.websrv.fileupload_comments_max || 5;
+        const MAX_PENDING_PER_USER = maxAttachmentsPerComment * 3;
+        const pendingCount = await db`
+            SELECT COUNT(*) AS cnt FROM comment_files
+            WHERE user_id = ${req.session.id}
+              AND comment_id IS NULL
+        `;
+        if (parseInt(pendingCount[0].cnt, 10) + files.length > MAX_PENDING_PER_USER) {
+            return sendJson(res, {
+                success: false,
+                msg: `Too many staged attachments. Please post or remove existing uploads first.`
+            }, 429);
+        }
+
         const allowedMimes = getAllowedCommentMimes();
         const results = [];
 
@@ -478,6 +496,111 @@ export const handleCommentUpload = async (req, res) => {
         return sendJson(res, { success: false, msg: 'Upload failed' }, 500);
     }
 };
+
+/**
+ * DELETE /api/v2/comments/upload/:id
+ * Called by the client when the user removes a staged (not-yet-posted) attachment
+ * from the compose area. Only deletes if the row still has comment_id = NULL
+ * (i.e. it was never linked to a real comment) and belongs to the requesting user.
+ */
+export const handleCommentUploadCancel = async (req, res, fileId) => {
+    // Manual session lookup (same pattern as handleCommentUpload)
+    if (req.cookies?.session) {
+        try {
+            const user = await db`
+                select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".*
+                from "user_sessions"
+                left join "user" on "user".id = "user_sessions".user_id
+                left join "user_options" on "user_options".user_id = "user_sessions".user_id
+                where "user_sessions".session = ${lib.sha256(req.cookies.session)}
+                limit 1
+            `;
+            if (user.length > 0) {
+                req.session = user[0];
+            }
+        } catch (err) {
+            // Session lookup failed
+        }
+    }
+
+    if (!req.session) {
+        return sendJson(res, { success: false, msg: 'Unauthorized' }, 401);
+    }
+
+    const id = parseInt(fileId, 10);
+    if (!id || isNaN(id)) {
+        return sendJson(res, { success: false, msg: 'Invalid file ID' }, 400);
+    }
+
+    try {
+        // Only allow deletion of own unlinked files
+        const rows = await db`
+            SELECT id, dest FROM comment_files
+            WHERE id = ${id}
+              AND user_id = ${req.session.id}
+              AND comment_id IS NULL
+        `;
+
+        if (!rows.length) {
+            // Either doesn't exist, belongs to someone else, or already linked — silently OK
+            return sendJson(res, { success: true });
+        }
+
+        const { dest } = rows[0];
+        await db`DELETE FROM comment_files WHERE id = ${id}`;
+
+        // Delete file and thumbnail from disk
+        const filePath = path.join(cfg.paths.c, dest);
+        const uuid = dest.split('.')[0];
+        const thumbPath = path.join(cfg.paths.t, `cf_${uuid}.webp`);
+        await fs.unlink(filePath).catch(() => {});
+        await fs.unlink(thumbPath).catch(() => {});
+
+        console.log(`[COMMENT_UPLOAD] Cancelled (user-removed) attachment deleted: ${dest}`);
+        return sendJson(res, { success: true });
+    } catch (err) {
+        console.error('[COMMENT_UPLOAD] Cancel error:', err);
+        return sendJson(res, { success: false, msg: 'Delete failed' }, 500);
+    }
+};
+
+/**
+ * Periodic cleanup: delete comment_files rows with comment_id IS NULL
+ * that are older than 90 seconds. These are attachments that were uploaded
+ * but the comment was never posted (e.g. user closed the tab).
+ */
+const ORPHAN_MAX_AGE_MS = 90 * 1000; // 90 seconds
+
+const sweepOrphanedCommentFiles = async () => {
+    try {
+        const cutoff = new Date(Date.now() - ORPHAN_MAX_AGE_MS).toISOString();
+        const orphans = await db`
+            SELECT id, dest FROM comment_files
+            WHERE comment_id IS NULL
+              AND created_at < ${cutoff}
+        `;
+
+        if (!orphans.length) return;
+
+        console.log(`[COMMENT_UPLOAD] Sweeping ${orphans.length} orphaned attachment(s) older than 90 seconds`);
+
+        for (const { id, dest } of orphans) {
+            const filePath = path.join(cfg.paths.c, dest);
+            const uuid = dest.split('.')[0];
+            const thumbPath = path.join(cfg.paths.t, `cf_${uuid}.webp`);
+            await fs.unlink(filePath).catch(() => {});
+            await fs.unlink(thumbPath).catch(() => {});
+            await db`DELETE FROM comment_files WHERE id = ${id}`;
+        }
+    } catch (err) {
+        console.error('[COMMENT_UPLOAD] Orphan sweep error:', err);
+    }
+};
+
+// Run sweep every 30 seconds
+setInterval(sweepOrphanedCommentFiles, 30 * 1000);
+// Also run once shortly after boot to catch any pre-existing orphans
+setTimeout(sweepOrphanedCommentFiles, 30 * 1000);
 
 /**
  * Generate thumbnail for a comment file.

@@ -16,7 +16,7 @@ import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
-import { handleCommentUpload } from "./comment_upload_handler.mjs";
+import { handleCommentUpload, handleCommentUploadCancel } from "./comment_upload_handler.mjs";
 import { handleDmAttachmentUpload, handleDmAttachmentDownload, handleDmAttachmentDelete } from "./dm_attachment_handler.mjs";
 import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDmAttachments, setDmAttachments, getDmUnencrypted, setDmUnencrypted, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode, getAllowCommentDeletion, setAllowCommentDeletion } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
@@ -845,6 +845,12 @@ process.on('uncaughtException', err => {
     if (req.method === 'POST' && req.url.pathname === '/api/v2/comments/upload') {
       await handleCommentUpload(req, res);
       req.url.pathname = '/handled_comment_upload_bypass';
+    }
+    // DELETE /api/v2/comments/upload/:id — user cancels a staged attachment
+    const cancelMatch = req.url.pathname.match(/^\/api\/v2\/comments\/upload\/(\d+)$/);
+    if (req.method === 'DELETE' && cancelMatch) {
+      await handleCommentUploadCancel(req, res, cancelMatch[1]);
+      req.url.pathname = '/handled_comment_upload_cancel_bypass';
     }
   });
 
