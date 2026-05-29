@@ -334,7 +334,9 @@
     "poll_votes": "votes",
     "poll_vote_single": "vote",
     "poll_delete": "Delete poll",
-    "poll_expired": "Poll closed"
+    "poll_expired": "Poll closed",
+    "poll_anonymous": "Anonymous",
+    "poll_public": "Public votes"
   },
   "upload_btn": {
     "select_file": "Select a file",

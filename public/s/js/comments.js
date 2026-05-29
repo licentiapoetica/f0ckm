@@ -2116,19 +2116,29 @@ class CommentSystem {
         const total = poll.total_votes || 0;
         const voted = !!poll.user_vote_option_id;
         const expired = poll.expires_at && new Date(poll.expires_at) < new Date();
+        const isAnon = poll.is_anonymous !== false;
 
         const canDelete = session.logged_in && (session.is_admin || session.is_moderator || session.user === commentUsername);
 
         const optionsHtml = (poll.options || []).map(opt => {
             const pct = total > 0 ? Math.round((opt.vote_count / total) * 100) : 0;
             const isVoted = poll.user_vote_option_id === opt.id;
-            const clickable = session.logged_in && !expired && (!voted);
+            const clickable = session.logged_in && !expired && !voted;
+            const voterAvatars = (!isAnon && Array.isArray(opt.voters) && opt.voters.length > 0)
+                ? `<div class="poll-option-voters">${opt.voters.map(v => {
+                    const u = (v && typeof v === 'object') ? v : { username: String(v || ''), avatar: null, avatar_file: null };
+                    const name = String(u.username || '');
+                    const src = u.avatar_file ? `/a/${u.avatar_file}` : u.avatar ? `/t/${u.avatar}.webp` : '/a/default.png';
+                    return name ? `<a href="/user/${this.escapeHtml(name)}" title="${this.escapeHtml(name)}"><img class="poll-voter-avatar" src="${src}" alt="${this.escapeHtml(name)}" loading="lazy"></a>` : '';
+                }).join('')}</div>`
+                : '';
             return `<div class="poll-option ${isVoted ? 'poll-option-voted' : ''} ${clickable ? 'poll-option-clickable' : ''}"
                          data-option-id="${opt.id}" data-poll-id="${poll.id}" data-comment-id="${commentId}">
                 <div class="poll-option-bar" style="width:${pct}%"></div>
                 <span class="poll-option-text">${this.escapeHtml(opt.text)}</span>
                 <span class="poll-option-pct">${pct}%</span>
                 ${isVoted ? `<i class="fa-solid fa-check poll-vote-check" title="${i18n.poll_voted || 'You voted'}"></i>` : ''}
+                ${voterAvatars}
             </div>`;
         }).join('');
 
@@ -2136,11 +2146,16 @@ class CommentSystem {
             ? `<button class="poll-delete-btn" data-poll-id="${poll.id}" title="${i18n.poll_delete || 'Delete poll'}"><i class="fa-solid fa-trash-can"></i></button>`
             : '';
 
-        return `<div class="comment-poll" data-poll-id="${poll.id}">
+        const anonBadge = isAnon
+            ? `<span class="poll-anon-badge" title="${i18n.poll_anonymous || 'Anonymous'}"><i class="fa-solid fa-user-secret"></i></span>`
+            : `<span class="poll-anon-badge poll-public-badge" title="${i18n.poll_public || 'Public votes'}"><i class="fa-solid fa-eye"></i></span>`;
+
+        return `<div class="comment-poll" data-poll-id="${poll.id}" data-is-anonymous="${isAnon ? '1' : '0'}">
             <div class="poll-question">${this.escapeHtml(poll.question)}</div>
             <div class="poll-options">${optionsHtml}</div>
             <div class="poll-footer">
                 <span class="poll-total">${total} ${total === 1 ? (i18n.poll_vote_single || 'vote') : (i18n.poll_votes || 'votes')}</span>
+                ${anonBadge}
                 ${expired ? `<span class="poll-expired-badge">${i18n.poll_expired || 'Poll closed'}</span>` : ''}
                 ${deleteBtn}
             </div>
@@ -2633,6 +2648,10 @@ class CommentSystem {
                     </div>
                     <div class="poll-builder-actions">
                         <button class="poll-add-option-btn" type="button"><i class="fa-solid fa-plus"></i> ${i18n.poll_add_option || 'Add option'}</button>
+                        <label class="poll-anon-toggle">
+                            <input type="checkbox" class="poll-anon-checkbox" checked>
+                            <i class="fa-solid fa-user-secret"></i> ${i18n.poll_anonymous || 'Anonymous'}
+                        </label>
                         <button class="poll-remove-btn" type="button"><i class="fa-solid fa-xmark"></i> ${i18n.poll_remove || 'Remove poll'}</button>
                     </div>
                 `;
@@ -2698,6 +2717,7 @@ class CommentSystem {
                     const i18n = window.f0ckI18n || {};
                     const total = data.total_votes || 0;
                     pollWidget.querySelector('.poll-total').textContent = `${total} ${total === 1 ? (i18n.poll_vote_single || 'vote') : (i18n.poll_votes || 'votes')}`;
+                    const isAnon = pollWidget.dataset.isAnonymous !== '0';
                     (data.options || []).forEach(updated => {
                         const el = pollWidget.querySelector(`.poll-option[data-option-id="${updated.id}"]`);
                         if (!el) return;
@@ -2708,6 +2728,21 @@ class CommentSystem {
                             el.classList.add('poll-option-voted');
                             if (!el.querySelector('.poll-vote-check')) {
                                 el.insertAdjacentHTML('beforeend', `<i class="fa-solid fa-check poll-vote-check" title="${i18n.poll_voted || 'You voted'}"></i>`);
+                            }
+                        }
+                        // Update voter list for public polls
+                        if (!isAnon && Array.isArray(updated.voters)) {
+                            let votersEl = el.querySelector('.poll-option-voters');
+                            if (updated.voters.length > 0) {
+                                const html = updated.voters.map(v => {
+                                    const u = typeof v === 'object' ? v : { username: v, avatar: null, avatar_file: null };
+                                    const src = u.avatar_file ? `/a/${u.avatar_file}` : u.avatar ? `/t/${u.avatar}.webp` : '/a/default.png';
+                                    return `<a href="/user/${u.username}" title="${u.username}"><img class="poll-voter-avatar" src="${src}" alt="${u.username}" loading="lazy"></a>`;
+                                }).join('');
+                                if (votersEl) votersEl.innerHTML = html;
+                                else el.insertAdjacentHTML('beforeend', `<div class="poll-option-voters">${html}</div>`);
+                            } else if (votersEl) {
+                                votersEl.remove();
                             }
                         }
                     });
@@ -3150,8 +3185,9 @@ class CommentSystem {
             const options = [...pollBuilder.querySelectorAll('.poll-option-input')]
                 .map(i => i.value.trim())
                 .filter(Boolean);
+            const isAnonymous = pollBuilder.querySelector('.poll-anon-checkbox')?.checked !== false;
             if (question && options.length >= 2) {
-                pollPayload = { question, options };
+                pollPayload = { question, options, is_anonymous: isAnonymous };
             }
         }
 

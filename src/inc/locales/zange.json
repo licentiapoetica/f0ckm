@@ -332,7 +332,9 @@
     "poll_votes": "Stimmen",
     "poll_vote_single": "Stimme",
     "poll_delete": "Umfrage löschen",
-    "poll_expired": "Umfrage geschlossen"
+    "poll_expired": "Umfrage geschlossen",
+    "poll_anonymous": "Anonym",
+    "poll_public": "Öffentliche Stimmen"
   },
   "upload_btn": {
     "select_file": "Datei auswählen",

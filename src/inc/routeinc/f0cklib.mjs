@@ -1020,6 +1020,7 @@ export default {
               cp.comment_id,
               cp.question,
               cp.expires_at,
+              COALESCE(cp.is_anonymous, true) as is_anonymous,
               json_agg(
                 json_build_object(
                   'id', cpo.id,
@@ -1037,24 +1038,44 @@ export default {
               GROUP BY option_id
             ) vote_counts ON vote_counts.option_id = cpo.id
             WHERE cp.comment_id = ANY(${commentIds}::int[])
-            GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at
+            GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at, cp.is_anonymous
           `;
+          // For non-anonymous polls, fetch voter names
+          const nonAnonIds = pollRows.filter(p => !p.is_anonymous).map(p => p.poll_id);
+          let votersByOption = new Map();
+          if (nonAnonIds.length > 0) {
+            const voterRows = await db`
+              SELECT cpv.option_id, u."user" as username, uo.avatar, uo.avatar_file
+              FROM comment_poll_votes cpv
+              JOIN public."user" u ON u.id = cpv.user_id
+              LEFT JOIN public.user_options uo ON uo.user_id = cpv.user_id
+              WHERE cpv.poll_id = ANY(${nonAnonIds}::int[])
+            `;
+            for (const v of voterRows) {
+              if (!votersByOption.has(v.option_id)) votersByOption.set(v.option_id, []);
+              votersByOption.get(v.option_id).push({ username: v.username, avatar: v.avatar, avatar_file: v.avatar_file });
+            }
+          }
           const pollMap = new Map();
           for (const p of pollRows) {
+            const options = p.is_anonymous
+              ? p.options
+              : p.options.map(o => ({ ...o, voters: votersByOption.get(o.id) || [] }));
             pollMap.set(p.comment_id, {
               id: p.poll_id,
               question: p.question,
               expires_at: p.expires_at,
-              options: p.options,
+              is_anonymous: p.is_anonymous,
+              options,
               total_votes: parseInt(p.total_votes) || 0,
-              user_vote_option_id: null // filled in per-request context if needed
+              user_vote_option_id: null
             });
           }
           for (const c of comments) {
             c.poll = pollMap.get(c.id) || null;
           }
         } catch (e) {
-          // Poll tables might not exist yet
+          console.error('[POLLS] getComments poll fetch error:', e.message, e.code);
           for (const c of comments) c.poll = null;
         }
       }

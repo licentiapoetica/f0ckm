@@ -2847,6 +2847,7 @@ CREATE TABLE IF NOT EXISTS public.comment_polls (
     id SERIAL PRIMARY KEY,
     comment_id INTEGER NOT NULL REFERENCES public.comments(id) ON DELETE CASCADE,
     question TEXT NOT NULL,
+    is_anonymous BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
     UNIQUE(comment_id)

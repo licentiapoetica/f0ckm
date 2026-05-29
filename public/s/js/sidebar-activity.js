@@ -410,10 +410,17 @@
         return items ? `<div class="comment-attachments">${items}</div>` : '';
     };
 
+    const renderSidebarPoll = (poll, commentId, itemId) => {
+        if (!poll) return '';
+        const href = (itemId && commentId) ? `/${itemId}#c${commentId}` : (commentId ? `#sc${commentId}` : '#');
+        return `<a class="sidebar-poll-preview" href="${href}"><i class="fa-solid fa-chart-bar"></i> ${escapeHtml(poll.question)}</a>`;
+    };
+
     const renderActivityItem = (c) => {
         const rawContent = c.content || c.body || '';
         const displayContent = renderCommentContent(rawContent, c.id, c.item_id);
         const attachmentsHtml = renderCommentAttachments(c.files, rawContent);
+        const pollHtml = renderSidebarPoll(c.poll, c.id, c.item_id);
 
         // Build avatar URL — same priority as the rest of the app
         let avatarSrc = '/a/default.png';
@@ -472,11 +479,12 @@
                         </div>
                         <span class="comment-time timeago" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content"><div class="comment-content-inner">${displayContent}${attachmentsHtml}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;
     };
+
 
     const checkOverflow = () => {
         document.querySelectorAll('.sidebar-activity .comment-content-inner').forEach(inner => {

@@ -334,7 +334,9 @@
     "poll_votes": "stemmen",
     "poll_vote_single": "stem",
     "poll_delete": "Peiling verwijderen",
-    "poll_expired": "Peiling gesloten"
+    "poll_expired": "Peiling gesloten",
+    "poll_anonymous": "Anoniem",
+    "poll_public": "Openbare stemmen"
   },
   "upload_btn": {
     "select_file": "Selecteer een bestand",
