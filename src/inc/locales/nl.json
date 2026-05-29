@@ -323,7 +323,18 @@
     "attach_file": "Bestand bijvoegen",
     "uploading_file": "Uploaden...",
     "remove_file": "Bestand verwijderen",
-    "file_too_large": "Bestand te groot"
+    "file_too_large": "Bestand te groot",
+    "poll_btn_title": "Peiling aanmaken",
+    "poll_question_placeholder": "Peilingvraag...",
+    "poll_option_placeholder": "Optie...",
+    "poll_add_option": "Optie toevoegen",
+    "poll_remove": "Peiling verwijderen",
+    "poll_vote": "Stemmen",
+    "poll_voted": "Je hebt gestemd",
+    "poll_votes": "stemmen",
+    "poll_vote_single": "stem",
+    "poll_delete": "Peiling verwijderen",
+    "poll_expired": "Peiling gesloten"
   },
   "upload_btn": {
     "select_file": "Selecteer een bestand",

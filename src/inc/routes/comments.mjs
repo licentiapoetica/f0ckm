@@ -43,6 +43,24 @@ export default (router, tpl) => {
                 if (sub.length > 0) is_subscribed = true;
             }
 
+            // Fill in per-user poll votes
+            if (req.session && cfg.websrv.enable_comment_polls) {
+                const pollComments = comments.filter(c => c.poll);
+                if (pollComments.length > 0) {
+                    const pollIds = pollComments.map(c => c.poll.id);
+                    try {
+                        const votes = await db`
+                            SELECT poll_id, option_id FROM comment_poll_votes
+                            WHERE poll_id = ANY(${pollIds}::int[]) AND user_id = ${req.session.id}
+                        `;
+                        const voteMap = new Map(votes.map(v => [v.poll_id, v.option_id]));
+                        for (const c of pollComments) {
+                            if (c.poll) c.poll.user_vote_option_id = voteMap.get(c.poll.id) || null;
+                        }
+                    } catch (e) { /* graceful */ }
+                }
+            }
+
             // Transform for frontend if needed, or send as is
             return res.reply({
                 headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -271,7 +289,9 @@ export default (router, tpl) => {
         const fileIdsRaw = body.file_ids || '';
         const fileIds = fileIdsRaw ? fileIdsRaw.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0) : [];
 
-        if ((!content || !content.trim()) && fileIds.length === 0) {
+        const hasPoll = body.has_poll === '1' || body.has_poll === 'true';
+
+        if ((!content || !content.trim()) && fileIds.length === 0 && !hasPoll) {
             return res.reply({ body: JSON.stringify({ success: false, message: "Empty comment" }) });
         }
 
@@ -980,6 +1000,207 @@ export default (router, tpl) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ success: false, message: "Internal server error" })
             });
+        }
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Poll creation — called after a comment is inserted (internal helper)
+    // ──────────────────────────────────────────────────────────────────────────
+    const createPollForComment = async (commentId, pollData) => {
+        if (!cfg.websrv.enable_comment_polls) return null;
+        const { question, options } = pollData || {};
+        if (!question || !question.trim()) return null;
+        if (!Array.isArray(options) || options.length < 2) return null;
+        const cleanOptions = options.map(o => (typeof o === 'string' ? o : String(o)).trim()).filter(Boolean);
+        if (cleanOptions.length < 2 || cleanOptions.length > 10) return null;
+
+        const [poll] = await db`
+            INSERT INTO comment_polls (comment_id, question)
+            VALUES (${commentId}, ${question.trim()})
+            RETURNING id
+        `;
+        const pollId = poll.id;
+        for (let i = 0; i < cleanOptions.length; i++) {
+            await db`
+                INSERT INTO comment_poll_options (poll_id, text, sort_order)
+                VALUES (${pollId}, ${cleanOptions[i]}, ${i})
+            `;
+        }
+        const optRows = await db`SELECT id, text, sort_order FROM comment_poll_options WHERE poll_id = ${pollId} ORDER BY sort_order ASC`;
+        return {
+            id: pollId,
+            question: question.trim(),
+            options: optRows.map(o => ({ id: o.id, text: o.text, sort_order: o.sort_order, vote_count: 0 })),
+            total_votes: 0,
+            user_vote_option_id: null
+        };
+    };
+
+    // Patch POST /api/comments to support optional poll payload
+    // We cannot re-define the same route, so we intercept via a pre-middleware trick.
+    // Instead we add a dedicated endpoint that the frontend always uses for polls.
+
+    // POST /api/polls/:commentId — attach a poll to an existing just-created comment
+    // (frontend calls this immediately after posting the comment)
+    router.post(/\/api\/polls\/attach\/(?<commentId>\d+)/, async (req, res) => {
+        if (!req.session) return res.reply({ code: 401, body: JSON.stringify({ success: false }) });
+        if (!cfg.websrv.enable_comment_polls) return res.reply({ code: 403, body: JSON.stringify({ success: false, message: 'Polls disabled' }) });
+
+        const commentId = req.params.commentId;
+        const body = req.post || {};
+
+        // Verify this comment belongs to the logged-in user and has no poll yet
+        const comment = await db`SELECT id, user_id FROM comments WHERE id = ${commentId} AND is_deleted = false LIMIT 1`;
+        if (!comment.length) return res.reply({ code: 404, body: JSON.stringify({ success: false, message: 'Comment not found' }) });
+        if (comment[0].user_id !== req.session.id && !req.session.admin && !req.session.is_moderator) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: 'Forbidden' }) });
+        }
+        const existing = await db`SELECT id FROM comment_polls WHERE comment_id = ${commentId} LIMIT 1`;
+        if (existing.length) return res.reply({ code: 409, body: JSON.stringify({ success: false, message: 'Poll already exists' }) });
+
+        let pollData;
+        try {
+            pollData = typeof body.poll === 'string' ? JSON.parse(body.poll) : body.poll;
+        } catch (e) {
+            return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'Invalid poll JSON' }) });
+        }
+
+        try {
+            const poll = await createPollForComment(parseInt(commentId, 10), pollData);
+            if (!poll) return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'Invalid poll data (need question + 2-10 options)' }) });
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, poll }) });
+        } catch (err) {
+            console.error('[POLLS] createPollForComment error:', err);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: 'Database error' }) });
+        }
+    });
+
+    // GET /api/polls/:pollId — fetch poll with current user's vote
+    router.get(/\/api\/polls\/(?<pollId>\d+)/, async (req, res) => {
+        if (!cfg.websrv.enable_comment_polls) return res.reply({ code: 403, body: JSON.stringify({ success: false }) });
+        const pollId = req.params.pollId;
+
+        try {
+            const pollRows = await db`
+                SELECT
+                    cp.id as poll_id, cp.comment_id, cp.question, cp.expires_at,
+                    json_agg(
+                        json_build_object(
+                            'id', cpo.id, 'text', cpo.text, 'sort_order', cpo.sort_order,
+                            'vote_count', COALESCE(vc.cnt, 0)
+                        ) ORDER BY cpo.sort_order ASC, cpo.id ASC
+                    ) AS options,
+                    COALESCE(SUM(vc.cnt), 0)::int AS total_votes
+                FROM comment_polls cp
+                JOIN comment_poll_options cpo ON cpo.poll_id = cp.id
+                LEFT JOIN (SELECT option_id, COUNT(*) AS cnt FROM comment_poll_votes GROUP BY option_id) vc ON vc.option_id = cpo.id
+                WHERE cp.id = ${pollId}
+                GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at
+            `;
+            if (!pollRows.length) return res.reply({ code: 404, body: JSON.stringify({ success: false }) });
+            const p = pollRows[0];
+
+            let userVoteOptionId = null;
+            if (req.session) {
+                const vote = await db`SELECT option_id FROM comment_poll_votes WHERE poll_id = ${pollId} AND user_id = ${req.session.id} LIMIT 1`;
+                if (vote.length) userVoteOptionId = vote[0].option_id;
+            }
+
+            return res.reply({
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    success: true,
+                    poll: {
+                        id: p.poll_id,
+                        comment_id: p.comment_id,
+                        question: p.question,
+                        expires_at: p.expires_at,
+                        options: p.options,
+                        total_votes: parseInt(p.total_votes) || 0,
+                        user_vote_option_id: userVoteOptionId
+                    }
+                })
+            });
+        } catch (err) {
+            console.error('[POLLS] GET error:', err);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
+        }
+    });
+
+    // POST /api/polls/:pollId/vote — cast or change vote
+    router.post(/\/api\/polls\/(?<pollId>\d+)\/vote/, async (req, res) => {
+        if (!req.session) return res.reply({ code: 401, body: JSON.stringify({ success: false }) });
+        if (!cfg.websrv.enable_comment_polls) return res.reply({ code: 403, body: JSON.stringify({ success: false }) });
+
+        const pollId = req.params.pollId;
+        const body = req.post || {};
+        const optionId = parseInt(body.option_id, 10);
+        if (!optionId) return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'Missing option_id' }) });
+
+        try {
+            // Verify option belongs to poll
+            const opt = await db`SELECT id FROM comment_poll_options WHERE id = ${optionId} AND poll_id = ${pollId} LIMIT 1`;
+            if (!opt.length) return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'Invalid option' }) });
+
+            // Check expiry
+            const poll = await db`SELECT expires_at FROM comment_polls WHERE id = ${pollId} LIMIT 1`;
+            if (!poll.length) return res.reply({ code: 404, body: JSON.stringify({ success: false }) });
+            if (poll[0].expires_at && new Date(poll[0].expires_at) < new Date()) {
+                return res.reply({ code: 403, body: JSON.stringify({ success: false, message: 'Poll has expired' }) });
+            }
+
+            // Upsert vote (change allowed)
+            await db`
+                INSERT INTO comment_poll_votes (poll_id, option_id, user_id)
+                VALUES (${pollId}, ${optionId}, ${req.session.id})
+                ON CONFLICT (poll_id, user_id) DO UPDATE SET option_id = ${optionId}, created_at = now()
+            `;
+
+            // Return updated tally
+            const rows = await db`
+                SELECT cpo.id, cpo.text, cpo.sort_order, COALESCE(vc.cnt, 0)::int AS vote_count
+                FROM comment_poll_options cpo
+                LEFT JOIN (SELECT option_id, COUNT(*) AS cnt FROM comment_poll_votes WHERE poll_id = ${pollId} GROUP BY option_id) vc ON vc.option_id = cpo.id
+                WHERE cpo.poll_id = ${pollId}
+                ORDER BY cpo.sort_order ASC
+            `;
+            const totalVotes = rows.reduce((s, r) => s + r.vote_count, 0);
+
+            return res.reply({
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: true, options: rows, total_votes: totalVotes, user_vote_option_id: optionId })
+            });
+        } catch (err) {
+            console.error('[POLLS] vote error:', err);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
+        }
+    });
+
+    // DELETE /api/polls/:pollId — admin/mod or creator can delete
+    router.post(/\/api\/polls\/(?<pollId>\d+)\/delete/, async (req, res) => {
+        if (!req.session) return res.reply({ code: 401, body: JSON.stringify({ success: false }) });
+        if (!cfg.websrv.enable_comment_polls) return res.reply({ code: 403, body: JSON.stringify({ success: false }) });
+
+        const pollId = req.params.pollId;
+        try {
+            const poll = await db`
+                SELECT cp.id, cp.comment_id, c.user_id
+                FROM comment_polls cp
+                JOIN comments c ON c.id = cp.comment_id
+                WHERE cp.id = ${pollId} LIMIT 1
+            `;
+            if (!poll.length) return res.reply({ code: 404, body: JSON.stringify({ success: false }) });
+            const isCreator = poll[0].user_id === req.session.id;
+            if (!isCreator && !req.session.admin && !req.session.is_moderator) {
+                return res.reply({ code: 403, body: JSON.stringify({ success: false, message: 'Forbidden' }) });
+            }
+            await db`DELETE FROM comment_polls WHERE id = ${pollId}`;
+            // Notify live update
+            db.notify('comments', JSON.stringify({ type: 'poll_deleted', poll_id: pollId, comment_id: poll[0].comment_id }));
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+        } catch (err) {
+            console.error('[POLLS] delete error:', err);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
         }
     });
 

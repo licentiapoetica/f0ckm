@@ -99,6 +99,7 @@
     "show_mime_picker": true,
     "embed_youtube_in_comments": true,
     "allow_comment_deletion": false,
+    "enable_comment_polls": false,
     "show_content_warning": true,
     "default_comment_display_mode": 1,
     "phrases": [

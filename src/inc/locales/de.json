@@ -323,7 +323,18 @@
     "attach_file": "Datei anhängen",
     "uploading_file": "Wird hochgeladen...",
     "remove_file": "Datei entfernen",
-    "file_too_large": "Datei zu groß"
+    "file_too_large": "Datei zu groß",
+    "poll_btn_title": "Umfrage erstellen",
+    "poll_question_placeholder": "Umfragefrage...",
+    "poll_option_placeholder": "Option...",
+    "poll_add_option": "Option hinzufügen",
+    "poll_remove": "Umfrage entfernen",
+    "poll_vote": "Abstimmen",
+    "poll_voted": "Abgestimmt",
+    "poll_votes": "Stimmen",
+    "poll_vote_single": "Stimme",
+    "poll_delete": "Umfrage löschen",
+    "poll_expired": "Umfrage geschlossen"
   },
   "upload_btn": {
     "select_file": "Datei auswählen",

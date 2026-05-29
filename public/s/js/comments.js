@@ -2047,6 +2047,7 @@ class CommentSystem {
                     </div>
                     <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
                     ${this.renderCommentAttachments(comment.files, comment.content)}
+                    ${this.renderCommentPoll(comment.poll, comment.id, comment.username)}
                     <div class="comment-footer">
                         <div class="comment-footer-right">
                             <div class="comment-actions">
@@ -2108,6 +2109,44 @@ class CommentSystem {
         return items ? `<div class="comment-attachments">${items}</div>` : '';
     }
 
+    renderCommentPoll(poll, commentId, commentUsername) {
+        if (!poll) return '';
+        const i18n = window.f0ckI18n || {};
+        const session = window.f0ckSession || {};
+        const total = poll.total_votes || 0;
+        const voted = !!poll.user_vote_option_id;
+        const expired = poll.expires_at && new Date(poll.expires_at) < new Date();
+
+        const canDelete = session.logged_in && (session.is_admin || session.is_moderator || session.user === commentUsername);
+
+        const optionsHtml = (poll.options || []).map(opt => {
+            const pct = total > 0 ? Math.round((opt.vote_count / total) * 100) : 0;
+            const isVoted = poll.user_vote_option_id === opt.id;
+            const clickable = session.logged_in && !expired && (!voted);
+            return `<div class="poll-option ${isVoted ? 'poll-option-voted' : ''} ${clickable ? 'poll-option-clickable' : ''}"
+                         data-option-id="${opt.id}" data-poll-id="${poll.id}" data-comment-id="${commentId}">
+                <div class="poll-option-bar" style="width:${pct}%"></div>
+                <span class="poll-option-text">${this.escapeHtml(opt.text)}</span>
+                <span class="poll-option-pct">${pct}%</span>
+                ${isVoted ? `<i class="fa-solid fa-check poll-vote-check" title="${i18n.poll_voted || 'You voted'}"></i>` : ''}
+            </div>`;
+        }).join('');
+
+        const deleteBtn = canDelete
+            ? `<button class="poll-delete-btn" data-poll-id="${poll.id}" title="${i18n.poll_delete || 'Delete poll'}"><i class="fa-solid fa-trash-can"></i></button>`
+            : '';
+
+        return `<div class="comment-poll" data-poll-id="${poll.id}">
+            <div class="poll-question">${this.escapeHtml(poll.question)}</div>
+            <div class="poll-options">${optionsHtml}</div>
+            <div class="poll-footer">
+                <span class="poll-total">${total} ${total === 1 ? (i18n.poll_vote_single || 'vote') : (i18n.poll_votes || 'votes')}</span>
+                ${expired ? `<span class="poll-expired-badge">${i18n.poll_expired || 'Poll closed'}</span>` : ''}
+                ${deleteBtn}
+            </div>
+        </div>`;
+    }
+
     renderInput(parentId = null) {
         const i18n = window.f0ckI18n || {};
         const session = window.f0ckSession || {};
@@ -2115,6 +2154,7 @@ class CommentSystem {
         const postLabel = i18n.post || 'Post';
         const cancelLabel = i18n.cancel || 'Cancel';
         const attachLabel = i18n.attach_file || 'Attach file';
+        const pollLabel = i18n.poll_btn_title || 'Create poll';
         const maxLen = session.comment_max_length;
         const maxLenAttr = (maxLen !== null && maxLen !== undefined) ? ` maxlength="${maxLen}"` : '';
         const counter = (maxLen !== null && maxLen !== undefined)
@@ -2125,6 +2165,10 @@ class CommentSystem {
         const attachBtn = fileUploadEnabled
             ? `<button class="comment-attach-btn" title="${attachLabel}" type="button"><i class="fa-solid fa-paperclip"></i></button><input type="file" class="comment-file-input" accept="image/*,video/*,audio/*" ${multiFile ? 'multiple' : ''} style="display:none;">`
             : '';
+        const pollEnabled = session.logged_in && session.enable_comment_polls;
+        const pollBtn = pollEnabled && !parentId
+            ? `<button class="comment-poll-btn" title="${pollLabel}" type="button"><i class="fa-solid fa-chart-bar"></i></button>`
+            : '';
         return `
             <div class="comment-input ${parentId ? 'reply-input' : 'main-input'}" ${parentId ? `data-parent="${parentId}"` : ''}>
                 <textarea placeholder="${placeholder}"${maxLenAttr}></textarea>
@@ -2132,6 +2176,7 @@ class CommentSystem {
                 <div class="input-actions">
                     ${counter}
                     ${attachBtn}
+                    ${pollBtn}
                     ${parentId ? `<button class="cancel-reply" title="${cancelLabel}"><i class="fa-solid fa-xmark"></i></button>` : ''}
                     <button class="submit-comment"><span class="submit-label">${postLabel}</span><i class="fa-solid fa-spinner fa-spin submit-spinner"></i></button>
                 </div>
@@ -2566,6 +2611,138 @@ class CommentSystem {
                 return;
             }
 
+            // Poll button — toggle poll builder
+            if (target.closest('.comment-poll-btn')) {
+                const btn = target.closest('.comment-poll-btn');
+                const wrap = btn.closest('.comment-input');
+                if (!wrap) return;
+                const existing = wrap.querySelector('.poll-builder');
+                if (existing) {
+                    existing.remove();
+                    btn.classList.remove('active');
+                    return;
+                }
+                const i18n = window.f0ckI18n || {};
+                const builder = document.createElement('div');
+                builder.className = 'poll-builder';
+                builder.innerHTML = `
+                    <input class="poll-question-input" type="text" placeholder="${i18n.poll_question_placeholder || 'Poll question...'}" maxlength="200">
+                    <div class="poll-options-list">
+                        <input class="poll-option-input" type="text" placeholder="${i18n.poll_option_placeholder || 'Option...'}" maxlength="100">
+                        <input class="poll-option-input" type="text" placeholder="${i18n.poll_option_placeholder || 'Option...'}" maxlength="100">
+                    </div>
+                    <div class="poll-builder-actions">
+                        <button class="poll-add-option-btn" type="button"><i class="fa-solid fa-plus"></i> ${i18n.poll_add_option || 'Add option'}</button>
+                        <button class="poll-remove-btn" type="button"><i class="fa-solid fa-xmark"></i> ${i18n.poll_remove || 'Remove poll'}</button>
+                    </div>
+                `;
+                // Insert before input-actions
+                const actions = wrap.querySelector('.input-actions');
+                if (actions) wrap.insertBefore(builder, actions);
+                else wrap.appendChild(builder);
+                btn.classList.add('active');
+                builder.querySelector('.poll-question-input').focus();
+                return;
+            }
+
+            // Poll builder — add option
+            if (target.closest('.poll-add-option-btn')) {
+                const list = target.closest('.poll-builder')?.querySelector('.poll-options-list');
+                if (!list) return;
+                if (list.querySelectorAll('.poll-option-input').length >= 10) return;
+                const i18n = window.f0ckI18n || {};
+                const inp = document.createElement('input');
+                inp.className = 'poll-option-input';
+                inp.type = 'text';
+                inp.placeholder = i18n.poll_option_placeholder || 'Option...';
+                inp.maxLength = 100;
+                list.appendChild(inp);
+                inp.focus();
+                return;
+            }
+
+            // Poll builder — remove
+            if (target.closest('.poll-remove-btn')) {
+                const builder = target.closest('.poll-builder');
+                if (!builder) return;
+                const wrap = builder.closest('.comment-input');
+                if (wrap) wrap.querySelector('.comment-poll-btn')?.classList.remove('active');
+                builder.remove();
+                return;
+            }
+
+            // Poll option — vote
+            if (target.closest('.poll-option-clickable')) {
+                const opt = target.closest('.poll-option-clickable');
+                const pollId = opt.dataset.pollId;
+                const optionId = opt.dataset.optionId;
+                const commentId = opt.dataset.commentId;
+                if (!pollId || !optionId) return;
+                const pollWidget = opt.closest('.comment-poll');
+                // Disable all options immediately
+                pollWidget?.querySelectorAll('.poll-option-clickable').forEach(o => o.classList.remove('poll-option-clickable'));
+                fetch(`/api/polls/${pollId}/vote`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: `option_id=${optionId}`
+                }).then(r => r.json()).then(data => {
+                    if (!data.success) {
+                        if (window.flashMessage) window.flashMessage(data.message || 'Vote failed', 2500, 'error');
+                        return;
+                    }
+                    // Patch poll widget in-place
+                    if (!pollWidget) return;
+                    const i18n = window.f0ckI18n || {};
+                    const total = data.total_votes || 0;
+                    pollWidget.querySelector('.poll-total').textContent = `${total} ${total === 1 ? (i18n.poll_vote_single || 'vote') : (i18n.poll_votes || 'votes')}`;
+                    (data.options || []).forEach(updated => {
+                        const el = pollWidget.querySelector(`.poll-option[data-option-id="${updated.id}"]`);
+                        if (!el) return;
+                        const pct = total > 0 ? Math.round((updated.vote_count / total) * 100) : 0;
+                        el.querySelector('.poll-option-bar').style.width = pct + '%';
+                        el.querySelector('.poll-option-pct').textContent = pct + '%';
+                        if (updated.id === data.user_vote_option_id) {
+                            el.classList.add('poll-option-voted');
+                            if (!el.querySelector('.poll-vote-check')) {
+                                el.insertAdjacentHTML('beforeend', `<i class="fa-solid fa-check poll-vote-check" title="${i18n.poll_voted || 'You voted'}"></i>`);
+                            }
+                        }
+                    });
+                }).catch(() => {
+                    if (window.flashMessage) window.flashMessage('Network error', 2500, 'error');
+                });
+                return;
+            }
+
+            // Poll delete button
+            if (target.closest('.poll-delete-btn')) {
+                const btn = target.closest('.poll-delete-btn');
+                const pollId = btn.dataset.pollId;
+                if (!pollId) return;
+                if (!confirm('Delete this poll?')) return;
+                fetch(`/api/polls/${pollId}/delete`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        const widget = btn.closest('.comment-poll');
+                        if (widget) {
+                            widget.style.transition = 'opacity 0.3s';
+                            widget.style.opacity = '0';
+                            setTimeout(() => widget.remove(), 300);
+                        }
+                    } else {
+                        if (window.flashMessage) window.flashMessage(data.message || 'Delete failed', 2500, 'error');
+                    }
+                }).catch(() => {
+                    if (window.flashMessage) window.flashMessage('Network error', 2500, 'error');
+                });
+                return;
+            }
+
             // Submit Comment
             if (target.closest('.submit-comment')) {
                 this.handleSubmit(e);
@@ -2965,7 +3142,20 @@ class CommentSystem {
             });
         }
 
-        if (!text && fileIds.length === 0) return;
+        // Collect poll data from builder (if present)
+        let pollPayload = null;
+        const pollBuilder = wrap.querySelector('.poll-builder');
+        if (pollBuilder) {
+            const question = pollBuilder.querySelector('.poll-question-input')?.value.trim() || '';
+            const options = [...pollBuilder.querySelectorAll('.poll-option-input')]
+                .map(i => i.value.trim())
+                .filter(Boolean);
+            if (question && options.length >= 2) {
+                pollPayload = { question, options };
+            }
+        }
+
+        if (!text && fileIds.length === 0 && !pollPayload) return;
         if (submitBtn.classList.contains('loading') || submitBtn.disabled) return;
         if (wrap._pendingUploads > 0) return;
 
@@ -3040,6 +3230,36 @@ class CommentSystem {
                         }
                         const fpArea = wrap.querySelector('.comment-file-preview');
                         if (fpArea) fpArea.innerHTML = '';
+                        // Remove poll builder after posting
+                        wrap.querySelector('.poll-builder')?.remove();
+                        wrap.querySelector('.comment-poll-btn')?.classList.remove('active');
+                    }
+
+                    // If there was a poll, attach it now
+                    const commentId = json.comment?.id;
+                    if (pollPayload && commentId) {
+                        const pfd = new FormData();
+                        pfd.append('poll', JSON.stringify(pollPayload));
+                        fetch(`/api/polls/attach/${commentId}`, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                            body: new URLSearchParams(pfd)
+                        }).then(r => r.json()).then(pData => {
+                            if (pData.success && pData.poll) {
+                                // Patch poll into newComment and update DOM
+                                newComment.poll = pData.poll;
+                                const commentEl = document.getElementById('c' + commentId);
+                                if (commentEl) {
+                                    const attachmentsEl = commentEl.querySelector('.comment-attachments');
+                                    const contentEl = commentEl.querySelector('.comment-content');
+                                    const insertAfter = attachmentsEl || contentEl;
+                                    if (insertAfter) {
+                                        const pollHtml = this.renderCommentPoll(pData.poll, commentId, window.f0ckSession?.user);
+                                        insertAfter.insertAdjacentHTML('afterend', pollHtml);
+                                    }
+                                }
+                            }
+                        }).catch(() => {});
                     }
 
                     // Notify the right sidebar that a new comment was posted (silent refresh)
@@ -3097,7 +3317,8 @@ class CommentSystem {
                         is_pinned: false,
                         video_time: json.comment.video_time ?? null,
                         replies: [],
-                        replyTo: null
+                        replyTo: null,
+                        poll: null
                     };
 
                     // Danmaku: fire immediately (one-shot) + add to future rotation

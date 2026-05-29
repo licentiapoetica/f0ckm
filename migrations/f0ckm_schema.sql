@@ -2842,4 +2842,35 @@ CREATE TABLE IF NOT EXISTS public.wordfilter (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Comment Polls
+CREATE TABLE IF NOT EXISTS public.comment_polls (
+    id SERIAL PRIMARY KEY,
+    comment_id INTEGER NOT NULL REFERENCES public.comments(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    UNIQUE(comment_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.comment_poll_options (
+    id SERIAL PRIMARY KEY,
+    poll_id INTEGER NOT NULL REFERENCES public.comment_polls(id) ON DELETE CASCADE,
+    option_text TEXT NOT NULL,
+    display_order SMALLINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS public.comment_poll_votes (
+    id SERIAL PRIMARY KEY,
+    poll_id INTEGER NOT NULL REFERENCES public.comment_polls(id) ON DELETE CASCADE,
+    option_id INTEGER NOT NULL REFERENCES public.comment_poll_options(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(poll_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_comment_polls_comment_id   ON public.comment_polls(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_poll_options_poll  ON public.comment_poll_options(poll_id);
+CREATE INDEX IF NOT EXISTS idx_comment_poll_votes_poll    ON public.comment_poll_votes(poll_id);
+CREATE INDEX IF NOT EXISTS idx_comment_poll_votes_user    ON public.comment_poll_votes(user_id);
+
 \unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG

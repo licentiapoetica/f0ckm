@@ -323,7 +323,18 @@
     "attach_file": "Attach file",
     "uploading_file": "Uploading...",
     "remove_file": "Remove file",
-    "file_too_large": "File too large"
+    "file_too_large": "File too large",
+    "poll_btn_title": "Create poll",
+    "poll_question_placeholder": "Poll question...",
+    "poll_option_placeholder": "Option...",
+    "poll_add_option": "Add option",
+    "poll_remove": "Remove poll",
+    "poll_vote": "Vote",
+    "poll_voted": "You voted",
+    "poll_votes": "votes",
+    "poll_vote_single": "vote",
+    "poll_delete": "Delete poll",
+    "poll_expired": "Poll closed"
   },
   "upload_btn": {
     "select_file": "Select a file",

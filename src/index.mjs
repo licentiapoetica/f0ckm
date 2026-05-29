@@ -1154,6 +1154,7 @@ process.on('uncaughtException', err => {
     fileupload_comments_max: cfg.websrv.fileupload_comments_max || 5,
     fileupload_comments_mode: cfg.websrv.fileupload_comments_mode || 'attachment',
     fileupload_comments_mimes: Array.isArray(cfg.websrv.fileupload_comments_mimes) ? cfg.websrv.fileupload_comments_mimes : ['image', 'video', 'audio'],
+    enable_comment_polls: cfg.websrv.enable_comment_polls || false,
 
     get fonts() {
       try {

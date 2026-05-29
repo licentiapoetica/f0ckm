@@ -1011,6 +1011,52 @@ export default {
           // Table might not exist yet, gracefully degrade
           for (const c of comments) c.files = [];
         }
+
+        // Fetch poll data for comments that have one
+        try {
+          const pollRows = await db`
+            SELECT
+              cp.id as poll_id,
+              cp.comment_id,
+              cp.question,
+              cp.expires_at,
+              json_agg(
+                json_build_object(
+                  'id', cpo.id,
+                  'text', cpo.text,
+                  'sort_order', cpo.sort_order,
+                  'vote_count', COALESCE(vote_counts.cnt, 0)
+                ) ORDER BY cpo.sort_order ASC, cpo.id ASC
+              ) AS options,
+              COALESCE(SUM(vote_counts.cnt), 0)::int AS total_votes
+            FROM comment_polls cp
+            JOIN comment_poll_options cpo ON cpo.poll_id = cp.id
+            LEFT JOIN (
+              SELECT option_id, COUNT(*) AS cnt
+              FROM comment_poll_votes
+              GROUP BY option_id
+            ) vote_counts ON vote_counts.option_id = cpo.id
+            WHERE cp.comment_id = ANY(${commentIds}::int[])
+            GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at
+          `;
+          const pollMap = new Map();
+          for (const p of pollRows) {
+            pollMap.set(p.comment_id, {
+              id: p.poll_id,
+              question: p.question,
+              expires_at: p.expires_at,
+              options: p.options,
+              total_votes: parseInt(p.total_votes) || 0,
+              user_vote_option_id: null // filled in per-request context if needed
+            });
+          }
+          for (const c of comments) {
+            c.poll = pollMap.get(c.id) || null;
+          }
+        } catch (e) {
+          // Poll tables might not exist yet
+          for (const c of comments) c.poll = null;
+        }
       }
 
       console.log(`[${new Date().toISOString()}] [GETCOMMENTS] Fetched ${comments.length} comments for item ${itemId} in ${Date.now() - tStart}ms`);
