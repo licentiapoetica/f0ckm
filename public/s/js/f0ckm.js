@@ -3429,13 +3429,27 @@ window.cancelAnimFrame = (function () {
           randomUrl += '?' + params.toString();
         }
 
+        // Capture favs user context before fetch so it's accessible in .then()
+        // Without this, random in /user/foo/favs would navigate to /:id (losing context),
+        // causing mode mismatches between the AJAX pick and any subsequent full-page reload.
+        let wFavsUser = null;
+        if (!wUserHall) {
+          const wUserM = window.location.href.match(/\/user\/([^/]+)/);
+          if (wUserM && window.location.href.match(/\/favs(\/|$|\?)/)) {
+            wFavsUser = decodeURIComponent(wUserM[1]);
+          }
+        }
+
         fetch(randomUrl)
           .then(r => r.json())
           .then(data => {
             if (data.success && data.items && data.items.id) {
-              // Navigate in the same context (user hall, tag, etc.)
+              // Navigate in the same context (user hall, favs, tag, etc.)
               if (wUserHall && wUserHallOwner) {
                 loadItemAjax(`/user/${encodeURIComponent(wUserHallOwner)}/hall/${encodeURIComponent(wUserHall)}/${data.items.id}`, true);
+              } else if (wFavsUser) {
+                // Preserve /user/:name/favs/:id context so next/prev arrows stay within favs
+                loadItemAjax(`/user/${encodeURIComponent(wFavsUser)}/favs/${data.items.id}`, true);
               } else {
                 loadItemAjax(`/${data.items.id}`, true);
               }

@@ -496,7 +496,7 @@ export default router => {
       const userHallOwner = req.url.qs.userHallOwner || null;
       const isFav = req.url.qs.fav === 'true';
       const isStrict = req.url.qs.strict === '1';
-      const mode = req.session?.mode ?? 0;
+      const mode = req.mode ?? 0; // Use req.mode (set by middleware) for consistency with all other routes
       const ratingsRaw = req.cookies.ratings;
       const ratingsArr = ratingsRaw ? decodeURIComponent(ratingsRaw).split(/[|,]/).filter(r => ['sfw','nsfw','nsfl','untagged'].includes(r)) : null;
 
