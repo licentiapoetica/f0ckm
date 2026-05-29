@@ -183,7 +183,9 @@
       } else {
         imgContainer.title = i18n.hall_view || 'View hall';
         imgContainer.addEventListener('click', function() {
-          window.location.href = '/user/' + ownerUser.toLowerCase() + '/hall/' + slug;
+          var url = '/user/' + ownerUser.toLowerCase() + '/hall/' + slug;
+          if (window.loadPageAjax) window.loadPageAjax(url, true);
+          else window.location.href = url;
         });
       }
     }
