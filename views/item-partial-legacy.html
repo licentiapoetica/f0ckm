@@ -158,7 +158,7 @@
                             <i class="fa-solid fa-plus"></i>
                         </a>
                         @if(can_manage_item)
-                        <button class="rating-btn {{ item.is_nsfl ? 'is-nsfl' : (item.is_nsfw ? 'is-nsfw' : (item.is_sfw ? 'is-sfw' : 'is-untagged')) }}" id="a_toggle" title="Toggle Rating">{{ item.is_nsfl ? 'NSFL' : (item.is_nsfw ? 'NSFW' : (item.is_sfw ? 'SFW' : '?')) }}</button>
+                        <button class="rating-btn {{ item.is_nsfl ? 'is-nsfl' : (item.is_nsfw ? 'is-nsfw' : (item.is_sfw ? 'is-sfw' : 'is-untagged')) }}" id="a_toggle" title="Toggle Rating"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
                         @endif
                     </div>
                     @endif

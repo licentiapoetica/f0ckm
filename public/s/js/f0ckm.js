@@ -3659,7 +3659,7 @@ window.cancelAnimFrame = (function () {
 
       // Backup current state
       const oldClasses = [...toggleBtn.classList];
-      const oldTextContent = toggleBtn.textContent;
+      const oldInnerHTML = toggleBtn.innerHTML;
 
       // Track active request ID to ignore out-of-order race conditions on rapid keypresses
       const reqId = (toggleBtn._lastCycleReqId || 0) + 1;
@@ -3671,7 +3671,7 @@ window.cancelAnimFrame = (function () {
       // Optimistically apply new state
       toggleBtn.classList.remove('is-sfw', 'is-nsfw', 'is-nsfl', 'is-untagged');
       toggleBtn.classList.add(`is-${nextRating}`);
-      toggleBtn.textContent = nextLabel;
+      // (icon stays — only CSS class color changes)
 
       // Optimistically update the sidebar tag list
       let originalTags = [];
@@ -3750,7 +3750,7 @@ window.cancelAnimFrame = (function () {
             // Verify visual state and sync tags
             toggleBtn.classList.remove('is-sfw', 'is-nsfw', 'is-nsfl', 'is-untagged');
             toggleBtn.classList.add(`is-${res.rating}`);
-            toggleBtn.textContent = labels[res.rating] || res.rating.toUpperCase();
+            // icon stays constant — class drives the color
 
             if (window.renderTags) {
               window.renderTags(res.tags);
@@ -3778,7 +3778,7 @@ window.cancelAnimFrame = (function () {
       function revert() {
         toggleBtn.className = '';
         oldClasses.forEach(cls => toggleBtn.classList.add(cls));
-        toggleBtn.textContent = oldTextContent;
+        toggleBtn.innerHTML = oldInnerHTML;
         if (window.renderTags && originalTags.length > 0) {
           window.renderTags(originalTags);
         }
@@ -7138,7 +7138,7 @@ class NotificationSystem {
       const fragment = document.createDocumentFragment();
       data.tags.forEach(tag => {
         const span = document.createElement('span');
-        span.className = `badge ${tag.badge} mr-2`;
+        span.className = `badge ${tag.badge}`;
         if (hasSession) span.setAttribute('tooltip', tag.display_name || tag.user);
 
         const a = document.createElement('a');

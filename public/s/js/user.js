@@ -56,7 +56,7 @@
       a.textContent = tag.tag;
 
       const span = document.createElement("span");
-      span.classList.add("badge", "mr-2");
+      span.classList.add("badge");
       if (highlightTag && (tag.tag === highlightTag || tag.normalized === highlightTag)) {
         span.classList.add('new-tag-glow');
       }
