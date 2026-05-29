@@ -8495,13 +8495,13 @@ span.badge.badge-current {
 /* Smaller emojis in the narrow left sidebar */
 body.layout-modern .comment-content img.emoji {
   height: auto;
-  max-width: 200px;
+  max-width: max-content;
   vertical-align: middle;
 }
 
 body.layout-legacy .comment-content img.emoji {
   height: auto;
-  max-width: 200px;
+  max-width: max-content;
   vertical-align: middle;
 }
 
