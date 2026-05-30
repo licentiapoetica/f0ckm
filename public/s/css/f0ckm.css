@@ -4801,41 +4801,65 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
   padding-top: 52.25%; /* Specify the exact value you want here when sidebar is hidden */
 }
 
-/* Targets exactly 133% zoom (1.33 dppx) on standard screens */
+@media 
+  (-webkit-min-device-pixel-ratio: 1.05) and (-webkit-max-device-pixel-ratio: 1.15), 
+  (min-resolution: 1.05dppx) and (max-resolution: 1.15dppx) {
+  body.layout-modern .embed-responsive-16by9::before {
+    padding-top: 46.25%;
+  }
+}
+
+
+@media 
+  (-webkit-min-device-pixel-ratio: 1.2), 
+  (min-resolution: 1.2dppx) and (max-resolution: 1.25dppx) {
+  body.layout-modern .embed-responsive-16by9::before {
+    padding-top: 41.25%;
+  }
+}
+
 @media 
   (-webkit-min-device-pixel-ratio: 1.3), 
   (min-resolution: 1.3dppx) and (max-resolution: 1.35dppx) {
     
-    .embed-responsive-16by9::before {
-        padding-top: 51.25%;
+    body.layout-legacy .embed-responsive-16by9::before {
+      padding-top: 51.25%;
+    }
+
+    body.layout-modern .embed-responsive-16by9::before {
+      padding-top: 50.25%;
+    }
+
+    body.layout-modern.sidebar-right-hidden .embed-responsive-16by9::before {
+      padding-top: 40.25%;
     }
       
-      body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-          padding-top: 41.25%;
-      }
+    body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+      padding-top: 41.25%;
+    }
 
-      body.layout-legacy .scroll-nav-wrapper {
-        z-index: 0;
-      }
+    body.layout-legacy .scroll-nav-wrapper {
+      z-index: 0;
+    }
       
-      @media (max-height: 640px) {
-        body.layout-legacy .item-layout-container .item-main-content {
-          margin-left: 0!important;
-          margin-right: 0!important;
-        }
-      }
-
-      @media (max-width: 300px) {
-        body.layout-legacy .item-layout-container .item-main-content {
-          margin-left: 15em!important;
-          margin-right: 15em!important;
-        }
-      }
-      
+    @media (max-height: 640px) {
       body.layout-legacy .item-layout-container .item-main-content {
-          margin-left: 10em;
-          margin-right: 10em;
+        margin-left: 0!important;
+        margin-right: 0!important;
       }
+    }
+
+    @media (max-width: 300px) {
+      body.layout-legacy .item-layout-container .item-main-content {
+        margin-left: 15em!important;
+        margin-right: 15em!important;
+      }
+    }
+      
+    body.layout-legacy .item-layout-container .item-main-content {
+      margin-left: 10em;
+      margin-right: 10em;
+    }
 }
 
 .embed-responsive-4by3::before {
