@@ -1987,6 +1987,18 @@ body.sidebar-right-hidden .global-sidebar-right {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Shimmer placeholder while avatar image is still loading */
+.sidebar-avatar:not(.loaded) {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.10) 40%,
+      rgba(255, 255, 255, 0.04) 80%);
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  /* Keep border-box sizing consistent with the border already on .sidebar-avatar */
+  box-sizing: border-box;
+}
+
 .read-more-btn,
 .see-less-btn {
   display: inline;
