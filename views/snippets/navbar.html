@@ -43,11 +43,11 @@
       <div class="nav-user-dropdown">
         <button class="nav-user-btn nav-avatar-btn" id="nav-user-toggle">
           @if(session.avatar_file)
-            <img class="nav-avatar-img" src="/a/{{ session.avatar_file }}" alt="{{ session.user }}" onerror="this.src='/a/default.png'">
+            <img class="nav-avatar-img" src="/a/{{ session.avatar_file }}" onerror="this.src='/a/default.png'">
           @elseif(session.avatar && session.avatar > 0)
-            <img class="nav-avatar-img" src="/t/{{ session.avatar }}.webp" alt="{{ session.user }}" onerror="this.src='/a/default.png'">
+            <img class="nav-avatar-img" src="/t/{{ session.avatar }}.webp" onerror="this.src='/a/default.png'">
           @else
-            <img class="nav-avatar-img" src="/a/default.png" alt="{{ session.user }}">
+            <img class="nav-avatar-img" src="/a/default.png">
           @endif
           <span class="nav-avatar-name" id="nav-display-name" @if(session.username_color)style="color: {{ session.username_color }}"@endif>{!! session.display_name || session.user !!}</span>
           <span class="nav-avatar-caret">▾</span>
