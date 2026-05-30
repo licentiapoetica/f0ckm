@@ -2805,7 +2805,7 @@
             avatar: null,
             username: window.scrollerUsername,
             display_name: displayName,
-            content: content,
+            content: data.comment?.content ?? content,
             created_at: null
           }, !!window.scrollerLoggedIn);
           // Set avatar from global

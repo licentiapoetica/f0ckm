@@ -532,6 +532,7 @@ export default (router, tpl) => {
                     success: true, 
                     comment: {
                         ...newComment[0],
+                        content,
                         files: activityFiles
                     },
                     xd_score: xdRow?.xd_score ?? null,
