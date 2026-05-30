@@ -235,8 +235,8 @@
     return ago(fmt(y === 1 ? i.ta_year : i.ta_years, y, 'year'));
   }
   function hashId() {
-    // Check path first /abyss/1234
-    const pathMatch = location.pathname.match(/\/abyss\/(\d+)$/);
+    // Check path first /abyss/1234 or /abyss/gif/1234
+    const pathMatch = location.pathname.match(/\/abyss\/([a-zA-Z0-9_\/-]+)$/);
     if (pathMatch) return pathMatch[1];
 
     // Fallback to hash
@@ -1398,7 +1398,7 @@
       </button>
       ${item.is_external ? (
         item.local_id
-          ? `<a class="scroll-btn success" href="/${item.local_id}" target="_blank" title="${_i.already_added || 'Already added'}">
+          ? `<a class="scroll-btn rehost-btn success" href="/${item.local_id}" target="_blank" title="${_i.already_added || 'Already added'}">
                <div class="scroll-btn-icon"><i class="fa-solid fa-check"></i></div>
                <span class="scroll-btn-label">${_i.view_label || 'View'}</span>
              </a>`
@@ -1889,7 +1889,7 @@
         // Update button to link to the new site-internal post
         setTimeout(() => {
           btn.outerHTML = `
-            <a href="/${data.item_id}" target="_blank" class="scroll-btn success" style="text-decoration:none;">
+            <a href="/${data.item_id}" target="_blank" class="scroll-btn rehost-btn success" style="text-decoration:none;">
               <div class="scroll-btn-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
               <span class="scroll-btn-label">View</span>
             </a>

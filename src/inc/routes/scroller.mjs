@@ -4,7 +4,7 @@ import lib from "../lib.mjs";
 
 export default (router, tpl) => {
   // Serve the scroller page
-  router.get(/^\/abyss(?:\/(?<id>[0-9]+))?\/?$/, async (req, res) => {
+  router.get(/^\/abyss(?:\/(?<id>[a-zA-Z0-9_\/-]+))?\/?$/, async (req, res) => {
     if (cfg.websrv.abyss_enabled === false) return res.reply({ code: 404, body: tpl.render('error', { message: 'Not found', tmp: null }, req) });
     if (cfg.websrv.private_society && !req.session) {
       return res.reply({ code: 502, body: '<html><body>502 Bad Gateway</body></html>' });
@@ -18,7 +18,7 @@ export default (router, tpl) => {
       url: `https://${cfg.main.url.domain}/abyss`
     };
 
-    if (id) {
+    if (id && /^\d+$/.test(id.trim())) {
       try {
         const items = await db`
           select i.*, uo.display_name
