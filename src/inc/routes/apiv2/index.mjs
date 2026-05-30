@@ -558,24 +558,19 @@ export default router => {
     group.get(/\/orakel\/user$/, async (req, res) => {
       try {
         const now = ~~(Date.now() / 1000);
-        const thirtyDaysAgo = now - 2592000; // 30 days in seconds
+        const sevenDaysAgo = now - 604800; // 7 days in seconds
 
-        // Tiered selection from user.last_seen (updated fire-and-forget on every authenticated request):
-        // Tier 0 — active in last 15 minutes
-        // Tier 1 — active in last 24 hours
-        // Tier 2 — active in last 30 days (includes lurkers — anyone who visited the site)
+        // Flat random pick from all users seen in the last 7 days.
+        // No tiered bias — gives a proper pool of recently-active users
+        // rather than always favouring whoever is online right now.
         // Banned users are always excluded.
         let activeUsers = await db`
           SELECT "user"."user", "user".id, uo.display_name
           FROM "user"
           LEFT JOIN user_options uo ON uo.user_id = "user".id
-          WHERE "user".last_seen > ${thirtyDaysAgo}
+          WHERE "user".last_seen > ${sevenDaysAgo}
             AND "user".banned = false
-          ORDER BY (CASE
-              WHEN "user".last_seen > ${now - 900}   THEN 0
-              WHEN "user".last_seen > ${now - 86400} THEN 1
-              ELSE 2
-          END), RANDOM()
+          ORDER BY RANDOM()
           LIMIT 1
         `;
 
