@@ -9023,6 +9023,28 @@ html[theme="f0ck95d"] .badge-dark {
   color: white;
 }
 
+.steuerung.steuerung-icon {
+  font-size: x-large;
+}
+
+.steuerung.steuerung-icon a {
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6em;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.steuerung.steuerung-icon a:hover {
+  color: var(--accent);
+}
+
+.steuerung.steuerung-icon .fa-solid {
+  font-size: 0.85em;
+}
+
+
 .blahlol {
   grid-column: 1 / 4;
   width: 100%;

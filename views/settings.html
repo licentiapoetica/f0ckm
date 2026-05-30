@@ -197,6 +197,17 @@
             <small class="text-muted" style="margin-left: 25px;">{{ t('settings.alternative_infobox_hint') }}</small>
           </div>
           @endif
+          @if(!session.use_new_layout)
+          <div class="setting-item" style="margin-top: 15px;">
+            <label for="alternative_steuerung_toggle"
+              style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="alternative_steuerung_toggle" @if(session.use_alternative_steuerung===true) checked @endif>
+              <span>{{ t('settings.alternative_steuerung') }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.alternative_steuerung_hint') }}</small>
+          </div>
+          @endif
+
           <div class="setting-item" style="margin-bottom: 15px;">
             <label for="wheel_nav_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
               <input type="checkbox" id="wheel_nav_toggle">

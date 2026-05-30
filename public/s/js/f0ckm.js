@@ -9099,6 +9099,16 @@ if (navigator.vibrate) {
   }, { passive: true });
 }
 
+// ── Steuerung icon style: #scrolltobottom smooth scroll ───────────────────────
+// The alternative icon nav replaces the Zufall link with a down-chevron that
+// scrolls the page to the bottom (comments / tag section).
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a.steuerung-scroll-down');
+  if (!link) return;
+  e.preventDefault();
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+});
+
 // ── Spoiler Tags Event Delegation ─────────────────────────────────────────────
 (function() {
     const isHidden = (el) => el && el.classList && (el.classList.contains('spoiler') || el.classList.contains('blur-text'));

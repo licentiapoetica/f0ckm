@@ -645,6 +645,24 @@ export default router => {
       }
     });
 
+    // Update alternative steuerung preference (per-user toggle for icon-only nav)
+    group.put(/\/alternative_steuerung/, lib.loggedin, async (req, res) => {
+      const use_alternative_steuerung = req.post.use_alternative_steuerung === true || req.post.use_alternative_steuerung === 'true';
+      try {
+        await db`
+          update user_options
+          set use_alternative_steuerung = ${use_alternative_steuerung}
+          where user_id = ${+req.session.id}
+        `;
+        if (req.session) req.session.use_alternative_steuerung = use_alternative_steuerung;
+        return res.json({ success: true, use_alternative_steuerung }, 200);
+      } catch (e) {
+        console.error('Update alternative_steuerung error:', e);
+        return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
+
     // Update per-user language preference
     group.put(/\/language/, lib.loggedin, async (req, res) => {
       if (cfg.websrv.allow_language_change === false) {

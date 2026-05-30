@@ -45,6 +45,7 @@
             <div class="kontrollelement">
                 <div class="einheit">
                     @if(typeof pagination !== "undefined")
+                    @if(!user_alternative_steuerung)
                     <nav class="steuerung">
                         @if(pagination.next)
                         <a class="nav-prev" href="{{ link.main }}{{ pagination.next }}{{ link.suffix }}">← {{ t('nav.prev') }}</a>
@@ -62,6 +63,21 @@
                         <a class="nav-next" href="#" style="visibility: hidden">{{ t('nav.next') }} →</a>
                         @endif
                     </nav>
+                    @else
+                    <nav class="steuerung steuerung-icon">
+                        @if(pagination.next)
+                        <a class="nav-prev" href="{{ link.main }}{{ pagination.next }}{{ link.suffix }}"><i class="fa-solid fa-chevron-left"></i></a>
+                        @else
+                        <a class="nav-prev" href="#" style="visibility: hidden"><i class="fa-solid fa-chevron-left"></i></a>
+                        @endif
+                        <a class="steuerung-scroll-down" href="#scrolltobottom"><i class="fa-solid fa-chevron-down"></i></a>
+                        @if(pagination.prev)
+                        <a class="nav-next" href="{{ link.main }}{{ pagination.prev }}{{ link.suffix }}"><i class="fa-solid fa-chevron-right"></i></a>
+                        @else
+                        <a class="nav-next" href="#" style="visibility: hidden"><i class="fa-solid fa-chevron-right"></i></a>
+                        @endif
+                    </nav>
+                    @endif
                     @endif
                 </div>
             </div>

@@ -670,6 +670,37 @@
         });
     }
 
+    // Alternative Steuerung Toggle (icon-only nav style)
+    const alternativeSteuerungToggle = document.getElementById('alternative_steuerung_toggle');
+    if (alternativeSteuerungToggle) {
+        alternativeSteuerungToggle.addEventListener('change', async () => {
+            const use_alternative_steuerung = alternativeSteuerungToggle.checked;
+            try {
+                const res = await fetch('/api/v2/settings/alternative_steuerung', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: new URLSearchParams({ use_alternative_steuerung })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('Navigation style updated!', 'success');
+                    if (window.f0ckSession) window.f0ckSession.use_alternative_steuerung = use_alternative_steuerung;
+                } else {
+                    alert(data.msg || 'Error saving preference');
+                    alternativeSteuerungToggle.checked = !use_alternative_steuerung;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to save navigation style preference');
+                alternativeSteuerungToggle.checked = !use_alternative_steuerung;
+            }
+        });
+    }
+
+
     // Notification Preferences Toggles
     const setupPreferenceToggle = (id, sessionKey) => {
         const el = document.getElementById(id);

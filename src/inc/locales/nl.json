@@ -142,6 +142,8 @@
     "modern_layout_hint": "Indeling met 3 kolommen",
     "alternative_infobox": "Alternatief auteur-informatievak",
     "alternative_infobox_hint": "Toont een uitgebreide auteurkaart met avatar en bio op itempagina's",
+    "alternative_steuerung": "Icoon-navigatiestijl",
+    "alternative_steuerung_hint": "Vervangt tekstnavigatie (← terug | willekeurig | verder →) door compacte chevron-iconen",
     "disable_autoplay": "Automatisch afspelen uitschakelen",
     "disable_autoplay_hint": "Voorkomen dat video's en audio automatisch worden afgespeeld",
     "disable_swiping": "Swipen uitschakelen",

@@ -142,6 +142,8 @@
     "modern_layout_hint": "3-Spalten-Layout",
     "alternative_infobox": "Alternativer Autor-Infoblock",
     "alternative_infobox_hint": "Zeigt einen erweiterten Autor-Block mit Avatar und Bio auf Beitragsseiten",
+    "alternative_steuerung": "Icon-Navigationsstil",
+    "alternative_steuerung_hint": "Ersetzt die Text-Navigation (← zurück | Zufall | weiter →) durch kompakte Chevron-Icons",
     "disable_autoplay": "Automatische Wiedergabe deaktivieren",
     "disable_autoplay_hint": "Vermeiden Sie das automatische Abspielen von Videos und Tondateien",
     "disable_swiping": "Wischen deaktivieren",

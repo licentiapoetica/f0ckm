@@ -506,7 +506,7 @@ process.on('uncaughtException', err => {
 
     if (req.cookies.session) {
       const user = await db`
-        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox, "user_options".receive_system_notifications, "user_options".receive_user_notifications, "user_options".do_not_disturb, "user_options".comment_display_mode, "user_options".force_comment_display_mode
+        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox, "user_options".use_alternative_steuerung, "user_options".receive_system_notifications, "user_options".receive_user_notifications, "user_options".do_not_disturb, "user_options".comment_display_mode, "user_options".force_comment_display_mode
         from "user_sessions"
         left join "user" on "user".id = "user_sessions".user_id
         left join "user_options" on "user_options".user_id = "user_sessions".user_id
@@ -633,9 +633,10 @@ process.on('uncaughtException', err => {
         hide_koepfe: user[0].hide_koepfe ?? false,
         language: (user[0].language && user[0].language.trim()) ? user[0].language.trim() : null,
         use_alternative_infobox: user[0].use_alternative_infobox ?? (cfg.websrv.user_alternative_infobox !== false),
+        use_alternative_steuerung: user[0].use_alternative_steuerung ?? (cfg.websrv.user_alternative_steuerung !== false),
         comment_display_mode: user[0].comment_display_mode ?? (cfg.websrv.default_comment_display_mode || 0),
         force_comment_display_mode: user[0].force_comment_display_mode ?? 0
-      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language', 'use_alternative_infobox', 'comment_display_mode', 'force_comment_display_mode')
+      }, 'user_id', 'mode', 'theme', 'fullscreen', 'excluded_tags', 'font', 'disable_autoplay', 'disable_swiping', 'show_background', 'ruffle_volume', 'ruffle_background', 'quote_emojis', 'embed_youtube_in_comments', 'hide_koepfe', 'language', 'use_alternative_infobox', 'use_alternative_steuerung', 'comment_display_mode', 'force_comment_display_mode')
         }
         on conflict ("user_id") do update set
         theme = excluded.theme,
@@ -652,6 +653,7 @@ process.on('uncaughtException', err => {
           hide_koepfe = excluded.hide_koepfe,
           language = excluded.language,
           use_alternative_infobox = excluded.use_alternative_infobox,
+          use_alternative_steuerung = excluded.use_alternative_steuerung,
           comment_display_mode = excluded.comment_display_mode,
           force_comment_display_mode = excluded.force_comment_display_mode,
           user_id = excluded.user_id
@@ -1222,10 +1224,19 @@ process.on('uncaughtException', err => {
           ? data.user_alternative_infobox
           : (cfg.websrv.user_alternative_infobox !== false)));
 
+    const useAltSteuerung = (req && req.session && typeof req.session.use_alternative_steuerung === 'boolean')
+      ? req.session.use_alternative_steuerung
+      : (req && !req.session
+        ? false
+        : (data && typeof data.user_alternative_steuerung === 'boolean'
+          ? data.user_alternative_steuerung
+          : (cfg.websrv.user_alternative_steuerung !== false)));
+
     data = Object.assign({}, globals, data || {}, {
       t: perRequestT,
       lang: perRequestLang,
       user_alternative_infobox: useAltInfobox,
+      user_alternative_steuerung: useAltSteuerung,
       comment_display_mode: (req && req.session && typeof req.session.comment_display_mode === 'number')
         ? req.session.comment_display_mode
         : (data && typeof data.comment_display_mode === 'number'
