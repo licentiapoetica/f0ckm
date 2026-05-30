@@ -1493,7 +1493,7 @@ CREATE TABLE public.user_options (
     hide_koepfe boolean DEFAULT false NOT NULL,
     language text,
     use_alternative_infobox boolean DEFAULT false,
-    use_alternative_steuerung boolean DEFAULT false,
+    use_alternative_steuerung boolean DEFAULT NULL,
     receive_system_notifications boolean DEFAULT true,
     receive_user_notifications boolean DEFAULT true,
     do_not_disturb boolean DEFAULT false,
