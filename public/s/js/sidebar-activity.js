@@ -755,10 +755,16 @@
     const init = async () => {
         // Run emoji loading and activity fetching in parallel — avatars appear
         // immediately without waiting for the emoji API to respond first.
-        Promise.all([
-            loadEmojis(),
-            loadActivity()
-        ]);
+        // After both settle, if emojis finished after the initial render, re-render
+        // from cache so custom emoji images show on first page load.
+        const emojiPromise = loadEmojis();
+        const activityPromise = loadActivity();
+        await activityPromise;
+        await emojiPromise;
+        // If emojis were not yet available when activity first rendered, re-render now.
+        if (Object.keys(customEmojis).length > 0 && window._sidebarActivityCache.length > 0) {
+            renderFromCache();
+        }
     };
 
     // Listen for live activity from f0ckm.js
