@@ -4813,8 +4813,19 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
       body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
           padding-top: 41.25%;
       }
+
+      body.layout-legacy .scroll-nav-wrapper {
+        z-index: 0;
+      }
       
-      @media (max-height: 640px) {
+@media (max-height: 640px) {
+  body.layout-legacy .item-layout-container .item-main-content {
+    margin-left: 0!important;
+    margin-right: 0!important;
+  }
+}
+
+      @media (max-width: 300px) {
         body.layout-legacy .item-layout-container .item-main-content {
           margin-left: 15em!important;
           margin-right: 15em!important;
