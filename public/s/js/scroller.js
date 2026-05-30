@@ -236,7 +236,8 @@
   }
   function hashId() {
     // Check path first /abyss/1234 or /abyss/gif/1234
-    const pathMatch = location.pathname.match(/\/abyss\/([a-zA-Z0-9_\/-]+)$/);
+    const pathClean = location.pathname.replace(/\/$/, '');
+    const pathMatch = pathClean.match(/\/abyss\/([a-zA-Z0-9_\/-]+)$/);
     if (pathMatch) return pathMatch[1];
 
     // Fallback to hash
@@ -1379,18 +1380,15 @@
       ${window.scrollerLoggedIn ? `
       <button class="scroll-btn js-fav-btn${item.is_faved ? ' faved' : ''}" title="${_i.favourite || 'Favourite'} (double-tap)">
         <div class="scroll-btn-icon"><i class="${item.is_faved ? 'fa-solid' : 'fa-regular'} fa-heart"></i></div>
-        <span class="scroll-btn-label"></span>
         <span class="scroll-btn-count">${item.fav_count ?? 0}</span>
       </button>` : ''}
       <button class="scroll-btn js-comments-btn" data-id="${item.id}" title="${_i.comments_label || 'Comments'} (C)">
         <div class="scroll-btn-icon"><i class="fa-regular fa-comment"></i></div>
-        <span class="scroll-btn-label"></span>
         <span class="scroll-btn-count">${item.comment_count ?? 0}</span>
       </button>
       ${window.scrollerLoggedIn ? `
       <button class="scroll-btn js-tag-btn" data-id="${item.id}" title="${_i.add_tag || 'Add tag'}">
         <div class="scroll-btn-icon"><i class="fa-solid fa-tag"></i></div>
-        <span class="scroll-btn-label"></span>
       </button>` : ''}
       <button class="scroll-btn js-share-btn" data-id="${item.id}" title="${_i.share_label || 'Share'}">
         <div class="scroll-btn-icon"><i class="fa-solid fa-share-nodes"></i></div>
@@ -1828,7 +1826,7 @@
         const target = hid ? feed.querySelector(`.scroll-slide[data-id="${hid}"]`) : null;
         const first = feed.querySelector('.scroll-slide:not([data-lock])');
         const toActivate = target || first;
-        if (toActivate) setTimeout(() => { activateSlide(toActivate); hideLoader(); }, 200);
+        if (toActivate) setTimeout(() => { toActivate.scrollIntoView({ behavior: 'instant', block: 'start' }); activateSlide(toActivate); hideLoader(); }, 200);
       }
     } catch (err) {
       console.error('[SCROLLER] Fetch error:', err);
