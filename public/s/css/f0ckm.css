@@ -2894,13 +2894,11 @@ body.layout-legacy #comments-container.faded-out {
 
 .sidebar-poll-preview {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  align-items: baseline;
   margin-top: 4px;
   font-size: 0.8em;
   color: #888;
   text-decoration: none;
-  font-style: italic;
   transition: color 0.12s;
 }
 
