@@ -4796,7 +4796,11 @@ body.sidebar-right-hidden .pagination-container-fluid {
 }
 
 .embed-responsive-16by9::before {
-  padding-top: 46.25%;
+  padding-top: 52.25%;
+}
+
+body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+  padding-top: 40.25%; /* Specify the exact value you want here when sidebar is hidden */
 }
 
 .embed-responsive-4by3::before {
