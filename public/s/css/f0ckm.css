@@ -5280,6 +5280,13 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
   }
 }
 
+@media (max-width: 600px) {
+  .index-container {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 /* .pbwork box-shadow removed as per user request */
 /* .navbar.pbwork::after handles the top progress bar now */
 
