@@ -473,7 +473,7 @@
                     <div class="comment-header">
                         <div class="comment-header-left">
                             <a href="/user/${c.username.toLowerCase()}" class="sidebar-avatar-link">
-                                <img src="${avatarSrc}" class="sidebar-avatar" alt="${c.username}" loading="lazy" />
+                                <img src="${avatarSrc}" class="sidebar-avatar" alt="${c.username}" loading="eager" />
                             </a>
                             <a href="/user/${c.username.toLowerCase()}" class="comment-author" ${c.username_color ? `style="color: ${c.username_color}"` : ''}>${escapeHtml(c.display_name || c.username)}</a>
                         </div>
@@ -753,8 +753,12 @@
     };
 
     const init = async () => {
-        await loadEmojis();
-        loadActivity();
+        // Run emoji loading and activity fetching in parallel — avatars appear
+        // immediately without waiting for the emoji API to respond first.
+        Promise.all([
+            loadEmojis(),
+            loadActivity()
+        ]);
     };
 
     // Listen for live activity from f0ckm.js
