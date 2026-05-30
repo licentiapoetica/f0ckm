@@ -4818,12 +4818,12 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
         z-index: 0;
       }
       
-@media (max-height: 640px) {
-  body.layout-legacy .item-layout-container .item-main-content {
-    margin-left: 0!important;
-    margin-right: 0!important;
-  }
-}
+      @media (max-height: 640px) {
+        body.layout-legacy .item-layout-container .item-main-content {
+          margin-left: 0!important;
+          margin-right: 0!important;
+        }
+      }
 
       @media (max-width: 300px) {
         body.layout-legacy .item-layout-container .item-main-content {
@@ -15128,7 +15128,6 @@ body.scroller-active #gchat-reopen-bubble {
   line-height: 1;
   text-transform: uppercase;
   color: #fff !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   font-family: var(--font, monospace);
   letter-spacing: 0.5px;
