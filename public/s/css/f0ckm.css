@@ -1829,8 +1829,6 @@ body.sidebar-right-hidden .global-sidebar-right {
     overflow: visible !important;
     gap: 0;
     padding: 20px;
-    margin-left: 240px;
-    margin-right: 240px;
   }
 
   body.layout-legacy .item-layout-container .item-main-content ._204863 {
