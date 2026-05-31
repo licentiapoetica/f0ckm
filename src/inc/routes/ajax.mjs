@@ -203,6 +203,8 @@ export default (router, tpl) => {
             tag: query.tag || null,
             hall: query.hall || null,
             user: query.user || null,
+            userHall: query.userHall || null,
+            userHallOwner: query.userHallOwner || null,
             mime: query.mime || (req.cookies.mime || null),
             mode: query.mode !== undefined ? +query.mode : req.mode,
             ratings: ratingsArr,

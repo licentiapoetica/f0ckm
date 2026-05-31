@@ -6724,21 +6724,31 @@ class NotificationSystem {
       // Build filters from URL
       const url = window.location.pathname;
       let tag = null, user = null, mime = null, hall = null;
-      
+      let userHall = null, userHallOwner = null;
+      let isFav = false;
+
       const tagMatch = url.match(/\/tag\/([^/?]+)/);
       if (tagMatch) tag = decodeURIComponent(tagMatch[1]);
       const hallMatch = url.match(/\/h\/([^/?]+)/);
       if (hallMatch) hall = decodeURIComponent(hallMatch[1]);
-      const userMatch = url.match(/\/user\/([^/]+)/);
-      if (userMatch && !url.match(/\/user\/[^/]+\/(favs|f0cks|comments)/)) user = decodeURIComponent(userMatch[1]);
-      const favMatch = url.match(/\/user\/([^/]+)\/favs/);
-      const f0cksMatch = url.match(/\/user\/([^/]+)\/f0cks/);
-      let isFav = false;
-      if (favMatch) {
-        user = decodeURIComponent(favMatch[1]);
-        isFav = true;
-      } else if (f0cksMatch) {
-        user = decodeURIComponent(f0cksMatch[1]);
+
+      // Detect user-hall pages: /user/<owner>/hall/<slug>
+      // Must be checked BEFORE the generic user match so we don't pollute `user`
+      const userHallMatch = url.match(/\/user\/([^/]+)\/hall\/([^/?]+)/);
+      if (userHallMatch) {
+        userHallOwner = decodeURIComponent(userHallMatch[1]);
+        userHall = decodeURIComponent(userHallMatch[2]);
+      } else {
+        const userMatch = url.match(/\/user\/([^/]+)/);
+        if (userMatch && !url.match(/\/user\/[^/]+\/(favs|f0cks|comments|halls?)/)) user = decodeURIComponent(userMatch[1]);
+        const favMatch = url.match(/\/user\/([^/]+)\/favs/);
+        const f0cksMatch = url.match(/\/user\/([^/]+)\/f0cks/);
+        if (favMatch) {
+          user = decodeURIComponent(favMatch[1]);
+          isFav = true;
+        } else if (f0cksMatch) {
+          user = decodeURIComponent(f0cksMatch[1]);
+        }
       }
       const mimeMatch = url.match(/\/(image|audio|video)/);
       if (mimeMatch) mime = mimeMatch[1];
@@ -6746,10 +6756,11 @@ class NotificationSystem {
       let ajaxUrl = `/ajax/items/?newer=${maxId}&mode=${window.activeMode}`;
       if (tag) ajaxUrl += `&tag=${encodeURIComponent(tag)}`;
       if (hall) ajaxUrl += `&hall=${encodeURIComponent(hall)}`;
+      if (userHall) ajaxUrl += `&userHall=${encodeURIComponent(userHall)}&userHallOwner=${encodeURIComponent(userHallOwner)}`;
       if (user) ajaxUrl += `&user=${encodeURIComponent(user)}`;
       if (isFav) ajaxUrl += `&fav=true`;
       if (mime) ajaxUrl += `&mime=${encodeURIComponent(mime)}`;
-      
+
       const isStrict = window.f0ckSession?.strict_mode || (localStorage.getItem('search_strict') === 'true') || window.location.search.includes('strict=1');
       if (isStrict) ajaxUrl += `&strict=1`;
       ajaxUrl += `&_t=${Date.now()}`;
