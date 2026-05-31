@@ -1959,9 +1959,15 @@ class CommentSystem {
         setInterval(() => {
             const timestamps = this.container.querySelectorAll('.comment-time.timeago');
             timestamps.forEach(el => {
-                const dateStr = el.getAttribute('tooltip');
-                if (dateStr) {
-                    el.textContent = this.timeAgo(dateStr);
+                // data-iso stores the raw ISO date for timeAgo calculation;
+                // the tooltip attribute holds the human-readable formatted date.
+                const isoStr = el.getAttribute('data-iso') || el.getAttribute('tooltip');
+                if (isoStr) {
+                    el.textContent = this.timeAgo(isoStr);
+                    // Keep tooltip in human-readable format
+                    if (window.f0ckFormatDateFull) {
+                        el.setAttribute('tooltip', window.f0ckFormatDateFull(isoStr));
+                    }
                 }
             });
         }, 30000);
@@ -2028,7 +2034,10 @@ class CommentSystem {
         }
 
         const timeAgo = this.timeAgo(comment.created_at);
-        const fullDate = new Date(comment.created_at).toISOString();
+        const isoDate = new Date(comment.created_at).toISOString();
+        const fullDate = window.f0ckFormatDateFull
+            ? window.f0ckFormatDateFull(comment.created_at)
+            : isoDate;
 
         // Parent context marker removed (redundant with back-references)
         let contextMarker = '';
@@ -2056,7 +2065,7 @@ class CommentSystem {
                             ${contextMarker}
                             ${backlinkHtml}
                         </div>
-                        <a href="#c${comment.id}" class="comment-time timeago" tooltip="${fullDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
+                        <a href="#c${comment.id}" class="comment-time timeago" tooltip="${fullDate}" data-iso="${isoDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
                     </div>
                     <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
                     ${this.renderCommentAttachments(comment.files, comment.content)}

@@ -147,7 +147,7 @@ export default (router, tpl) => {
 
     userData.timestamp = {
       timeago: lib.timeAgo(userData.created_at, req.lang),
-      timefull: userData.created_at
+      timefull: new Date(userData.created_at).toISOString()
     };
     userData.age_days = Math.floor((Date.now() - new Date(userData.created_at).getTime()) / 86400000);
 

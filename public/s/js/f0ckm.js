@@ -8026,14 +8026,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // Expose globally so comments.js, user_comments.js, messages.js etc. can use the same i18n-aware implementation
     window.f0ckTimeAgo = timeAgo;
 
+    // Format an ISO date string as DD.MM.YYYY - HH:MM:SS in local time
+    const formatDateFull = (dateStr) => {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} - ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+    window.f0ckFormatDateFull = formatDateFull;
+
     const updateGlobalTimestamps = () => {
         document.querySelectorAll('.timeago').forEach(el => {
-            // Check tooltip attr first (item pages), fall back to data-ts (sidebar, no tooltip)
-            const dateStr = el.getAttribute('tooltip') || el.getAttribute('data-ts');
-            if (dateStr) {
-                const newTime = timeAgo(dateStr);
+            // On first run, seed data-iso from the server-rendered tooltip (raw ISO string)
+            // so we always have a reliable source for time calculations even after the
+            // tooltip is rewritten to the human-readable DD.MM.YYYY format.
+            if (!el.dataset.iso && el.hasAttribute('tooltip')) {
+                el.dataset.iso = el.getAttribute('tooltip');
+            }
+
+            // Use data-iso (seeded above) → data-ts (sidebar) → tooltip as fallback
+            const isoStr = el.dataset.iso || el.getAttribute('data-ts');
+            if (isoStr) {
+                const newTime = timeAgo(isoStr);
                 if (el.textContent !== newTime) {
                     el.textContent = newTime;
+                }
+                // Update tooltip to show nicely formatted local date instead of raw ISO string
+                if (el.hasAttribute('tooltip')) {
+                    const niceFull = formatDateFull(isoStr);
+                    if (el.getAttribute('tooltip') !== niceFull) {
+                        el.setAttribute('tooltip', niceFull);
+                    }
+                }
+            }
+        });
+
+        // Also reformat tooltip on static date elements (e.g. .stat-joined on profiles)
+        // that carry a data-iso attribute but are NOT .timeago (text content not updated).
+        document.querySelectorAll('[data-iso][tooltip]:not(.timeago)').forEach(el => {
+            const isoStr = el.dataset.iso;
+            if (isoStr) {
+                const niceFull = formatDateFull(isoStr);
+                if (el.getAttribute('tooltip') !== niceFull) {
+                    el.setAttribute('tooltip', niceFull);
                 }
             }
         });
