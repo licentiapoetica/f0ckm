@@ -354,7 +354,7 @@ class v0ck {
       if (vol === 0) icon = 'volume_mute';
       else if (vol <= 0.5) icon = 'volume_mid';
       
-      const baseSvg = (hudIcon.getAttribute('href') || hudIcon.getAttribute('xlink:href') || '/s/img/v0ck.svg').split('#')[0];
+      const baseSvg = '/s/img/v0ck.svg';
       hudIcon.setAttribute('href', `${baseSvg}#${icon}`);
       hudIcon.setAttribute('xlink:href', `${baseSvg}#${icon}`);
 
