@@ -182,7 +182,7 @@ html[theme='orange'] {
   /* appearance */
   background: black;
   --motd-bg: #111;
-  --comment-bg: black;
+  --comment-bg: #2b2b2b;
 }
 
 html[theme="orange"] .pagination>a,
@@ -244,6 +244,10 @@ html[theme='amoled'] {
   --bg-gradient: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 10%, rgb(0, 0, 0) 100%);
   --motd-bg: #000;
   --comment-bg: black;
+}
+
+html[theme="amoled"] .comment-input textarea {
+  border: 1px solid #ffffff1c;
 }
 
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
@@ -3739,6 +3743,12 @@ html[theme='f0ck95d'] {
   background: black;
   --motd-bg: #111;
   --comment-bg: #0b0a0a;
+}
+
+html[theme="f0ck95d"] .item_title {
+  background: black;
+  border-left: inset 2px silver;
+  border-right: outset 2px silver;
 }
 
 html[theme="f0ck95d"] .err {
