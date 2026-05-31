@@ -160,7 +160,7 @@ class v0ck {
     const playtime = player.querySelector('.v0ck_playtime');
     const overlay = player.querySelector('.v0ck_overlay');
     const volumeButton = player.querySelector('.v0ck_volume');
-    const volumeSymbols = volumeButton.querySelectorAll('.v0ck use');
+    const volumeSymbols = volumeButton.querySelectorAll('use');
 
     const defaultVolume = 0.5;
     let mousedown = false;
