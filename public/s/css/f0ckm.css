@@ -13614,9 +13614,8 @@ body.layout-modern .xd-score-wrapper {
 
 /* ─── xD score wrapper ─────────────────────────────────────────────── */
 .xd-score-wrapper {
-  margin-top: 8px;
   text-align: left;
-  padding: 5px;
+  padding-bottom: 5px;
 }
 
 
