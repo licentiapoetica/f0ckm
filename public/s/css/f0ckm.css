@@ -243,7 +243,7 @@ html[theme='amoled'] {
   --maximize_button: #fff;
   --bg-gradient: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 10%, rgb(0, 0, 0) 100%);
   --motd-bg: #000;
-  --comment-bg: black;
+  --comment-bg: #202020;
 }
 
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
