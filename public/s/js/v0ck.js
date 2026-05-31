@@ -421,6 +421,7 @@ class v0ck {
     let activeMouseGesture = false;
 
     player.addEventListener('mousedown', e => {
+      if (isMobile) return;
       if (e.button !== 0) return;
       const path = e.path || (e.composedPath && e.composedPath());
       const isControls = !!path.filter(f => f.classList?.contains('v0ck_player_controls')).length;
@@ -750,6 +751,7 @@ class v0ck {
 
     // Speedup 2x on Hold logic
     function startSpeedUp(e) {
+      if (e.type === 'mousedown' && isMobile) return;
       // Only left mouse click or touch triggers speedup
       if (e.type === 'mousedown' && e.button !== 0) return;
 
