@@ -1719,7 +1719,11 @@ window.cancelAnimFrame = (function () {
 
             container.insertAdjacentHTML('beforeend', `
                 <div class="v0ck_hud v0ck_hidden" style="z-index: 10000;">
-                    <svg viewBox="0 0 24 24"><use class="v0ck_hud_icon" href="/s/img/v0ck.svg#volume_full"></use></svg>
+                    <svg viewBox="0 0 24 24">
+                        <use class="v0ck_hud_icon v0ck_hud_volume_full" href="/s/img/v0ck.svg#volume_full"></use>
+                        <use class="v0ck_hud_icon v0ck_hud_volume_mid v0ck_hidden" href="/s/img/v0ck.svg#volume_mid"></use>
+                        <use class="v0ck_hud_icon v0ck_hud_volume_mute v0ck_hidden" href="/s/img/v0ck.svg#volume_mute"></use>
+                    </svg>
                     <div class="v0ck_hud_bar_container">
                         <div class="v0ck_hud_bar"></div>
                     </div>
@@ -1783,10 +1787,22 @@ window.cancelAnimFrame = (function () {
             if (!hud) return;
             hud.classList.remove('v0ck_hidden');
             hudBar.style.width = `${vol * 100}%`;
-            let icon = 'volume_full';
-            if (vol === 0) icon = 'volume_mute';
-            else if (vol <= 0.5) icon = 'volume_mid';
-            hudIcon.setAttribute('href', `/s/img/v0ck.svg#${icon}`);
+            
+            const hudSymbols = hud.querySelectorAll('.v0ck_hud_icon');
+            hudSymbols.forEach(s => s.classList.add('v0ck_hidden'));
+            
+            let targetClass = 'v0ck_hud_volume_full';
+            if (vol === 0) {
+                targetClass = 'v0ck_hud_volume_mute';
+            } else if (vol <= 0.5) {
+                targetClass = 'v0ck_hud_volume_mid';
+            }
+            
+            const activeSymbol = [...hudSymbols].find(s => s.classList.contains(targetClass));
+            if (activeSymbol) {
+                activeSymbol.classList.remove('v0ck_hidden');
+            }
+            
             clearTimeout(hudTimer);
             hudTimer = setTimeout(() => hud && hud.classList.add('v0ck_hidden'), 1000);
         };
