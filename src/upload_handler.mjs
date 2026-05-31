@@ -8,6 +8,7 @@ import path from "path";
 import https from "https";
 import { getManualApproval, getMinTags, getTrustedUploads, getBypassDuplicateCheck, getEnablePdf } from "./inc/settings.mjs";
 import { parseMultipart, collectBody } from "./inc/multipart.mjs";
+import f0cklib from "./inc/routeinc/f0cklib.mjs";
 
 // Helper for JSON response
 const sendJson = (res, data, code = 200) => {
@@ -560,6 +561,8 @@ export const handleUpload = async (req, res, self) => {
 
         // Action if auto-approved
         if (!manualApproval) {
+            // Bust the count cache so page totals update immediately
+            f0cklib.clearCountCache();
             if (!linkedToExisting) {
                 // Move logic: Handles both real files and symlinks (reposts) correctly
                 const moveSafe = async (src, dst) => {

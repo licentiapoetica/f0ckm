@@ -10,6 +10,46 @@ const globalfilter = cfg.nsfp?.length ? cfg.nsfp.map(n => `tag_id = ${n}`).join(
 // All MIME types that map to the 'swf' extension in config (e.g. application/x-shockwave-flash, application/vnd.adobe.flash.movie)
 const flashMimes = Object.entries(cfg.mimes || {}).filter(([, ext]) => ext === 'swf').map(([mime]) => mime);
 
+// ── Count cache ─────────────────────────────────────────────────────────────
+// The COUNT(DISTINCT items.id) in getf0cks is expensive (full filtered scan).
+// Cache it per unique filter combination for 90 seconds so that navigating
+// between pages 1→192 with the same filters skips the COUNT entirely.
+const COUNT_CACHE_TTL_MS = 90_000;
+const countCache = new Map(); // key → { total, expiresAt }
+
+function buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, excludedTags, newerThan, minXd, userHallObj }) {
+  return JSON.stringify([
+    modequery,
+    tag ?? '',
+    user ?? '',
+    hall ?? '',
+    mime ?? '',
+    fav ? 1 : 0,
+    session ? 1 : 0,          // guests get globalfilter applied; members don't
+    excludedTags.slice().sort().join(','),
+    newerThan ?? '',
+    minXd,
+    userHallObj?.id ?? ''
+  ]);
+}
+
+function getCachedCount(key) {
+  const entry = countCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { countCache.delete(key); return null; }
+  return entry.total;
+}
+
+function setCachedCount(key, total) {
+  countCache.set(key, { total, expiresAt: Date.now() + COUNT_CACHE_TTL_MS });
+  // Prevent unbounded growth — evict all expired entries when cache grows large
+  if (countCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of countCache) { if (now > v.expiresAt) countCache.delete(k); }
+  }
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const processMentions = async (comments) => {
   if (!comments || comments.length === 0) return comments;
 
@@ -192,26 +232,32 @@ export default {
       userHallFilter = db`and items.id in (select uha.item_id from user_halls_assign uha where uha.hall_id = ${userHallObj.id})`;
     }
 
-    const totalRows = await db`
-      select count(distinct items.id) as total
-      from items
-      ${fav ? db`inner join favorites on favorites.item_id = items.id inner join "user" fav_u on fav_u.id = favorites.user_id` : db``}
-      where
-        ${db.unsafe(modequery)}
-        and items.active = true
-        ${tagFilter}
-        ${titleFilter}
-        ${fav ? db`and fav_u.user ilike ${user}` : db``}
-        ${!fav && user ? db`and items.username ilike ${user}` : db``}
-        ${mimeSQL}
-        ${hallFilter}
-        ${userHallFilter}
-        ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
-        ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
-        ${newerThan ? db`and items.id > ${newerThan}` : db``}
-        ${xdFilter}
-    `;
-    const total = Number(totalRows[0].total);
+    const cacheKey = buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, excludedTags, newerThan, minXd, userHallObj });
+    let total = getCachedCount(cacheKey);
+
+    if (total === null) {
+      const totalRows = await db`
+        select count(distinct items.id) as total
+        from items
+        ${fav ? db`inner join favorites on favorites.item_id = items.id inner join "user" fav_u on fav_u.id = favorites.user_id` : db``}
+        where
+          ${db.unsafe(modequery)}
+          and items.active = true
+          ${tagFilter}
+          ${titleFilter}
+          ${fav ? db`and fav_u.user ilike ${user}` : db``}
+          ${!fav && user ? db`and items.username ilike ${user}` : db``}
+          ${mimeSQL}
+          ${hallFilter}
+          ${userHallFilter}
+          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
+          ${newerThan ? db`and items.id > ${newerThan}` : db``}
+          ${xdFilter}
+      `;
+      total = Number(totalRows[0].total);
+      if (total > 0) setCachedCount(cacheKey, total);
+    }
 
     if (!total || total === 0) {
       return {
@@ -1458,5 +1504,7 @@ export default {
   },
 
   computeXdScore,
-  xdScoreMeta
+  xdScoreMeta,
+  // Bust the count cache (call after a new upload is accepted so page totals stay accurate)
+  clearCountCache: () => countCache.clear()
 };
