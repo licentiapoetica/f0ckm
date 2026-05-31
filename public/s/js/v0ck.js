@@ -177,11 +177,16 @@ class v0ck {
     // (mouse position is now tracked via docMouseX/docMouseY in resetControlsTimer block)
 
     function handleVolumeButton(vol) {
-      [...volumeSymbols].forEach(s => !s.classList.contains('v0ck_hidden') ? s.classList.add('v0ck_hidden') : null);
-      switch (true) {
-        case (vol === 0): [...volumeSymbols].filter(s => s.id === "v0ck_svg_volume_mute")[0].classList.toggle('v0ck_hidden'); break;
-        case (vol <= 0.5 && vol > 0): [...volumeSymbols].filter(s => s.id === "v0ck_svg_volume_mid")[0].classList.toggle('v0ck_hidden'); break;
-        case (vol > 0.5): [...volumeSymbols].filter(s => s.id === "v0ck_svg_volume_full")[0].classList.toggle('v0ck_hidden'); break;
+      [...volumeSymbols].forEach(s => s.classList.add('v0ck_hidden'));
+      let targetId = 'v0ck_svg_volume_full';
+      if (vol === 0) {
+        targetId = 'v0ck_svg_volume_mute';
+      } else if (vol <= 0.5) {
+        targetId = 'v0ck_svg_volume_mid';
+      }
+      const activeSymbol = [...volumeSymbols].find(s => s.id === targetId);
+      if (activeSymbol) {
+        activeSymbol.classList.remove('v0ck_hidden');
       }
       localStorage.setItem("volume", vol);
     }
@@ -348,7 +353,10 @@ class v0ck {
       let icon = 'volume_full';
       if (vol === 0) icon = 'volume_mute';
       else if (vol <= 0.5) icon = 'volume_mid';
-      hudIcon.setAttribute('href', `${hudIcon.getAttribute('href').split('#')[0]}#${icon}`);
+      
+      const baseSvg = (hudIcon.getAttribute('href') || hudIcon.getAttribute('xlink:href') || '/s/img/v0ck.svg').split('#')[0];
+      hudIcon.setAttribute('href', `${baseSvg}#${icon}`);
+      hudIcon.setAttribute('xlink:href', `${baseSvg}#${icon}`);
 
       clearTimeout(hudTimer);
       hudTimer = setTimeout(() => hud.classList.add('v0ck_hidden'), 1000);
@@ -367,7 +375,7 @@ class v0ck {
         startY = touch.clientY;
         startVol = video.volume;
       }
-    }, { passive: true });
+    }, { passive: false });
 
     player.addEventListener('touchmove', e => {
       if (!isMobile || !isRightSide || gestureType === 'other') return;
@@ -410,7 +418,18 @@ class v0ck {
     }, { passive: false });
     skipButtons.forEach(button => button.addEventListener('click', skip));
     ranges.forEach(range => range.addEventListener('change', handleRangeUpdate));
+    ranges.forEach(range => range.addEventListener('input', handleRangeUpdate));
     ranges.forEach(range => range.addEventListener('mousemove', handleRangeUpdate));
+    
+    // Prevent touch events on the volume slider from bubbling to the player container (avoiding gesture conflicts and page scrolls)
+    if (volumeSlider) {
+      ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(evt => {
+        volumeSlider.addEventListener(evt, e => {
+          e.stopPropagation();
+        }, { passive: false });
+      });
+    }
+
     progress.addEventListener('mousedown', scrub);
     progress.addEventListener('touchstart', scrub, { passive: false });
     progress.addEventListener('touchmove', scrub, { passive: false });
