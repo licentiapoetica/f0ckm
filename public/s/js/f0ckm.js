@@ -9177,7 +9177,7 @@ if (navigator.vibrate) {
 // The alternative icon nav replaces the Zufall link with a down-chevron that
 // scrolls the page to the bottom (comments / tag section).
 document.addEventListener('click', (e) => {
-  const link = e.target.closest('a.steuerung-scroll-down');
+  const link = e.target.closest('.steuerung-scroll-down');
   if (!link) return;
   e.preventDefault();
   window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });

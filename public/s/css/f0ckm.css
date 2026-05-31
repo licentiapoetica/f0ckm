@@ -9112,16 +9112,23 @@ html[theme="f0ck95d"] .badge-dark {
   font-size: x-large;
 }
 
-.steuerung.steuerung-icon a {
+.steuerung.steuerung-icon a,
+.steuerung.steuerung-icon button {
   color: white;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1.6em;
   transition: color 0.15s ease, transform 0.15s ease;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
 }
 
-.steuerung.steuerung-icon a:hover {
+.steuerung.steuerung-icon a:hover,
+.steuerung.steuerung-icon button:hover {
   color: var(--accent);
 }
 
