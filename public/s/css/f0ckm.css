@@ -2360,7 +2360,7 @@ body.layout-legacy #comments-container.faded-out {
 }
 
 .comment-input {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--comment-bg);
   padding: 5px;
   border: 1px solid var(--nav-border-color);
   border-radius: 0;
@@ -8047,7 +8047,7 @@ video.autoplay-gif {
 
 .comment {
   padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--comment-bg);
   display: flex;
   gap: 15px;
   margin-bottom: 0px;
@@ -8968,7 +8968,7 @@ body.layout-legacy .comment-content img.emoji {
 
 .comment-highlighted {
   border-left: 3px solid var(--accent) !important;
-  background: rgba(17, 17, 17, 0.55) !important;
+  background: var(--comment-bg) !important;
 }
 
 .anchor-target {
