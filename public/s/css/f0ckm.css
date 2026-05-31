@@ -9125,13 +9125,6 @@ html[theme="f0ck95d"] .badge-dark {
   width: 100%;
 }
 
-
-body.layout-legacy .blahlol {
-  background: var(--comment-bg);
-  border-left: 1px solid var(--nav-border-color);
-  border-right: 1px solid var(--nav-border-color);
-}
-
 span#favs {
   background: transparent !important;
   border: none !important;
@@ -13385,6 +13378,9 @@ textarea#profile_description {
 /* When user infobox is active, expand .blahlol to full metadata width */
 .blahlol:has(.user-infobox-block) {
   grid-column: 1 / -1;
+  background: var(--comment-bg);
+  border-left: 1px solid var(--nav-border-color);
+  border-right: 1px solid var(--nav-border-color);
 }
 
 .user-infobox-block {
