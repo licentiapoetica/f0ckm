@@ -1840,7 +1840,7 @@ window.cancelAnimFrame = (function () {
         };
 
         // Touch listeners (attached to container for mobile)
-        container.addEventListener('touchstart', e => handleStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+        container.addEventListener('touchstart', e => handleStart(e.touches[0].clientX, e.touches[0].clientY), { passive: false });
         container.addEventListener('touchmove', e => handleMove(e.touches[0].clientX, e.touches[0].clientY, e), { passive: false });
         container.addEventListener('touchend', handleEnd, { passive: true });
  
