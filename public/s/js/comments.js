@@ -4016,12 +4016,8 @@ class CommentSystem {
 
                 // Always kick off a load on first click (lazy — noop if already loading/cached)
                 if (!CommentSystem.emojiCache && !CommentSystem.loadingEmojis) {
-                    this.loadEmojis(true).then(() => {
-                        // Rebuild picker content once emojis arrive (if picker already open)
-                        if (picker && picker.style.display !== 'none') {
-                            buildPickerContent();
-                        }
-                    });
+                    this.loadEmojis(true);
+                    // onReady listener (set up during picker creation) handles populating
                 }
 
                 // If picker already exists, toggle visibility
@@ -4034,7 +4030,7 @@ class CommentSystem {
                             closeHandler = null;
                         }
                     } else {
-                        // Rebuild content in case emojis loaded since the picker was first created
+                        // Rebuild content only if the cache has been updated since last build
                         buildPickerContent();
                         picker.style.display = ''; // Reset to CSS default (flex)
                         requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
