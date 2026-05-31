@@ -9133,12 +9133,19 @@ html[theme="f0ck95d"] .badge-dark {
 }
 
 .mobile-scroll-to-top {
+  display: none;
   background: none;
   border: none;
   color: var(--white);
   position: absolute;
   bottom: 20px;
   cursor: pointer;
+}
+
+@media (max-width: 999px) {
+  .mobile-scroll-to-top {
+    display: block;
+  }
 }
 
 .steuerung.steuerung-icon .fa-solid {
