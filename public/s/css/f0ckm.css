@@ -2192,7 +2192,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   }
 }
 
-/* Common sizing for the Legacy content area */
+
 .item-layout-container .item-main-content>._204863,
 .item-layout-container .item-main-content>.item_title,
 .item-layout-container .item-main-content>.content,
@@ -9130,6 +9130,15 @@ html[theme="f0ck95d"] .badge-dark {
 .steuerung.steuerung-icon a:hover,
 .steuerung.steuerung-icon button:hover {
   color: var(--accent);
+}
+
+.mobile-scroll-to-top {
+  background: none;
+  border: none;
+  color: var(--white);
+  position: absolute;
+  bottom: 20px;
+  cursor: pointer;
 }
 
 .steuerung.steuerung-icon .fa-solid {

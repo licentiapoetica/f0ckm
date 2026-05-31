@@ -9183,6 +9183,16 @@ document.addEventListener('click', (e) => {
   window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 });
 
+// ── Mobile scroll-to-top button ───────────────────────────────────────────────
+// Visible only on mobile (≤999px), appears below #comments-container so users
+// can easily get back to the top after reading comments.
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.mobile-scroll-to-top')) return;
+  e.preventDefault();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (navigator.vibrate) navigator.vibrate(20);
+});
+
 // ── Spoiler Tags Event Delegation ─────────────────────────────────────────────
 (function() {
     const isHidden = (el) => el && el.classList && (el.classList.contains('spoiler') || el.classList.contains('blur-text'));
