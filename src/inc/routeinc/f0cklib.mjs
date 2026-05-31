@@ -270,7 +270,49 @@ export default {
     const act_page = Math.min(page || 1, pages);
     const offset = Math.max(0, (act_page - 1) * eps);
 
-    const rows = await db`
+    // ── Deferred-join pagination ──────────────────────────────────────────────
+    // Step 1: Get only item IDs with all filters + OFFSET applied on the bare
+    // items table. No expensive JOINs here, so Postgres can use the
+    // (is_pinned DESC, id DESC) index efficiently even at page 192.
+    // The fav case still needs the favorites join in step 1 for the WHERE clause.
+    const pageIdRows = await db`
+      select items.id, items.is_pinned
+      from items
+      ${fav ? db`
+        inner join favorites on favorites.item_id = items.id
+        inner join "user" fav_u on fav_u.id = favorites.user_id
+      ` : db``}
+      where
+        ${db.unsafe(modequery)}
+        and items.active = true
+        ${tagFilter}
+        ${titleFilter}
+        ${fav ? db`and fav_u.user ilike ${user}` : db``}
+        ${!fav && user ? db`and items.username ilike ${user}` : db``}
+        ${mimeSQL}
+        ${hallFilter}
+        ${userHallFilter}
+        ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+        ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
+        ${newerThan ? db`and items.id > ${newerThan}` : db``}
+        ${xdFilter}
+      ${fav ? db`group by items.id, items.is_pinned` : db``}
+      order by ${random ? db`random()` : db`items.is_pinned desc, items.id desc`}
+      offset ${newerThan ? 0 : offset}
+      limit ${eps}
+    `;
+
+    if (pageIdRows.length === 0) {
+      // Off the end of the dataset (e.g. stale cached total sent user to a page that no longer exists)
+      return { success: false, message: "404 - no uploads found" };
+    }
+
+    const pageIds = pageIdRows.map(r => r.id);
+    // Preserve the page order returned by step 1 after the join scrambles it
+    const pageOrder = Object.fromEntries(pageIds.map((id, i) => [id, i]));
+
+    // Step 2: Enrich only those IDs — expensive JOINs on at most `eps` rows.
+    const rows = (await db`
       select
         items.id,
         items.mime,
@@ -293,32 +335,12 @@ export default {
       from items
       left join "user" author_u on author_u."user" = items.username or author_u.login = items.username
       left join user_options uo on uo.user_id = author_u.id
-      left join tags_assign on tags_assign.item_id = items.id
-      left join tags on tags.id = tags_assign.tag_id
-      left join favorites on favorites.item_id = items.id
-      left join "user" fav_u on fav_u.id = favorites.user_id
       left join tags_assign ta on ta.item_id = items.id and (ta.tag_id = 1 or ta.tag_id = 2 ${cfg.enable_nsfl ? db`or ta.tag_id = ${cfg.nsfl_tag_id || 3}` : db``})
-      left join tags badge_t on badge_t.id = ta.tag_id
       ${user_id ? db`left join user_video_views uvv on uvv.video_id = items.id and uvv.user_id = ${user_id}` : db``}
-      where
-        ${db.unsafe(modequery)}
-        and items.active = true
-        ${tagFilter}
-        ${titleFilter}
-        ${fav ? db`and fav_u.user ilike ${user}` : db``}
-        ${!fav && user ? db`and items.username ilike ${user}` : db``}
-        ${mimeSQL}
-        ${hallFilter}
-        ${userHallFilter}
-        ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
-        ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
-        ${newerThan ? db`and items.id > ${newerThan}` : db``}
-        ${xdFilter}
+      where items.id = any(${pageIds})
       group by items.id
-      order by ${random ? db`random()` : db`items.is_pinned desc, items.id desc`}
-      offset ${newerThan ? 0 : offset}
-      limit ${eps}
-    `;
+    `).sort((a, b) => pageOrder[a.id] - pageOrder[b.id]);
+    // ─────────────────────────────────────────────────────────────────────────
 
     for (const row of rows) {
       const meta = xdScoreMeta(row.xd_score);
