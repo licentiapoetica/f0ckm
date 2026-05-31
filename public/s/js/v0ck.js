@@ -65,7 +65,11 @@ const tpl_player = (svg, size) => `<div class="v0ck_player_controls">
   </svg>
 </div>
 <div class="v0ck_hud v0ck_hidden">
-  <svg><use class="v0ck_hud_icon" href="${svg}#volume_full"></use></svg>
+  <svg>
+    <use class="v0ck_hud_icon v0ck_hud_volume_full" href="${svg}#volume_full"></use>
+    <use class="v0ck_hud_icon v0ck_hud_volume_mid v0ck_hidden" href="${svg}#volume_mid"></use>
+    <use class="v0ck_hud_icon v0ck_hud_volume_mute v0ck_hidden" href="${svg}#volume_mute"></use>
+  </svg>
   <div class="v0ck_hud_bar_container">
     <div class="v0ck_hud_bar"></div>
   </div>
@@ -349,14 +353,21 @@ class v0ck {
       hud.classList.remove('v0ck_hidden');
       hudBar.style.width = `${vol * 100}%`;
       
-      // Update HUD icon based on volume
-      let icon = 'volume_full';
-      if (vol === 0) icon = 'volume_mute';
-      else if (vol <= 0.5) icon = 'volume_mid';
+      // Update HUD icon based on volume by toggling hidden class
+      const hudSymbols = hud.querySelectorAll('.v0ck_hud_icon');
+      hudSymbols.forEach(s => s.classList.add('v0ck_hidden'));
       
-      const baseSvg = '/s/img/v0ck.svg';
-      hudIcon.setAttribute('href', `${baseSvg}#${icon}`);
-      hudIcon.setAttribute('xlink:href', `${baseSvg}#${icon}`);
+      let targetClass = 'v0ck_hud_volume_full';
+      if (vol === 0) {
+        targetClass = 'v0ck_hud_volume_mute';
+      } else if (vol <= 0.5) {
+        targetClass = 'v0ck_hud_volume_mid';
+      }
+      
+      const activeSymbol = [...hudSymbols].find(s => s.classList.contains(targetClass));
+      if (activeSymbol) {
+        activeSymbol.classList.remove('v0ck_hidden');
+      }
 
       clearTimeout(hudTimer);
       hudTimer = setTimeout(() => hud.classList.add('v0ck_hidden'), 1000);
