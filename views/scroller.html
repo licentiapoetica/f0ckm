@@ -107,6 +107,7 @@
       opacity: 0; pointer-events: none;
       transform: translateY(-8px) scale(.96);
       transition: opacity .2s, transform .2s;
+      touch-action: none;
     }
     #volume-popup.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
     #volume-slider {
@@ -114,6 +115,7 @@
       writing-mode: vertical-lr; direction: rtl;
       width: 5px; height: 100px;
       background: rgba(255,255,255,.15); border-radius: 3px; outline: none; cursor: pointer;
+      touch-action: none;
     }
     #volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;

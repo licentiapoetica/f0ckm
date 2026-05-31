@@ -416,6 +416,77 @@ class v0ck {
         if (e.cancelable) e.preventDefault();
       }
     }, { passive: false });
+
+    // Desktop mouse volume gesture support (clicking and dragging vertically on the right half of the player)
+    let activeMouseGesture = false;
+
+    player.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      const path = e.path || (e.composedPath && e.composedPath());
+      const isControls = !!path.filter(f => f.classList?.contains('v0ck_player_controls')).length;
+      if (isControls) return;
+
+      const rect = player.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      isRightSide = x > rect.width / 2;
+      gestureType = 'none';
+
+      if (isRightSide) {
+        startX = e.clientX;
+        startY = e.clientY;
+        startVol = video.volume;
+        activeMouseGesture = true;
+      }
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!activeMouseGesture || gestureType === 'other') return;
+
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+
+      if (gestureType === 'none') {
+        if (dy > dx && dy > 5) {
+          gestureType = 'volume';
+          clearTimeout(speedUpTimeout);
+          endSpeedUp();
+        } else if (dx > dy && dx > 5) {
+          gestureType = 'other';
+          return;
+        } else {
+          return;
+        }
+      }
+
+      if (gestureType === 'volume') {
+        clearTimeout(speedUpTimeout);
+        endSpeedUp();
+        ignoreNextClick = true;
+
+        const deltaY = startY - e.clientY; // swipe up is positive
+        const sensitivity = 200;
+        let newVol = startVol + (deltaY / sensitivity);
+        newVol = Math.max(0, Math.min(1, newVol));
+
+        video.volume = newVol;
+        volumeSlider.value = newVol;
+        _volume = newVol;
+        handleVolumeButton(newVol);
+        showHUD(newVol);
+
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (activeMouseGesture) {
+        activeMouseGesture = false;
+        setTimeout(() => {
+          ignoreNextClick = false;
+        }, 100);
+      }
+    });
+
     skipButtons.forEach(button => button.addEventListener('click', skip));
     ranges.forEach(range => range.addEventListener('change', handleRangeUpdate));
     ranges.forEach(range => range.addEventListener('input', handleRangeUpdate));
