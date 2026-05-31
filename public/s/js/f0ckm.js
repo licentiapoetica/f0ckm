@@ -6017,7 +6017,8 @@ class NotificationSystem {
     this._initialized = true;
 
     if (this.bell && this.dropdown && this.list) {
-      this.loadEmojis();
+      // Emojis are only needed for rendering notification text — defer fetch until dropdown first opens
+      this._emojisLoaded = false;
       this.bindEvents();
       this.poll();
       this.pollDebounced = this.debounce(() => this.poll(), 500);
@@ -6246,7 +6247,13 @@ class NotificationSystem {
           }
         } else if (data.type === 'emojis_updated') {
           window.f0ckDebug("[SSE] Emojis updated, refreshing caches...");
-          this.loadEmojis();
+          // If dropdown was never opened, just reset the flag so next open fetches fresh data.
+          // If it was already opened (emojis in use), re-fetch immediately.
+          if (this._emojisLoaded) {
+            this.loadEmojis();
+          } else {
+            this._emojisLoaded = false; // ensure re-fetch on next open
+          }
           window.dispatchEvent(new CustomEvent('f0ck:emojis_updated'));
         } else if (data.type === 'motd') {
           window.f0ckDebug(`[SSE] MOTD update received:`, data.data.motd);
@@ -6302,7 +6309,7 @@ class NotificationSystem {
         } else if (data.type === 'emojis_updated') {
           window.f0ckDebug(`[SSE] Emoji update event received`);
           if (window.commentSystem && typeof window.commentSystem.loadEmojis === 'function') {
-            window.commentSystem.loadEmojis();
+            window.commentSystem.loadEmojis(true); // force=true: admin updated emojis
           }
           // Global dispatch for other listeners (e.g. Admin Dashboard)
           document.dispatchEvent(new Event('f0ck:emojis_updated'));
@@ -6494,6 +6501,11 @@ class NotificationSystem {
     this.bell.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // Lazy-load emojis on first open — no need to fetch them on every page load
+      if (!this._emojisLoaded) {
+        this._emojisLoaded = true;
+        this.loadEmojis();
+      }
       this.toggle();
     });
 

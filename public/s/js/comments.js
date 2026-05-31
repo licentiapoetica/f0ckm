@@ -79,7 +79,9 @@ class CommentSystem {
         this.commentCache = new Map();
         this._anchorScrollDone = false; // true after the first hash-anchor scroll on initial load
 
-        this.loadEmojis(); // Always load emojis for previews
+        // Defer emoji loading — only fetch if the page actually has :emoji: patterns
+        // (avoids a full API round-trip on every item page that has no custom emojis)
+        this._emojiLoadScheduled = false;
         this.setupHoverPreviews();
 
         if (this.itemId) {
@@ -224,7 +226,12 @@ class CommentSystem {
         _f0ckDebug('[CommentSystem] Instance destroyed');
     }
 
-    async loadEmojis() {
+    /**
+     * Load custom emoji map from the API.
+     * Lazy by default — only fetches if the current page actually contains :emoji: patterns.
+     * Pass force=true to bypass the page-scan check (e.g. after SSE emojis_updated).
+     */
+    async loadEmojis(force = false) {
         if (CommentSystem.emojiCache) {
             this.customEmojis = CommentSystem.emojiCache;
             // Immediate dispatch if already ready
@@ -232,6 +239,19 @@ class CommentSystem {
             return;
         }
         if (CommentSystem.loadingEmojis) return;
+
+        // Skip the fetch entirely if there are no :emoji: shortcodes visible on this page.
+        // This avoids an unnecessary API round-trip on every item page where custom emojis aren't used.
+        if (!force) {
+            const textContent = this.container ? this.container.textContent : document.body.textContent;
+            if (!/:([a-z0-9_]+):/.test(textContent)) {
+                _f0ckDebug('[CommentSystem] No emoji patterns found on page, skipping emoji fetch.');
+                // Still emit ready so callers (e.g. emoji picker) don't hang
+                window.dispatchEvent(new CustomEvent('f0ck:emojis_ready', { detail: {} }));
+                return;
+            }
+        }
+
         CommentSystem.loadingEmojis = true;
 
         try {
@@ -244,9 +264,6 @@ class CommentSystem {
                 });
                 CommentSystem.emojiCache = this.customEmojis;
                 _f0ckDebug('Loaded Emojis:', this.customEmojis);
-
-                // Preload images to prevent NS Binding Aborted errors
-                this.preloadEmojiImages();
 
                 if (this.container && this.lastData) {
                     const state = this.saveState();
@@ -280,17 +297,6 @@ class CommentSystem {
         } finally {
             CommentSystem.loadingEmojis = false;
         }
-    }
-
-    preloadEmojiImages() {
-        // Preload all emoji images into browser cache
-        if (!this.customEmojis) return;
-
-        Object.values(this.customEmojis).forEach(url => {
-            const img = new Image();
-            img.src = url;
-            // No need to append to DOM, just loading into cache
-        });
     }
 
     // ...
@@ -1312,6 +1318,13 @@ class CommentSystem {
 
         const mainInput = this.container.querySelector('.main-input');
         if (mainInput) this.setupEmojiPicker(mainInput);
+
+        // Lazy emoji load: scan the just-rendered comment text for :emoji: patterns.
+        // Only fires an API request if at least one shortcode is actually present,
+        // avoiding a full round-trip on pages with no custom emojis.
+        if (!CommentSystem.emojiCache && !CommentSystem.loadingEmojis) {
+            this.loadEmojis(); // will skip internally if no patterns found
+        }
     }
 
     syncSubscribeButton(isSubscribed) {
@@ -3599,7 +3612,7 @@ class CommentSystem {
             if (!cs) return;
             CommentSystem.emojiCache = null;
             CommentSystem.loadingEmojis = false;
-            cs.loadEmojis();
+            cs.loadEmojis(true); // force=true: bypass page-scan, admin just changed emojis
         });
 
         // Shortcut 'c' to toggle comments
@@ -3842,7 +3855,13 @@ class CommentSystem {
             hideAC();
         };
 
-        textarea.addEventListener('input', () => renderAC());
+        textarea.addEventListener('input', () => {
+            // Lazy-load emojis if user starts typing ':' (emoji autocomplete) but cache is empty
+            if (!CommentSystem.emojiCache && !CommentSystem.loadingEmojis && getColon()) {
+                this.loadEmojis(true); // force=true: user explicitly wants to pick an emoji
+            }
+            renderAC();
+        });
         textarea.addEventListener('keydown', (e) => {
             if (autocomplete.style.display === 'none') return;
             if (e.key === 'ArrowDown') {
@@ -3958,8 +3977,52 @@ class CommentSystem {
             let picker = null;
             let closeHandler = null;
 
+            const buildPickerContent = () => {
+                if (!picker) return;
+                picker.innerHTML = '';
+                if (this.customEmojis && Object.keys(this.customEmojis).length > 0) {
+                    Object.keys(this.customEmojis).forEach(name => {
+                        const url = this.customEmojis[name];
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.title = `:${name}:`;
+                        img.loading = 'lazy'; // Use native lazy loading
+
+                        // Add error handling for failed loads
+                        img.onerror = () => {
+                            console.warn(`Failed to load emoji: ${name}`);
+                            img.style.display = 'none';
+                        };
+
+                        img.onclick = (ev) => {
+                            ev.stopPropagation();
+                            const pos = textarea.selectionStart ?? textarea.value.length;
+                            const val = textarea.value;
+                            textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                            textarea.focus();
+                            // Move cursor after the inserted emoji
+                            const newPos = pos + name.length + 2;
+                            textarea.setSelectionRange(newPos, newPos);
+                        };
+                        picker.appendChild(img);
+                    });
+                } else {
+                    picker.innerHTML = '<div style="padding:5px;color:white;font-size:0.8em;">No emojis found</div>';
+                }
+            };
+
             trigger.addEventListener('click', (e) => {
                 e.preventDefault();
+
+                // Always kick off a load on first click (lazy — noop if already loading/cached)
+                if (!CommentSystem.emojiCache && !CommentSystem.loadingEmojis) {
+                    this.loadEmojis(true).then(() => {
+                        // Rebuild picker content once emojis arrive (if picker already open)
+                        if (picker && picker.style.display !== 'none') {
+                            buildPickerContent();
+                        }
+                    });
+                }
 
                 // If picker already exists, toggle visibility
                 if (picker) {
@@ -3971,6 +4034,8 @@ class CommentSystem {
                             closeHandler = null;
                         }
                     } else {
+                        // Rebuild content in case emojis loaded since the picker was first created
+                        buildPickerContent();
                         picker.style.display = ''; // Reset to CSS default (flex)
                         requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
                         closeHandler = (ev) => {
@@ -4027,34 +4092,18 @@ class CommentSystem {
                     }
                 }, { passive: false });
 
-                if (this.customEmojis && Object.keys(this.customEmojis).length > 0) {
-                    Object.keys(this.customEmojis).forEach(name => {
-                        const url = this.customEmojis[name];
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.title = `:${name}:`;
-                        img.loading = 'lazy'; // Use native lazy loading
-
-                        // Add error handling for failed loads
-                        img.onerror = () => {
-                            console.warn(`Failed to load emoji: ${name}`);
-                            img.style.display = 'none';
-                        };
-
-                        img.onclick = (ev) => {
-                            ev.stopPropagation();
-                            const pos = textarea.selectionStart ?? textarea.value.length;
-                            const val = textarea.value;
-                            textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
-                            textarea.focus();
-                            // Move cursor after the inserted emoji
-                            const newPos = pos + name.length + 2;
-                            textarea.setSelectionRange(newPos, newPos);
-                        };
-                        picker.appendChild(img);
-                    });
+                if (CommentSystem.emojiCache) {
+                    // Emojis already cached — populate immediately
+                    buildPickerContent();
                 } else {
-                    picker.innerHTML = '<div style="padding:5px;color:white;font-size:0.8em;">No emojis found</div>';
+                    // Show a loading indicator while fetch is in-flight
+                    picker.innerHTML = '<div style="padding:5px;color:white;font-size:0.8em;">Loading...</div>';
+                    // Rebuild once the fetch completes (loadEmojis was already triggered above)
+                    const onReady = () => {
+                        window.removeEventListener('f0ck:emojis_ready', onReady);
+                        buildPickerContent();
+                    };
+                    window.addEventListener('f0ck:emojis_ready', onReady, { once: true });
                 }
 
                 container.appendChild(picker);
