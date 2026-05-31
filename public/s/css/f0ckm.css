@@ -53,6 +53,7 @@ html[theme='f0ck'] {
   --bg-gradient: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 0%, rgb(6, 6, 6) 10%, rgb(43, 43, 43) 100%);
   /* appearance */
   background: black;
+   --comment-bg: black;
 }
 
 html[theme="f0ck"] .admin-search button {
@@ -119,6 +120,7 @@ html[theme='p1nk'] {
   /* appearance */
   background: black;
   --motd-bg: #111;
+  --comment-bg: #201f1f;
 }
 
 html[theme="p1nk"] .pagination>a,
@@ -180,6 +182,7 @@ html[theme='orange'] {
   /* appearance */
   background: black;
   --motd-bg: #111;
+  --comment-bg: black;
 }
 
 html[theme="orange"] .pagination>a,
@@ -240,6 +243,7 @@ html[theme='amoled'] {
   --maximize_button: #fff;
   --bg-gradient: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 10%, rgb(0, 0, 0) 100%);
   --motd-bg: #000;
+  --comment-bg: black;
 }
 
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
@@ -322,6 +326,7 @@ html[theme="paper"] {
   --img-border-width: 0;
   --img-border-color: #363636;
   --maximize_button: #fff;
+  --comment-bg: black;
 }
 
 html[theme="paper"] .err {
@@ -526,6 +531,7 @@ html[theme="atmos"] {
   /* appearance */
   background: black;
   --motd-bg: #111;
+  --comment-bg: black;
 }
 
 html[theme="atmos"] .pagination>a,
@@ -587,6 +593,7 @@ html[theme="term"] {
   --bg-gradient: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 10%, rgb(0, 0, 0) 100%);
   /* appearance */
   background: black;
+  --comment-bg: black;
 }
 
 html[theme="term"] .pagination>a,
@@ -664,6 +671,7 @@ html[theme="iced"] {
   --bg-gradient: linear-gradient(0deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 10%, #062631 100%);
   /* appearance */
   background: black;
+  --comment-bg: black;
 }
 
 html[theme="iced"] ._204863 {
@@ -746,6 +754,7 @@ html[theme='f0ck95'] {
   --bg-gradient: linear-gradient(0deg, rgba(0, 128, 128, 0.514), rgba(0, 0, 0, 0) 10%, rgba(0, 128, 128, 0.363) 100%);
   /* appearance */
   background: teal;
+  --comment-bg: black;
 }
 
 html[theme="f0ck95"] html,
@@ -868,6 +877,7 @@ html[theme="4d"] {
   --maximize_button: #1fb2b0;
   --bg-gradient: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 0%, rgb(6, 6, 6) 10%, rgb(43, 43, 43) 100%);
   background: black;
+  --comment-bg: #252424;
 }
 
 html[theme="4d"] #my-video {
@@ -918,6 +928,7 @@ html[theme="xd"] {
   --img-border-color: #363636;
   --maximize_button: #1fb2b0;
   --bg-gradient: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 0%, rgb(6, 6, 6) 10%, rgb(43, 43, 43) 100%);
+  --comment-bg: #101010;
 }
 
 html[theme="xd"] .motd-container {
@@ -981,6 +992,7 @@ html[theme='95'] {
   --maximize_button: #000;
   --bg-gradient: none;
   background: #008080;
+  --comment-bg: black;
 }
 
 html[theme='95'] body {
@@ -3017,7 +3029,7 @@ body.layout-legacy .scroll-to-bottom svg {
   display: flex;
   gap: 15px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--comment-bg);
   /* Very light seethrough */
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 0;
@@ -3727,6 +3739,7 @@ html[theme='f0ck95d'] {
   /* appearance */
   background: black;
   --motd-bg: #111;
+  --comment-bg: #0b0a0a;
 }
 
 html[theme="f0ck95d"] .err {
@@ -8362,7 +8375,7 @@ video.autoplay-gif {
 
 /* Pinned comments */
 .comment.pinned {
-  background: rgba(var(--accent-rgb, 153, 255, 0), 0.1);
+  background: var(--comment-bg);
   border-left: 3px solid var(--accent);
 }
 
@@ -13372,7 +13385,7 @@ textarea#profile_description {
 .user-infobox-block {
   display: flex;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--comment-bg);
   border: 1px solid var(--author-border, rgba(0, 255, 0, 0.2));
   line-height: 1;
   padding: 5px;
