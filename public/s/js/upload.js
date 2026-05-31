@@ -770,7 +770,11 @@ window.initUploadForm = (selector) => {
         // If files were provided, process them (append or replace)
         if (files && files.length > 0) {
             const filesToProcess = isShitpost ? Array.from(files) : [files[0]];
-            if (!isShitpost) selectedFiles = []; // Reset for normal mode
+            if (!isShitpost) {
+                selectedFiles = []; // Reset for normal mode — replace, not append
+                // Also wipe the preview DOM so the old card doesn't linger
+                if (filePreview) filePreview.innerHTML = '';
+            }
 
             for (const file of filesToProcess) {
                 if (!file) continue;
