@@ -625,7 +625,33 @@ async function generateCommentThumbnail(filename, mime, uuid, size = 512) {
         const ffThumbSize = Math.max(size, 512);
         const seeks = ['20%', '40%', '60%', '80%'];
         for (const seek of seeks) {
-            await queue.spawn('ffmpegthumbnailer', ['-i', realSource, '-s', String(ffThumbSize), '-t', seek, '-o', tmpFile]);
+            try {
+                await queue.spawn('ffmpegthumbnailer', ['-i', realSource, '-s', String(ffThumbSize), '-t', seek, '-o', tmpFile]);
+            } catch (err) {
+                console.warn(`[COMMENT_UPLOAD] ffmpegthumbnailer failed at ${seek} for ${filename}, trying ffmpeg fallback: ${err.message}`);
+                let seekSeconds = 0;
+                try {
+                    const durationStr = (await queue.spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', realSource])).stdout.trim();
+                    const duration = parseFloat(durationStr);
+                    if (!isNaN(duration) && duration > 0) {
+                        const pct = parseFloat(seek) / 100;
+                        seekSeconds = duration * pct;
+                    }
+                } catch (probeErr) {
+                    seekSeconds = seek === '20%' ? 2 : seek === '40%' ? 5 : seek === '60%' ? 8 : 10;
+                }
+                // Fallback to ffmpeg, overriding the color transfer characteristic to standard bt709 (1) in case of unsupported trc properties (e.g. log316)
+                await queue.spawn('ffmpeg', [
+                    '-y',
+                    '-ss', String(seekSeconds),
+                    '-color_trc', '1',
+                    '-i', realSource,
+                    '-frames:v', '1',
+                    '-update', '1',
+                    '-vf', `scale=${ffThumbSize}:${ffThumbSize}:force_original_aspect_ratio=increase,crop=${ffThumbSize}:${ffThumbSize}`,
+                    tmpFile
+                ]);
+            }
             try {
                 const { stdout } = await queue.spawn('magick', [tmpFile, '-colorspace', 'Gray', '-format', '%[fx:mean]', 'info:']);
                 if (parseFloat(stdout.trim()) > 0.05) break;
