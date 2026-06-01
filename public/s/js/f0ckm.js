@@ -525,7 +525,13 @@ window.cancelAnimFrame = (function () {
   };
 
   const syncRatingButtonUI = () => {
-    const activeRatings = getRatingsCookie();
+    let activeRatings = getRatingsCookie();
+    if (activeRatings.length === 0) {
+      if (window.activeMode === 0) activeRatings = ['sfw'];
+      else if (window.activeMode === 1) activeRatings = ['nsfw'];
+      else if (window.activeMode === 4) activeRatings = ['nsfl'];
+      else if (window.activeMode === 2) activeRatings = ['untagged'];
+    }
     const selector = document.getElementById('rating-selector');
     if (!selector) return;
     selector.querySelectorAll('.rating-toggle-btn').forEach(btn => {
@@ -536,7 +542,7 @@ window.cancelAnimFrame = (function () {
     // ALL button: active when ratings cookie is empty/absent (server mode is the authority)
     const allBtn = document.getElementById('rating-btn-all');
     if (allBtn) {
-      allBtn.classList.toggle('active', activeRatings.length === 0 && window.activeMode === 3);
+      allBtn.classList.toggle('active', (getRatingsCookie().length === 0 && window.activeMode === 3) || activeRatings.length === 0);
     }
   };
 

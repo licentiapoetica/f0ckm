@@ -1972,6 +1972,9 @@ window.initUploadForm = (selector) => {
                 
                 if (isShitpost) {
                     // Flash message removed as requested
+                    if (lastData?.manual_approval && typeof window.showFlash === 'function') {
+                        window.showFlash('Upload awaits approval, please be patient', 'info');
+                    }
                 } else {
                     if (!dragModal && statusDiv) {
                         statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
@@ -2125,9 +2128,16 @@ window.initUploadForm = (selector) => {
                 form._f0ckUploader.reset();
                 if (isShitpost) {
                     // Flash message removed as requested
+                    if (lastData?.manual_approval && typeof window.showFlash === 'function') {
+                        window.showFlash('Upload awaits approval, please be patient', 'info');
+                    }
                 } else if (!dragModal && statusDiv) {
                     statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
                     statusDiv.className = 'upload-status success';
+                }
+
+                if (!isShitpost && lastData?.manual_approval && typeof window.showFlash === 'function') {
+                    window.showFlash('Upload awaits approval, please be patient', 'info');
                 }
 
                 setTimeout(() => {
