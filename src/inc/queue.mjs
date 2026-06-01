@@ -380,8 +380,18 @@ export default new class queue {
         } catch (e) { break; }
       }
     }
-    else if (mime.startsWith('image/') && mime != 'image/gif')
-      await this.spawn('magick', [sourcePath + '[0]', '-auto-orient', tmpFile]);
+    else if (mime.startsWith('image/') && mime != 'image/gif') {
+      if (mime === 'image/avif') {
+        try {
+          await this.spawn('ffmpeg', ['-i', sourcePath, '-frames:v', '1', '-update', '1', tmpFile]);
+        } catch (err) {
+          // If ffmpeg fails, fallback to magick
+          await this.spawn('magick', [sourcePath + '[0]', '-auto-orient', tmpFile]);
+        }
+      } else {
+        await this.spawn('magick', [sourcePath + '[0]', '-auto-orient', tmpFile]);
+      }
+    }
     else if (mime.startsWith('audio/')) {
       let coverExtracted = false;
       this._lastCoverExtracted = false; // Reset state for this call
