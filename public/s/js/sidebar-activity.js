@@ -435,6 +435,9 @@
             ? (window.f0ckTimeAgo ? window.f0ckTimeAgo(c.created_at) : (c.timeago || c.created_at))
             : (c.timeago || 'just now');
         const tsAttr = c.created_at ? ` data-ts="${escapeHtml(c.created_at)}"` : '';
+        const fullDate = c.created_at
+            ? (window.f0ckFormatDateFull ? window.f0ckFormatDateFull(c.created_at) : new Date(c.created_at).toISOString())
+            : '';
 
         let itemPreview = '';
         if (c.item_id) {
@@ -477,7 +480,7 @@
                             </a>
                             <a href="/user/${c.username.toLowerCase()}" class="comment-author" ${c.username_color ? `style="color: ${c.username_color}"` : ''}>${escapeHtml(c.display_name || c.username)}</a>
                         </div>
-                        <span class="comment-time timeago" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
+                        <span class="comment-time timeago" tooltip="${fullDate}" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
                     <div class="comment-content"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
