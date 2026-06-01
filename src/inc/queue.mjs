@@ -336,6 +336,10 @@ export default new class queue {
         }
     } catch (e) {}
 
+    const outPath = path.join(tDir, itemid + '.webp');
+
+    try {
+
     if (mime === 'video/youtube') {
       const videoId = filename.startsWith('yt:') ? filename.split(':')[1] : null;
       if (videoId) {
@@ -377,7 +381,7 @@ export default new class queue {
       }
     }
     else if (mime.startsWith('image/') && mime != 'image/gif')
-      await this.spawn('magick', [sourcePath + '[0]', tmpFile]);
+      await this.spawn('magick', [sourcePath + '[0]', '-auto-orient', tmpFile]);
     else if (mime.startsWith('audio/')) {
       let coverExtracted = false;
       this._lastCoverExtracted = false; // Reset state for this call
@@ -485,10 +489,53 @@ export default new class queue {
       }
     }
 
-    await this.spawn('magick', [tmpFile, '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', path.join(tDir, itemid + '.webp')]);
+    // Determine if we should use a checkerboard background for transparency
+    const isTransparentMime = mime === 'image/png' || mime === 'image/webp' || mime === 'image/avif' || mime === 'image/gif';
+    if (isTransparentMime) {
+      // Build a grey/white checkerboard via explicit xc: squares (no pattern replacement tricks):
+      // row1 = [white | grey], row2 = row1 flipped → stack into a 2x2 tile → tile to thumbSpec
+      const sq = 16;
+      const tmpRow1    = path.join(os.tmpdir(), `${itemid}_r1.png`);
+      const tmpRow2    = path.join(os.tmpdir(), `${itemid}_r2.png`);
+      const tmpTile    = path.join(os.tmpdir(), `${itemid}_tile.png`);
+      const tmpBg      = path.join(os.tmpdir(), `${itemid}_bg.png`);
+      const tmpResized = path.join(os.tmpdir(), `${itemid}_rs.png`);
+      try {
+        await this.spawn('magick', ['-size', `${sq}x${sq}`, 'xc:white', '-size', `${sq}x${sq}`, 'xc:#cccccc', '+append', tmpRow1]);
+        await this.spawn('magick', [tmpRow1, '-flop', tmpRow2]);
+        await this.spawn('magick', [tmpRow1, tmpRow2, '-append', tmpTile]);
+        await this.spawn('magick', ['-size', thumbSpec, `tile:${tmpTile}`, '-define', 'png:color-type=2', tmpBg]);
+        // Resize/crop source image preserving alpha channel; force sRGB so palette images retain color
+        await this.spawn('magick', [tmpFile, '-auto-orient', '-colorspace', 'sRGB', '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', tmpResized]);
+        // Composite: Over operator — image (with alpha) on top of opaque checkerboard bg
+        await this.spawn('magick', [tmpBg, tmpResized, '-composite', outPath]);
+      } finally {
+        for (const f of [tmpRow1, tmpRow2, tmpTile, tmpBg, tmpResized]) {
+          await fs.promises.unlink(f).catch(() => {});
+        }
+      }
+    } else {
+      await this.spawn('magick', [tmpFile, '-auto-orient', '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', outPath]);
+    }
     await fs.promises.unlink(tmpFile).catch(_ => { });
     await fs.promises.unlink(tmpJpg).catch(_ => { });
     return true;
+
+    } catch (err) {
+      console.error(`[QUEUE] genThumbnail failed for item ${itemid} (${mime}):`, err.message || err);
+      // Cleanup temp files
+      await fs.promises.unlink(tmpFile).catch(() => {});
+      await fs.promises.unlink(tmpJpg).catch(() => {});
+      // Fallback: copy 404.gif as the thumbnail
+      const fallback404 = path.join(cfg.paths.s, 'img', '404.gif');
+      try {
+        await this.spawn('magick', [fallback404, '-resize', `${thumbSpec}^`, '-gravity', 'center', '-crop', `${thumbSpec}+0+0`, '+repage', outPath]);
+        console.warn(`[QUEUE] Used 404.gif fallback thumbnail for item ${itemid}`);
+      } catch (fallbackErr) {
+        console.error(`[QUEUE] Even fallback thumbnail failed for item ${itemid}:`, fallbackErr.message || fallbackErr);
+      }
+      return false;
+    }
   };
 
 
