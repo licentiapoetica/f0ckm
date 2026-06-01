@@ -1,0 +1,41 @@
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: f0ckm-nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d:rw
+      - html:/usr/share/nginx/html:rw
+    networks:
+      - f0ckm-net
+    restart: unless-stopped
+
+  acme-companion:
+    image: nginxproxy/acme-companion:latest
+    container_name: f0ckm-acme-companion
+    environment:
+      - NGINX_PROXY_CONTAINER=f0ckm-nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d:rw
+      - html:/usr/share/nginx/html:rw
+      - acme:/etc/acme.sh:rw
+    depends_on:
+      - nginx-proxy
+    networks:
+      - f0ckm-net
+    restart: unless-stopped
+
+networks:
+  f0ckm-net:
+
+volumes:
+  certs:
+  vhost:
+  html:
+  acme:
