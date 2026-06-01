@@ -2055,7 +2055,7 @@ class CommentSystem {
             <div class="${commentClass} ${isDeleted ? 'deleted' : ''} ${isPinned ? 'pinned' : ''}" id="c${comment.id}">
                 <div class="comment-avatar">
                     ${comment.username ? `<a href="/user/${comment.username}">` : ''}
-                    <img src="${comment.avatar_file ? `/a/${comment.avatar_file}` : (comment.avatar ? `/t/${comment.avatar}.webp` : '/a/default.png')}" alt="av">
+                    <img src="${comment.avatar_file ? `/a/${comment.avatar_file}` : (comment.avatar ? `/t/${comment.avatar}.webp` : '/a/default.png')}">
                     ${comment.username ? `</a>` : ''}
                 </div>
                 <div class="comment-body">

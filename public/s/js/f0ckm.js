@@ -7481,7 +7481,7 @@ class NotificationSystem {
         <div class="comment" id="c${c.id}" style="margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 20px;">
             <div class="comment-avatar">
                 <a href="/user/${c.username.toLowerCase()}">
-                    <img src="${avatar}" alt="av">
+                    <img src="${avatar}">
                 </a>
             </div>
             <div class="comment-body">
