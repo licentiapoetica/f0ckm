@@ -35,10 +35,6 @@ services:
 
     environment:
       - GIT_HASH=${f0ckm_TAG:-unknown}
-      - VIRTUAL_HOST=${VIRTUAL_HOST:-localhost}
-      - VIRTUAL_PORT=1337
-      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST:-}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-}
     ports:
       - "1337:1337"
     restart: unless-stopped
