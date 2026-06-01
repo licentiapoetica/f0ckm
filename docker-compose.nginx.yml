@@ -33,6 +33,8 @@ services:
 
 networks:
   f0ckm-net:
+    external: true
+    name: f0ckm_f0ckm-net
 
 volumes:
   certs:
