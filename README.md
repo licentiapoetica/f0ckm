@@ -42,7 +42,7 @@ now vist http://localhost:1337 in your browser
 
 ## dev
 
-### NOTE: when developing locally it might be necessary to run commands with `DB_HOST=localhost DB_PORT=5454`
+NOTE: when developing locally it might be necessary to run commands with `DB_HOST=localhost DB_PORT=5454`
 
 `docker compose up -d f0ckm-db`
 
