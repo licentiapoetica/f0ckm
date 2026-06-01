@@ -1,5 +1,6 @@
 services:
   f0ckm:
+    image: ${f0ckm_IMAGE:-f0ckm}:${f0ckm_TAG:-latest}
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST:-localhost}
       - VIRTUAL_PORT=1337
