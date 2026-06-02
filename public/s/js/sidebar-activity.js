@@ -434,7 +434,7 @@
         const timeStr = c.created_at
             ? (window.f0ckTimeAgo ? window.f0ckTimeAgo(c.created_at) : (c.timeago || c.created_at))
             : (c.timeago || 'just now');
-        const tsAttr = c.created_at ? ` data-ts="${escapeHtml(c.created_at)}"` : '';
+        const tsAttr = c.created_at ? ` data-ts="${escapeHtml(c.created_at)}" data-iso="${escapeHtml(c.created_at)}"` : '';
         const fullDate = c.created_at
             ? (window.f0ckFormatDateFull ? window.f0ckFormatDateFull(c.created_at) : new Date(c.created_at).toISOString())
             : '';
