@@ -104,7 +104,8 @@ export const handleRethumbUpload = async (req, res, itemId) => {
         }
 
         // Save to tmp for verification
-        const uuid = (await db`select gen_random_uuid() as uuid`)[0].uuid.substring(0, 8);
+        const raw = (await db`select replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '') as uuid`)[0].uuid;
+        const uuid = raw.substring(0, 48);
         const tmpPath = path.join(cfg.paths.tmp, `rethumb_${uuid}_${itemId}`);
 
         await fs.mkdir(cfg.paths.tmp, { recursive: true });

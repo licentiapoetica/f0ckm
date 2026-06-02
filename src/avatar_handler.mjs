@@ -19,7 +19,8 @@ const sendJson = (res, data, code = 200) => {
 
 // Generate UUID using the same method as video uploads
 const genuuid = async () => {
-    return (await db`select gen_random_uuid() as uuid`)[0].uuid.substring(0, 8);
+    const raw = (await db`select replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '') as uuid`)[0].uuid;
+    return raw.substring(0, 48);
 };
 
 export const handleAvatarUpload = async (req, res) => {

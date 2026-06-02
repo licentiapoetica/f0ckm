@@ -277,9 +277,10 @@ export default new class queue {
   };
 
   async genuuid() {
-    return (await db`
-      select gen_random_uuid() as uuid
-    `)[0].uuid.substring(0, 8);
+    const raw = (await db`
+      select replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '') as uuid
+    `)[0].uuid;
+    return raw.substring(0, 48);
   };
 
   async checkrepostlink(link) {
