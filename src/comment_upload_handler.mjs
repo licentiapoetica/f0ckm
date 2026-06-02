@@ -25,6 +25,8 @@ db`CREATE TABLE IF NOT EXISTS public.comment_files (
     original_filename TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 )`.catch(() => { });
+db`CREATE SEQUENCE IF NOT EXISTS comment_files_id_seq`.catch(() => { });
+db`ALTER TABLE comment_files ALTER COLUMN id SET DEFAULT nextval('comment_files_id_seq')`.catch(() => { });
 db`CREATE INDEX IF NOT EXISTS idx_comment_files_comment_id ON public.comment_files(comment_id)`.catch(() => { });
 db`CREATE INDEX IF NOT EXISTS idx_comment_files_checksum ON public.comment_files(checksum)`.catch(() => { });
 
