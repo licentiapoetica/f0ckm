@@ -2656,7 +2656,7 @@ body.layout-legacy #comments-container.faded-out {
 /* ─── Poll Builder ────────────────────────────────────────────────────────── */
 
 .poll-builder {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--comment-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-bottom: none;
   padding: 8px;
