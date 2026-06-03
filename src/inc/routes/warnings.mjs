@@ -21,6 +21,11 @@ export default (router, tpl) => {
 
             // Broadcast to SSE clients instantly
             if (result.length > 0) {
+                await db`
+                    INSERT INTO notifications (user_id, type, reference_id, data, is_read)
+                    VALUES (${+user_id}, 'warning', 0, ${JSON.stringify({ reason: reason.trim(), warning_id: result[0].id })}, false)
+                `;
+                
                 await db`SELECT pg_notify('warnings', ${JSON.stringify({ 
                     user_id: +user_id, 
                     warning_id: result[0].id, 

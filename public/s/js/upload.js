@@ -1971,17 +1971,17 @@ window.initUploadForm = (selector) => {
                 form._f0ckUploader.reset();
                 
                 if (isShitpost) {
-                    // Flash message removed as requested
-                    if (lastData?.manual_approval && typeof window.showFlash === 'function') {
-                        window.showFlash('Upload awaits approval, please be patient', 'info');
+                    if (lastData?.manual_approval && typeof window.flashMessage === 'function') {
+                        window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
                     }
                 } else {
-                    if (!dragModal && statusDiv) {
+                    if (lastData?.manual_approval) {
+                        if (typeof window.flashMessage === 'function') {
+                            window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
+                        }
+                    } else if (!dragModal && statusDiv) {
                         statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
                         statusDiv.className = 'upload-status success';
-                    }
-                    if (lastData?.manual_approval && typeof window.showFlash === 'function') {
-                        window.showFlash('Upload awaits approval, please be patient', 'info');
                     }
                 }
 
@@ -2127,17 +2127,18 @@ window.initUploadForm = (selector) => {
                 if (dragModal) dragModal.classList.remove('show');
                 form._f0ckUploader.reset();
                 if (isShitpost) {
-                    // Flash message removed as requested
-                    if (lastData?.manual_approval && typeof window.showFlash === 'function') {
-                        window.showFlash('Upload awaits approval, please be patient', 'info');
+                    if (lastData?.manual_approval && typeof window.flashMessage === 'function') {
+                        window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
                     }
-                } else if (!dragModal && statusDiv) {
-                    statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
-                    statusDiv.className = 'upload-status success';
-                }
-
-                if (!isShitpost && lastData?.manual_approval && typeof window.showFlash === 'function') {
-                    window.showFlash('Upload awaits approval, please be patient', 'info');
+                } else {
+                    if (lastData?.manual_approval) {
+                        if (typeof window.flashMessage === 'function') {
+                            window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
+                        }
+                    } else if (!dragModal && statusDiv) {
+                        statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
+                        statusDiv.className = 'upload-status success';
+                    }
                 }
 
                 setTimeout(() => {

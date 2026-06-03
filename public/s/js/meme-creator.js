@@ -543,13 +543,22 @@
 
                 const result = await res.json();
                 if (result.success) {
-                    const dest = result.redirect || '/meme';
-                    if (window.loadItemAjax) {
-                        window.loadItemAjax(dest);
-                    } else if (window.loadPageAjax) {
-                        window.loadPageAjax(dest);
+                    if (result.manual_approval) {
+                        window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
+                        if (window.loadPageAjax) {
+                            window.loadPageAjax('/');
+                        } else {
+                            window.location.href = '/';
+                        }
                     } else {
-                        window.location.href = dest;
+                        const dest = result.redirect || '/meme';
+                        if (window.loadItemAjax) {
+                            window.loadItemAjax(dest);
+                        } else if (window.loadPageAjax) {
+                            window.loadPageAjax(dest);
+                        } else {
+                            window.location.href = dest;
+                        }
                     }
                 }
                 else {

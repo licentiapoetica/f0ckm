@@ -7,10 +7,10 @@
             <button id="mark-all-read-page" class="btn-small">{{ t('notifications.mark_all_read') }}</button>
         </div>
         <div class="notif-page-tabs">
-            <button class="notif-page-tab active" data-tab="user">{{ t('nav.notif_tab_user') }}</button>
-            <button class="notif-page-tab" data-tab="system">{{ t('nav.notif_tab_system') }}</button>
+            <button class="notif-page-tab @if(activeTab === 'user') active @endif" data-tab="user">{{ t('nav.notif_tab_user') }}</button>
+            <button class="notif-page-tab @if(activeTab === 'system') active @endif" data-tab="system">{{ t('nav.notif_tab_system') }}</button>
         </div>
-        <div id="notifications-container" class="posts notifications-list-full" data-page="{{ pagination.page }}" data-tab="user">
+        <div id="notifications-container" class="posts notifications-list-full" data-page="{{ pagination.page }}" data-tab="{{ activeTab }}">
             @include(snippets/notifications-list)
         </div>
         @if(pagination.next)

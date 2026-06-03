@@ -283,6 +283,8 @@ window.cancelAnimFrame = (function () {
       baseStyle += 'background:rgba(200,30,30,0.95);';
     } else if (type === 'success') {
       baseStyle += 'background:rgba(30,130,60,0.95);';
+    } else if (type === 'warning') {
+      baseStyle += 'background:rgba(220,180,0,0.95);color:#000;';
     } else {
       baseStyle += 'background:rgba(30,30,30,0.95);';
     }
@@ -5985,7 +5987,7 @@ if (sbtForm) {
 class NotificationSystem {
   // Notification type categorization
   static USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
-  static SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report'];
+  static SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report', 'warning'];
 
   constructor() {
     this.bell = document.getElementById('nav-notif-btn');
@@ -6185,7 +6187,7 @@ class NotificationSystem {
 
             // System notifications (deletion, deny, reports) require explicit acknowledgment —
             // never auto-mark them as read just because the user is viewing that item.
-            const isSystemNotif = ['item_deleted', 'deny', 'admin_pending', 'report'].includes(notifType);
+            const isSystemNotif = ['item_deleted', 'deny', 'admin_pending', 'report', 'warning'].includes(notifType);
 
             // If the user is currently viewing this item, mark comment-type notifications as read immediately
             // (they are live on the thread, so no need to show a badge/highlight)
@@ -6950,6 +6952,11 @@ class NotificationSystem {
       link = '/mod/reports';
       user = (window.f0ckI18n && window.f0ckI18n.notif_moderation) || 'Moderator';
       msg = (window.f0ckI18n && window.f0ckI18n.notif_new_report) || 'A new user report has been submitted';
+    } else if (n.type === 'warning') {
+      link = `/notifications?tab=system#notif-${n.id}`;
+      user = (window.f0ckI18n && window.f0ckI18n.notif_system) || 'System';
+      msg = (window.f0ckI18n && window.f0ckI18n.account_warning && window.f0ckI18n.account_warning.title) || 'Account Warning';
+      if (n.reason) msg += `<br><div class="notif-reason" style="font-size: 0.85em; color: #ffb8b8; margin-top: 3px;">${n.reason}</div>`;
     } else {
       // Comment notification
       link = `/${n.item_id}#c${n.comment_id || n.reference_id}`;
@@ -6961,7 +6968,18 @@ class NotificationSystem {
 
     // For admin_pending the thumbnail lives in /mod/pending/t/ until approved
     let thumbSrc, thumbOnerror;
-    if (n.type === 'admin_pending') {
+    if (n.type === 'warning') {
+      return `
+        <div class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
+            <div class="notif-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-lighter);color:var(--danger);font-size:1.5em;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="notif-content">
+              <div class="notif-user"><strong ${n.username_color ? `style="color: ${n.username_color}"` : ''}>${user}</strong></div>
+              <div class="notif-msg">${msg}</div>
+              <div class="notif-time">${new Date(n.created_at).toLocaleString()}</div>
+            </div>
+        </div>
+      `;
+    } else if (n.type === 'admin_pending') {
       thumbSrc = `/mod/pending/t/${n.item_id}.webp`;
       thumbOnerror = `this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}`;
     } else {
@@ -7073,6 +7091,22 @@ class NotificationSystem {
                 <div class="notif-content">
                     <div>
                         <strong>${(window.f0ckI18n && window.f0ckI18n.notif_new_report) || 'A new user report has been submitted'}</strong>
+                    </div>
+                    <small class="notif-time">${new Date(n.created_at).toLocaleString()}</small>
+                </div>
+            </a>
+        `;
+    }
+
+    if (n.type === 'warning') {
+      const link = `/notifications?tab=system#notif-${n.id}`;
+      return `
+            <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}" data-notif-nav="true">
+                <div class="notif-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-lighter);color:var(--danger);font-size:1.5em;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="notif-content">
+                    <div>
+                        <strong>${(window.f0ckI18n && window.f0ckI18n.account_warning && window.f0ckI18n.account_warning.title) || 'Account Warning'}</strong>
+                        <div style="font-size: 0.85em; color: #ffb8b8; margin-top: 3px;">${n.reason || 'No reason provided'}</div>
                     </div>
                     <small class="notif-time">${new Date(n.created_at).toLocaleString()}</small>
                 </div>

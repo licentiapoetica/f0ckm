@@ -3496,7 +3496,7 @@
 
     // Tab type arrays
     const SCROLLER_USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
-    const SCROLLER_SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report'];
+    const SCROLLER_SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report', 'warning'];
     let sActiveTab = 'user';
     let sCachedNotifs = [];
 
@@ -3600,6 +3600,9 @@
           } else if (n.type === 'report') {
             link = '/mod/reports'; user = i18n.notif_moderation || 'Moderator';
             msg = i18n.notif_new_report || 'New user report';
+          } else if (n.type === 'warning') {
+            link = `/notifications?tab=system#notif-${n.id}`; user = i18n.notif_system || 'System';
+            msg = (i18n.account_warning && i18n.account_warning.title) || 'Account Warning';
           } else {
             link = `/${n.item_id}#c${n.reference_id}`;
             if (n.type === 'comment_reply') msg = i18n.notif_replied || 'replied to you';
@@ -3607,8 +3610,13 @@
             else if (n.type === 'mention') msg = i18n.notif_mentioned || 'highlighted you';
             else msg = i18n.notif_commented || 'commented';
           }
-          const thumbSrc = n.type === 'admin_pending' ? `/mod/pending/t/${n.item_id}.webp` : `/t/${n.item_id}.webp`;
-          const thumb = n.item_id ? `<div class="notif-thumb"><img src="${thumbSrc}" alt="" onerror="this.style.display='none'"></div>` : '';
+          let thumb;
+          if (n.type === 'warning') {
+            thumb = `<div class="notif-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-lighter);color:var(--danger);font-size:1.5em;"><i class="fa-solid fa-triangle-exclamation"></i></div>`;
+          } else {
+            const thumbSrc = n.type === 'admin_pending' ? `/mod/pending/t/${n.item_id}.webp` : `/t/${n.item_id}.webp`;
+            thumb = n.item_id ? `<div class="notif-thumb"><img src="${thumbSrc}" alt="" onerror="this.style.display='none'"></div>` : '';
+          }
           return `<a href="${link}" target="_blank" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
             ${thumb}
             <div class="notif-content">

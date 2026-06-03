@@ -57,7 +57,8 @@ db.listen('notifications', (payload) => {
                 if (client.do_not_disturb === true) continue;
 
                 if (SYSTEM_TYPES.includes(data.type) && client.receive_system_notifications === false) continue;
-                if (USER_TYPES.includes(data.type) && client.receive_user_notifications === false) continue;
+                // warnings bypass user settings
+                if (data.type !== 'warning' && USER_TYPES.includes(data.type) && client.receive_user_notifications === false) continue;
                 client.send({ type: 'notify', data });
             }
         }
@@ -343,7 +344,7 @@ db.listen('global_chat_topic', (payload) => {
 export default (router, tpl) => {
 
     const USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
-    const SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report'];
+    const SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report', 'warning'];
 
     async function getNotificationHistory(userId, page = 1, limit = 50, tab = null) {
         const offset = (page - 1) * limit;
@@ -363,7 +364,7 @@ export default (router, tpl) => {
                 LEFT JOIN items i ON n.item_id = i.id
                 WHERE n.user_id = ${userId}
                 AND n.type = ANY(${typeFilter})
-                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
+                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report', 'warning') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
                 ORDER BY n.created_at DESC
                 LIMIT ${limit + 1}
                 OFFSET ${offset}
@@ -381,7 +382,7 @@ export default (router, tpl) => {
                 LEFT JOIN user_options uo ON u.id = uo.user_id
                 LEFT JOIN items i ON n.item_id = i.id
                 WHERE n.user_id = ${userId}
-                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
+                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report', 'warning') OR i.id IS NULL OR (i.active = true AND i.is_deleted = false))
                 ORDER BY n.created_at DESC
                 LIMIT ${limit + 1}
                 OFFSET ${offset}
@@ -426,7 +427,7 @@ export default (router, tpl) => {
                 LEFT JOIN user_options uo ON u.id = uo.user_id
                 LEFT JOIN items i ON n.item_id = i.id
                 WHERE n.user_id = ${req.session.id} AND n.is_read = false
-                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report', 'approve') 
+                AND (n.type IN ('admin_pending', 'deny', 'item_deleted', 'report', 'approve', 'warning') 
                      OR (
                        ${req.session.do_not_disturb !== true} AND (
                          (n.type IN ('upload_success', 'upload_error') AND ${req.session.receive_system_notifications !== false})
@@ -434,7 +435,7 @@ export default (router, tpl) => {
                        )
                      )
                 )
-                AND (n.item_id IS NULL OR (i.active = true AND i.is_deleted = false) OR n.type IN ('admin_pending', 'deny', 'item_deleted', 'report'))
+                AND (n.item_id IS NULL OR (i.active = true AND i.is_deleted = false) OR n.type IN ('admin_pending', 'deny', 'item_deleted', 'report', 'warning'))
                 ORDER BY n.created_at DESC
                 LIMIT 1000
             `;
@@ -496,7 +497,7 @@ export default (router, tpl) => {
     router.post(/\/api\/notifications\/item\/(?<itemId>\d+)\/read/, async (req, res) => {
         if (!req.session) return res.reply({ code: 401, body: JSON.stringify({ success: false }) });
         const itemId = req.params.itemId;
-        const SYSTEM_TYPES = ['item_deleted', 'deny', 'admin_pending', 'report'];
+        const SYSTEM_TYPES = ['item_deleted', 'deny', 'admin_pending', 'report', 'warning'];
         console.log(`[NotificationRoute] Marking comment notifications for item ${itemId} as read for user ${req.session.id}`);
         try {
             await db`
@@ -646,6 +647,7 @@ export default (router, tpl) => {
             next: data.hasMore ? 2 : null
         };
         data.link = { main: '/notifications', path: '/' };
+        data.activeTab = tab;
         data.domain = cfg.main.url.domain; // For header
         return res.html(tpl.render('notifications', data, req));
     });

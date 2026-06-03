@@ -103,6 +103,18 @@
         <div class="notif-time">{{ new Date(n.created_at).toLocaleString() }}</div>
     </div>
 </a>
+@elseif(n.type === 'warning')
+<div class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
+    <div class="notif-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-lighter);color:var(--danger);font-size:1.5em;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="notif-content">
+        <div class="notif-user"><strong>{{ t('notifications.system') }}</strong></div>
+        <div class="notif-msg">
+            <strong>Account Warning</strong>
+            <div style="font-size: 0.85em; color: #ffb8b8; margin-top: 4px;">Reason: {{ n.reason }}</div>
+        </div>
+        <div class="notif-time">{{ new Date(n.created_at).toLocaleString() }}</div>
+    </div>
+</div>
 @else
 <a href="/{{ n.item_id }}#c{{ n.comment_id || n.reference_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
     @if(n.item_id)
