@@ -126,6 +126,7 @@
     "open_registration_require_mail_andor_token": false,
     "private_society": false,
     "private_society_gate": "cloudflare",
+    "public_nsfw": false,
     "paths": {
       "images": "/b",
       "thumbnails": "/t",

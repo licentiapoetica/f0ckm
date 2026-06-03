@@ -663,9 +663,14 @@ process.on('uncaughtException', err => {
     const queryMode = req.url.qs?.mode !== undefined ? +req.url.qs.mode : undefined;
     req.mode = queryMode !== undefined ? queryMode : (req.session ? +(req.session.mode ?? 0) : +(req.cookies?.mode ?? 0));
 
-    // Guest protection: Strictly enforce SFW mode (0) for non-logged-in users
+    // public_nsfw: when true, the *default* for guests is mode 3 (all content).
+    // Only applies when the guest has no explicit mode preference (no ?mode= param, no cookie).
+    // If the guest has chosen a filter (e.g. SFW), that choice is always respected.
     if (!req.session) {
-      req.mode = 0;
+      const hasExplicitMode = queryMode !== undefined || req.cookies?.mode !== undefined;
+      if (!hasExplicitMode) {
+        req.mode = cfg.websrv.public_nsfw ? 3 : 0;
+      }
     }
 
     // Private Society gate — require login for all content when enabled

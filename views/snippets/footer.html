@@ -416,7 +416,8 @@
     dm_attachments: @if(dm_attachments) true @else false @endif,
     dm_unencrypted: @if(dm_unencrypted) true @else false @endif,
     allow_comment_deletion: @if(allow_comment_deletion) true @else false @endif,
-    enable_comment_polls: @if(enable_comment_polls) true @else false @endif
+    enable_comment_polls: @if(enable_comment_polls) true @else false @endif,
+    mode: {{ mode !== undefined ? mode : 0 }}
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   window.f0ckI18n = {
