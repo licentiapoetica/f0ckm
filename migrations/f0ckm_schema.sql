@@ -593,7 +593,7 @@ CREATE TABLE public.comment_files (
     id integer NOT NULL,
     comment_id integer,
     user_id integer NOT NULL,
-    dest character varying(40) NOT NULL,
+    dest character varying(60) NOT NULL,
     mime character varying(100) NOT NULL,
     size integer NOT NULL,
     checksum character varying(255) NOT NULL,
@@ -887,7 +887,7 @@ ALTER SEQUENCE public.items_id_seq OWNER TO f0ckm;
 CREATE TABLE public.items (
     id integer DEFAULT nextval('public.items_id_seq'::regclass) NOT NULL,
     src character varying(255) NOT NULL,
-    dest character varying(40) NOT NULL,
+    dest character varying(60) NOT NULL,
     mime character varying(100) NOT NULL,
     size integer NOT NULL,
     checksum character varying(255) NOT NULL,
@@ -2857,8 +2857,8 @@ CREATE TABLE IF NOT EXISTS public.comment_polls (
 CREATE TABLE IF NOT EXISTS public.comment_poll_options (
     id SERIAL PRIMARY KEY,
     poll_id INTEGER NOT NULL REFERENCES public.comment_polls(id) ON DELETE CASCADE,
-    option_text TEXT NOT NULL,
-    display_order SMALLINT NOT NULL DEFAULT 0
+    text TEXT NOT NULL,
+    sort_order SMALLINT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS public.comment_poll_votes (

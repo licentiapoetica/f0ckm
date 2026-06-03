@@ -26,6 +26,14 @@ db`ALTER TABLE items ADD COLUMN IF NOT EXISTS title text`.catch(() => {});
 db`ALTER TABLE items ADD COLUMN IF NOT EXISTS width integer`.catch(() => {});
 db`ALTER TABLE items ADD COLUMN IF NOT EXISTS height integer`.catch(() => {});
 
+// One-time migration: widen checksum column to varchar(255) for SHA-256 + bypass suffix support
+// (old schema had varchar(40), sized for SHA-1 — SHA-256 is 64 chars and bypass suffix adds more)
+db`ALTER TABLE items ALTER COLUMN checksum TYPE character varying(255)`.catch(() => {});
+
+// One-time migration: widen dest column to varchar(60) — UUID (32) + dot + extension can exceed 40 chars
+db`ALTER TABLE items ALTER COLUMN dest TYPE character varying(60)`.catch(() => {});
+db`ALTER TABLE comment_files ALTER COLUMN dest TYPE character varying(60)`.catch(() => {});
+
 export const handleUpload = async (req, res, self) => {
     // Manual session lookup is required here because this handler is called from a 
     // bypass middleware that runs in parallel with the main session middleware.
