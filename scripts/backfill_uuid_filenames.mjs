@@ -83,7 +83,7 @@ async function run() {
 
   // 1. Process items
   console.log('[BACKFILL] Fetching items to process...');
-  const items = await db`SELECT id, dest FROM items`;
+  const items = await db`SELECT id, dest, mime FROM items`;
   console.log(`[BACKFILL] Found ${items.length} items in DB.`);
 
   let itemsProcessed = 0;
@@ -92,6 +92,11 @@ async function run() {
   for (const item of items) {
     if (limit && itemsProcessed >= limit) break;
     itemsProcessed++;
+
+    // YouTube embeds store dest as "yt:VIDEO_ID" — not a real file, skip entirely
+    if (item.mime === 'video/youtube') {
+      continue;
+    }
 
     const ext = path.extname(item.dest);
     const base = path.basename(item.dest, ext);
