@@ -12,7 +12,6 @@ const sendJson = (res, data, code = 200) => {
     res.end(JSON.stringify(data));
 };
 
-// One-time migration: ensure comment_files table exists
 db`CREATE TABLE IF NOT EXISTS public.comment_files (
     id SERIAL PRIMARY KEY,
     comment_id INTEGER REFERENCES public.comments(id) ON DELETE CASCADE,
@@ -29,6 +28,8 @@ db`CREATE SEQUENCE IF NOT EXISTS comment_files_id_seq`.catch(() => { });
 db`ALTER TABLE comment_files ALTER COLUMN id SET DEFAULT nextval('comment_files_id_seq')`.catch(() => { });
 db`CREATE INDEX IF NOT EXISTS idx_comment_files_comment_id ON public.comment_files(comment_id)`.catch(() => { });
 db`CREATE INDEX IF NOT EXISTS idx_comment_files_checksum ON public.comment_files(checksum)`.catch(() => { });
+db`ALTER TABLE public.comment_files ADD CONSTRAINT comment_files_pkey PRIMARY KEY (id)`.catch(() => { });
+db`ALTER TABLE public.comment_files REPLICA IDENTITY DEFAULT`.catch(() => { });
 
 /**
  * Parse multipart form data supporting multiple files with the same field name.

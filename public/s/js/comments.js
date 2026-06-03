@@ -2051,39 +2051,7 @@ class CommentSystem {
             }
         }
 
-        return `
-            <div class="${commentClass} ${isDeleted ? 'deleted' : ''} ${isPinned ? 'pinned' : ''}" id="c${comment.id}">
-                <div class="comment-avatar">
-                    ${comment.username ? `<a href="/user/${comment.username}">` : ''}
-                    <img src="${comment.avatar_file ? `/a/${comment.avatar_file}` : (comment.avatar ? `/t/${comment.avatar}.webp` : '/a/default.png')}">
-                    ${comment.username ? `</a>` : ''}
-                </div>
-                <div class="comment-body">
-                    <div class="comment-header">
-                        <div class="comment-header-left">
-                            ${pinnedBadge}${comment.username ? `<a href="/user/${comment.username}" class="comment-author" tooltip="ID: ${comment.user_id}" ${comment.username_color ? `style="color: ${comment.username_color}"` : ''}>${this.escapeHtml(comment.display_name || comment.username)}</a>` : '<span class="comment-author">System</span>'}
-                            ${contextMarker}
-                            ${backlinkHtml}
-                        </div>
-                        <a href="#c${comment.id}" class="comment-time timeago" tooltip="${fullDate}" data-iso="${isoDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a>
-                    </div>
-                    <div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>
-                    ${this.renderCommentAttachments(comment.files, comment.content)}
-                    ${this.renderCommentPoll(comment.poll, comment.id, comment.username)}
-                    <div class="comment-footer">
-                        <div class="comment-footer-right">
-                            <div class="comment-actions">
-                                ${!isDeleted && currentUserId ? `<button class="reply-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Reply"><i class="fa-solid fa-reply"></i></button><button class="quote-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Quote with Text"><i class="fa-solid fa-quote-left"></i></button><button class="report-comment-btn" data-id="${comment.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}
-                                ${adminButtons}
-                                 ${userDeleteButton}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <a href="#c${comment.id}" class="comment-permalink" title="Permalink" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">#${comment.id}</a>
-            </div>
-            ${repliesHtml}
-        `;
+        return `<div class="${commentClass} ${isDeleted ? 'deleted' : ''} ${isPinned ? 'pinned' : ''}" id="c${comment.id}"><div class="comment-avatar">${comment.username ? `<a href="/user/${comment.username}">` : ''}<img src="${comment.avatar_file ? `/a/${comment.avatar_file}` : (comment.avatar ? `/t/${comment.avatar}.webp` : '/a/default.png')}">${comment.username ? `</a>` : ''}</div><div class="comment-body"><div class="comment-header"><div class="comment-header-left">${pinnedBadge}${comment.username ? `<a href="/user/${comment.username}" class="comment-author" tooltip="ID: ${comment.user_id}" ${comment.username_color ? `style="color: ${comment.username_color}"` : ''}>${this.escapeHtml(comment.display_name || comment.username)}</a>` : '<span class="comment-author">System</span>'}${contextMarker}${backlinkHtml}</div><a href="#c${comment.id}" class="comment-time timeago" tooltip="${fullDate}" data-iso="${isoDate}" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">${timeAgo}</a></div><div class="comment-content" data-raw="${this.escapeHtml(comment.content)}">${content}</div>${this.renderCommentAttachments(comment.files, comment.content)}${this.renderCommentPoll(comment.poll, comment.id, comment.username)}<div class="comment-footer"><div class="comment-footer-right"><div class="comment-actions">${!isDeleted && currentUserId ? `<button class="reply-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Reply"><i class="fa-solid fa-reply"></i></button><button class="quote-btn" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}" title="Quote with Text"><i class="fa-solid fa-quote-left"></i></button><button class="report-comment-btn" data-id="${comment.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}${adminButtons}${userDeleteButton}</div></div></div></div><a href="#c${comment.id}" class="comment-permalink" title="Permalink" data-id="${comment.id}" data-username="${comment.username}" data-display="${this.escapeHtml(comment.display_name || '')}">#${comment.id}</a></div>${repliesHtml}`;
     }
 
     timeAgo(date) {

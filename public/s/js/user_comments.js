@@ -1,12 +1,15 @@
-class UserCommentSystem {
-    constructor() {
-        this.container = document.getElementById('user-comments-container');
-        this.username = this.container ? this.container.dataset.user : null;
-        this.page = 1;
-        this.loading = false;
-        this.finished = false;
-        this.userColor = null;
-        this.customEmojis = UserCommentSystem.emojiCache || {};
+if (!window.UserCommentSystem) {
+    window.UserCommentSystem = class UserCommentSystem {
+        constructor() {
+            this.container = document.getElementById('user-comments-container');
+            this.username = this.container ? this.container.dataset.user : null;
+            this.page = 1;
+            this.loading = false;
+            this.finished = false;
+            this.userColor = null;
+            this.customEmojis = UserCommentSystem.emojiCache || {};
+
+
 
         this.icons = {
             reply: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 10 20 15 15 20"></polyline><path d="M4 4v7a4 4 0 0 0 4 4h12"></path></svg>`,
@@ -23,7 +26,10 @@ class UserCommentSystem {
     }
 
     handleLiveEdit(data) {
-        if (!this.container) return;
+        if (!this.container || !document.body.contains(this.container)) {
+            window.removeEventListener('f0ck:comment_edited', this.editListener);
+            return;
+        }
         const el = document.getElementById('c' + data.comment_id);
         if (el && this.container.contains(el)) {
             const contentEl = el.querySelector('.comment-content');
@@ -37,7 +43,7 @@ class UserCommentSystem {
     }
 
     async init() {
-        this.loadEmojis();
+        await this.loadEmojis();
         this.loadMore();
         this.loadMore();
         this.bindEvents();
@@ -129,9 +135,72 @@ class UserCommentSystem {
 
     renderEmoji(match, name) {
         if (this.customEmojis && this.customEmojis[name]) {
-            return `<img src="${this.customEmojis[name]}" style="height:60px;vertical-align:middle;" alt="${name}">`;
+            return `<img src="${this.customEmojis[name]}" class="emoji" alt="${match}" title="${match}">`;
         }
         return match;
+    }
+
+    renderCommentAttachments(files, content = '') {
+        if (!files || files.length === 0) return '';
+        const items = files.map(f => {
+            const url = `/c/${f.dest}`;
+            if (content && content.includes(url)) return ''; // Skip if already rendered in content
+            if (f.mime && f.mime.startsWith('image/')) {
+                return `<a href="${url}" target="_blank" class="cf-attachment cf-image"><img src="${url}" alt="${this.escapeHtml(f.original_filename || 'image')}" loading="lazy"></a>`;
+            } else if (f.mime && f.mime.startsWith('video/')) {
+                return `<div class="cf-attachment cf-video"><video src="${url}" controls preload="metadata"></video></div>`;
+            } else if (f.mime && f.mime.startsWith('audio/')) {
+                return `<div class="cf-attachment cf-audio"><audio src="${url}" controls preload="metadata"></audio></div>`;
+            }
+            return '';
+        }).join('');
+        return items ? `<div class="comment-attachments">${items}</div>` : '';
+    }
+
+    renderCommentPoll(poll, commentId) {
+        if (!poll) return '';
+        const i18n = window.f0ckI18n || {};
+        const session = window.f0ckSession || {};
+        const total = poll.total_votes || 0;
+        const voted = !!poll.user_vote_option_id;
+        const expired = poll.expires_at && new Date(poll.expires_at) < new Date();
+        const isAnon = poll.is_anonymous !== false;
+
+        const optionsHtml = (poll.options || []).map(opt => {
+            const pct = total > 0 ? Math.round((opt.vote_count / total) * 100) : 0;
+            const isVoted = poll.user_vote_option_id === opt.id;
+            const clickable = session.logged_in && !expired && !voted;
+            const voterAvatars = (!isAnon && Array.isArray(opt.voters) && opt.voters.length > 0)
+                ? `<div class="poll-option-voters">${opt.voters.map(v => {
+                    const u = (v && typeof v === 'object') ? v : { username: String(v || ''), avatar: null, avatar_file: null };
+                    const name = String(u.username || '');
+                    const src = u.avatar_file ? `/a/${u.avatar_file}` : u.avatar ? `/t/${u.avatar}.webp` : '/a/default.png';
+                    return name ? `<a href="/user/${this.escapeHtml(name)}" title="${this.escapeHtml(name)}"><img class="poll-voter-avatar" src="${src}" alt="${this.escapeHtml(name)}" loading="lazy"></a>` : '';
+                }).join('')}</div>`
+                : '';
+            return `<div class="poll-option ${isVoted ? 'poll-option-voted' : ''} ${clickable ? 'poll-option-clickable' : ''}"
+                         data-option-id="${opt.id}" data-poll-id="${poll.id}" data-comment-id="${commentId}">
+                <div class="poll-option-bar" style="width:${pct}%"></div>
+                <span class="poll-option-text">${this.escapeHtml(opt.text)}</span>
+                <span class="poll-option-pct">${pct}%</span>
+                ${isVoted ? `<i class="fa-solid fa-check poll-vote-check" title="${i18n.poll_voted || 'You voted'}"></i>` : ''}
+                ${voterAvatars}
+            </div>`;
+        }).join('');
+
+        const anonBadge = isAnon
+            ? `<span class="poll-anon-badge" title="${i18n.poll_anonymous || 'Anonymous'}"><i class="fa-solid fa-user-secret"></i></span>`
+            : `<span class="poll-anon-badge poll-public-badge" title="${i18n.poll_public || 'Public votes'}"><i class="fa-solid fa-eye"></i></span>`;
+
+        return `<div class="comment-poll" data-poll-id="${poll.id}" data-is-anonymous="${isAnon ? '1' : '0'}">
+            <div class="poll-question">${this.escapeHtml(poll.question)}</div>
+            <div class="poll-options">${optionsHtml}</div>
+            <div class="poll-footer">
+                <span class="poll-total">${total} ${total === 1 ? (i18n.poll_vote_single || 'vote') : (i18n.poll_votes || 'votes')}</span>
+                ${anonBadge}
+                ${expired ? `<span class="poll-expired-badge">${i18n.poll_expired || 'Poll closed'}</span>` : ''}
+            </div>
+        </div>`;
     }
 
     renderCommentContent(content, itemId = null) {
@@ -152,7 +221,7 @@ class UserCommentSystem {
             let escaped = this.escapeHtml(content).replace(/&gt;/g, ">");
 
             // 2. Mentions
-            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])/g;
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
 
             const siteOrigin = window.location.origin;
             const renderer = new marked.Renderer();
@@ -191,6 +260,32 @@ class UserCommentSystem {
                 return `<a href="${href}"${titleAttr}>${displayText}</a>`;
             };
 
+            renderer.image = (href, title, text) => {
+                const src = (typeof href === 'object' && href !== null) ? (href.href || '') : (href || '');
+                const imgHtml = `<img src="${src}" alt="${text || ''}"${title ? ` title="${title}"` : ''} onerror="this.onerror=null; this.outerHTML='<span class=\\'broken-image-text\\'>[image not found]</span>';">`;
+                if (window.f0ckSession?.is_admin && src && src.startsWith('/c/')) {
+                    const filename = src.substring(3); // Remove '/c/'
+                    return `<span class="image-embed-wrap">${imgHtml}<button class="admin-delete-attachment-btn" data-filename="${filename}" title="Delete attachment">[x]</button></span>`;
+                }
+                return imgHtml;
+            };
+
+            // Pre-compile regexes for image/video/audio embeds matching comments.js
+            const escapedSiteHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const allowedHosts = [escapedSiteHost];
+            if (window.f0ckAllowedImages && Array.isArray(window.f0ckAllowedImages)) {
+                window.f0ckAllowedImages.forEach(h => {
+                    const escapedHost = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    allowedHosts.push(`(?:[a-z0-9-]+\\.)*${escapedHost}`);
+                });
+            }
+            const hostsRegexPart = allowedHosts.join('|');
+            const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?:(?<!\\S)|(?<=\\]))(?=\\/[a-zA-Z0-9_\\-]))`;
+            const safeS = `(?:(?!https?:\\/\\/)\\S)`;
+            const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?(?:#gif)?))(?![\\)\\]])`, 'gi');
+            const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))`, 'gi');
+            const rawAudioRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
+
             // 3. Line-by-line rendering to avoid paragraph collapsing and recursion
             const renderedLines = escaped.split('\n').map(line => {
                 const trimmed = line.trimStart();
@@ -203,12 +298,40 @@ class UserCommentSystem {
                 if (line.length > 10000) return line;
                 if (!line.trim()) return '&nbsp;';
 
-                let processedLine = line.replace(mentionRegex, '[@$1](/user/$1)');
+                let processedLine = line;
+
+                // Handle Mentions
+                processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
+                    const user = g1 || g2;
+                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                });
 
                 // Handle Comment Context Links (>>ID)
                 processedLine = processedLine.replace(/(?<!\w)>>(\d+)/g, (match, id) => {
                     const targetHref = itemId ? `/${itemId}#c${id}` : `#c${id}`;
                     return `<a href="${targetHref}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
+                });
+
+                // Handle Image Embeds
+                processedLine = processedLine.replace(imageRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) {
+                        fullUrl = '//' + url;
+                    }
+                    return `![image](${fullUrl})`;
+                });
+
+                // Handle Raw Video/Audio links so Marked converts them to <a>
+                processedLine = processedLine.replace(rawVideoRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
+                    return `[video](${fullUrl})`;
+                });
+
+                processedLine = processedLine.replace(rawAudioRegex, (match, url) => {
+                    let fullUrl = url;
+                    if (!url.startsWith('http') && !url.startsWith('//') && !url.startsWith('/')) fullUrl = '//' + url;
+                    return `[audio](${fullUrl})`;
                 });
 
                 const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
@@ -264,35 +387,7 @@ class UserCommentSystem {
         const fullDate = new Date(c.created_at).toISOString();
         const content = this.renderCommentContent(c.content, c.item_id);
 
-        // Replicating the structure of comments.js but adapting for the list view
-        // We add a header indicating which item this comment belongs to
-
-        return `
-        <div class="comment" id="c${c.id}">
-            <div class="comment-avatar">
-               <a href="/${c.item_id}">
-                   <img src="/t/${c.item_id}.webp" alt="">
-               </a>
-            </div>
-            <div class="comment-body">
-                <div class="comment-header">
-                    <div class="comment-header-left">
-                        <span class="comment-author" tooltip="ID: ${c.user_id}" ${this.userColor ? `style="color: ${this.userColor}"` : ''}>${this.username}</span>
-                    </div>
-                    <span class="comment-time timeago" title="${fullDate}">${timeAgo}</span>
-                </div>
-                <div class="comment-content">${content}</div>
-                <div class="comment-footer">
-                    <div class="comment-footer-right">
-                        <div class="comment-actions">
-                            ${window.f0ckSession && window.f0ckSession.logged_in ? `<button class="report-comment-btn" data-id="${c.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 512 512" fill="currentColor"><path d="M506.3 417l-213.3-364c-16.3-28-57.5-28-73.8 0l-213.2 364C-10.6 445.1 9.7 480 42.7 480h426.6C502.5 480 522.6 445.1 506.3 417zM256 384c-14.1 0-25.6-11.5-25.6-25.6 0-14.1 11.5-25.6 25.6-25.6 14.1 0 25.6 11.5 25.6 25.6C281.6 372.5 270.1 384 256 384zM281.6 264.4c0 14.1-11.5 25.6-25.6 25.6-14.1 0-25.6-11.5-25.6-25.6v-96c0-14.1 11.5-25.6 25.6-25.6 14.1 0 25.6 11.5 25.6 25.6V264.4z"/></svg></button>` : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <a href="/${c.item_id}#c${c.id}" class="comment-permalink" title="Permalink">#${c.id}</a>
-        </div>
-        `;
+        return `<div class="comment" id="c${c.id}"><div class="comment-avatar"><a href="/${c.item_id}"><img src="/t/${c.item_id}.webp" alt=""></a></div><div class="comment-body"><div class="comment-header"><div class="comment-header-left"><span class="comment-author" tooltip="ID: ${c.user_id}" ${this.userColor ? `style="color: ${this.userColor}"` : ''}>${this.username}</span></div><span class="comment-time timeago" title="${fullDate}">${timeAgo}</span></div><div class="comment-content" data-raw="${this.escapeHtml(c.content)}">${content}</div>${this.renderCommentAttachments(c.files, c.content)}${this.renderCommentPoll(c.poll, c.id)}<div class="comment-footer"><div class="comment-footer-right"><div class="comment-actions">${window.f0ckSession && window.f0ckSession.logged_in ? `<button class="report-comment-btn" data-id="${c.id}" title="Report Comment" style="background:none;border:none;color:inherit;cursor:pointer;opacity:0.75;padding:0;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 512 512" fill="currentColor"><path d="M506.3 417l-213.3-364c-16.3-28-57.5-28-73.8 0l-213.2 364C-10.6 445.1 9.7 480 42.7 480h426.6C502.5 480 522.6 445.1 506.3 417zM256 384c-14.1 0-25.6-11.5-25.6-25.6 0-14.1 11.5-25.6 25.6-25.6 14.1 0 25.6 11.5 25.6 25.6C281.6 372.5 270.1 384 256 384zM281.6 264.4c0 14.1-11.5 25.6-25.6 25.6-14.1 0-25.6-11.5-25.6-25.6v-96c0-14.1 11.5-25.6 25.6-25.6 14.1 0 25.6 11.5 25.6 25.6V264.4z"/></svg></button>` : ''}</div></div></div></div><a href="/${c.item_id}#c${c.id}" class="comment-permalink" title="Permalink">#${c.id}</a></div>`;
     }
 
     startLiveTimestamps() {
@@ -336,15 +431,21 @@ class UserCommentSystem {
         return div.innerHTML;
     }
 }
+}
 
 // Initializer for AJAX and standard load
 window.initUserComments = () => {
-    // Prevent multiple instances if already running on this container
-    if (document.getElementById('user-comments-container')) {
+    const container = document.getElementById('user-comments-container');
+    if (container && !container.dataset.initialized) {
+        container.dataset.initialized = 'true';
         new UserCommentSystem();
     }
 };
 
-window.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => {
+        window.initUserComments();
+    });
+} else {
     window.initUserComments();
-});
+}

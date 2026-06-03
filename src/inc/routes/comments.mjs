@@ -205,12 +205,121 @@ export default (router, tpl) => {
 
             // Let's modify comments content in-place (or new array) before mapping
             const mentionsProcessed = await f0cklib.processMentions(comments);
-            const processedComments = mentionsProcessed.map(c => {
+            let processedComments = mentionsProcessed.map(c => {
                 return {
                     ...c,
                     content: c.content
                 };
             });
+
+            // Fetch file attachments for all fetched comments
+            if (processedComments.length > 0) {
+                const commentIds = processedComments.map(c => c.id);
+                try {
+                    const files = await db`
+                        SELECT id, comment_id, dest, mime, size, original_filename
+                        FROM comment_files
+                        WHERE comment_id = ANY(${commentIds}::int[])
+                        ORDER BY id ASC
+                    `;
+                    const filesMap = new Map();
+                    for (const f of files) {
+                        if (!filesMap.has(f.comment_id)) filesMap.set(f.comment_id, []);
+                        filesMap.get(f.comment_id).push(f);
+                    }
+                    for (const c of processedComments) {
+                        c.files = filesMap.get(c.id) || [];
+                    }
+                } catch (e) {
+                    for (const c of processedComments) c.files = [];
+                }
+
+                // Fetch poll data for comments
+                if (cfg.websrv.enable_comment_polls) {
+                    try {
+                        const commentIds = processedComments.map(c => c.id);
+                        const pollRows = await db`
+                            SELECT
+                                cp.id as poll_id,
+                                cp.comment_id,
+                                cp.question,
+                                cp.expires_at,
+                                COALESCE(cp.is_anonymous, true) as is_anonymous,
+                                json_agg(
+                                    json_build_object(
+                                        'id', cpo.id,
+                                        'text', cpo.text,
+                                        'sort_order', cpo.sort_order,
+                                        'vote_count', COALESCE(vote_counts.cnt, 0)
+                                    ) ORDER BY cpo.sort_order ASC, cpo.id ASC
+                                ) AS options,
+                                COALESCE(SUM(vote_counts.cnt), 0)::int AS total_votes
+                            FROM comment_polls cp
+                            JOIN comment_poll_options cpo ON cpo.poll_id = cp.id
+                            LEFT JOIN (
+                                SELECT option_id, COUNT(*) AS cnt
+                                FROM comment_poll_votes
+                                GROUP BY option_id
+                            ) vote_counts ON vote_counts.option_id = cpo.id
+                            WHERE cp.comment_id = ANY(${commentIds}::int[])
+                            GROUP BY cp.id, cp.comment_id, cp.question, cp.expires_at, cp.is_anonymous
+                        `;
+                        // For non-anonymous polls, fetch voter names
+                        const nonAnonIds = pollRows.filter(p => !p.is_anonymous).map(p => p.poll_id);
+                        let votersByOption = new Map();
+                        if (nonAnonIds.length > 0) {
+                            const voterRows = await db`
+                                SELECT cpv.option_id, u."user" as username, uo.avatar, uo.avatar_file
+                                FROM comment_poll_votes cpv
+                                JOIN public."user" u ON u.id = cpv.user_id
+                                LEFT JOIN public.user_options uo ON uo.user_id = cpv.user_id
+                                WHERE cpv.poll_id = ANY(${nonAnonIds}::int[])
+                            `;
+                            for (const v of voterRows) {
+                                if (!votersByOption.has(v.option_id)) votersByOption.set(v.option_id, []);
+                                votersByOption.get(v.option_id).push({ username: v.username, avatar: v.avatar, avatar_file: v.avatar_file });
+                            }
+                        }
+                        const pollMap = new Map();
+                        for (const p of pollRows) {
+                            const options = p.is_anonymous
+                                ? p.options
+                                : p.options.map(o => ({ ...o, voters: votersByOption.get(o.id) || [] }));
+                            pollMap.set(p.comment_id, {
+                                id: p.poll_id,
+                                question: p.question,
+                                expires_at: p.expires_at,
+                                is_anonymous: p.is_anonymous,
+                                options,
+                                total_votes: parseInt(p.total_votes) || 0,
+                                user_vote_option_id: null
+                            });
+                        }
+                        // Fill in per-user poll votes if logged in
+                        if (req.session && pollRows.length > 0) {
+                            const pollIds = pollRows.map(p => p.poll_id);
+                            try {
+                                const votes = await db`
+                                    SELECT poll_id, option_id FROM comment_poll_votes
+                                    WHERE poll_id = ANY(${pollIds}::int[]) AND user_id = ${req.session.id}
+                                `;
+                                const voteMap = new Map(votes.map(v => [v.poll_id, v.option_id]));
+                                for (const [comment_id, poll] of pollMap.entries()) {
+                                    poll.user_vote_option_id = voteMap.get(poll.id) || null;
+                                }
+                            } catch (e) { /* graceful */ }
+                        }
+                        for (const c of processedComments) {
+                            c.poll = pollMap.get(c.id) || null;
+                        }
+                    } catch (e) {
+                        console.error('[USER_COMMENTS] Poll fetch error:', e.message);
+                        for (const c of processedComments) c.poll = null;
+                    }
+                } else {
+                    for (const c of processedComments) c.poll = null;
+                }
+            }
 
             if (isJson) {
                 return res.reply({
