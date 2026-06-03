@@ -12,7 +12,7 @@ import { handleUpload } from "./upload_handler.mjs";
 import { handleAvatarUpload, handleAvatarDelete } from "./avatar_handler.mjs";
 import { handleRethumbUpload } from "./rethumb_handler.mjs";
 import { handleMemeUpload, handleMemeEdit } from "./meme_upload_handler.mjs";
-import { handleEmojiUpload } from "./emoji_upload_handler.mjs";
+import { handleEmojiUpload, handleEmojiEdit } from "./emoji_upload_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
@@ -792,6 +792,16 @@ process.on('uncaughtException', err => {
     if (req.method === 'POST' && req.url.pathname === '/api/v2/admin/emojis') {
       await handleEmojiUpload(req, res);
       req.url.pathname = '/handled_emoji_upload_bypass';
+    }
+  });
+
+  // Bypass middleware for emoji edits
+  app.use(async (req, res) => {
+    const editMatch = req.url.pathname.match(/^\/api\/v2\/admin\/emojis\/(\d+)\/edit$/);
+    if (req.method === 'POST' && editMatch) {
+      req.params = { id: editMatch[1] };
+      await handleEmojiEdit(req, res);
+      req.url.pathname = '/handled_emoji_edit_bypass';
     }
   });
 

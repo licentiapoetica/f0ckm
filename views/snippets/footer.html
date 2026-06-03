@@ -86,7 +86,7 @@
   <div class="modal-content content-warning-content">
     <h3 style="color: var(--danger);">{{ t('account_warning.title') }}</h3>
     <p>{{ t('account_warning.text') }}</p>
-    <blockquote id="warning-reason" style="border-left: 4px solid var(--danger); padding-left: 10px; margin: 10px 0; font-style: italic;"></blockquote>
+    <blockquote id="warning-reason" style="border-left: 4px solid var(--danger); padding-left: 10px; margin: 10px 0;"></blockquote>
     <input type="hidden" id="warning-id">
     <div class="modal-actions">
       <button id="warning-acknowledge" class="btn-danger">{{ t('account_warning.acknowledge') }}</button>
@@ -441,7 +441,7 @@
     upload: "{{ t('upload_btn.upload') }}",
     uploading: "{{ t('upload.uploading') }}",
     processing: "{{ t('toast.processing') }}",
-    upload_await_approval: "{{ t('upload.pending_approval_patient') }}",
+    upload_pending_approval_patient: "{{ t('upload.pending_approval_patient') }}",
     upload_shitpost_success: "{{ t('upload.shitpost_success') || 'Successfully shitposted {n} items!' }}",
     upload_shitposting_status: "{{ t('upload.shitposting_status') || 'Shitposting' }}",
     upload_comment_placeholder: "{{ t('upload.item_comment_placeholder') || 'Comment (optional)...' }}",

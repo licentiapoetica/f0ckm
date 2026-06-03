@@ -13871,8 +13871,8 @@ body.layout-modern .xd-score-wrapper {
 }
 
 .emoji-card .emoji-preview {
-  height: 48px;
-  max-width: 80px;
+  height: 80px;
+  max-width: 90px;
   object-fit: contain;
   image-rendering: auto;
 }

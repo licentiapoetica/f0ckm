@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
+import crypto from "crypto";
 
 const execFile = promisify(_execFile);
 
@@ -80,11 +81,11 @@ export const handleEmojiUpload = async (req, res) => {
 
         const file = parts.file;
         if (file && file.data && file.data.length > 0) {
-            const randSuffix = Math.random().toString(36).substring(7);
+            const randSuffix = crypto.randomBytes(24).toString('hex');
             const extMatch = file.filename.match(/\.([a-z0-9]+)$/i);
             const originalExt = extMatch ? extMatch[1].toLowerCase() : 'png';
 
-            const webpFilename = `${name}_${randSuffix}.webp`;
+            const webpFilename = `${randSuffix}.webp`;
             const webpPath = path.join(cfg.paths.emojis, webpFilename);
 
             if (originalExt === 'webp') {
@@ -132,6 +133,136 @@ export const handleEmojiUpload = async (req, res) => {
             return sendJson(res, { success: false, message: 'Emoji name already exists' }, 400);
         }
         console.error('[EMOJI HANDLER ERROR]', err);
+        return sendJson(res, { success: false, message: err.message }, 500);
+    }
+};
+
+export const handleEmojiEdit = async (req, res) => {
+    // Manual Session Lookup
+    let user = [];
+    if (req.cookies && req.cookies.session) {
+        user = await db`
+            select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user_sessions".id as sess_id, "user_sessions".csrf_token
+            from "user_sessions"
+            left join "user" on "user".id = "user_sessions".user_id
+            where "user_sessions".session = ${lib.sha256(req.cookies.session)}
+            limit 1
+          `;
+    }
+
+    if (user.length === 0 || !user[0].admin) {
+        return sendJson(res, { success: false, message: 'Unauthorized' }, 403);
+    }
+
+    req.session = user[0];
+
+    // CSRF validation
+    if (req.session.csrf_token) {
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!csrfToken || csrfToken !== req.session.csrf_token) {
+            console.warn(`[CSRF] Blocked emoji edit for user ${req.session.user}. Invalid token.`);
+            return sendJson(res, { success: false, message: 'Invalid CSRF token' }, 403);
+        }
+    }
+
+    const id = req.params.id;
+
+    try {
+        const contentType = req.headers['content-type'] || '';
+        const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+
+        if (!boundaryMatch) {
+            return sendJson(res, { success: false, message: 'Invalid content type' }, 400);
+        }
+
+        let boundary = boundaryMatch[1].trim();
+        if (boundary.startsWith('"') && boundary.endsWith('"')) {
+            boundary = boundary.substring(1, boundary.length - 1);
+        }
+
+        const bodyBuffer = await collectBody(req);
+        const parts = parseMultipart(bodyBuffer, boundary);
+
+        const name = (parts.name || '').trim().toLowerCase();
+        let url = (parts.url || '').trim();
+
+        if (!name) {
+            return sendJson(res, { success: false, message: 'Emoji name is required' }, 400);
+        }
+
+        if (!/^[a-z0-9_-]+$/.test(name)) {
+            return sendJson(res, { success: false, message: 'Invalid name. Use lowercase a-z, 0-9, _, - only.' }, 400);
+        }
+
+        // Fetch the current emoji record
+        const current = await db`SELECT id, name, url FROM custom_emojis WHERE id = ${id} LIMIT 1`;
+        if (current.length === 0) {
+            return sendJson(res, { success: false, message: 'Emoji not found' }, 404);
+        }
+
+        // Check name collision (allow keeping the same name)
+        if (name !== current[0].name) {
+            const conflict = await db`SELECT id FROM custom_emojis WHERE name = ${name} AND id != ${id} LIMIT 1`;
+            if (conflict.length > 0) {
+                return sendJson(res, { success: false, message: 'Emoji name already exists' }, 400);
+            }
+        }
+
+        const file = parts.file;
+        if (file && file.data && file.data.length > 0) {
+            const randSuffix = crypto.randomBytes(24).toString('hex');
+            const extMatch = file.filename.match(/\.([a-z0-9]+)$/i);
+            const originalExt = extMatch ? extMatch[1].toLowerCase() : 'png';
+
+            const webpFilename = `${randSuffix}.webp`;
+            const webpPath = path.join(cfg.paths.emojis, webpFilename);
+
+            if (originalExt === 'webp') {
+                await fs.writeFile(webpPath, file.data);
+            } else {
+                const tmpFilename = `${name}_${randSuffix}_tmp.${originalExt}`;
+                const tmpPath = path.join(cfg.paths.emojis, tmpFilename);
+                await fs.writeFile(tmpPath, file.data);
+                try {
+                    await execFile('magick', [tmpPath, '-coalesce', '-quality', '80', webpPath], { env: magickEnv });
+                } finally {
+                    await fs.unlink(tmpPath).catch(() => {});
+                }
+            }
+
+            const stat = await fs.stat(webpPath);
+            if (!stat || stat.size === 0) throw new Error('File write/conversion verification failed');
+
+            // Delete the old local file if it was a hosted emoji
+            if (current[0].url && current[0].url.startsWith('/s/emojis/')) {
+                const oldFilename = path.basename(current[0].url);
+                const oldPath = path.join(cfg.paths.emojis, oldFilename);
+                await fs.unlink(oldPath).catch(() => {});
+            }
+
+            url = `/s/emojis/${webpFilename}`;
+        }
+
+        // If no new file and no new URL, keep the existing URL
+        if (!url) {
+            url = current[0].url;
+        }
+
+        const updated = await db`
+            UPDATE custom_emojis
+            SET name = ${name}, url = ${url}
+            WHERE id = ${id}
+            RETURNING id, name, url
+        `;
+
+        await db`NOTIFY emojis_updated, '{}'`;
+        return sendJson(res, { success: true, emoji: updated[0] });
+
+    } catch (err) {
+        if (err.code === '23505') {
+            return sendJson(res, { success: false, message: 'Emoji name already exists' }, 400);
+        }
+        console.error('[EMOJI EDIT ERROR]', err);
         return sendJson(res, { success: false, message: err.message }, 500);
     }
 };

@@ -26,7 +26,7 @@ export default (router, tpl) => {
     // List all emojis (Public)
     router.get('/api/v2/emojis', async (req, res) => {
         try {
-            const emojis = await db`SELECT id, name, url FROM custom_emojis ORDER BY name ASC`;
+            const emojis = await db`SELECT id, name, url FROM custom_emojis ORDER BY id DESC`;
             return res.reply({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ success: true, emojis })
