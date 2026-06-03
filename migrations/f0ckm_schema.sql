@@ -605,6 +605,8 @@ CREATE TABLE public.comment_files (
 
 ALTER TABLE public.comment_files OWNER TO f0ckm;
 
+ALTER TABLE ONLY public.comment_files REPLICA IDENTITY DEFAULT;
+
 --
 -- Name: comment_files_id_seq; Type: SEQUENCE; Schema: public; Owner: f0ckm
 --
@@ -1626,6 +1628,13 @@ ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.com
 
 
 --
+-- Name: comment_files id; Type: DEFAULT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public.comment_files ALTER COLUMN id SET DEFAULT nextval('public.comment_files_id_seq'::regclass);
+
+
+--
 -- Name: custom_emojis id; Type: DEFAULT; Schema: public; Owner: f0ckm
 --
 
@@ -1730,6 +1739,14 @@ ALTER TABLE ONLY public.audit_log
 
 ALTER TABLE ONLY public.comment_subscriptions
     ADD CONSTRAINT comment_subscriptions_pkey PRIMARY KEY (user_id, item_id);
+
+
+--
+-- Name: comment_files comment_files_pkey; Type: CONSTRAINT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public.comment_files
+    ADD CONSTRAINT comment_files_pkey PRIMARY KEY (id);
 
 
 --
@@ -2429,6 +2446,22 @@ ALTER TABLE ONLY public.comment_subscriptions
 
 ALTER TABLE ONLY public.comment_subscriptions
     ADD CONSTRAINT comment_subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: comment_files comment_files_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public.comment_files
+    ADD CONSTRAINT comment_files_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.comments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: comment_files comment_files_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: f0ckm
+--
+
+ALTER TABLE ONLY public.comment_files
+    ADD CONSTRAINT comment_files_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
