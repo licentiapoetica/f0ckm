@@ -298,6 +298,8 @@ export default (router, tpl) => {
         `;
       }
 
+      const ytSrcRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\/?\?(?:\S*?&?v=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
+
       const items = rows.map(row => {
         const isVideo = row.mime && row.mime.startsWith('video') && row.mime !== 'video/youtube';
         const isYouTube = row.mime === 'video/youtube';
@@ -305,7 +307,16 @@ export default (router, tpl) => {
         const isImage = row.mime && row.mime.startsWith('image');
 
         let dest = row.dest;
-        if (!isYouTube && dest) dest = `${cfg.websrv.paths.images}/${row.dest}`;
+        if (isYouTube) {
+          // Guard against dest values corrupted by the UUID backfill script:
+          // dest should be "yt:VIDEO_ID" — if it isn't, recover the ID from src.
+          if (!dest || !dest.startsWith('yt:')) {
+            const m = row.src && row.src.match(ytSrcRegex);
+            if (m) dest = `yt:${m[1]}`;
+          }
+        } else if (dest) {
+          dest = `${cfg.websrv.paths.images}/${row.dest}`;
+        }
         const thumbnail = `${cfg.websrv.paths.thumbnails}/${row.id}.webp`;
 
         let ratingLabel = '?'; let ratingClass = 'untagged';

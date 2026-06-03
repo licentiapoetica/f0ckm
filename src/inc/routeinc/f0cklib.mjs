@@ -797,7 +797,14 @@ export default {
           return `${ratingLabel}${titlePart} · uploaded by ${actitem.username}`;
         })(),
         coverart: coverartUrl,
-        dest: actitem.mime === 'video/youtube' ? actitem.dest : `${cfg.websrv.paths.images}/${actitem.dest}`,
+        dest: (() => {
+          if (actitem.mime !== 'video/youtube') return `${cfg.websrv.paths.images}/${actitem.dest}`;
+          if (actitem.dest && actitem.dest.startsWith('yt:')) return actitem.dest;
+          // dest was corrupted by UUID backfill — recover from src
+          const ytSrcRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\/?\?(?:\S*?&?v=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
+          const m = actitem.src && actitem.src.match(ytSrcRegex);
+          return m ? `yt:${m[1]}` : actitem.dest;
+        })(),
         mime: actitem.mime,
         size: lib.formatSize(actitem.size),
         checksum: actitem.checksum,

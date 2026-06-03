@@ -538,8 +538,14 @@ export default router => {
       }
 
       const isYouTube = item.mime === 'video/youtube';
-      const relativeDest = isYouTube ? item.dest : `${cfg.websrv.paths.images}/${item.dest}`;
-      const directUrl = isYouTube ? item.dest : `${cfg.main.url.full}${cfg.websrv.paths.images}/${item.dest}`;
+      const ytSrcRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\/?\?(?:\S*?&?v=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
+      let ytDest = item.dest;
+      if (isYouTube && (!ytDest || !ytDest.startsWith('yt:'))) {
+        const m = item.src && item.src.match(ytSrcRegex);
+        if (m) ytDest = `yt:${m[1]}`;
+      }
+      const relativeDest = isYouTube ? ytDest : `${cfg.websrv.paths.images}/${item.dest}`;
+      const directUrl = isYouTube ? ytDest : `${cfg.main.url.full}${cfg.websrv.paths.images}/${item.dest}`;
 
       const { username, src, xd_score, ...safeItem } = item;
 
