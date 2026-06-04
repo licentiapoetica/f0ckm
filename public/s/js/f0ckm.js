@@ -4340,6 +4340,8 @@ window.cancelAnimFrame = (function () {
               // Append all new items
               newItems.forEach(item => currentPosts.appendChild(item));
 
+              // Apply blur to any notif thumbs in the new batch
+              if (ctx.notif && window.applyNotifThumbBlur) window.applyNotifThumbBlur(currentPosts);
 
               // Track loaded page
               infiniteState.loadedPages.add(data.currentPage);
@@ -4440,6 +4442,9 @@ window.cancelAnimFrame = (function () {
             }
 
             postsContainer.insertBefore(fragment, postsContainer.firstChild);
+
+            // Apply blur to any notif thumbs in the new batch
+            if (ctx.notif && window.applyNotifThumbBlur) window.applyNotifThumbBlur(postsContainer);
 
             // Track loaded page
             infiniteState.loadedPages.add(prevPage);
