@@ -170,7 +170,7 @@
     "hide_koepfe_hint": "Disable the Köpfe",
     "comment_display_mode": "Comment Display Mode",
     "comment_display_tree": "Reply Tree (Default)",
-    "comment_display_linear": "Linear / Flat (4chan style)",
+    "comment_display_linear": "Linear",
     "comment_display_mode_hint": "Choose how you want comments to be displayed.",
     "forced_mode_notice": "This setting is managed by an administrator.",
     "language": "Language",

@@ -168,7 +168,7 @@
     "hide_koepfe_hint": "Die Köpfe deaktivieren",
     "comment_display_mode": "Kommentar-Anzeigemodus",
     "comment_display_tree": "Antwort-Baum (Standard)",
-    "comment_display_linear": "Linear / Flach (Vierkanal-Stil)",
+    "comment_display_linear": "Linear",
     "comment_display_mode_hint": "Wähle aus, wie Kommentare angezeigt werden sollen.",
     "forced_mode_notice": "Diese Einstellung wird für Sie verwaltet.",
     "language": "Sprache",
