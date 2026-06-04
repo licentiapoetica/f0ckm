@@ -504,6 +504,16 @@ window.cancelAnimFrame = (function () {
     }
   }
 
+  // Reflect ALL mode on <html> immediately (controls notif-thumb blur suppression)
+  if (window.activeMode === 3) htmlEl.classList.add('mode-all');
+  document.addEventListener('f0ck:modeChanged', (e) => {
+    if (e.detail?.mode === 3) {
+      htmlEl.classList.add('mode-all');
+    } else {
+      htmlEl.classList.remove('mode-all');
+    }
+  });
+
   // ---- Multi-select Rating Toggles ----
   // Reads/writes a `ratings` cookie (e.g. "sfw|untagged") and syncs with server via /mode/3 (ALL).
   const getRatingsCookie = () => {
@@ -6567,8 +6577,32 @@ class NotificationSystem {
     // Single Notification Click Handler (Delegated)
     // Handles both Dropdown and History Page
     const handleNotificationClick = (e) => {
+      // Blur-reveal intercept: if the tap/click landed on (or inside) a blurred
+      // notif-thumb that hasn't been revealed yet, reveal it and stop navigation.
+      // Skip entirely in ALL mode — nothing is blurred.
+      const tappedThumb = e.target.closest('.notif-thumb[data-mode]');
+      if (tappedThumb && !tappedThumb.classList.contains('revealed') && window.activeMode !== 3) {
+        const mode = tappedThumb.dataset.mode;
+        const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+        const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+        const blurSfw  = localStorage.getItem('blurSfw')  === 'true';
+        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+        const isBlurred =
+          (mode === 'nsfw' && blurNsfw) ||
+          (mode === 'nsfl' && blurNsfl) ||
+          (mode === 'sfw'  && blurSfw)  ||
+          (mode === 'untagged' && blurUntagged);
+        if (isBlurred) {
+          e.preventDefault();
+          e.stopPropagation();
+          tappedThumb.classList.add('revealed');
+          return;
+        }
+      }
+
       const link = e.target.closest('.notif-item');
       if (!link) return;
+
 
       // Handle "Mark as Read"
       if (link.dataset.id && link.classList.contains('unread')) {
@@ -6919,7 +6953,7 @@ class NotificationSystem {
       const itemLink = `/${n.item_id}`;
       return `
         <a href="${itemLink}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
-            <div class="notif-thumb"><img src="/mod/deleted/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}"></div>
+            <div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/mod/deleted/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}"></div>
             <div class="notif-content">
                 <div class="notif-user"><strong>${userLabel}</strong></div>
                 <div class="notif-msg">
@@ -6986,7 +7020,7 @@ class NotificationSystem {
       thumbSrc = `/t/${n.item_id}.webp`;
       thumbOnerror = `this.onerror=null;this.src='/mod/pending/t/${n.item_id}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';};}`;
     }
-    const thumb = n.item_id ? `<div class="notif-thumb"><img src="${thumbSrc}" alt="thumb" onerror="${thumbOnerror}"></div>` : '';
+    const thumb = n.item_id ? `<div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="${thumbSrc}" alt="thumb" onerror="${thumbOnerror}"></div>` : '';
     return `
       <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
           ${thumb}
@@ -7004,7 +7038,7 @@ class NotificationSystem {
       const link = `/${n.item_id}`;
       return `
             <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
-                <div class="notif-thumb"><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/${n.item_id}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';};}"></div>
+                <div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/${n.item_id}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';};}"></div>
                 <div class="notif-content">
                     <div>
                     <strong>${(window.f0ckI18n && window.f0ckI18n.notif_upload_approved) || 'Your Upload has been approved'}</strong>
@@ -7019,7 +7053,7 @@ class NotificationSystem {
         const link = `/${n.item_id}`;
         return `
             <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
-                <div class="notif-thumb"><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.style.display='none';"></div>
+                <div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.style.display='none';"></div>
                 <div class="notif-content">
                     <div>
                     <strong>${(window.f0ckI18n && window.f0ckI18n.notif_upload_success) || 'Your background upload is finished!'}</strong>
@@ -7056,7 +7090,7 @@ class NotificationSystem {
       const link = `/notifications#notif-${n.id}`;
       return `
             <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}" data-notif-nav="true">
-                <div class="notif-thumb"><img src="/mod/deleted/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}"></div>
+                <div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/mod/deleted/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}"></div>
                 <div class="notif-content">
                     <div>
                         <strong>${label} #${n.item_id}</strong>
@@ -7072,7 +7106,7 @@ class NotificationSystem {
       const link = '/mod/approve';
       return `
             <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
-                <div class="notif-thumb"><img src="/mod/pending/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}"></div>
+                <div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/mod/pending/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';}"></div>
                 <div class="notif-content">
                     <div>
                         <strong>${(window.f0ckI18n && window.f0ckI18n.notif_upload_pending) || 'A new upload needs approval'}</strong>
@@ -7087,7 +7121,7 @@ class NotificationSystem {
       const link = '/mod/reports';
       return `
             <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
-                <div class="notif-thumb"><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/${n.item_id}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';};}"></div>
+                <div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/${n.item_id}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/${n.item_id}.webp';this.onerror=function(){this.style.display='none';};}"></div>
                 <div class="notif-content">
                     <div>
                         <strong>${(window.f0ckI18n && window.f0ckI18n.notif_new_report) || 'A new user report has been submitted'}</strong>
@@ -7123,7 +7157,7 @@ class NotificationSystem {
     const cid = n.comment_id || n.reference_id;
     const link = `/${n.item_id}#c${cid}`;
 
-      const thumb = n.item_id ? `<div class="notif-thumb"><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.style.display='none'"></div>` : '';
+      const thumb = n.item_id ? `<div class="notif-thumb"${n.item_mode ? ` data-mode="${n.item_mode}"` : ''}><img src="/t/${n.item_id}.webp" alt="thumb" onerror="this.style.display='none'"></div>` : '';
       return `
             <a href="${link}" class="notif-item ${n.is_read ? '' : 'unread'} notif-with-thumb" data-id="${n.id}">
                 ${thumb}

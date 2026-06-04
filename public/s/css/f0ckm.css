@@ -15685,3 +15685,81 @@ body.scroller-active #gchat-reopen-bubble {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* =============================================
+   NOTIFICATION THUMBNAIL BLUR
+   Applies the same blur treatment to .notif-thumb
+   when the corresponding blur-active class is set.
+   ============================================= */
+.blur-nsfw-active .notif-thumb[data-mode="nsfw"] img,
+.blur-nsfl-active .notif-thumb[data-mode="nsfl"] img,
+.blur-sfw-active .notif-thumb[data-mode="sfw"] img,
+.blur-untagged-active .notif-thumb[data-mode="untagged"] img {
+  filter: blur(8px) !important;
+  transform: scale(1.08) !important;
+  transition: filter 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Reveal on hover — only when hovering directly on the thumb */
+.notif-thumb[data-mode]:hover img {
+  filter: none !important;
+  transform: scale(1.1) !important;
+}
+
+/* Overlay label */
+.blur-nsfw-active .notif-thumb[data-mode="nsfw"],
+.blur-nsfl-active .notif-thumb[data-mode="nsfl"],
+.blur-sfw-active .notif-thumb[data-mode="sfw"],
+.blur-untagged-active .notif-thumb[data-mode="untagged"] {
+  position: relative !important;
+}
+
+.blur-nsfw-active .notif-thumb[data-mode="nsfw"]::after,
+.blur-nsfl-active .notif-thumb[data-mode="nsfl"]::after,
+.blur-sfw-active .notif-thumb[data-mode="sfw"]::after,
+.blur-untagged-active .notif-thumb[data-mode="untagged"]::after {
+  content: attr(data-mode) !important;
+  text-transform: uppercase !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 800 !important;
+  font-size: 10px !important;
+  letter-spacing: 1.5px !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+  background: rgba(10, 10, 12, 0.55) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  transition: opacity 0.2s ease !important;
+  z-index: 2 !important;
+}
+
+.blur-nsfw-active .notif-thumb[data-mode="nsfw"]::after { color: #ffffff !important; }
+.blur-nsfl-active .notif-thumb[data-mode="nsfl"]::after { color: #ff3b30 !important; }
+.blur-sfw-active .notif-thumb[data-mode="sfw"]::after   { color: #30d158 !important; }
+.blur-untagged-active .notif-thumb[data-mode="untagged"]::after { color: #ff9f0a !important; }
+
+/* Hide overlay on hover — only when hovering directly on the thumb */
+.notif-thumb[data-mode]:hover::after {
+  opacity: 0 !important;
+}
+
+/* Revealed state (set by JS tap-to-reveal for mobile) */
+.notif-thumb[data-mode].revealed img {
+  filter: none !important;
+}
+.notif-thumb[data-mode].revealed::after {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ALL mode: suppress all notification thumbnail blur immediately */
+html.mode-all .notif-thumb[data-mode] img {
+  filter: none !important;
+  transform: none !important;
+}
+html.mode-all .notif-thumb[data-mode]::after {
+  display: none !important;
+}

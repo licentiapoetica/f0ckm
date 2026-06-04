@@ -346,6 +346,8 @@ export default (router, tpl) => {
     const USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
     const SYSTEM_TYPES = ['approve', 'deny', 'item_deleted', 'upload_success', 'upload_error', 'admin_pending', 'report', 'warning'];
 
+    const nsflTagId = cfg.nsfl_tag_id || 3;
+
     async function getNotificationHistory(userId, page = 1, limit = 50, tab = null) {
         const offset = (page - 1) * limit;
         const typeFilter = tab === 'system' ? SYSTEM_TYPES : (tab === 'user' ? USER_TYPES : null);
@@ -356,7 +358,13 @@ export default (router, tpl) => {
                        COALESCE(uo.display_name, '') as from_display_name,
                        COALESCE(u.id, 0) as from_user_id,
                        uo.username_color,
-                       i.dest, i.mime
+                       i.dest, i.mime,
+                       CASE (SELECT ta.tag_id FROM tags_assign ta WHERE ta.item_id = n.item_id AND ta.tag_id IN (1, 2, ${nsflTagId}) LIMIT 1)
+                           WHEN 1 THEN 'sfw'
+                           WHEN 2 THEN 'nsfw'
+                           WHEN ${nsflTagId} THEN 'nsfl'
+                           ELSE NULL
+                       END as item_mode
                 FROM notifications n
                 LEFT JOIN comments c ON n.reference_id = c.id
                 LEFT JOIN "user" u ON c.user_id = u.id
@@ -375,7 +383,13 @@ export default (router, tpl) => {
                        COALESCE(uo.display_name, '') as from_display_name,
                        COALESCE(u.id, 0) as from_user_id,
                        uo.username_color,
-                       i.dest, i.mime
+                       i.dest, i.mime,
+                       CASE (SELECT ta.tag_id FROM tags_assign ta WHERE ta.item_id = n.item_id AND ta.tag_id IN (1, 2, ${nsflTagId}) LIMIT 1)
+                           WHEN 1 THEN 'sfw'
+                           WHEN 2 THEN 'nsfw'
+                           WHEN ${nsflTagId} THEN 'nsfl'
+                           ELSE NULL
+                       END as item_mode
                 FROM notifications n
                 LEFT JOIN comments c ON n.reference_id = c.id
                 LEFT JOIN "user" u ON c.user_id = u.id
@@ -420,7 +434,13 @@ export default (router, tpl) => {
                        COALESCE(uo.display_name, '') as from_display_name,
                        COALESCE(u.id, 0) as from_user_id,
                        uo.username_color,
-                       i.dest, i.mime
+                       i.dest, i.mime,
+                       CASE (SELECT ta.tag_id FROM tags_assign ta WHERE ta.item_id = n.item_id AND ta.tag_id IN (1, 2, ${nsflTagId}) LIMIT 1)
+                           WHEN 1 THEN 'sfw'
+                           WHEN 2 THEN 'nsfw'
+                           WHEN ${nsflTagId} THEN 'nsfl'
+                           ELSE NULL
+                       END as item_mode
                 FROM notifications n
                 LEFT JOIN comments c ON n.reference_id = c.id
                 LEFT JOIN "user" u ON c.user_id = u.id

@@ -1,8 +1,8 @@
 @each(notifications as n)
 @if(n.type === 'approve')
 <a href="/{{ n.item_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
-        <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/{{ n.item_id }}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none';};}" />
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
+        <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/{{ n.item_id }}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none';};};" />
     </div>
     <div class="notif-content">
         <div class="notif-user"><strong>{{ t('notifications.system') }}</strong></div>
@@ -12,7 +12,7 @@
 </a>
 @elseif(n.type === 'admin_pending')
 <a href="/mod/approve" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/mod/pending/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none';};" />
     </div>
     <div class="notif-content">
@@ -23,8 +23,8 @@
 </a>
 @elseif(n.type === 'report')
 <a href="/mod/reports" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
-        <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/{{ n.item_id }}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none';};}" />
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
+        <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/{{ n.item_id }}.webp';this.onerror=function(){this.onerror=null;this.src='/mod/deleted/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none';};};" />
     </div>
     <div class="notif-content">
         <div class="notif-user"><strong>{{ t('notifications.moderation') }}</strong></div>
@@ -34,7 +34,7 @@
 </a>
 @elseif(n.type === 'deny')
 <a href="/{{ n.item_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/mod/deleted/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none'};" />
     </div>
     <div class="notif-content">
@@ -48,7 +48,7 @@
 </a>
 @elseif(n.type === 'item_deleted')
 <a href="/{{ n.item_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/mod/deleted/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none'};" />
     </div>
     <div class="notif-content">
@@ -62,7 +62,7 @@
 </a>
 @elseif(n.type === 'upload_comment')
 <a href="/{{ n.item_id }}#c{{ n.reference_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/t/{{ n.item_id }}.webp" alt="thumbnail" onerror="this.style.display='none'">
     </div>
     <div class="notif-content">
@@ -73,7 +73,7 @@
 </a>
 @elseif(n.type === 'upload_success')
 <a href="/{{ n.item_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.style.display='none'" />
     </div>
     <div class="notif-content">
@@ -85,7 +85,7 @@
 @elseif(n.type === 'upload_error')
 <a href="{{ n.item_id ? '/' + n.item_id : '#' }}" class="notif-item {{ n.is_read ? '' : 'unread' }} {{ n.item_id ? 'notif-with-thumb' : '' }}" data-id="{{ n.id }}">
     @if(n.item_id)
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.onerror=null;this.src='/mod/pending/t/{{ n.item_id }}.webp';this.onerror=function(){this.style.display='none'};" />
     </div>
     @endif
@@ -118,7 +118,7 @@
 @else
 <a href="/{{ n.item_id }}#c{{ n.comment_id || n.reference_id }}" class="notif-item {{ n.is_read ? '' : 'unread' }} notif-with-thumb" data-id="{{ n.id }}">
     @if(n.item_id)
-    <div class="notif-thumb">
+    <div class="notif-thumb" {{ n.item_mode ? `data-mode="${n.item_mode}"` : '' }}>
         <img src="/t/{{ n.item_id }}.webp" alt="thumb" onerror="this.style.display='none'" />
     </div>
     @endif
