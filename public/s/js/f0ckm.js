@@ -505,19 +505,64 @@ window.cancelAnimFrame = (function () {
   }
 
   // Track active mode on <html> for notification thumbnail blur.
-  // data-notif-filter is set to the current mode string so CSS can blur
-  // thumbnails whose rating doesn't match the active filter.
+  // data-notif-filter is set to the current mode string and also
+  // drives src-swapping to pre-blurred thumbnails (/t/{id}_blur.webp).
+  const _notifBlurShouldBlur = (itemMode, activeMode) => {
+    if (activeMode === 3) return false; // ALL mode: never blur
+    if (activeMode === 0) return itemMode === 'nsfw' || itemMode === 'nsfl'; // SFW filter
+    if (activeMode === 1) return itemMode === 'nsfl';                         // NSFW filter
+    if (activeMode === 4) return itemMode === 'sfw' || itemMode === 'nsfw';   // NSFL filter
+    return false;
+  };
+
+  window.applyNotifThumbBlur = (container) => {
+    const root = container || document;
+    const mode = window.activeMode ?? 3;
+    root.querySelectorAll('.notif-thumb[data-mode]').forEach(thumb => {
+      const img = thumb.querySelector('img');
+      if (!img) return;
+      const itemMode = thumb.dataset.mode;
+      if (!itemMode || thumb.classList.contains('revealed')) return;
+
+      if (_notifBlurShouldBlur(itemMode, mode)) {
+        if (!img.dataset.origSrc) {
+          // Extract numeric item ID from any thumbnail path variant:
+          // /t/{id}.webp, /mod/pending/t/{id}.webp, /mod/deleted/t/{id}.webp
+          const idMatch = img.src.match(/\/t\/(\d+)\.webp/);
+          if (idMatch) {
+            // Always use the canonical /t/{id}.webp as the sharp src (hover target)
+            img.dataset.origSrc = `/t/${idMatch[1]}.webp`;
+            img.src = `/t/${idMatch[1]}_blur.webp`;
+            thumb.classList.add('notif-thumb-blurred');
+          }
+        }
+      } else {
+        // Restore original thumbnail
+        if (img.dataset.origSrc) {
+          img.src = img.dataset.origSrc;
+          delete img.dataset.origSrc;
+          thumb.classList.remove('notif-thumb-blurred');
+        }
+      }
+    });
+  };
+
+
   const _updateNotifFilterClass = (mode) => {
     const modeNames = { 0: 'sfw', 1: 'nsfw', 2: 'untagged', 3: 'all', 4: 'nsfl' };
     htmlEl.setAttribute('data-notif-filter', modeNames[mode] || 'all');
-    // Keep mode-all class in sync (used by existing CSS override)
     if (mode === 3) htmlEl.classList.add('mode-all');
     else htmlEl.classList.remove('mode-all');
+    // Re-apply blur src swaps whenever mode changes
+    window.applyNotifThumbBlur();
   };
   _updateNotifFilterClass(window.activeMode ?? 3);
   document.addEventListener('f0ck:modeChanged', (e) => {
     _updateNotifFilterClass(e.detail?.mode ?? 3);
   });
+  // Apply to server-rendered /notifications page on load
+  document.addEventListener('DOMContentLoaded', () => window.applyNotifThumbBlur());
+
 
   // ---- Multi-select Rating Toggles ----
   // Reads/writes a `ratings` cookie (e.g. "sfw|untagged") and syncs with server via /mode/3 (ALL).
@@ -6596,6 +6641,12 @@ class NotificationSystem {
           e.preventDefault();
           e.stopPropagation();
           tappedThumb.classList.add('revealed');
+          tappedThumb.classList.remove('notif-thumb-blurred');
+          const img = tappedThumb.querySelector('img');
+          if (img && img.dataset.origSrc) {
+            img.src = img.dataset.origSrc;
+            delete img.dataset.origSrc;
+          }
           return;
         }
       }
@@ -6715,6 +6766,25 @@ class NotificationSystem {
         }
       }
     });
+
+    // Hover src-swap: show sharp thumbnail on hover, restore blur on mouseout
+    const _notifThumbHoverIn = (e) => {
+      const thumb = e.target.closest('.notif-thumb.notif-thumb-blurred');
+      if (!thumb || thumb.classList.contains('revealed')) return;
+      const img = thumb.querySelector('img');
+      if (img && img.dataset.origSrc) img.src = img.dataset.origSrc;
+    };
+    const _notifThumbHoverOut = (e) => {
+      const thumb = e.target.closest('.notif-thumb.notif-thumb-blurred');
+      if (!thumb || thumb.classList.contains('revealed')) return;
+      const img = thumb.querySelector('img');
+      if (img && img.dataset.origSrc) {
+        const idMatch = img.dataset.origSrc.match(/\/t\/(\d+)\.webp/);
+        if (idMatch) img.src = `/t/${idMatch[1]}_blur.webp`;
+      }
+    };
+    document.addEventListener('mouseover', _notifThumbHoverIn);
+    document.addEventListener('mouseout', _notifThumbHoverOut);
 
     // Close on clicking 'View all' or 'Manage subscriptions'
     this.dropdown.querySelectorAll('a').forEach(link => {
@@ -6938,6 +7008,7 @@ class NotificationSystem {
       return;
     }
     this.list.innerHTML = Sanitizer.clean(items.map(n => this.renderItem(n)).join(''));
+    if (window.applyNotifThumbBlur) window.applyNotifThumbBlur(this.list);
   }
 
   renderHistoryItem(n) {

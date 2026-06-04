@@ -39,6 +39,7 @@
                             const data = await res.json();
                             if (data.success) {
                                 container.innerHTML = data.html || '<div class="notif-empty">' + (window.f0ckI18n?.no_notifications || 'No new notifications') + '</div>';
+                                if (window.applyNotifThumbBlur) window.applyNotifThumbBlur(container);
                                 const footbar = document.getElementById('footbar');
                                 if (footbar) {
                                     footbar.style.display = data.hasMore ? '' : 'none';

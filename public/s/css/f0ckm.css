@@ -15688,93 +15688,48 @@ body.scroller-active #gchat-reopen-bubble {
 
 /* =============================================
    NOTIFICATION THUMBNAIL BLUR
-   Blur is driven by the current mode filter set
-   on <html data-notif-filter="sfw|nsfw|nsfl|all">.
-   No extra settings required.
+   JS swaps img src to /t/{id}_blur.webp and adds
+   .notif-thumb-blurred. CSS only handles the label
+   overlay and hover/reveal transitions.
    ============================================= */
 
-/* SFW mode: blur NSFW and NSFL thumbnails */
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfw"] img,
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"] img {
-  filter: blur(8px) !important;
-  transform: scale(1.08) !important;
-  transition: filter 0.2s ease, transform 0.2s ease !important;
+/* Blurred thumb: position for overlay */
+.notif-thumb.notif-thumb-blurred {
+  position: relative;
 }
 
-/* NSFW mode: blur NSFL thumbnails */
-html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"] img {
-  filter: blur(8px) !important;
-  transform: scale(1.08) !important;
-  transition: filter 0.2s ease, transform 0.2s ease !important;
+/* Overlay label */
+.notif-thumb.notif-thumb-blurred::after {
+  content: attr(data-mode);
+  text-transform: uppercase;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  background: rgba(10, 10, 12, 0.45);
+  color: #ffffff;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 2;
 }
 
-/* NSFL mode: blur SFW and NSFW thumbnails */
-html[data-notif-filter="nsfl"] .notif-thumb[data-mode="sfw"] img,
-html[data-notif-filter="nsfl"] .notif-thumb[data-mode="nsfw"] img {
-  filter: blur(8px) !important;
-  transform: scale(1.08) !important;
-  transition: filter 0.2s ease, transform 0.2s ease !important;
+/* NSFL label gets a red tint */
+.notif-thumb.notif-thumb-blurred[data-mode="nsfl"]::after {
+  color: #ff3b30;
 }
 
-/* Overlay label — SFW mode */
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfw"],
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"],
-html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"],
-html[data-notif-filter="nsfl"] .notif-thumb[data-mode="sfw"],
-html[data-notif-filter="nsfl"] .notif-thumb[data-mode="nsfw"] {
-  position: relative !important;
+/* Hide overlay on hover (JS handles the actual src swap) */
+.notif-thumb.notif-thumb-blurred:hover::after {
+  opacity: 0;
 }
 
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfw"]::after,
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"]::after,
-html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"]::after,
-html[data-notif-filter="nsfl"] .notif-thumb[data-mode="sfw"]::after,
-html[data-notif-filter="nsfl"] .notif-thumb[data-mode="nsfw"]::after {
-  content: attr(data-mode) !important;
-  text-transform: uppercase !important;
-  position: absolute !important;
-  inset: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: 800 !important;
-  font-size: 10px !important;
-  letter-spacing: 1.5px !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
-  background: rgba(10, 10, 12, 0.55) !important;
-  color: #ffffff !important;
-  pointer-events: none !important;
-  opacity: 1 !important;
-  transition: opacity 0.2s ease !important;
-  z-index: 2 !important;
-}
-
-html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"]::after,
-html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"]::after { color: #ff3b30 !important; }
-
-/* Reveal on hover — only when hovering directly on the thumb */
-.notif-thumb[data-mode]:hover img {
-  filter: none !important;
-  transform: scale(1.1) !important;
-}
-.notif-thumb[data-mode]:hover::after {
-  opacity: 0 !important;
-}
-
-/* Revealed state (set by JS tap-to-reveal for mobile) */
-.notif-thumb[data-mode].revealed img {
-  filter: none !important;
-}
-.notif-thumb[data-mode].revealed::after {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-/* ALL mode: no blur on notification thumbnails */
-html.mode-all .notif-thumb[data-mode] img {
-  filter: none !important;
-  transform: none !important;
-}
-html.mode-all .notif-thumb[data-mode]::after {
-  display: none !important;
+/* Revealed state: hide overlay */
+.notif-thumb.notif-thumb-blurred.revealed::after {
+  opacity: 0;
+  pointer-events: none;
 }
