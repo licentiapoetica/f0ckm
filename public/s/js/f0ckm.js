@@ -504,14 +504,19 @@ window.cancelAnimFrame = (function () {
     }
   }
 
-  // Reflect ALL mode on <html> immediately (controls notif-thumb blur suppression)
-  if (window.activeMode === 3) htmlEl.classList.add('mode-all');
+  // Track active mode on <html> for notification thumbnail blur.
+  // data-notif-filter is set to the current mode string so CSS can blur
+  // thumbnails whose rating doesn't match the active filter.
+  const _updateNotifFilterClass = (mode) => {
+    const modeNames = { 0: 'sfw', 1: 'nsfw', 2: 'untagged', 3: 'all', 4: 'nsfl' };
+    htmlEl.setAttribute('data-notif-filter', modeNames[mode] || 'all');
+    // Keep mode-all class in sync (used by existing CSS override)
+    if (mode === 3) htmlEl.classList.add('mode-all');
+    else htmlEl.classList.remove('mode-all');
+  };
+  _updateNotifFilterClass(window.activeMode ?? 3);
   document.addEventListener('f0ck:modeChanged', (e) => {
-    if (e.detail?.mode === 3) {
-      htmlEl.classList.add('mode-all');
-    } else {
-      htmlEl.classList.remove('mode-all');
-    }
+    _updateNotifFilterClass(e.detail?.mode ?? 3);
   });
 
   // ---- Multi-select Rating Toggles ----
@@ -6579,19 +6584,14 @@ class NotificationSystem {
     const handleNotificationClick = (e) => {
       // Blur-reveal intercept: if the tap/click landed on (or inside) a blurred
       // notif-thumb that hasn't been revealed yet, reveal it and stop navigation.
-      // Skip entirely in ALL mode — nothing is blurred.
+      // Blur is mode-based: SFW mode blurs NSFW/NSFL, NSFW mode blurs NSFL, ALL = no blur.
       const tappedThumb = e.target.closest('.notif-thumb[data-mode]');
       if (tappedThumb && !tappedThumb.classList.contains('revealed') && window.activeMode !== 3) {
-        const mode = tappedThumb.dataset.mode;
-        const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
-        const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
-        const blurSfw  = localStorage.getItem('blurSfw')  === 'true';
-        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+        const itemMode = tappedThumb.dataset.mode;
         const isBlurred =
-          (mode === 'nsfw' && blurNsfw) ||
-          (mode === 'nsfl' && blurNsfl) ||
-          (mode === 'sfw'  && blurSfw)  ||
-          (mode === 'untagged' && blurUntagged);
+          (window.activeMode === 0 && (itemMode === 'nsfw' || itemMode === 'nsfl')) ||
+          (window.activeMode === 1 && itemMode === 'nsfl') ||
+          (window.activeMode === 4 && (itemMode === 'sfw' || itemMode === 'nsfw'));
         if (isBlurred) {
           e.preventDefault();
           e.stopPropagation();

@@ -15688,36 +15688,48 @@ body.scroller-active #gchat-reopen-bubble {
 
 /* =============================================
    NOTIFICATION THUMBNAIL BLUR
-   Applies the same blur treatment to .notif-thumb
-   when the corresponding blur-active class is set.
+   Blur is driven by the current mode filter set
+   on <html data-notif-filter="sfw|nsfw|nsfl|all">.
+   No extra settings required.
    ============================================= */
-.blur-nsfw-active .notif-thumb[data-mode="nsfw"] img,
-.blur-nsfl-active .notif-thumb[data-mode="nsfl"] img,
-.blur-sfw-active .notif-thumb[data-mode="sfw"] img,
-.blur-untagged-active .notif-thumb[data-mode="untagged"] img {
+
+/* SFW mode: blur NSFW and NSFL thumbnails */
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfw"] img,
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"] img {
   filter: blur(8px) !important;
   transform: scale(1.08) !important;
   transition: filter 0.2s ease, transform 0.2s ease !important;
 }
 
-/* Reveal on hover — only when hovering directly on the thumb */
-.notif-thumb[data-mode]:hover img {
-  filter: none !important;
-  transform: scale(1.1) !important;
+/* NSFW mode: blur NSFL thumbnails */
+html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"] img {
+  filter: blur(8px) !important;
+  transform: scale(1.08) !important;
+  transition: filter 0.2s ease, transform 0.2s ease !important;
 }
 
-/* Overlay label */
-.blur-nsfw-active .notif-thumb[data-mode="nsfw"],
-.blur-nsfl-active .notif-thumb[data-mode="nsfl"],
-.blur-sfw-active .notif-thumb[data-mode="sfw"],
-.blur-untagged-active .notif-thumb[data-mode="untagged"] {
+/* NSFL mode: blur SFW and NSFW thumbnails */
+html[data-notif-filter="nsfl"] .notif-thumb[data-mode="sfw"] img,
+html[data-notif-filter="nsfl"] .notif-thumb[data-mode="nsfw"] img {
+  filter: blur(8px) !important;
+  transform: scale(1.08) !important;
+  transition: filter 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Overlay label — SFW mode */
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfw"],
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"],
+html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"],
+html[data-notif-filter="nsfl"] .notif-thumb[data-mode="sfw"],
+html[data-notif-filter="nsfl"] .notif-thumb[data-mode="nsfw"] {
   position: relative !important;
 }
 
-.blur-nsfw-active .notif-thumb[data-mode="nsfw"]::after,
-.blur-nsfl-active .notif-thumb[data-mode="nsfl"]::after,
-.blur-sfw-active .notif-thumb[data-mode="sfw"]::after,
-.blur-untagged-active .notif-thumb[data-mode="untagged"]::after {
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfw"]::after,
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"]::after,
+html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"]::after,
+html[data-notif-filter="nsfl"] .notif-thumb[data-mode="sfw"]::after,
+html[data-notif-filter="nsfl"] .notif-thumb[data-mode="nsfw"]::after {
   content: attr(data-mode) !important;
   text-transform: uppercase !important;
   position: absolute !important;
@@ -15730,18 +15742,21 @@ body.scroller-active #gchat-reopen-bubble {
   letter-spacing: 1.5px !important;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
   background: rgba(10, 10, 12, 0.55) !important;
+  color: #ffffff !important;
   pointer-events: none !important;
   opacity: 1 !important;
   transition: opacity 0.2s ease !important;
   z-index: 2 !important;
 }
 
-.blur-nsfw-active .notif-thumb[data-mode="nsfw"]::after { color: #ffffff !important; }
-.blur-nsfl-active .notif-thumb[data-mode="nsfl"]::after { color: #ff3b30 !important; }
-.blur-sfw-active .notif-thumb[data-mode="sfw"]::after   { color: #30d158 !important; }
-.blur-untagged-active .notif-thumb[data-mode="untagged"]::after { color: #ff9f0a !important; }
+html[data-notif-filter="sfw"] .notif-thumb[data-mode="nsfl"]::after,
+html[data-notif-filter="nsfw"] .notif-thumb[data-mode="nsfl"]::after { color: #ff3b30 !important; }
 
-/* Hide overlay on hover — only when hovering directly on the thumb */
+/* Reveal on hover — only when hovering directly on the thumb */
+.notif-thumb[data-mode]:hover img {
+  filter: none !important;
+  transform: scale(1.1) !important;
+}
 .notif-thumb[data-mode]:hover::after {
   opacity: 0 !important;
 }
@@ -15755,7 +15770,7 @@ body.scroller-active #gchat-reopen-bubble {
   pointer-events: none !important;
 }
 
-/* ALL mode: suppress all notification thumbnail blur immediately */
+/* ALL mode: no blur on notification thumbnails */
 html.mode-all .notif-thumb[data-mode] img {
   filter: none !important;
   transform: none !important;
