@@ -560,9 +560,10 @@ window.cancelAnimFrame = (function () {
   document.addEventListener('f0ck:modeChanged', (e) => {
     _updateNotifFilterClass(e.detail?.mode ?? 3);
   });
-  // Apply to server-rendered /notifications page on load
-  document.addEventListener('DOMContentLoaded', () => window.applyNotifThumbBlur());
-
+  // Apply on hard load (F5) and on every AJAX navigation (f0ck:contentLoaded)
+  const _applyNotifBlurOnNav = () => window.applyNotifThumbBlur();
+  document.addEventListener('DOMContentLoaded', _applyNotifBlurOnNav);
+  document.addEventListener('f0ck:contentLoaded', _applyNotifBlurOnNav);
 
   // ---- Multi-select Rating Toggles ----
   // Reads/writes a `ratings` cookie (e.g. "sfw|untagged") and syncs with server via /mode/3 (ALL).
