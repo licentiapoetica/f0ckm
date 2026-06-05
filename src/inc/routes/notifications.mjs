@@ -669,6 +669,7 @@ export default (router, tpl) => {
         data.link = { main: '/notifications', path: '/' };
         data.activeTab = tab;
         data.domain = cfg.main.url.domain; // For header
+        data.active_mode = req.session?.mode ?? 0;
         return res.html(tpl.render('notifications', data, req));
     });
 
@@ -681,7 +682,7 @@ export default (router, tpl) => {
         const tab = req.url.qs.tab || null;
         const data = await getNotificationHistory(req.session.id, page, 50, tab);
 
-        const html = tpl.render('snippets/notifications-list', data, req);
+        const html = tpl.render('snippets/notifications-list', { ...data, active_mode: req.session?.mode ?? 0 }, req);
 
         return res.json({
             success: true,

@@ -525,27 +525,33 @@ window.cancelAnimFrame = (function () {
       if (!itemMode || thumb.classList.contains('revealed')) return;
 
       if (_notifBlurShouldBlur(itemMode, mode)) {
-        if (!img.dataset.origSrc) {
-          // Extract numeric item ID from any thumbnail path variant:
-          // /t/{id}.webp, /mod/pending/t/{id}.webp, /mod/deleted/t/{id}.webp
-          const idMatch = img.src.match(/\/t\/(\d+)\.webp/);
+        if (!thumb.classList.contains('notif-thumb-blurred')) {
+          const htmlOrigSrc = img.getAttribute('data-orig-src');
+          const idMatch = img.src.match(/\/t\/(\d+)(?:_blur)?\.webp/);
           if (idMatch) {
-            // Always use the canonical /t/{id}.webp as the sharp src (hover target)
-            img.dataset.origSrc = `/t/${idMatch[1]}.webp`;
-            img.src = `/t/${idMatch[1]}_blur.webp`;
+            // Ensure JS dataset has origSrc (server may have set it via HTML attribute)
+            if (!img.dataset.origSrc) {
+              img.dataset.origSrc = htmlOrigSrc || `/t/${idMatch[1]}.webp`;
+            }
+            // Only swap src if not already the blur version
+            if (!img.src.includes('_blur.webp')) {
+              img.src = `/t/${idMatch[1]}_blur.webp`;
+            }
             thumb.classList.add('notif-thumb-blurred');
           }
         }
       } else {
         // Restore original thumbnail
-        if (img.dataset.origSrc) {
-          img.src = img.dataset.origSrc;
+        const origSrc = img.dataset.origSrc || img.getAttribute('data-orig-src');
+        if (origSrc) {
+          img.src = origSrc;
           delete img.dataset.origSrc;
           thumb.classList.remove('notif-thumb-blurred');
         }
       }
     });
   };
+
 
 
   const _updateNotifFilterClass = (mode) => {
