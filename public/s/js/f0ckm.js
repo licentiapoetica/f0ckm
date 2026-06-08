@@ -59,6 +59,7 @@ window.cancelAnimFrame = (function () {
   if (localStorage.getItem('blurSfw') === 'true') htmlEl.classList.add('blur-sfw-active');
   if (localStorage.getItem('blurUntagged') === 'true') htmlEl.classList.add('blur-untagged-active');
   if (localStorage.getItem('blurDetail') !== 'false') htmlEl.classList.add('blur-detail-active');
+  if (localStorage.getItem('imageExpandOnClick') !== 'false') htmlEl.classList.add('image-expand-active');
 
   window.updateVisitIndicators = () => {
       try {
@@ -8867,6 +8868,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global intercept for image item clicks
     document.addEventListener('click', (e) => {
+      const modalBtn = e.target.closest('.image-modal-btn');
+      if (modalBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const wrapper = modalBtn.closest('.embed-responsive');
+        const img = wrapper ? wrapper.querySelector('img#f0ck-image') : null;
+        if (img) {
+          openImageModal(img.src);
+        }
+        return;
+      }
+
       const elfe = e.target.closest('#elfe');
       if (elfe) {
         e.preventDefault();

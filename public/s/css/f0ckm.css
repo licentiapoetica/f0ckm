@@ -5062,6 +5062,33 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
   object-fit: contain;
 }
 
+/* Floating overlay button to trigger modal when inline expand is active */
+.image-modal-btn {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 1;
+  pointer-events: auto;
+  transition: color 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.5);
+  padding: 0;
+}
+
+html.image-expand-active .image-modal-btn {
+  display: inline-flex;
+}
+
 /* Inline image expansion */
 .embed-responsive.is-expanded::before {
   display: none !important;

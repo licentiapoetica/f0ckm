@@ -747,6 +747,11 @@
         imageExpandToggle.checked = localStorage.getItem('imageExpandOnClick') !== 'false';
         imageExpandToggle.addEventListener('change', () => {
             localStorage.setItem('imageExpandOnClick', imageExpandToggle.checked);
+            if (imageExpandToggle.checked) {
+                document.documentElement.classList.add('image-expand-active');
+            } else {
+                document.documentElement.classList.remove('image-expand-active');
+            }
         });
     }
 
