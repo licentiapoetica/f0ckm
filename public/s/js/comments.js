@@ -1727,6 +1727,16 @@ class CommentSystem {
                     return `<a href="#c${id}" class="comment-context-link" data-id="${id}">>>${id}</a>`;
                 });
 
+                // Handle Timestamps (e.g., 2:20, 1:02:20)
+                const timestampRegex = /\b(?<![\.\/:])(?:(\d{1,2}):)?(\d{1,3}):([0-5]\d)\b/g;
+                processedLine = processedLine.replace(timestampRegex, (match, hrs, mins, secs) => {
+                    const h = hrs ? parseInt(hrs, 10) : 0;
+                    const m = parseInt(mins, 10);
+                    const s = parseInt(secs, 10);
+                    const totalSeconds = h * 3600 + m * 60 + s;
+                    return `<a href="#" class="comment-timestamp" data-time="${totalSeconds}">${match}</a>`;
+                });
+
                 // Handle Image Embeds
                 processedLine = processedLine.replace(imageRegex, (match, url) => {
                     let fullUrl = url;
@@ -3664,6 +3674,29 @@ class CommentSystem {
                     console.error(e);
                 } finally {
                     subBtn.style.opacity = '1';
+                }
+            }
+        });
+
+        // Global timestamp seek & scroll listener
+        document.addEventListener('click', (e) => {
+            const timestampLink = e.target.closest('.comment-timestamp');
+            if (timestampLink) {
+                e.preventDefault();
+                e.stopPropagation();
+                const seconds = parseFloat(timestampLink.dataset.time);
+                if (!isNaN(seconds)) {
+                    const mediaElement = document.querySelector('#my-video') || document.querySelector('audio#my-video');
+                    if (mediaElement) {
+                        mediaElement.currentTime = seconds;
+                        if (mediaElement.paused) {
+                            mediaElement.play().catch(() => {});
+                        }
+                        const playerContainer = mediaElement.closest('.v0ck') || mediaElement;
+                        if (playerContainer) {
+                            playerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
                 }
             }
         });

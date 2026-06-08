@@ -3258,15 +3258,18 @@ body.layout-legacy .scroll-to-bottom svg {
   margin: 0;
 }
 
-.comment-context-link {
+.comment-context-link,
+.comment-timestamp {
   color: var(--accent);
   text-decoration: none;
   font-family: 'VCR', monospace;
   font-size: 0.9em;
   opacity: 1;
+  cursor: pointer;
 }
 
-.comment-context-link:hover {
+.comment-context-link:hover,
+.comment-timestamp:hover {
   opacity: 1;
   text-decoration: underline;
 }
