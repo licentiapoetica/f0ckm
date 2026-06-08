@@ -219,7 +219,6 @@
 
 .upload-form:not(.shitpost-mode-active) .preview-media-small {
     width: 100%;
-    max-width: 400px;
     min-height: auto;
     height: auto;
     aspect-ratio: 16 / 9;
@@ -257,6 +256,7 @@
     flex-direction: column;
     overflow: hidden;
     min-width: 0;
+    width: 100%;
 }
 
 .file-info-small {
@@ -442,7 +442,7 @@
 
 .preview-media-small {
     flex: 0 0 50%;
-    width: 50% !important;
+    width: 100% !important;
     height: auto !important;
     min-height: 120px;
     max-height: 350px;
@@ -1345,3 +1345,138 @@
     50% { opacity: 0.8; }
     100% { opacity: 0.4; }
 }
+
+/* ── Ruffle (Flash) Upload Preview ─────────────────────────────────────────── */
+
+/* The container: CSS Grid with 3 rows — player | snapshot preview | button.
+   All rows are auto so the container grows naturally; no overflow clipping. */
+.swf-upload-preview {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    max-height: none !important;
+    background: #000;
+    border-radius: 8px;
+}
+
+/* Normal (non-shitpost) mode: full-width, player drives container height via aspect-ratio */
+.upload-form:not(.shitpost-mode-active) .swf-upload-preview.preview-media-small {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+}
+
+.upload-form:not(.shitpost-mode-active) .swf-upload-preview ruffle-player,
+.upload-form:not(.shitpost-mode-active) .swf-upload-preview ruffle-object {
+    aspect-ratio: 16 / 9;
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Shitpost mode: player row is a fixed height so the snapshot row doesn't steal its space */
+.upload-form.shitpost-mode-active .swf-upload-preview.preview-media-small {
+    width: 45% !important;
+    flex: 0 0 45% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    aspect-ratio: unset;
+}
+
+.upload-form.shitpost-mode-active .swf-upload-preview ruffle-player,
+.upload-form.shitpost-mode-active .swf-upload-preview ruffle-object {
+    width: 100% !important;
+    height: 220px !important;
+    min-height: 220px;
+}
+
+/* Placeholder shown while Ruffle is loading */
+.swf-upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 200px;
+    background: rgba(0, 0, 0, 0.6);
+    animation: thumbPulse 1.8s ease-in-out infinite;
+}
+
+.swf-upload-placeholder-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 200, 0, 0.7));
+}
+
+.swf-upload-placeholder-text {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.5px;
+}
+
+/* ── Ruffle Snapshot Button ─────────────────────────────────────────────────── */
+
+/* The snapshot button lives inside .swf-upload-preview, pinned to the bottom */
+.swf-upload-preview {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-ruffle-snapshot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 0;
+    padding: 8px 16px;
+    background: rgba(255, 200, 0, 0.08);
+    border: none;
+    border-top: 1px solid rgba(255, 200, 0, 0.2);
+    border-radius: 0 0 6px 6px;
+    color: rgba(255, 200, 0, 0.9);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+.btn-ruffle-snapshot:hover:not(:disabled) {
+    background: rgba(255, 200, 0, 0.15);
+    border-top-color: rgba(255, 200, 0, 0.4);
+    color: #ffd700;
+}
+
+.btn-ruffle-snapshot:active:not(:disabled) {
+    background: rgba(255, 200, 0, 0.22);
+}
+
+.btn-ruffle-snapshot:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+/* Snapshot preview: sits in its own grid row, below the player */
+.swf-upload-preview .ruffle-snapshot-preview {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    object-position: center;
+    background: rgba(0, 0, 0, 0.6);
+    border-top: 1px solid rgba(81, 207, 102, 0.3);
+    animation: snapPreviewIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes snapPreviewIn {
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+

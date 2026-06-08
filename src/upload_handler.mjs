@@ -180,6 +180,14 @@ export const handleUpload = async (req, res, self) => {
             : Object.keys(cfg.mimes);
         let mime = file.contentType;
 
+        // Browsers often don't know the SWF MIME type and send application/octet-stream or nothing.
+        // Normalize it here based on extension so the allowedMimes check doesn't spuriously reject.
+        // The server-side `file --mime-type` check on line ~248 is the authoritative validation.
+        if ((mime === 'application/octet-stream' || !mime || mime === 'application/x-www-form-urlencoded') &&
+            file.filename && file.filename.toLowerCase().endsWith('.swf')) {
+            mime = 'application/x-shockwave-flash';
+        }
+
         if (!allowedMimes.includes(mime)) {
             return sendJson(res, { success: false, msg: `Invalid file type: ${mime}` }, 400);
         }

@@ -782,6 +782,7 @@ window.initUploadForm = (selector) => {
                 // Basic validation (MIME/Extension/Size)
                 const container = form.closest('.upload-container');
                 const mimesSource = form.getAttribute('data-mimes') || (container ? container.getAttribute('data-mimes') : null);
+                const swfEnabled = form.getAttribute('data-enable-swf') !== '0';
                 let allowedMimes = [];
                 let allowedExts = [];
                 try {
@@ -793,6 +794,19 @@ window.initUploadForm = (selector) => {
                 }
 
                 const fileExt = file.name.split('.').pop().toLowerCase();
+                const isSwfFile = fileExt === 'swf' ||
+                    file.type === 'application/x-shockwave-flash' ||
+                    file.type === 'application/vnd.adobe.flash.movie';
+
+                // Reject SWF when Flash uploads are disabled
+                if (isSwfFile && !swfEnabled) {
+                    const errorMsg = 'Flash (.swf) uploads are disabled.';
+                    if (typeof window.flashMessage === 'function') window.flashMessage('✕ ' + errorMsg, 4000, 'error');
+                    else if (window.showFlash) window.showFlash(errorMsg, 'error');
+                    else if (statusDiv) { statusDiv.textContent = errorMsg; statusDiv.className = 'upload-status error'; }
+                    continue;
+                }
+
                 const mimeOk = !file.type || allowedMimes.includes(file.type);
                 const extOk = allowedExts.length > 0 && allowedExts.includes(fileExt);
 
@@ -952,8 +966,147 @@ window.initUploadForm = (selector) => {
                     mediaElem.style.width = '100%';
                 } else if (file.type === 'application/x-shockwave-flash' || file.type === 'application/vnd.adobe.flash.movie' || fileExt === 'swf') {
                     mediaElem = document.createElement('div');
-                    mediaElem.className = 'generic-file-icon swf-preview-icon';
-                    mediaElem.innerHTML = '<span style="font-size:1.5em;">⚡</span>';
+                    mediaElem.className = 'swf-upload-preview';
+                    mediaElem.dataset.swfFile = 'pending';
+                    // Placeholder shown while Ruffle loads
+                    mediaElem.innerHTML = `<div class="swf-upload-placeholder"><span class="swf-upload-placeholder-icon">⚡</span><span class="swf-upload-placeholder-text">Loading Flash preview…</span></div>`;
+                    // Load Ruffle asynchronously once the element is in the DOM
+                    const swfObjectUrl = URL.createObjectURL(file);
+                    const ensureRuffleUpload = (cb) => {
+                        if (window.RufflePlayer && typeof window.RufflePlayer.newest === 'function') { cb(); return; }
+                        if (document.querySelector('script[src*="/s/ruffle/ruffle.js"]')) {
+                            // Script is loading, poll for it
+                            let attempts = 0;
+                            const poll = setInterval(() => {
+                                attempts++;
+                                if ((window.RufflePlayer && typeof window.RufflePlayer.newest === 'function') || attempts >= 80) {
+                                    clearInterval(poll);
+                                    cb();
+                                }
+                            }, 100);
+                            return;
+                        }
+                        const s = document.createElement('script');
+                        s.src = '/s/ruffle/ruffle.js';
+                        s.onload = () => cb();
+                        s.onerror = () => cb(); // proceed even if fail
+                        document.head.appendChild(s);
+                    };
+                    // Defer init until next microtask so mediaElem is appended to DOM first
+                    Promise.resolve().then(() => {
+                        ensureRuffleUpload(() => {
+                            if (!mediaElem.isConnected) { URL.revokeObjectURL(swfObjectUrl); return; }
+                            const ruffle = window.RufflePlayer && window.RufflePlayer.newest ? window.RufflePlayer.newest() : null;
+                            if (!ruffle) {
+                                mediaElem.innerHTML = `<div class="swf-upload-placeholder"><span class="swf-upload-placeholder-icon">⚡</span><span class="swf-upload-placeholder-text">Flash preview unavailable</span></div>`;
+                                return;
+                            }
+                            try {
+                                // Patch getContext BEFORE creating the player so that Ruffle's WebGL
+                                // context is created with preserveDrawingBuffer:true.
+                                // Without this, WebGL clears the drawing buffer after each frame
+                                // presentation, making canvas readback produce solid black.
+                                const _origGetCtx = HTMLCanvasElement.prototype.getContext;
+                                HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+                                    if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+                                        attrs = Object.assign({}, attrs || {}, { preserveDrawingBuffer: true });
+                                    }
+                                    return _origGetCtx.call(this, type, attrs);
+                                };
+                                const player = ruffle.createPlayer();
+                                player.style.cssText = 'width:100%;height:100%;display:block;border-radius:8px;';
+                                const placeholder = mediaElem.querySelector('.swf-upload-placeholder');
+                                if (placeholder) placeholder.remove();
+                                mediaElem.appendChild(player);
+                                player.load({ url: swfObjectUrl, config: { volume: 0.5 } });
+                                // Restore getContext after Ruffle's WASM finishes creating its GL context
+                                // (typically within ~2s of load; 6s is a safe upper bound)
+                                setTimeout(() => { HTMLCanvasElement.prototype.getContext = _origGetCtx; }, 6000);
+                                mediaElem._rufflePlayer = player;
+                                mediaElem._swfObjectUrl = swfObjectUrl;
+
+                                // Inject snapshot button directly below the Ruffle player
+                                // (inside the .swf-upload-preview, so it travels with each file-preview-item)
+                                if (!mediaElem.querySelector('.btn-ruffle-snapshot')) {
+                                    const snapBtn = document.createElement('button');
+                                    snapBtn.type = 'button';
+                                    snapBtn.className = 'btn-ruffle-snapshot';
+                                    snapBtn.textContent = 'Capture Thumbnail';
+                                    snapBtn.title = 'Capture the current frame of the Flash preview as the thumbnail';
+                                    mediaElem.appendChild(snapBtn);
+                                }
+
+                                // Wire snapshot button — scoped to this previewItem / mediaElem
+                                const wireSnapshot = () => {
+                                    const snapBtn = mediaElem.querySelector('.btn-ruffle-snapshot');
+                                    if (!snapBtn) return;
+                                    snapBtn.onclick = async (e) => {
+                                        e.preventDefault();
+                                        try {
+                                            // Try to find Ruffle's internal canvas via shadow DOM
+                                            let canvas = null;
+                                            const tryFindCanvas = (root) => {
+                                                if (!root) return null;
+                                                const c = root.querySelector('canvas');
+                                                if (c) return c;
+                                                for (const el of root.querySelectorAll('*')) {
+                                                    if (el.shadowRoot) {
+                                                        const found = tryFindCanvas(el.shadowRoot);
+                                                        if (found) return found;
+                                                    }
+                                                }
+                                                return null;
+                                            };
+                                            canvas = tryFindCanvas(player.shadowRoot || player);
+                                            if (!canvas) canvas = tryFindCanvas(player);
+                                            if (canvas && canvas.width > 0 && canvas.height > 0) {
+                                                const out = document.createElement('canvas');
+                                                const MAX = 640;
+                                                const w = canvas.width, h = canvas.height;
+                                                if (w > MAX || h > MAX) {
+                                                    const ratio = Math.min(MAX / w, MAX / h);
+                                                    out.width = Math.round(w * ratio);
+                                                    out.height = Math.round(h * ratio);
+                                                } else {
+                                                    out.width = w || 320;
+                                                    out.height = h || 240;
+                                                }
+                                                const ctx = out.getContext('2d');
+                                                ctx.drawImage(canvas, 0, 0, out.width, out.height);
+                                                out.toBlob((blob) => {
+                                                    if (!blob) { snapBtn.textContent = '❌ Capture failed'; return; }
+                                                    const snapFile = new File([blob], 'ruffle-snapshot.jpg', { type: 'image/jpeg' });
+                                                    const dt = new DataTransfer();
+                                                    dt.items.add(snapFile);
+                                                    if (thumbInput) {
+                                                        thumbInput.files = dt.files;
+                                                        thumbInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                    }
+                                                    // Replace snapshot preview in its grid row (between player and button)
+                                                    const existingPrev = mediaElem.querySelector('.ruffle-snapshot-preview');
+                                                    if (existingPrev) existingPrev.remove();
+                                                    const prevImg = document.createElement('img');
+                                                    prevImg.src = URL.createObjectURL(blob);
+                                                    prevImg.className = 'ruffle-snapshot-preview';
+                                                    mediaElem.insertBefore(prevImg, snapBtn);
+                                                }, 'image/jpeg', 0.92);
+                                            } else {
+                                                snapBtn.textContent = 'Capture Thumbnail';
+                                            }
+                                        } catch(err) {
+                                            console.warn('[Ruffle snapshot]', err);
+                                            snapBtn.textContent = 'Capture Thumbnail';
+                                        }
+                                    };
+                                };
+                                // Wire after a short delay (Ruffle may not be fully ready)
+                                setTimeout(wireSnapshot, 200);
+                            } catch(err) {
+                                console.warn('[Ruffle upload preview]', err);
+                                mediaElem.innerHTML = `<div class="swf-upload-placeholder"><span class="swf-upload-placeholder-icon">⚡</span><span class="swf-upload-placeholder-text">Flash preview error</span></div>`;
+                            }
+                        });
+                    });
                 } else if (file.type === 'application/pdf' || fileExt === 'pdf') {
                     mediaElem = document.createElement('div');
                     mediaElem.className = 'generic-file-icon pdf-preview-icon';
@@ -1281,6 +1434,12 @@ window.initUploadForm = (selector) => {
                 const idx = selectedFiles.indexOf(item);
                 if (idx !== -1) selectedFiles.splice(idx, 1);
                 item._rendered = false;
+                // Clean up Ruffle player and blob URL if this was a SWF preview
+                const swfPreview = previewItem.querySelector('.swf-upload-preview');
+                if (swfPreview) {
+                    if (swfPreview._rufflePlayer) { try { swfPreview._rufflePlayer.pause(); swfPreview._rufflePlayer.remove(); } catch {} swfPreview._rufflePlayer = null; }
+                    if (swfPreview._swfObjectUrl) { URL.revokeObjectURL(swfPreview._swfObjectUrl); swfPreview._swfObjectUrl = null; }
+                }
                 previewItem.remove();
 
                 if (selectedFiles.length === 0) {
@@ -1393,13 +1552,9 @@ window.initUploadForm = (selector) => {
             }
         }
 
-        // Toggle custom thumbnail for single SWF batch
+        // Hide thumbSection for SWF (snapshot button now lives inside each file-preview-item)
         if (thumbSection) {
-            const firstItem = selectedFiles[0];
-            const firstFile = (firstItem && firstItem.file) || firstItem;
-            const isSingleSwf = firstFile && selectedFiles.length === 1 && 
-                (firstFile.type === 'application/x-shockwave-flash' || firstFile.type === 'application/vnd.adobe.flash.movie' || (firstFile.name && firstFile.name.endsWith('.swf')));
-            thumbSection.style.display = isSingleSwf ? 'block' : 'none';
+            thumbSection.style.display = 'none';
         }
 
         updateSubmitButton();
@@ -1447,6 +1602,11 @@ window.initUploadForm = (selector) => {
         removeFile.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            // Clean up any Ruffle preview players and blob URLs
+            filePreview?.querySelectorAll('.swf-upload-preview').forEach(el => {
+                if (el._rufflePlayer) { try { el._rufflePlayer.pause(); el._rufflePlayer.remove(); } catch {} el._rufflePlayer = null; }
+                if (el._swfObjectUrl) { URL.revokeObjectURL(el._swfObjectUrl); el._swfObjectUrl = null; }
+            });
             selectedFiles = [];
             form.querySelector('.gps-privacy-warning')?.remove();
             if (fileInput) fileInput.value = '';
@@ -1456,7 +1616,11 @@ window.initUploadForm = (selector) => {
             const media = filePreview?.querySelector('.preview-media');
             if (media) media.remove();
 
-            if (thumbSection) thumbSection.style.display = 'none';
+            if (thumbSection) {
+                thumbSection.style.display = 'none';
+                thumbSection.querySelector('.btn-ruffle-snapshot')?.remove();
+                thumbSection.querySelector('.ruffle-snapshot-preview')?.remove();
+            }
             if (thumbInput) thumbInput.value = '';
 
             updateSubmitButton();
@@ -2108,8 +2272,19 @@ window.initUploadForm = (selector) => {
                                 localStorage.setItem('bustedThumbs', JSON.stringify(busted));
                             } catch(e) {}
                         }
-                    } else if (!isShitpost) {
-                        throw new Error(res.msg || 'Upload failed');
+                    } else {
+                        // Server returned an error — always surface it visibly
+                        const errMsg = res.msg || 'Upload failed';
+                        if (isShitpost) {
+                            // In shitpost mode there's no persistent statusDiv — use flash
+                            if (typeof window.flashMessage === 'function') {
+                                window.flashMessage(`✕ ${errMsg}`, 5000, 'error');
+                            } else if (typeof window.showFlash === 'function') {
+                                window.showFlash(errMsg, 'error');
+                            }
+                        } else {
+                            throw new Error(errMsg);
+                        }
                     }
                 } catch (err) {
                     console.error('[UPLOAD ERROR]', err);
@@ -2119,6 +2294,13 @@ window.initUploadForm = (selector) => {
                         if (progressContainer) progressContainer.style.display = 'none';
                         restoreBtn();
                         return;
+                    } else {
+                        // Shitpost mode: show via flash toast
+                        if (typeof window.flashMessage === 'function') {
+                            window.flashMessage(`✕ ${err.message}`, 5000, 'error');
+                        } else if (typeof window.showFlash === 'function') {
+                            window.showFlash(err.message, 'error');
+                        }
                     }
                 }
             }

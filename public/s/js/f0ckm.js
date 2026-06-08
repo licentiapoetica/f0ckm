@@ -1658,7 +1658,8 @@ window.cancelAnimFrame = (function () {
         "unmuteOverlay": "hidden",
         "letterbox": "on",
         "warnOnUnsupportedContent": false,
-        "contextMenu": "on"
+        "contextMenu": "on",
+        "splashScreen": false
       };
 
     let ruffleKeepAliveApplied = false;
@@ -1743,14 +1744,45 @@ window.cancelAnimFrame = (function () {
 
       applyRuffleKeepAlive();
 
+      // Detect whether the item is currently behind a blur overlay.
+      // If so, load the SWF with autoplay:"off" so it stays paused until the user reveals it.
+      const mediaObj = container.closest('.media-object');
+      let blurActive = false;
+      if (mediaObj && !mediaObj.classList.contains('revealed') && localStorage.getItem('blurDetail') !== 'false') {
+        const blurNsfw    = localStorage.getItem('blurNsfw')    === 'true';
+        const blurNsfl    = localStorage.getItem('blurNsfl')    === 'true';
+        const blurSfw     = localStorage.getItem('blurSfw')     === 'true';
+        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+        const mode = mediaObj.getAttribute('data-mode');
+        blurActive =
+          (mode === 'nsfw'     && blurNsfw)    ||
+          (mode === 'nsfl'     && blurNsfl)    ||
+          (mode === 'sfw'      && blurSfw)     ||
+          (mode === 'untagged' && blurUntagged);
+      }
+
       // Update config with latest session preferences just before creation
       if (window.RufflePlayer) {
         window.RufflePlayer.config = window.RuffleConfig = {
           ...window.RuffleConfig,
+          "autoplay": blurActive ? "off" : "on",
           "pageVisibility": window.f0ckSession?.ruffle_background === false,
-          "backgroundExecution": window.f0ckSession?.ruffle_background === false ? undefined : "Unthrottled" 
+          "backgroundExecution": window.f0ckSession?.ruffle_background === false ? undefined : "Unthrottled",
+          "splashScreen": false
         };
       }
+
+      // Patch WebGL getContext to force preserveDrawingBuffer:true so canvas
+      // frames can be captured after Ruffle renders (WebGL clears buffers by default)
+      const _origGetCtx = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+        if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+          attrs = Object.assign({}, attrs, { preserveDrawingBuffer: true });
+        }
+        return _origGetCtx.call(this, type, attrs);
+      };
+      // Restore after Ruffle has created its context
+      setTimeout(() => { HTMLCanvasElement.prototype.getContext = _origGetCtx; }, 8000);
 
       function createPlayer() {
         if (!window.RufflePlayer) return;
@@ -3683,7 +3715,158 @@ window.cancelAnimFrame = (function () {
         e.preventDefault();
         const reBtn = target.closest('#a_rethumb');
         const itemId = reBtn.dataset.itemId;
-        
+
+        // Helper: POST a blob as thumbnail
+        const submitRethumb = (blob, currentItemId) => {
+            const fd = new FormData();
+            fd.append('file', blob, 'thumbnail.jpg');
+            window.flashMessage(i18n.uploading || 'Uploading...');
+            fetch(`/api/v2/items/${currentItemId}/thumbnail`, {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                body: fd
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.flashMessage(data.msg);
+                    if (window.refreshItemThumbnails) window.refreshItemThumbnails(currentItemId);
+                } else {
+                    window.flashError(data.msg || 'Upload failed');
+                }
+            })
+            .catch(err => { window.flashError('Upload error'); console.error(err); });
+        };
+
+        // For Flash items: show a capture modal instead of a file picker
+        const rufflePlayer = document.querySelector('#ruffle-container ruffle-player');
+        if (rufflePlayer) {
+
+            const tryFindCanvas = (root) => {
+                if (!root) return null;
+                const c = root.querySelector('canvas');
+                if (c) return c;
+                for (const el of root.querySelectorAll('*')) {
+                    if (el.shadowRoot) { const found = tryFindCanvas(el.shadowRoot); if (found) return found; }
+                }
+                return null;
+            };
+
+            // POST blob to thumbnail API and close modal
+            const submitRethumb = (blob) => {
+                const fd = new FormData();
+                fd.append('file', blob, 'thumbnail.jpg');
+                window.flashMessage(i18n.uploading || 'Uploading...');
+                fetch(`/api/v2/items/${itemId}/thumbnail`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.flashMessage(data.msg);
+                        if (window.refreshItemThumbnails) window.refreshItemThumbnails(itemId);
+                    } else {
+                        window.flashError(data.msg || 'Upload failed');
+                    }
+                })
+                .catch(err => { window.flashError('Upload error'); console.error(err); });
+            };
+
+            // Capture current Ruffle frame → return blob via callback
+            const captureFrame = (cb) => {
+                const canvas = tryFindCanvas(rufflePlayer.shadowRoot || rufflePlayer) || tryFindCanvas(rufflePlayer);
+                if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                    cb(null);
+                    return;
+                }
+                const out = document.createElement('canvas');
+                const MAX = 640;
+                const w = canvas.width, h = canvas.height;
+                if (w > MAX || h > MAX) {
+                    const ratio = Math.min(MAX / w, MAX / h);
+                    out.width = Math.round(w * ratio);
+                    out.height = Math.round(h * ratio);
+                } else {
+                    out.width = w || 320;
+                    out.height = h || 240;
+                }
+                out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
+                out.toBlob(cb, 'image/jpeg', 0.92);
+            };
+
+            // Build & show modal using site CSS classes
+            const showCaptureModal = (initialBlob) => {
+                document.getElementById('rethumb-capture-modal')?.remove();
+
+                let currentBlob = initialBlob;
+
+                const overlay = document.createElement('div');
+                overlay.id = 'rethumb-capture-modal';
+                overlay.className = 'modal-overlay';
+                overlay.style.zIndex = '99999';
+
+                const box = document.createElement('div');
+                box.className = 'modal-content';
+                box.style.cssText = 'max-width:480px;width:90%;text-align:left;position:relative;';
+
+                const title = document.createElement('h3');
+                title.textContent = 'Thumbnail Preview';
+                title.style.marginTop = '0';
+
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(initialBlob);
+                img.style.cssText = 'width:100%;height:auto;display:block;border-radius:0;margin-bottom:4px;';
+
+                const actions = document.createElement('div');
+                actions.className = 'modal-actions';
+
+                const btnUse = document.createElement('button');
+                btnUse.textContent = 'Use as Thumbnail';
+                btnUse.className = 'btn-danger';
+
+                const btnRecapture = document.createElement('button');
+                btnRecapture.textContent = 'Capture Again';
+                btnRecapture.className = 'btn-secondary';
+
+                const btnCancel = document.createElement('button');
+                btnCancel.textContent = 'Cancel';
+                btnCancel.className = 'btn-secondary';
+
+                const close = () => overlay.remove();
+
+                btnUse.onclick = () => { submitRethumb(currentBlob); close(); };
+                btnRecapture.onclick = () => {
+                    captureFrame((blob) => {
+                        if (!blob) { window.flashError('Ruffle not ready'); return; }
+                        URL.revokeObjectURL(img.src);
+                        currentBlob = blob;
+                        img.src = URL.createObjectURL(blob);
+                    });
+                };
+                btnCancel.onclick = close;
+                overlay.onclick = (ev) => { if (ev.target === overlay) close(); };
+
+                actions.append(btnUse, btnRecapture, btnCancel);
+                box.append(title, img, actions);
+                overlay.appendChild(box);
+                document.body.appendChild(overlay);
+            };
+
+            captureFrame((blob) => {
+                if (blob) {
+                    showCaptureModal(blob);
+                } else {
+                    window.flashError('Ruffle not ready — play the Flash first');
+                }
+            });
+
+            return; // never open file picker for Flash items
+        }
+
+
+        // Non-Flash items: use the file picker as before
         let fileInput = document.getElementById('rethumb-file-input');
         if (!fileInput) {
             fileInput = document.createElement('input');
@@ -3692,52 +3875,24 @@ window.cancelAnimFrame = (function () {
             fileInput.accept = 'image/png, image/jpeg, image/gif, image/webp';
             fileInput.style.display = 'none';
             document.body.appendChild(fileInput);
-            
+
             fileInput.addEventListener('change', function(evt) {
                 const file = evt.target.files[0];
                 if (!file) return;
-                
                 if (file.size > 5 * 1024 * 1024) {
                     window.flashError('File is too large (max 5MB)');
                     fileInput.value = '';
                     return;
                 }
-                
                 const currentItemId = fileInput.dataset.itemId;
-                const fd = new FormData();
-                fd.append('file', file);
-                
-                window.flashMessage(i18n.uploading || 'Uploading...');
-                
-                fetch(`/api/v2/items/${currentItemId}/thumbnail`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-Token': window.f0ckSession?.csrf_token
-                    },
-                    body: fd
-                })
-                .then(r => r.json())
-                .then(data => {
-                    fileInput.value = '';
-                    if (data.success) {
-                        window.flashMessage(data.msg);
-                        if (window.refreshItemThumbnails) {
-                            window.refreshItemThumbnails(currentItemId);
-                        }
-                    } else {
-                        window.flashError(data.msg || 'Upload failed');
-                    }
-                })
-                .catch(err => {
-                    fileInput.value = '';
-                    window.flashError('Upload error');
-                    console.error(err);
-                });
+                submitRethumb(file, currentItemId);
+                fileInput.value = '';
             });
         }
-        
+
         fileInput.dataset.itemId = itemId;
         fileInput.click();
+
     } else if (target.closest('button#a_toggle')) {
       e.preventDefault();
       const toggleBtn = target.closest('button#a_toggle');
@@ -9849,11 +10004,17 @@ document.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         mediaObj.classList.add('revealed');
-        
+
         // Start audio/video playback cleanly on reveal
         const videoElem = mediaObj.querySelector('video') || mediaObj.querySelector('audio');
         if (videoElem) {
           videoElem.play().catch(() => {});
+        }
+
+        // Start Ruffle playback if this is a Flash item — it was loaded with autoplay:"off"
+        const rufflePlayer = mediaObj.querySelector('ruffle-player');
+        if (rufflePlayer) {
+          try { rufflePlayer.play(); } catch(err) {}
         }
         return;
       }
