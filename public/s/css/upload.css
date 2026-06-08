@@ -455,6 +455,7 @@
 .item-tags-container {
     margin-top: 10px;
     width: 100%;
+    position: relative;
 }
 
 .item-tags-list {
@@ -1296,7 +1297,7 @@
     flex-shrink: 0;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
     .upload-form.shitpost-mode-active .file-preview-item {
         flex-direction: column;
         align-items: stretch;
@@ -1312,6 +1313,24 @@
 
     .upload-form.shitpost-mode-active .item-media-col iframe {
         height: 200px;
+    }
+
+    /* Keep suggestions visible and position them above the tag input */
+    .upload-form.shitpost-mode-active .file-meta-row-small {
+        overflow: visible !important;
+    }
+
+    .upload-form.shitpost-mode-active .tag-suggestions {
+        position: absolute !important;
+        bottom: 100% !important;
+        top: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+        z-index: 200000 !important;
     }
 }
 
