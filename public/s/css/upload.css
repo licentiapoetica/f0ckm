@@ -118,7 +118,7 @@
     flex-direction: column;
     /* Stacked */
     align-items: center;
-    gap: 1rem;
+    gap: 0.3rem;
     width: 100%;
 }
 
