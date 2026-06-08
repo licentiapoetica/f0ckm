@@ -9,6 +9,9 @@
  *   node regen.mjs --audio            - Regenerate all audio items
  *   node regen.mjs --pdf              - Regenerate all PDF items
  *   node regen.mjs --blur             - Regenerate ONLY the blurred thumbnails for all items
+ *
+ * Flash (SWF) items are always excluded — their thumbnails are set via the
+ * Ruffle snapshot mechanism and must never be touched by this script.
  */
 
 import db from "../src/inc/sql.mjs";
@@ -31,12 +34,24 @@ if (args.length === 0) {
     process.exit(0);
 }
 
+// Flash mime types — never regenerate these
+const FLASH_MIMES = [
+    'application/x-shockwave-flash',
+    'application/vnd.adobe.flash.movie',
+];
+const isFlash = (mime) => FLASH_MIMES.includes(mime?.toLowerCase());
+
 const THUMB_SIZE = 512;
 const blurOnly = args.includes('--blur');
 console.log(`[regen] Thumb size: ${THUMB_SIZE}px\n`);
 
 const regen = async (item) => {
     const { id, dest, mime, src } = item;
+
+    if (isFlash(mime)) {
+        console.log(`[${id}] Skipped (Flash/SWF — thumbnail managed by Ruffle snapshot)`);
+        return;
+    }
 
     if (blurOnly) {
         console.log(`[${id}] Regenerating blurred thumbnail only: ${dest}`);
@@ -72,12 +87,15 @@ const regen = async (item) => {
     }
 };
 
+// Shared NOT IN clause for Flash exclusion
+const flashExclude = db`mime NOT IN (${db(FLASH_MIMES)})`;
+
 try {
     let items;
 
     if (args.includes('--all')) {
-        items = await db`SELECT id, dest, mime, src FROM items WHERE active = true AND is_deleted = false ORDER BY id`;
-        console.log(`Regenerating ALL ${items.length} items...\n`);
+        items = await db`SELECT id, dest, mime, src FROM items WHERE active = true AND is_deleted = false AND ${flashExclude} ORDER BY id`;
+        console.log(`Regenerating ALL ${items.length} non-Flash items...\n`);
     } else if (args.includes('--audio')) {
         items = await db`SELECT id, dest, mime, src FROM items WHERE active = true AND is_deleted = false AND mime ILIKE 'audio/%' ORDER BY id`;
         console.log(`Regenerating ${items.length} audio items...\n`);
@@ -91,10 +109,10 @@ try {
         items = await db`
             SELECT id, dest, mime, src 
             FROM items
-            WHERE active = true AND is_deleted = false 
+            WHERE active = true AND is_deleted = false AND ${flashExclude}
             ORDER BY id
         `;
-        console.log(`Regenerating ONLY blurred thumbnails for all ${items.length} items...\n`);
+        console.log(`Regenerating ONLY blurred thumbnails for all ${items.length} non-Flash items...\n`);
     } else {
         const ids = args.map(Number).filter(n => !isNaN(n) && n > 0);
         if (ids.length === 0) {
@@ -117,3 +135,4 @@ try {
     console.error('Fatal error:', err);
     process.exit(1);
 }
+

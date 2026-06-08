@@ -1659,7 +1659,7 @@ window.cancelAnimFrame = (function () {
         "letterbox": "on",
         "warnOnUnsupportedContent": false,
         "contextMenu": "on",
-        "splashScreen": false
+        "splashScreen": true
       };
 
     let ruffleKeepAliveApplied = false;
@@ -1768,7 +1768,7 @@ window.cancelAnimFrame = (function () {
           "autoplay": blurActive ? "off" : "on",
           "pageVisibility": window.f0ckSession?.ruffle_background === false,
           "backgroundExecution": window.f0ckSession?.ruffle_background === false ? undefined : "Unthrottled",
-          "splashScreen": false
+          "splashScreen": true
         };
       }
 
