@@ -3941,7 +3941,23 @@ window.cancelAnimFrame = (function () {
   // <keybindings>
   const clickOnElementBinding = selector => () => (elem = document.querySelector(selector)) ? elem.click() : null;
   const clickOnNavBinding = selector => () => { const el = document.querySelector(selector); if (el && el.href && !el.href.endsWith('#')) el.click(); };
+  const seekToPercentage = fraction => {
+    const mediaElement = document.querySelector('#my-video') || document.querySelector('audio#my-video');
+    if (mediaElement && isFinite(mediaElement.duration)) {
+      mediaElement.currentTime = mediaElement.duration * fraction;
+    }
+  };
   const keybindings = {
+    "0": () => seekToPercentage(0),
+    "1": () => seekToPercentage(0.1),
+    "2": () => seekToPercentage(0.2),
+    "3": () => seekToPercentage(0.3),
+    "4": () => seekToPercentage(0.4),
+    "5": () => seekToPercentage(0.5),
+    "6": () => seekToPercentage(0.6),
+    "7": () => seekToPercentage(0.7),
+    "8": () => seekToPercentage(0.8),
+    "9": () => seekToPercentage(0.9),
     "ArrowLeft": clickOnNavBinding("#prev"),
     "a": clickOnNavBinding("#prev"),
     "ArrowRight": clickOnNavBinding("#next"),
