@@ -5976,10 +5976,10 @@ input {
     position: absolute;
     right: auto;
     top: auto;
-    bottom: 20px;
-    min-width: unset;
-    max-width: unset;
-    max-height: 40vh;
+    bottom: 100%;
+    min-width: unset !important;
+    max-width: unset !important;
+    max-height: inital !important;
     border-radius: 0px;
     margin-bottom: 5px;
   }

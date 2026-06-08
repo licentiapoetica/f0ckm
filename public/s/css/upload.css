@@ -788,9 +788,9 @@
 
 .upload-form .tag-suggestions {
     position: absolute !important;
-    min-width: 220px !important;
-    max-width: 320px !important;
-    max-height: 260px !important;
+    min-width: 220px;
+    max-width: 320px;
+    max-height: 260px;
     overflow-y: auto !important;
     background: var(--dropdown-bg, #1a1a1a) !important;
     border: 1px solid var(--black, #000) !important;
