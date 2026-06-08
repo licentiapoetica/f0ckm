@@ -176,6 +176,8 @@ class v0ck {
     let restorePlaybackRate = 1;
     let ignoreNextClick = false;
     let wasPausedWhenStarted = false;
+    // Mobile tap-to-show-controls: true when this touch revealed the controls bar
+    let controlsJustShown = false;
     const speedIndicator = player.querySelector('.v0ck_speed_indicator');
     
     // (mouse position is now tracked via docMouseX/docMouseY in resetControlsTimer block)
@@ -284,6 +286,14 @@ class v0ck {
       player.classList.toggle('v0ck_fullscreen', !!isThisPlayerFS);
     }
 
+    // Mobile: on touchstart, record whether controls were hidden so the
+    // subsequent click can decide whether to show controls or toggle play.
+    player.addEventListener('touchstart', () => {
+      if (isMobile) {
+        controlsJustShown = !player.classList.contains('v0ck_hover');
+      }
+    }, { passive: true, capture: true });
+
     player.addEventListener('click', e => {
       if (ignoreNextClick) {
         e.stopPropagation();
@@ -294,10 +304,13 @@ class v0ck {
       const path = e.path || (e.composedPath && e.composedPath());
       const isControls = !!path.filter(f => f.classList?.contains('v0ck_player_controls')).length;
       if (!isControls) {
-        if (isMobile && !player.classList.contains('v0ck_hover')) {
+        if (isMobile && controlsJustShown) {
+          // First tap: controls were just revealed by this touch — don't toggle play
+          controlsJustShown = false;
           player.classList.add('v0ck_hover');
           return;
         }
+        controlsJustShown = false;
         togglePlay(e);
       }
     });
