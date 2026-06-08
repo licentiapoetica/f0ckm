@@ -2957,7 +2957,6 @@ body.layout-legacy .comments-list {
   overflow: visible;
   /* Unified scrolling */
   min-height: 0;
-  border: 1px solid var(--black);
   padding-right: 0px;
   padding-left: 0px;
   padding-top: 0px;
