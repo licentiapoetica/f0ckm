@@ -8438,7 +8438,7 @@ video.autoplay-gif {
 }
 
 .comment.reply {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--comment-bg);
 }
 
 .reply-mention {
