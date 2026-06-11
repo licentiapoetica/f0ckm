@@ -4938,10 +4938,9 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
 }
 
 /* Danmaku toggle button on Ruffle embeds — appears on hover */
-.ruffle-danmaku-toggle {
+.ruffle-danmaku-toggle, .ruffle-fullscreen-toggle {
   position: absolute;
   bottom: 10px;
-  left: 10px;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -4961,13 +4960,23 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
   transition: opacity 0.25s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
+.ruffle-danmaku-toggle {
+  left: 10px;
+}
+
+.ruffle-fullscreen-toggle {
+  right: 10px;
+}
+
 .embed-responsive:hover .ruffle-danmaku-toggle,
-#ruffle-container:hover .ruffle-danmaku-toggle {
+#ruffle-container:hover .ruffle-danmaku-toggle,
+.embed-responsive:hover .ruffle-fullscreen-toggle,
+#ruffle-container:hover .ruffle-fullscreen-toggle {
   opacity: 1;
   pointer-events: auto;
 }
 
-.ruffle-danmaku-toggle:hover {
+.ruffle-danmaku-toggle:hover, .ruffle-fullscreen-toggle:hover {
   background: rgba(0, 0, 0, 0.75);
   border-color: rgba(255, 255, 255, 0.3);
   color: rgba(255, 255, 255, 0.85);

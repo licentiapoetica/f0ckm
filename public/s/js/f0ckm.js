@@ -1840,7 +1840,31 @@ window.cancelAnimFrame = (function () {
                 <button class="ruffle-danmaku-toggle${dmOn ? ' active' : ''}" title="Toggle Danmaku">
                     <i class="fa-solid fa-bars-staggered"></i>
                 </button>
+                <button class="ruffle-fullscreen-toggle" title="Toggle Fullscreen">
+                    <i class="fa-solid fa-expand"></i>
+                </button>
             `);
+
+            // Wire up fullscreen toggle
+            const fsBtn = container.querySelector('.ruffle-fullscreen-toggle');
+            if (fsBtn) {
+                fsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!document.fullscreenElement) {
+                        container.requestFullscreen().catch(err => console.error(err));
+                    } else {
+                        document.exitFullscreen();
+                    }
+                });
+                
+                document.addEventListener('fullscreenchange', () => {
+                    if (document.fullscreenElement === container) {
+                        fsBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+                    } else {
+                        fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+                    }
+                });
+            }
 
             // Wire up danmaku toggle
             const dmBtn = container.querySelector('.ruffle-danmaku-toggle');
@@ -1868,10 +1892,18 @@ window.cancelAnimFrame = (function () {
                     const showDmBtn = () => {
                         dmBtn.style.opacity = '1';
                         dmBtn.style.pointerEvents = 'auto';
+                        if (fsBtn) {
+                            fsBtn.style.opacity = '1';
+                            fsBtn.style.pointerEvents = 'auto';
+                        }
                         clearTimeout(dmHideTimer);
                         dmHideTimer = setTimeout(() => {
                             dmBtn.style.opacity = '';
                             dmBtn.style.pointerEvents = '';
+                            if (fsBtn) {
+                                fsBtn.style.opacity = '';
+                                fsBtn.style.pointerEvents = '';
+                            }
                         }, 3000);
                     };
                     container.addEventListener('touchstart', showDmBtn, { passive: true });
@@ -1880,6 +1912,12 @@ window.cancelAnimFrame = (function () {
                         e.stopPropagation();
                         showDmBtn();
                     }, { passive: true });
+                    if (fsBtn) {
+                        fsBtn.addEventListener('touchstart', (e) => {
+                            e.stopPropagation();
+                            showDmBtn();
+                        }, { passive: true });
+                    }
                 }
             }
         }
