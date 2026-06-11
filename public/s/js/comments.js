@@ -2358,8 +2358,10 @@ class CommentSystem {
             }
         });
 
-        // Single Click Listener for Everything
-        this.container.addEventListener('change', async (e) => {
+        // File input change: store the File object locally and show a preview using a
+        // local object URL. The actual upload happens at submit time, so no server round-
+        // trip occurs here and there is nothing to orphan.
+        this.container.addEventListener('change', (e) => {
             if (!e.target.matches('.comment-file-input')) return;
             const fileInput = e.target;
             const wrap = fileInput.closest('.comment-input');
@@ -2392,18 +2394,6 @@ class CommentSystem {
                     if (window.flashMessage) window.flashMessage((i18n.file_too_large || 'File too large') + `: ${file.name}`, 3000, 'error');
                     continue;
                 }
-                const fd = new FormData();
-                fd.append('file', file);
-                const csrf = session.csrf_token || '';
-                const uploadingText = i18n.uploading_file || 'Uploading...';
-                const submitBtn = wrap.querySelector('.submit-comment');
-
-                // Track pending uploads
-                wrap._pendingUploads = (wrap._pendingUploads || 0) + 1;
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.classList.add('uploading');
-                }
 
                 // Use saved cursor position (set when attach btn was clicked, before file picker
                 // dismissed the keyboard on mobile causing selectionStart to become 0).
@@ -2412,105 +2402,63 @@ class CommentSystem {
                 wrap._savedCursorPos = null;
                 wrap._savedCursorEnd = null;
 
+                // Insert a placeholder token so the URL ends up in the right spot in the text
+                // once we know the real dest after the server-side upload at submit time.
+                const placeholderToken = `[attachment:${file.name}]`;
                 const before = textarea.value.substring(0, savedPos);
                 const after = textarea.value.substring(savedEnd);
-                const placeholder = `[${uploadingText} ${file.name}]`;
                 const sep = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
-                textarea.value = before + sep + placeholder + after;
+                textarea.value = before + sep + placeholderToken + after;
 
-                // Show uploading preview
-                let previewItem = null;
+                // Build local preview (no server call yet)
                 if (previewArea) {
-                    previewItem = document.createElement('div');
-                    previewItem.className = 'cf-preview-item cf-uploading';
-                    const spinner = document.createElement('i');
-                    spinner.className = 'fa-solid fa-spinner fa-spin';
-                    previewItem.appendChild(spinner);
+                    const objectUrl = URL.createObjectURL(file);
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'cf-preview-item';
+                    previewItem.dataset.placeholderToken = placeholderToken;
+                    previewItem.dataset.originalFilename = file.name;
+                    previewItem.dataset.mime = file.type || 'application/octet-stream';
+                    // Store the File object directly on the element for retrieval at submit time
+                    previewItem._stagedFile = file;
+                    previewItem._objectUrl = objectUrl;
+
+                    if (file.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.src = objectUrl;
+                        img.loading = 'lazy';
+                        previewItem.appendChild(img);
+                    } else if (file.type.startsWith('video/')) {
+                        const vid = document.createElement('video');
+                        vid.src = objectUrl;
+                        vid.muted = true;
+                        vid.preload = 'metadata';
+                        previewItem.appendChild(vid);
+                    } else {
+                        const icon = document.createElement('i');
+                        icon.className = file.type.startsWith('audio/') ? 'fa-solid fa-music' : 'fa-solid fa-file';
+                        previewItem.appendChild(icon);
+                    }
+
                     const nameEl = document.createElement('span');
                     nameEl.className = 'cf-filename';
                     nameEl.textContent = file.name;
                     previewItem.appendChild(nameEl);
+
+                    const spoilerBtn = document.createElement('button');
+                    spoilerBtn.className = 'cf-spoiler-btn';
+                    spoilerBtn.title = 'Toggle spoiler';
+                    spoilerBtn.innerHTML = '<i class="fa-solid fa-paperclip"></i><span class="spoiler-attach-badge">S</span>';
+                    spoilerBtn.type = 'button';
+                    previewItem.appendChild(spoilerBtn);
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'cf-remove-btn';
+                    removeBtn.title = removeLabel;
+                    removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    removeBtn.type = 'button';
+                    previewItem.appendChild(removeBtn);
+
                     previewArea.appendChild(previewItem);
-                }
-
-                try {
-                    const res = await fetch('/api/v2/comments/upload', {
-                        method: 'POST',
-                        headers: { 'X-CSRF-Token': csrf },
-                        body: fd
-                    });
-                    const json = await res.json();
-                    if (json.success && json.files && json.files.length > 0) {
-                        const fileData = json.files[0];
-                        const rawUrl = `/c/${fileData.dest}${fileData.converted_gif ? '#gif' : ''}`;
-                        const url = rawUrl;
-                        textarea.value = textarea.value.replace(placeholder, url);
-
-                        // Update preview with actual thumbnail
-                        if (previewItem) {
-                            previewItem.classList.remove('cf-uploading');
-                            previewItem.dataset.url = rawUrl;
-                            previewItem.dataset.fileId = fileData.id;
-                            previewItem.dataset.dest = fileData.dest;
-                            previewItem.dataset.mime = fileData.mime;
-                            previewItem.dataset.originalFilename = file.name;
-                            previewItem.innerHTML = '';
-
-                            if (fileData.mime.startsWith('image/')) {
-                                const img = document.createElement('img');
-                                img.src = rawUrl;
-                                img.loading = 'lazy';
-                                previewItem.appendChild(img);
-                            } else if (fileData.mime.startsWith('video/')) {
-                                const vid = document.createElement('video');
-                                vid.src = rawUrl;
-                                vid.muted = true;
-                                vid.preload = 'metadata';
-                                previewItem.appendChild(vid);
-                            } else {
-                                const icon = document.createElement('i');
-                                icon.className = 'fa-solid fa-music';
-                                previewItem.appendChild(icon);
-                            }
-
-                            const nameEl = document.createElement('span');
-                            nameEl.className = 'cf-filename';
-                            nameEl.textContent = file.name;
-                            previewItem.appendChild(nameEl);
-
-                            const spoilerBtn = document.createElement('button');
-                            spoilerBtn.className = 'cf-spoiler-btn';
-                            spoilerBtn.title = 'Toggle spoiler';
-                            spoilerBtn.innerHTML = '<i class="fa-solid fa-paperclip"></i><span class="spoiler-attach-badge">S</span>';
-                            spoilerBtn.type = 'button';
-                            previewItem.appendChild(spoilerBtn);
-
-                            const removeBtn = document.createElement('button');
-                            removeBtn.className = 'cf-remove-btn';
-                            removeBtn.title = removeLabel;
-                            removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                            removeBtn.type = 'button';
-                            previewItem.appendChild(removeBtn);
-                        }
-                    } else {
-                        textarea.value = textarea.value.replace(placeholder, '');
-                        if (previewItem) previewItem.remove();
-                        if (window.flashMessage) window.flashMessage(json.msg || 'Upload error', 3000, 'error');
-                    }
-                } catch (err) {
-                    textarea.value = textarea.value.replace(placeholder, '');
-                    if (previewItem) previewItem.remove();
-                    if (window.flashMessage) window.flashMessage('Upload failed: ' + err.message, 3000, 'error');
-                } finally {
-                    // Decrement pending uploads
-                    wrap._pendingUploads = Math.max(0, (wrap._pendingUploads || 1) - 1);
-                    if (wrap._pendingUploads === 0) {
-                        const submitBtn = wrap.querySelector('.submit-comment');
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.classList.remove('uploading');
-                        }
-                    }
                 }
             }
             fileInput.value = '';
@@ -2561,66 +2509,37 @@ class CommentSystem {
                 return;
             }
 
-            // Attach file as spoiler: toggle [spoiler] wrapping on a preview item
+            // Attach file as spoiler: toggle spoiler marker on a staged preview item
             const spoilerToggle = target.closest('.cf-spoiler-btn');
             if (spoilerToggle) {
                 const previewItem = spoilerToggle.closest('.cf-preview-item');
                 if (previewItem) {
-                    const rawUrl = previewItem.dataset.url;
-                    const wrap = previewItem.closest('.comment-input');
-                    const textarea = wrap?.querySelector('textarea');
-                    if (textarea && rawUrl) {
-                        const escapedUrl = rawUrl.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
-                        const spoilerPattern = new RegExp('\\[spoiler\\]' + escapedUrl + '\\[\/spoiler\\]', 'i');
-                        if (spoilerPattern.test(textarea.value)) {
-                            // Unwrap
-                            textarea.value = textarea.value.replace(spoilerPattern, rawUrl);
-                            previewItem.classList.remove('cf-is-spoiler');
-                            spoilerToggle.title = 'Toggle spoiler';
-                        } else {
-                            // Wrap
-                            textarea.value = textarea.value.replace(new RegExp(escapedUrl), `[spoiler]${rawUrl}[/spoiler]`);
-                            previewItem.classList.add('cf-is-spoiler');
-                            spoilerToggle.title = 'Remove spoiler';
-                        }
-                    }
+                    // Staged items use a placeholder token in the textarea instead of a real URL.
+                    // Toggle a data attribute; the actual [spoiler] wrapping is applied at submit.
+                    const isSpoiler = previewItem.classList.toggle('cf-is-spoiler');
+                    spoilerToggle.title = isSpoiler ? 'Remove spoiler' : 'Toggle spoiler';
                 }
                 return;
             }
 
-            // Remove file preview + strip URL from textarea
+            // Remove file preview + strip placeholder token from textarea
             if (target.matches('.cf-remove-btn') || target.closest('.cf-remove-btn')) {
                 const previewItem = target.closest('.cf-preview-item');
                 if (previewItem) {
-                    const rawUrl = previewItem.dataset.url;
-                    if (rawUrl) {
+                    const token = previewItem.dataset.placeholderToken;
+                    if (token) {
                         const wrap = previewItem.closest('.comment-input');
                         const textarea = wrap?.querySelector('textarea');
                         if (textarea) {
-                            // Build patterns for both plain URL and spoiler-wrapped URL
-                            const escapedUrl = rawUrl.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
-                            const spoilerPattern = new RegExp('\\n?\\[spoiler\\]' + escapedUrl + '\\[\\/spoiler\\]\\n?', 'i');
-                            const plainPattern = new RegExp('\\n?' + escapedUrl + '\\n?');
-                            if (spoilerPattern.test(textarea.value)) {
-                                textarea.value = textarea.value.replace(spoilerPattern, '\n').replace(/^\n|\n$/g, '');
-                            } else {
-                                textarea.value = textarea.value.replace(plainPattern, '\n').replace(/^\n|\n$/g, '');
-                            }
+                            const escaped = token.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+                            textarea.value = textarea.value
+                                .replace(new RegExp('\\n?' + escaped + '\\n?'), '\n')
+                                .replace(/^\n|\n$/g, '');
                         }
                     }
-
-                    // Fire-and-forget: tell the server to delete the orphaned upload record.
-                    // Only possible once upload has finished (fileId is set); silently ignored on failure —
-                    // the server-side orphan sweep will clean up any leftovers after 1 hour.
-                    const fileId = previewItem.dataset.fileId;
-                    if (fileId) {
-                        const csrf = (window.f0ckSession || {}).csrf_token || '';
-                        fetch(`/api/v2/comments/upload/${fileId}`, {
-                            method: 'DELETE',
-                            headers: csrf ? { 'X-CSRF-Token': csrf } : {}
-                        }).catch(() => {});
-                    }
-
+                    // Revoke the local object URL to free memory
+                    if (previewItem._objectUrl) URL.revokeObjectURL(previewItem._objectUrl);
+                    // No server call needed — file was never uploaded
                     previewItem.remove();
                 }
                 return;
@@ -3156,24 +3075,14 @@ class CommentSystem {
         const wrap = e.target.closest('.comment-input');
         const submitBtn = wrap.querySelector('.submit-comment');
         const textarea = wrap.querySelector('textarea');
-        const text = textarea.value.trim();
         const parentId = wrap.dataset.parent || null;
 
-        // Collect file IDs and files from upload previews
-        const fileIds = [];
-        const files = [];
+        // Collect staged (not-yet-uploaded) files from preview items
+        const stagedItems = [];
         const previewArea = wrap.querySelector('.comment-file-preview');
         if (previewArea) {
             previewArea.querySelectorAll('.cf-preview-item').forEach(item => {
-                if (item.dataset.fileId) {
-                    fileIds.push(item.dataset.fileId);
-                    files.push({
-                        id: parseInt(item.dataset.fileId, 10),
-                        dest: item.dataset.dest,
-                        mime: item.dataset.mime,
-                        original_filename: item.dataset.originalFilename
-                    });
-                }
+                if (item._stagedFile) stagedItems.push(item);
             });
         }
 
@@ -3191,9 +3100,85 @@ class CommentSystem {
             }
         }
 
-        if (!text && fileIds.length === 0 && !pollPayload) return;
+        // Read current textarea value (we'll patch placeholder tokens after upload)
+        let text = textarea.value.trim();
+
+        if (!text && stagedItems.length === 0 && !pollPayload) return;
         if (submitBtn.classList.contains('loading') || submitBtn.disabled) return;
-        if (wrap._pendingUploads > 0) return;
+
+        // ── Upload all staged files now (at submit time) ───────────────────────
+        const fileIds = [];
+        const files = [];
+
+        if (stagedItems.length > 0) {
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+            textarea.disabled = true;
+
+            const session = window.f0ckSession || {};
+            const csrf = session.csrf_token || '';
+            const i18n = window.f0ckI18n || {};
+
+            const uploadResults = await Promise.all(stagedItems.map(async (item) => {
+                const file = item._stagedFile;
+                const fd = new FormData();
+                fd.append('file', file);
+                try {
+                    const res = await fetch('/api/v2/comments/upload', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf },
+                        body: fd
+                    });
+                    const json = await res.json();
+                    if (json.success && json.files && json.files.length > 0) {
+                        return { item, fileData: json.files[0] };
+                    } else {
+                        if (window.flashMessage) window.flashMessage(json.msg || (i18n.upload_failed || 'Upload failed'), 3000, 'error');
+                        return { item, fileData: null };
+                    }
+                } catch (err) {
+                    if (window.flashMessage) window.flashMessage((i18n.upload_failed || 'Upload failed') + ': ' + err.message, 3000, 'error');
+                    return { item, fileData: null };
+                }
+            }));
+
+            // Any upload that failed: abort the whole submit so the user can retry
+            const anyFailed = uploadResults.some(r => !r.fileData);
+            if (anyFailed) {
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+                textarea.disabled = false;
+                return;
+            }
+
+            // Patch placeholder tokens in the textarea with real URLs
+            let currentText = textarea.value;
+            for (const { item, fileData } of uploadResults) {
+                const token = item.dataset.placeholderToken;
+                const isSpoiler = item.classList.contains('cf-is-spoiler');
+                const rawUrl = `/c/${fileData.dest}${fileData.converted_gif ? '#gif' : ''}`;
+                const replacement = isSpoiler ? `[spoiler]${rawUrl}[/spoiler]` : rawUrl;
+                if (token) currentText = currentText.replace(token, replacement);
+
+                // Update preview item to reflect its uploaded state
+                item.dataset.url = rawUrl;
+                item.dataset.fileId = fileData.id;
+                item.dataset.dest = fileData.dest;
+                item.dataset.mime = fileData.mime;
+                delete item._stagedFile;
+                if (item._objectUrl) { URL.revokeObjectURL(item._objectUrl); delete item._objectUrl; }
+
+                fileIds.push(String(fileData.id));
+                files.push({
+                    id: fileData.id,
+                    dest: fileData.dest,
+                    mime: fileData.mime,
+                    original_filename: item.dataset.originalFilename
+                });
+            }
+            textarea.value = currentText;
+            text = currentText.trim();
+        }
 
         // Start loading state
         submitBtn.classList.add('loading');

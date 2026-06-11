@@ -184,23 +184,6 @@ export const handleCommentUpload = async (req, res) => {
             return sendJson(res, { success: false, msg: 'Only one file allowed per comment' }, 400);
         }
 
-        // Per-user cap on unlinked (staged) attachments.
-        // A normal user only ever has a handful of files queued up in their compose box at once.
-        // Capping at (max attachments per comment) × 3 gives plenty of headroom for legitimate
-        // multi-file workflows while blocking upload-and-abandon abuse.
-        const maxAttachmentsPerComment = cfg.websrv.fileupload_comments_max || 5;
-        const MAX_PENDING_PER_USER = maxAttachmentsPerComment * 3;
-        const pendingCount = await db`
-            SELECT COUNT(*) AS cnt FROM comment_files
-            WHERE user_id = ${req.session.id}
-              AND comment_id IS NULL
-        `;
-        if (parseInt(pendingCount[0].cnt, 10) + files.length > MAX_PENDING_PER_USER) {
-            return sendJson(res, {
-                success: false,
-                msg: `Too many staged attachments. Please post or remove existing uploads first.`
-            }, 429);
-        }
 
         const allowedMimes = getAllowedCommentMimes();
         const results = [];
@@ -567,43 +550,6 @@ export const handleCommentUploadCancel = async (req, res, fileId) => {
     }
 };
 
-/**
- * Periodic cleanup: delete comment_files rows with comment_id IS NULL
- * that are older than 90 seconds. These are attachments that were uploaded
- * but the comment was never posted (e.g. user closed the tab).
- */
-const ORPHAN_MAX_AGE_MS = 90 * 1000; // 90 seconds
-
-const sweepOrphanedCommentFiles = async () => {
-    try {
-        const cutoff = new Date(Date.now() - ORPHAN_MAX_AGE_MS).toISOString();
-        const orphans = await db`
-            SELECT id, dest FROM comment_files
-            WHERE comment_id IS NULL
-              AND created_at < ${cutoff}
-        `;
-
-        if (!orphans.length) return;
-
-        console.log(`[COMMENT_UPLOAD] Sweeping ${orphans.length} orphaned attachment(s) older than 90 seconds`);
-
-        for (const { id, dest } of orphans) {
-            const filePath = path.join(cfg.paths.c, dest);
-            const uuid = dest.split('.')[0];
-            const thumbPath = path.join(cfg.paths.t, `cf_${uuid}.webp`);
-            await fs.unlink(filePath).catch(() => {});
-            await fs.unlink(thumbPath).catch(() => {});
-            await db`DELETE FROM comment_files WHERE id = ${id}`;
-        }
-    } catch (err) {
-        console.error('[COMMENT_UPLOAD] Orphan sweep error:', err);
-    }
-};
-
-// Run sweep every 30 seconds
-setInterval(sweepOrphanedCommentFiles, 30 * 1000);
-// Also run once shortly after boot to catch any pre-existing orphans
-setTimeout(sweepOrphanedCommentFiles, 30 * 1000);
 
 /**
  * Generate thumbnail for a comment file.
