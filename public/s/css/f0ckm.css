@@ -1741,7 +1741,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     grid-column: 2;
     height: calc(100vh - var(--navbar-h, 50px));
     display: grid;
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-rows: auto auto auto auto;
     justify-items: center;
     overflow: hidden;
     padding: 20px;
@@ -1749,6 +1749,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     min-width: 0;
     gap: 0;
     overflow-y: scroll;
+    align-content: center;
   }
 
   /* When image is expanded: flex column so metadata stays below the image */
