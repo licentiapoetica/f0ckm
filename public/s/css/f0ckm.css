@@ -1781,7 +1781,18 @@ body.sidebar-right-hidden .global-sidebar-right {
 
   body.layout-modern .item-layout-container .item-main-content .metadata {
     align-self: start;
-    overflow: auto;
+    overflow: visible;
+  }
+
+  body.layout-modern .item-layout-container .item-main-content span#favs {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 100%;
+    margin: 5px 0 0 0;
+    z-index: 10;
   }
 
   /* Sidebar toggle: hide left sidebar (e.g. keybind toggle) */
