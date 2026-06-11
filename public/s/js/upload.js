@@ -876,7 +876,7 @@ window.initUploadForm = (selector) => {
             activeMode = 'file';
         }
 
-        let lastNewLinkPreviewItem = null;
+        let lastNewPreviewItem = null;
 
         // Build preview items — skip items already rendered (append-only)
         selectedFiles.forEach((item, index) => {
@@ -1467,8 +1467,8 @@ window.initUploadForm = (selector) => {
             previewItem.appendChild(removeBtn);
             if (filePreview) filePreview.appendChild(previewItem);
 
-            if (isUrl) {
-                lastNewLinkPreviewItem = previewItem;
+            if (isShitpost) {
+                lastNewPreviewItem = previewItem;
             }
         });
 
@@ -1560,9 +1560,9 @@ window.initUploadForm = (selector) => {
         updateSubmitButton();
         form.dispatchEvent(new CustomEvent('fileReady', { detail: { files: selectedFiles } }));
 
-        if (lastNewLinkPreviewItem) {
+        if (lastNewPreviewItem) {
             setTimeout(() => {
-                lastNewLinkPreviewItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                lastNewPreviewItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 100);
         }
 
