@@ -9,11 +9,28 @@
       (function() {
         var raw = document.getElementById('rules-raw-data');
         var el  = document.getElementById('rules-dynamic-content');
+        function escapeHtml(str) {
+          return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
         function render() {
           if (raw && el && typeof marked !== 'undefined') {
             var bytes = Uint8Array.from(atob(raw.textContent.trim()), function(c) { return c.charCodeAt(0); });
             var text = new TextDecoder('utf-8').decode(bytes);
-            el.innerHTML = marked.parse(text, { gfm: true, breaks: true });
+            var renderer = new marked.Renderer();
+            renderer.code = function(code, lang) {
+              var escaped = escapeHtml(typeof code === 'object' ? (code.text || '') : code);
+              var langAttr = (typeof code === 'object' ? code.lang : lang) || '';
+              return '<pre><code' + (langAttr ? ' class="language-' + escapeHtml(langAttr) + '"' : '') + '>' + escaped + '</code></pre>';
+            };
+            renderer.codespan = function(code) {
+              var escaped = escapeHtml(typeof code === 'object' ? (code.text || '') : code);
+              return '<code>' + escaped + '</code>';
+            };
+            renderer.html = function(html) {
+              var content = typeof html === 'object' ? (html.text || '') : html;
+              return escapeHtml(content);
+            };
+            el.innerHTML = marked.parse(text, { gfm: true, breaks: true, renderer: renderer });
           }
         }
         if (typeof marked !== 'undefined') {

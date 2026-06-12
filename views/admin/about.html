@@ -10,7 +10,8 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div style="margin-bottom: 20px;">
                     <label for="about-text" style="display: block; margin-bottom: 8px; color: var(--accent);">About Page Content (Markdown supported)</label>
-                    <textarea id="about-text" name="about_text" style="width: 100%; min-height: 300px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 15px; border-radius: 4px; font-family: inherit; font-size: 1.1em; resize: vertical;">{!! about_text !!}</textarea>
+                    <textarea id="about-text" name="about_text" style="width: 100%; min-height: 300px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 15px; border-radius: 4px; font-family: inherit; font-size: 1.1em; resize: vertical;"></textarea>
+                    <script>document.getElementById('about-text').value = atob('{{ about_text_b64 }}');</script>
                 </div>
 
                 <div style="display: flex; gap: 10px; align-items: center;">
