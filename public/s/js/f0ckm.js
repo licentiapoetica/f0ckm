@@ -3703,8 +3703,8 @@ window.cancelAnimFrame = (function () {
           (parts.length >= 3 && parts[0] === 'h' && /^\d+$/.test(parts[parts.length - 1]))
         );
         if (isItemLink) {
-          // Links inside comment bodies should not inherit tag/hall context
-          const _inComment = anyLink.closest(".comment, .comment-content, .comment-body");
+          // Links inside comment bodies or MOTD should not inherit tag/hall/user context
+          const _inComment = anyLink.closest(".comment, .comment-content, .comment-body, .motd-content");
           loadItemAjax(targetUrl, !_inComment);
         } else {
           loadPageAjax(targetUrl, true);
