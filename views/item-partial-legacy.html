@@ -260,7 +260,11 @@
                     <th>Repost</th>
                     <td>
                         @each(item.reposts as rp)
-                        <a href="/{{ rp.id }}" style="margin-right: 4px;">#{{ rp.id }}</a>
+                        @if(rp.match_type === 'phash')
+                        <a href="/{{ rp.id }}" style="margin-right: 4px; opacity: 0.75;" tooltip="Visually similar (perceptual hash)" flow="up">~#{{ rp.id }}</a>
+                        @else
+                        <a href="/{{ rp.id }}" style="margin-right: 4px;" tooltip="Exact duplicate (checksum)" flow="up">#{{ rp.id }}</a>
+                        @endif
                         @endeach
                     </td>
                 </tr>

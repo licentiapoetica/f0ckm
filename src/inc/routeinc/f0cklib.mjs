@@ -2,6 +2,7 @@ import db from "../sql.mjs";
 import lib from "../lib.mjs";
 import cfg from "../config.mjs";
 import { updateHallsCache } from "../halls_cache.mjs";
+import queue from "../queue.mjs";
 import fs from "fs";
 import url from "url";
 
@@ -703,7 +704,7 @@ export default {
           AND (checksum = ${baseChecksum} OR checksum LIKE ${baseChecksum + '_bypass_%'})
         ORDER BY id ASC
       `;
-      repostItems = repostRows.map(r => ({ id: r.id, username: r.username, stamp: r.stamp }));
+      repostItems = repostRows.map(r => ({ id: r.id, username: r.username, stamp: r.stamp, match_type: 'checksum' }));
     } else if (actitem.checksum) {
       // Even without bypass, check if other bypass-entries exist with this same hash
       const baseChecksum = actitem.checksum;
@@ -714,8 +715,26 @@ export default {
           AND checksum LIKE ${baseChecksum + '_bypass_%'}
         ORDER BY id ASC
       `;
-      repostItems = repostRows.map(r => ({ id: r.id, username: r.username, stamp: r.stamp }));
+      repostItems = repostRows.map(r => ({ id: r.id, username: r.username, stamp: r.stamp, match_type: 'checksum' }));
     }
+
+    // Also find visually-similar items via phash, merging with checksum results
+    if (actitem.phash && actitem.phash !== 'ERROR' && actitem.phash !== 'MISSING') {
+      try {
+        const phashMatches = await queue.findallrepostphash(actitem.phash, itemid);
+        const existingIds = new Set(repostItems.map(r => r.id));
+        for (const pm of phashMatches) {
+          if (!existingIds.has(pm.id)) {
+            repostItems.push({ id: pm.id, username: pm.username, stamp: pm.stamp, match_type: 'phash' });
+            existingIds.add(pm.id);
+          }
+        }
+        repostItems.sort((a, b) => a.id - b.id);
+      } catch (e) {
+        console.error('[GETF0CK] phash repost lookup failed:', e.message);
+      }
+    }
+
 
     // Efficient coverart fallback
     const coverartUrl = actitem.has_coverart 

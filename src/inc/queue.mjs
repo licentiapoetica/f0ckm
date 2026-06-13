@@ -209,7 +209,8 @@ export default new class queue {
 
     const results = await db`
       SELECT id FROM items
-      WHERE phash IS NOT NULL AND phash != '' AND phash != 'ERROR' AND phash != 'MISSING' AND phash NOT LIKE '00000000%'
+      WHERE is_deleted = false
+        AND phash IS NOT NULL AND phash != '' AND phash != 'ERROR' AND phash != 'MISSING' AND phash NOT LIKE '00000000%'
         AND (
           (
             CASE WHEN split_part(phash, '_', 1) != '' AND ${h1} != '' THEN
@@ -235,6 +236,40 @@ export default new class queue {
     `;
 
     return results.length > 0 ? results[0].id : false;
+  };
+
+  async findallrepostphash(newHash, excludeId = null) {
+    if (!newHash) return [];
+    const newHashes = newHash.split('_').filter(s => s && !s.startsWith('00000000'));
+    if (newHashes.length === 0) return [];
+
+    const h1 = newHashes[0] || '';
+    const h2 = newHashes[1] || '';
+    const h3 = newHashes[2] || '';
+
+    const results = await db`
+      SELECT id, username, stamp FROM items
+      WHERE is_deleted = false
+        AND phash IS NOT NULL AND phash != '' AND phash != 'ERROR' AND phash != 'MISSING' AND phash NOT LIKE '00000000%'
+        ${excludeId ? db`AND id != ${excludeId}` : db``}
+        AND (
+            CASE WHEN split_part(phash, '_', 1) != '' AND ${h1} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 1))::bit(1024) # ('x' || ${h1})::bit(1024)) <= 15
+            ELSE false END::int
+            +
+            CASE WHEN split_part(phash, '_', 2) != '' AND ${h2} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 2))::bit(1024) # ('x' || ${h2})::bit(1024)) <= 15
+            ELSE false END::int
+            +
+            CASE WHEN split_part(phash, '_', 3) != '' AND ${h3} != '' THEN
+              bit_count(('x' || split_part(phash, '_', 3))::bit(1024) # ('x' || ${h3})::bit(1024)) <= 15
+            ELSE false END::int
+          >= 1
+        )
+      ORDER BY id ASC
+    `;
+
+    return results.map(r => ({ id: r.id, username: r.username, stamp: r.stamp }));
   };
 
   async checkcommentrepostphash(newHash) {
