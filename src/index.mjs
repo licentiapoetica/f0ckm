@@ -487,14 +487,18 @@ process.on('uncaughtException', err => {
     if (req.url.pathname === '/manifest.json' || req.url.pathname === '/sw.js')
       return;
     if (req.url.pathname.match(/^\/(b|c|t|ca|a|memes)\//) || req.url.pathname.startsWith('/s/emojis/')) {
-      if (cfg.websrv.private_society && !req.cookies?.session) {
-        res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage(req));
-        req.url.pathname = '/private_society_media_bypass';
-        return;
-      }
+      // protect_files gates raw file URLs behind a session (401 if not logged in).
+      // private_society also gates file URLs — but only when protect_files is ALSO enabled.
+      // If private_society is on but protect_files is off, direct file URLs are intentionally
+      // left public so they can be shared without requiring a login.
       if (getProtectFiles() && !req.cookies?.session) {
-        res.writeHead(401).end('Unauthorized');
-        req.url.pathname = '/protect_files_bypass';
+        if (cfg.websrv.private_society) {
+          res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage(req));
+          req.url.pathname = '/private_society_media_bypass';
+        } else {
+          res.writeHead(401).end('Unauthorized');
+          req.url.pathname = '/protect_files_bypass';
+        }
         return;
       }
       return;
