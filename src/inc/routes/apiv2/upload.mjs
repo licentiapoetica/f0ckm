@@ -227,8 +227,8 @@ export default router => {
                 }
                 const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0 && !['sfw', 'nsfw', 'nsfl'].includes(t.toLowerCase())) : [];
                 const minTags = getMinTags();
-                // In shitpost mode tags are optional
-                if (!is_shitpost && tags.length < minTags) {
+                // In shitpost mode tags are optional; skip entirely when minTags is 0
+                if (!is_shitpost && minTags > 0 && tags.length < minTags) {
                     return res.json({ success: false, msg: `At least ${minTags} tag${minTags !== 1 ? 's' : ''} required` }, 400);
                 }
 

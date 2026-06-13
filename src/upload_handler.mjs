@@ -158,11 +158,11 @@ export const handleUpload = async (req, res, self) => {
         const minTags = getMinTags();
         // In shitpost mode, tags are optional by default — unless shitpost_min_tags is configured.
         const shitpostMinTags = is_shitpost ? (parseInt(cfg.websrv.shitpost_min_tags) || 0) : 0;
-        if (!is_shitpost && tags.length < minTags) {
-            return sendJson(res, { success: false, msg: `At least ${minTags} tags are required` }, 400);
+        if (!is_shitpost && minTags > 0 && tags.length < minTags) {
+            return sendJson(res, { success: false, msg: `At least ${minTags} tag${minTags !== 1 ? 's' : ''} required` }, 400);
         }
         if (is_shitpost && shitpostMinTags > 0 && tags.length < shitpostMinTags) {
-            return sendJson(res, { success: false, msg: `At least ${shitpostMinTags} tag${shitpostMinTags !== 1 ? 's' : ''} are required` }, 400);
+            return sendJson(res, { success: false, msg: `At least ${shitpostMinTags} tag${shitpostMinTags !== 1 ? 's' : ''} required` }, 400);
         }
 
         // Validate MIME type
