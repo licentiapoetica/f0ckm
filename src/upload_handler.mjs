@@ -742,13 +742,15 @@ export const handleUpload = async (req, res, self) => {
             ? 'Upload successful! Your upload is pending admin approval.'
             : 'Upload successful! Your upload is now live.';
 
+        const imagesPath = cfg.websrv.paths?.images || '/b';
         return sendJson(res, {
             success: true,
             msg: successMsg,
             itemid: itemid,
             manual_approval: manualApproval,
             redirect: !manualApproval ? `/${itemid}` : null,
-            url: !manualApproval ? `${cfg.main.url.full}/${itemid}` : `${cfg.main.url.full}/`
+            url: !manualApproval ? `${cfg.main.url.full}/${itemid}` : `${cfg.main.url.full}/`,
+            file_url: !manualApproval ? `${cfg.main.url.full}${imagesPath}/${filename}` : null
         });
 
     } catch (err) {
