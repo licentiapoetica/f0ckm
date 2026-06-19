@@ -5908,7 +5908,6 @@ input {
 
 .tag-ac-input {
   font-size: inherit;
-  padding: 0 4px;
   min-width: 80px;
   background-color: var(--badge-tag);
   color: #fff;

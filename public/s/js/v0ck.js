@@ -441,7 +441,7 @@ class v0ck {
       }
     }, { passive: false });
 
-    // Desktop mouse volume gesture support (clicking and dragging vertically on the right half of the player)
+    // Desktop mouse volume gesture support (clicking and dragging vertically on the player)
     let activeMouseGesture = false;
 
     player.addEventListener('mousedown', e => {
@@ -451,17 +451,11 @@ class v0ck {
       const isControls = !!path.filter(f => f.classList?.contains('v0ck_player_controls')).length;
       if (isControls) return;
 
-      const rect = player.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      isRightSide = x > rect.width / 2;
       gestureType = 'none';
-
-      if (isRightSide) {
-        startX = e.clientX;
-        startY = e.clientY;
-        startVol = video.volume;
-        activeMouseGesture = true;
-      }
+      startX = e.clientX;
+      startY = e.clientY;
+      startVol = video.volume;
+      activeMouseGesture = true;
     });
 
     window.addEventListener('mousemove', e => {
