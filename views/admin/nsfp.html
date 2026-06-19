@@ -33,10 +33,7 @@
       <span id="add-status" class="nsfp-status-msg"></span>
     </div>
 
-  </div>
-</div>
-</div>
-
+  
 <script>
 (function () {
     var csrf = '{{ csrf_token }}';
@@ -256,8 +253,13 @@
 
     window.nsfpAdmin = { remove: remove, doAdd: doAdd };
 
-    loadNsfp();
+    // Defer so the DOM is fully settled whether loaded normally or via AJAX PJAX
+    setTimeout(loadNsfp, 0);
 })();
 </script>
+
+</div>
+</div>
+</div>
 
 @include(snippets/footer)
