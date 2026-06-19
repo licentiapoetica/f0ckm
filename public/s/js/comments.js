@@ -2186,7 +2186,7 @@ class CommentSystem {
             : '';
         return `
             <div class="comment-input ${parentId ? 'reply-input' : 'main-input'}" ${parentId ? `data-parent="${parentId}"` : ''}>
-                <textarea placeholder="${placeholder}"${maxLenAttr}></textarea>
+                <textarea placeholder="${placeholder}"${maxLenAttr} required></textarea>
                 <div class="comment-file-preview"></div>
                 <div class="input-actions">
                     ${counter}
@@ -3103,7 +3103,10 @@ class CommentSystem {
         // Read current textarea value (we'll patch placeholder tokens after upload)
         let text = textarea.value.trim();
 
-        if (!text && stagedItems.length === 0 && !pollPayload) return;
+        if (!text && stagedItems.length === 0 && !pollPayload) {
+            textarea.reportValidity();
+            return;
+        }
         if (submitBtn.classList.contains('loading') || submitBtn.disabled) return;
 
         // ── Upload all staged files now (at submit time) ───────────────────────
