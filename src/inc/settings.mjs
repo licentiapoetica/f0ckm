@@ -89,3 +89,13 @@ export const setHashUserIps = (val) => {}; // No-op, strictly config-based
 export const getAllowCommentDeletion = () => !!cfg.websrv.allow_comment_deletion;
 export const setAllowCommentDeletion = (val) => {}; // No-op, strictly config-based
 
+// Live-editable NSFP tag ID list — seeded from config.json, can be overridden by DB setting
+let nsfp_ids = Array.isArray(cfg.nsfp) ? [...cfg.nsfp.map(Number).filter(n => !isNaN(n))] : [];
+
+export const getNsfpIds = () => nsfp_ids;
+export const setNsfpIds = (ids) => {
+    nsfp_ids = Array.isArray(ids) ? ids.map(Number).filter(n => !isNaN(n) && n > 0) : [];
+    // Also sync to cfg.nsfp so all code reading cfg.nsfp directly still works
+    cfg.nsfp = [...nsfp_ids];
+};
+

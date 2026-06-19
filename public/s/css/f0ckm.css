@@ -13354,7 +13354,6 @@ i.iconset#a_oc {
   margin-bottom: 35px;
   flex-wrap: wrap;
   gap: 15px;
-  padding: 0 10px;
 }
 
 @media (max-width: 600px) {
@@ -15779,4 +15778,127 @@ body.scroller-active #gchat-reopen-bubble {
 .notif-thumb.notif-thumb-blurred.revealed::after {
   opacity: 0;
   pointer-events: none;
+}
+/* ── NSFP Tag Manager ─────────────────────────────────────────────────────── */
+.nsfp-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 20px;
+  padding: 6px 14px 6px 12px;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent) 70%, #fff);
+  transition: background 0.2s, border-color 0.2s;
+}
+.nsfp-tag-chip:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.nsfp-tag-chip .chip-id {
+  font-size: 0.78em;
+  opacity: 0.6;
+  font-weight: 400;
+  font-family: monospace;
+}
+.nsfp-tag-chip .chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 0 0 2px;
+  font-size: 1.1em;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.nsfp-tag-chip .chip-remove:hover {
+  opacity: 1;
+  color: #ff4090;
+}
+.nsfp-chips-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-top: 12px;
+}
+.nsfp-chips-empty {
+  color: #888;
+  font-size: 0.9em;
+  font-style: italic;
+  align-self: center;
+  margin: 0 auto;
+}
+.nsfp-search-wrap { position: relative; }
+.nsfp-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--dropdown-bg, #1a1a1a);
+  border: 1px solid var(--black, #000);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-color, #555) transparent;
+}
+.nsfp-search-input {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 1em;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.nsfp-search-input:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.nsfp-search-input::placeholder { color: rgba(255,255,255,0.35); }
+.nsfp-search-result-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: background 0.12s;
+  box-sizing: border-box;
+  user-select: none;
+}
+.nsfp-search-result-item:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.06); }
+.nsfp-search-result-item:hover { background: rgba(255,255,255,0.1); }
+.nsfp-search-result-item .result-id {
+  font-family: monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.nsfp-search-result-item .result-tag { font-size: 14px; font-weight: 500; color: var(--accent); }
+.nsfp-search-result-item .result-norm { font-size: 11px; color: rgba(255,255,255,0.35); margin-left: 12px; white-space: nowrap; }
+.nsfp-search-result-item.already-added { opacity: 0.55; cursor: default; }
+.nsfp-search-result-item.already-added::after {
+  content: 'added';
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.nsfp-status-msg {
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-top: 8px;
+  min-height: 18px;
+  display: block;
 }

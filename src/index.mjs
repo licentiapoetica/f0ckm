@@ -18,7 +18,7 @@ import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
 import { handleCommentUpload, handleCommentUploadCancel } from "./comment_upload_handler.mjs";
 import { handleDmAttachmentUpload, handleDmAttachmentDownload, handleDmAttachmentDelete } from "./dm_attachment_handler.mjs";
-import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDmAttachments, setDmAttachments, getDmUnencrypted, setDmUnencrypted, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode, getAllowCommentDeletion, setAllowCommentDeletion } from "./inc/settings.mjs";
+import { getManualApproval, setManualApproval, getMinTags, setMinTags, getRegistrationOpen, setRegistrationOpen, getTrustedUploads, setTrustedUploads, getBypassDuplicateCheck, setBypassDuplicateCheck, getProtectFiles, setProtectFiles, getPrivateMessages, setPrivateMessages, getDmAttachments, setDmAttachments, getDmUnencrypted, setDmUnencrypted, getDefaultLayout, setDefaultLayout, getEnablePdf, setEnablePdf, getEnableCleanup, setEnableCleanup, getCleanupStartDate, setCleanupStartDate, getCleanupEndDate, setCleanupEndDate, getLogUserIps, setLogUserIps, getHashUserIps, setHashUserIps, getShitpostMode, setShitpostMode, getAllowCommentDeletion, setAllowCommentDeletion, getNsfpIds, setNsfpIds } from "./inc/settings.mjs";
 import { updateHallsCache, getHalls } from "./inc/halls_cache.mjs";
 import { createI18n } from "./inc/i18n.mjs";
 import security from "./inc/security.mjs";
@@ -1085,6 +1085,22 @@ process.on('uncaughtException', err => {
     }
   } catch (e) {
     console.warn(`[BOOT] Terms text fetch failed:`, e.message);
+  }
+
+  // Fetch nsfp (NSFP tag IDs) setting — overrides config.json if set in DB
+  try {
+    const nsfpSetting = await db`SELECT value FROM site_settings WHERE key = 'nsfp' LIMIT 1`;
+    if (nsfpSetting.length > 0) {
+      const parsed = JSON.parse(nsfpSetting[0].value);
+      if (Array.isArray(parsed)) {
+        setNsfpIds(parsed);
+        console.log(`[BOOT] NSFP tag IDs loaded from DB: [${getNsfpIds().join(', ')}]`);
+      }
+    } else {
+      console.log(`[BOOT] No NSFP setting in DB, using config.json: [${getNsfpIds().join(', ')}]`);
+    }
+  } catch (e) {
+    console.warn(`[BOOT] NSFP setting fetch failed:`, e.message);
   }
 
   const globals = {

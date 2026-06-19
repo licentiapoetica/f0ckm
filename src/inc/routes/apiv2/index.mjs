@@ -10,7 +10,7 @@ import audit from '../../audit.mjs';
 import { parseMultipart, collectBody } from '../../multipart.mjs';
 
 const allowedMimes = ["audio", "image", "video", "%"];
-const globalfilter = cfg.nsfp?.length ? cfg.nsfp.map(n => `tag_id = ${n}`).join(' or ') : null;
+const getGlobalfilter = () => cfg.nsfp?.length ? cfg.nsfp.map(n => `tag_id = ${n}`).join(' or ') : null;
 const metaCache = new Map();
 const MAX_META_CACHE = 2000;
 

@@ -6,7 +6,7 @@ import queue from "../queue.mjs";
 import fs from "fs";
 import url from "url";
 
-const globalfilter = cfg.nsfp?.length ? cfg.nsfp.map(n => `tag_id = ${n}`).join(" or ") : null;
+const getGlobalfilter = () => cfg.nsfp?.length ? cfg.nsfp.map(n => `tag_id = ${n}`).join(" or ") : null;
 
 // All MIME types that map to the 'swf' extension in config (e.g. application/x-shockwave-flash, application/vnd.adobe.flash.movie)
 const flashMimes = Object.entries(cfg.mimes || {}).filter(([, ext]) => ext === 'swf').map(([mime]) => mime);
@@ -251,7 +251,7 @@ export default {
           ${mimeSQL}
           ${hallFilter}
           ${userHallFilter}
-          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
           ${newerThan ? db`and items.id > ${newerThan}` : db``}
           ${xdFilter}
@@ -293,7 +293,7 @@ export default {
         ${mimeSQL}
         ${hallFilter}
         ${userHallFilter}
-        ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+        ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
         ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         ${newerThan ? db`and items.id > ${newerThan}` : db``}
         ${xdFilter}
@@ -515,7 +515,7 @@ export default {
             ${fav ? db`and "user"."user" ilike ${user}` : db``}
             ${!fav && user ? db`and items.username ilike ${user}` : db``}
             ${mimeSQL}
-            ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+            ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
             ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         `;
     };
@@ -548,7 +548,7 @@ export default {
       where
         items.id = ${itemid} and
         items.active = true
-        ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+        ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
       limit 1
     `;
 
@@ -566,7 +566,7 @@ export default {
 
     if (!actitem) {
       // Item not found or filtered out - check if it exists but was filtered (for OG meta tags)
-      if (!session && globalfilter) {
+      if (!session && getGlobalfilter()) {
         const unfilteredItem = await db`
           select id from items where id = ${itemid} and active = true limit 1
         `;
@@ -917,7 +917,7 @@ export default {
           AND items.title ILIKE ${'%' + titleQuery + '%'}
           AND items.title IS NOT NULL
           ${mimeSQL}
-          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         ORDER BY random()
         LIMIT 1
@@ -937,7 +937,7 @@ export default {
           and "user".user ilike ${user}
           and items.active = true
           ${mimeSQL}
-          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
         group by items.id
         order by random()
         limit 1
@@ -979,7 +979,7 @@ export default {
           ${user ? db`and items.username ilike ${user}` : db``}
           ${hall ? db`and items.id in (select item_id from halls_assign ha join halls h on h.id = ha.hall_id where h.slug = ${hall})` : db``}
           ${mimeSQL}
-          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         group by items.id, tags.tag
         order by random()
@@ -998,7 +998,7 @@ export default {
           and h.slug = ${hall}
           and items.active = true
           ${mimeSQL}
-          ${!session && globalfilter ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(globalfilter)}))` : db``}
+          ${!session && getGlobalfilter() ? db`and not exists (select 1 from tags_assign where item_id = items.id and (${db.unsafe(getGlobalfilter())}))` : db``}
           ${excludedTags.length > 0 ? db`and not exists (select 1 from tags_assign where item_id = items.id and tag_id = any(${excludedTags}::int[]))` : db``}
         order by random()
         limit 1
