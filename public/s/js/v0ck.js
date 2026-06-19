@@ -703,6 +703,8 @@ class v0ck {
 
     // Controls auto-hide logic (auto hide controls after 2.5 seconds of inactivity)
     let controlsTimer;
+    // True while the cursor is physically inside .v0ck_player_controls
+    let mouseIsOverControls = false;
 
     // Track real mouse position at document level — completely independent of
     // any element animation or synthetic events.
@@ -716,6 +718,8 @@ class v0ck {
 
     function resetControlsTimer() {
       clearTimeout(controlsTimer);
+      // Never schedule auto-hide while the user is mousing over the controls bar
+      if (mouseIsOverControls) return;
       const isFullscreen = player.classList.contains('v0ck_fullscreen');
       if (!video.paused || isFullscreen) {
         controlsTimer = setTimeout(() => {
@@ -751,6 +755,24 @@ class v0ck {
       player.addEventListener(evt, showControlsAndReset, { capture: true, passive: true });
     });
 
+    // While hovering the controls bar: freeze the auto-hide timer completely.
+    const controlsBar = player.querySelector('.v0ck_player_controls');
+    if (controlsBar) {
+      controlsBar.addEventListener('mouseenter', () => {
+        mouseIsOverControls = true;
+        clearTimeout(controlsTimer); // cancel any countdown already in progress
+      }, { passive: true });
+      controlsBar.addEventListener('mouseleave', (e) => {
+        mouseIsOverControls = false;
+        // Only restart the timer if the cursor re-entered the player area
+        // (not when it left the player entirely — the player mouseleave handles that)
+        const r = player.getBoundingClientRect();
+        const stillInPlayer = e.clientX >= r.left && e.clientX <= r.right &&
+                              e.clientY >= r.top  && e.clientY <= r.bottom;
+        if (stillInPlayer) resetControlsTimer();
+      }, { passive: true });
+    }
+
     // Hide when cursor leaves the player entirely.
     // NO capture:true — that would incorrectly intercept mouseleave events from
     // child elements (e.g. the progress bar animating away from the cursor).
@@ -761,6 +783,12 @@ class v0ck {
       // If the cursor is still in that strip, don't hide.
       if (e.clientX >= r.left && e.clientX <= r.right &&
           e.clientY > r.bottom && e.clientY <= r.bottom + 8) {
+        return;
+      }
+      // If the cursor moved into the controls bar itself (or any child of it),
+      // keep the controls visible — the user is interacting with them.
+      const controls = player.querySelector('.v0ck_player_controls');
+      if (controls && e.relatedTarget && controls.contains(e.relatedTarget)) {
         return;
       }
       docMouseX = -1;
