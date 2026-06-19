@@ -30,7 +30,17 @@ export default (router, tpl) => {
         : [];
       const tagMap = Object.fromEntries(tagRows.map(r => [r.id, r]));
       const enriched = ids.map(id => tagMap[id] || { id, tag: '(unknown)', normalized: null });
-      return res.json({ success: true, nsfp: enriched, raw_ids: ids });
+
+      const blockedCount = ids.length > 0
+        ? Number((await db`
+            SELECT COUNT(DISTINCT item_id) AS cnt
+            FROM tags_assign
+            WHERE tag_id IN ${db(ids)}
+              AND item_id IN (SELECT id FROM items WHERE active = true)
+          `)[0].cnt)
+        : 0;
+
+      return res.json({ success: true, nsfp: enriched, raw_ids: ids, blocked_count: blockedCount });
     } catch (err) {
       return res.json({ success: false, msg: err.message }, 500);
     }

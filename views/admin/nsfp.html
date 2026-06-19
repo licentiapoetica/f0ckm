@@ -13,7 +13,10 @@
 
     <!-- Current NSFP tags -->
     <div style="background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 20px; margin-bottom: 24px;">
-      <p style="font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 0 0 8px;">Current NSFP Tags</p>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+        <p style="font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin: 0;">Current NSFP Tags</p>
+        <span id="nsfp-blocked-stat" style="font-size: 0.8em; color: #888;"></span>
+      </div>
       <div class="nsfp-chips-area" id="nsfp-chips">
         <span class="nsfp-chips-empty">Loading&hellip;</span>
       </div>
@@ -128,6 +131,12 @@
                     emptyEl.className = 'nsfp-chips-empty';
                     emptyEl.textContent = 'No NSFP tags configured \u2014 all content is public.';
                     chipsEl.appendChild(emptyEl);
+                }
+                var statEl = document.getElementById('nsfp-blocked-stat');
+                if (statEl) {
+                    var n = data.blocked_count || 0;
+                    statEl.textContent = n.toLocaleString() + ' item' + (n !== 1 ? 's' : '') + ' hidden from guests';
+                    statEl.style.color = n > 0 ? 'var(--accent)' : '#888';
                 }
             })
             .catch(function (e) {
