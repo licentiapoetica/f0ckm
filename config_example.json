@@ -72,6 +72,7 @@
     "meme_creator": true,
     "enable_cleanup": false,
     "enable_data_export": true,
+    "inactivity_ban_days": 60,
     "enable_user_api_keys": true,
     "enable_user_invites": true,
     "user_invite_slots": 2,

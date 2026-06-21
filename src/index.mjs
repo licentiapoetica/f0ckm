@@ -1331,4 +1331,60 @@ process.on('uncaughtException', err => {
   setTimeout(cleanupStaleSessions, 30_000);
   setInterval(cleanupStaleSessions, CLEANUP_INTERVAL_MS);
 
+  // ── Inactivity ban — permanently ban accounts that haven't logged in for N days
+  // Set websrv.inactivity_ban_days = 0 (or omit) to disable this feature entirely.
+  const INACTIVITY_BAN_DAYS = parseInt(cfg.websrv.inactivity_ban_days) || 0;
+
+  if (INACTIVITY_BAN_DAYS <= 0) {
+    console.log(`[BOOT] Inactivity ban: DISABLED (set websrv.inactivity_ban_days > 0 to enable)`);
+  } else {
+    const INACTIVITY_BAN_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+
+    const banInactiveUsers = async () => {
+      try {
+        const cutoffSecs = ~~(Date.now() / 1e3) - INACTIVITY_BAN_DAYS * 24 * 60 * 60;
+
+        // Find activated, non-banned, non-admin, non-moderator accounts whose
+        // last_seen timestamp has passed the inactivity threshold.
+        // Accounts with last_seen = 0 (never logged in) are also included.
+        const targets = await db`
+          SELECT id, login
+          FROM "user"
+          WHERE banned        = false
+            AND activated     = true
+            AND admin         = false
+            AND is_moderator  = false
+            AND login        != 'deleted_user'
+            AND last_seen    <= ${cutoffSecs}
+        `;
+
+        if (targets.length === 0) return;
+
+        const ids = targets.map(u => u.id);
+        const reason = `Inactivity (no login for ${INACTIVITY_BAN_DAYS}+ days)`;
+
+        await db`
+          UPDATE "user"
+          SET banned     = true,
+              ban_reason = ${reason},
+              ban_expires = NULL
+          WHERE id = ANY(${ids})
+        `;
+
+        // Terminate all open sessions for banned accounts
+        await db`DELETE FROM user_sessions WHERE user_id = ANY(${ids})`;
+
+        console.log(`[INACTIVITY BAN] Banned ${targets.length} inactive account(s) (threshold: ${INACTIVITY_BAN_DAYS} days): ${targets.map(u => u.login).join(', ')}`);
+      } catch (err) {
+        console.error('[INACTIVITY BAN] Failed:', err.message);
+      }
+    };
+
+    console.log(`[BOOT] Inactivity ban: enabled — threshold ${INACTIVITY_BAN_DAYS} days (config: websrv.inactivity_ban_days)`);
+
+    // Run once after startup (60s delay to let DB settle), then every 6 hours
+    setTimeout(banInactiveUsers, 60_000);
+    setInterval(banInactiveUsers, INACTIVITY_BAN_INTERVAL_MS);
+  }
+
 })();
