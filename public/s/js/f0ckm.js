@@ -9662,6 +9662,7 @@ document.addEventListener('click', (e) => {
         if (metaBtn) {
             e.preventDefault();
             const itemid = metaBtn.dataset.itemId;
+            const ytSrc  = metaBtn.dataset.src || null; // Set for YouTube items
             const modal = document.getElementById('metadata-modal');
             if (!modal) return;
 
@@ -9705,7 +9706,7 @@ document.addEventListener('click', (e) => {
                 // Find the new item's metadata button
                 const newMetaBtn = document.getElementById('a_metadata');
                 if (!newMetaBtn) {
-                    // New item doesn't support metadata extraction (YouTube, Flash, etc.)
+                    // New item doesn't support metadata extraction (Flash, etc.)
                     // Keep modal open but show a friendly message instead of closing
                     loading.style.display = 'none';
                     resultsCont.style.display = 'none';
@@ -9715,13 +9716,24 @@ document.addEventListener('click', (e) => {
                     window.addEventListener('pjax:start', onNav);
                     return;
                 }
-                const newItemId = newMetaBtn.dataset.itemId;
+                const newItemId  = newMetaBtn.dataset.itemId;
+                const newYtSrc   = newMetaBtn.dataset.src || null;
                 // Re-attach nav listener for subsequent navigations
                 window.addEventListener('pjax:start', onNav);
-                // Fetch metadata for the new item
+                // Fetch metadata for the new item (YouTube → oEmbed URL fetch, others → file extract)
                 try {
-                    const resp = await fetch(`/api/v2/meta/extract/item/${newItemId}`);
-                    const data = await resp.json();
+                    let resp, data;
+                    if (newYtSrc) {
+                        resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(newYtSrc)}`);
+                        const raw = await resp.json();
+                        // Normalise oEmbed response into the same {success, fields} shape
+                        data = raw.success
+                            ? { success: true, fields: [raw.meta.title, raw.meta.author].filter(Boolean) }
+                            : raw;
+                    } else {
+                        resp = await fetch(`/api/v2/meta/extract/item/${newItemId}`);
+                        data = await resp.json();
+                    }
                     loading.style.display = 'none';
                     if (data.success && data.fields && data.fields.length > 0) {
                         resultsCont.style.display = 'block';
@@ -9814,8 +9826,18 @@ document.addEventListener('click', (e) => {
             document.addEventListener('metadata-modal-close', close, { once: true });
 
             try {
-                const resp = await fetch(`/api/v2/meta/extract/item/${itemid}`);
-                const data = await resp.json();
+                let resp, data;
+                if (ytSrc) {
+                    // YouTube item: use oEmbed via the URL-based fetch endpoint
+                    resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(ytSrc)}`);
+                    const raw = await resp.json();
+                    data = raw.success
+                        ? { success: true, fields: [raw.meta.title, raw.meta.author].filter(Boolean) }
+                        : raw;
+                } else {
+                    resp = await fetch(`/api/v2/meta/extract/item/${itemid}`);
+                    data = await resp.json();
+                }
                 loading.style.display = 'none';
 
                 if (data.success && data.fields && data.fields.length > 0) {

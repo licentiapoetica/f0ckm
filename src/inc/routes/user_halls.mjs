@@ -163,7 +163,7 @@ export default (router, tpl) => {
       const item = data.item;
       data.is_mod_or_admin = !!(session && (session.admin || session.is_moderator));
       data.can_manage_item = !!(session && (session.admin || session.is_moderator || session.user === item.username));
-      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1 && item.mime.indexOf('youtube') === -1);
+      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1);
       data.user_has_favorited = !!(session && Array.isArray(item.favorites) && item.favorites.some(f => f.user === session.user));
       data.halls_slugs = Array.isArray(item.halls) ? item.halls.map(h => h.slug).join(',') : '';
       data.user_halls_slugs = Array.isArray(item.user_halls) ? item.user_halls.map(h => h.slug).join(',') : '';

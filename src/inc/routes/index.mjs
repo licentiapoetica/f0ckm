@@ -347,7 +347,8 @@ export default (router, tpl) => {
       // Can the current user manage this item (owner, admin, or mod)?
       data.can_manage_item = !!(session && (session.admin || session.is_moderator || session.user === item.username));
       // Is the item's MIME type suitable for metadata extraction?
-      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1 && item.mime.indexOf('youtube') === -1);
+      // YouTube items use oEmbed via /meta/fetch; all non-flash MIME types are eligible.
+      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1);
       // Has the current user favorited this item?
       data.user_has_favorited = !!(session && Array.isArray(item.favorites) && item.favorites.some(f => f.user === session.user));
       // Hall columns for display

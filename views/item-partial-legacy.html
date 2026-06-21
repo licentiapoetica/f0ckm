@@ -141,7 +141,7 @@
                     @if(can_manage_item)
                     <i class="iconset {{ item.is_oc ? 'fa-solid' : 'fa-regular' }} fa-star" id="a_oc" data-item-id="{{ item.id }}" data-is-oc="{{ item.is_oc }}" title="{{ item.is_oc ? 'Remove OC status' : 'Mark as OC' }}"></i>
                     @if(can_extract_meta)
-                    <i class="iconset fa-solid fa-magic" id="a_metadata" data-item-id="{{ item.id }}" title="Extract Metadata"></i>
+                    <i class="iconset fa-solid fa-magic" id="a_metadata" data-item-id="{{ item.id }}" @if(item.mime === 'video/youtube') data-src="https://www.youtube.com/watch?v={{ item.dest.replace('yt:', '') }}" @endif title="Extract Metadata"></i>
                     @endif
                     @if(item.mime === 'application/x-shockwave-flash' || item.mime === 'application/vnd.adobe.flash.movie')
                     <i class="iconset fa-solid fa-image" id="a_rethumb" data-item-id="{{ item.id }}" title="Re-upload Thumbnail"></i>
