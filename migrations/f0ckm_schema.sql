@@ -79,7 +79,7 @@ CREATE OR REPLACE VIEW public.items_li AS
 SELECT
     NULL::integer AS id,
     NULL::character varying(255) AS src,
-    NULL::character varying(40) AS dest,
+    NULL::character varying(60) AS dest,
     NULL::character varying(100) AS mime,
     NULL::integer AS size,
     NULL::character varying(255) AS checksum,
@@ -1358,8 +1358,6 @@ CREATE TABLE public.user_api_keys (
     api_key    text    NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT user_api_keys_pkey PRIMARY KEY (user_id),
-    CONSTRAINT user_api_keys_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE,
     CONSTRAINT user_api_keys_api_key_key UNIQUE (api_key)
 );
 
