@@ -2273,9 +2273,8 @@ window.cancelAnimFrame = (function () {
           requestAnimationFrame(() => window.scrollTo(0, cache.scroll));
           
           // Update URL bar — push to history so the address shows / not /453
-          // Store the grid URL in state so it can be recovered when navigating forward to an item
           if (!options.skipPush) {
-            history.pushState({ gridUrl: urlObj.pathname + urlObj.search }, '', url);
+            history.pushState({}, '', url);
           }
 
           // Update Document Title
@@ -3303,14 +3302,7 @@ window.cancelAnimFrame = (function () {
           const nodeToCache = indexWrapper || indexContainer;
 
           if (nodeToCache && isIndexPage) {
-             // IMPORTANT: window.location.pathname is already the NEW url (/453) during a popstate
-             // event, NOT the grid URL (/). Use history.state to recover the grid URL, or fall
-             // back to the previous pushState url stored on the state object.
-             // For direct clicks (not popstate), window.location is still the old grid URL — correct.
-             const gridUrl = (options.skipPush && history.state && history.state.gridUrl)
-               ? history.state.gridUrl
-               : window.location.pathname + window.location.search;
-             const cacheKey = gridUrl;
+             const cacheKey = window.location.pathname + window.location.search;
              const paginationWrapper = document.querySelector('.pagination-wrapper');
              gridCacheMap.set(cacheKey, {
                 node: nodeToCache,
@@ -3407,9 +3399,8 @@ window.cancelAnimFrame = (function () {
       if (hash) pushUrl += hash;
 
       if (!options.keepMedia && !options.skipPush) {
-        // Store the grid URL we came from so popstate handlers can recover the correct cache key
-        const gridUrl = window.location.pathname + window.location.search;
-        history.pushState({ gridUrl }, '', pushUrl);
+        // We overwrite proper URL even if the link clicked was "naked"
+        history.pushState({}, '', pushUrl);
       }
 
       if (!options.keepMedia) {
