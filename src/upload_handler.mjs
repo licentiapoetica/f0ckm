@@ -10,6 +10,15 @@ import { getManualApproval, getMinTags, getTrustedUploads, getBypassDuplicateChe
 import { parseMultipart, collectBody } from "./inc/multipart.mjs";
 import f0cklib from "./inc/routeinc/f0cklib.mjs";
 
+// Derive archive MIME types from cfg.mimes — any application/* that isn't swf or pdf.
+// Adding a new archive type to config.json is sufficient; no code change needed.
+const ARCHIVE_MIMES = new Set(
+    Object.entries(cfg.mimes)
+        .filter(([mime, ext]) => mime.startsWith('application/') && !['swf', 'pdf'].includes(ext))
+        .map(([mime]) => mime)
+);
+const isArchiveMime = (mime) => ARCHIVE_MIMES.has(mime);
+
 // Helper for JSON response
 const sendJson = (res, data, code = 200) => {
     res.writeHead(code, { 'Content-Type': 'application/json' });
@@ -264,6 +273,11 @@ export const handleUpload = async (req, res, self) => {
             return sendJson(res, { success: false, msg: 'PDF uploads are currently disabled.' }, 403);
         }
 
+        if (isArchiveMime(actualMime) && cfg.websrv.enable_archive === false) {
+            await fs.unlink(tmpPath).catch(() => { });
+            return sendJson(res, { success: false, msg: 'Archive uploads are currently disabled.' }, 403);
+        }
+
         // Reclassify audio-only MP4 containers (e.g. .m4a files detected as video/mp4)
         if (actualMime === 'video/mp4' || actualMime === 'video/quicktime') {
             const origExt = file.filename.split('.').pop().toLowerCase();
@@ -308,8 +322,9 @@ export const handleUpload = async (req, res, self) => {
             }
         }
 
-        // PHash check
+        // PHash check (skip for archives — binary blobs have no perceptual similarity)
         let phash = null;
+        if (!isArchiveMime(actualMime)) {
         try {
             phash = await queue.generatePHash(tmpPath);
             if (phash && !getBypassDuplicateCheck()) {
@@ -325,6 +340,7 @@ export const handleUpload = async (req, res, self) => {
             }
         } catch (e) {
             console.error('[UPLOAD] PHash error:', e);
+        }
         }
 
         // When bypass is active, symlink to the existing file if one already exists on disk.
@@ -375,9 +391,10 @@ export const handleUpload = async (req, res, self) => {
         // Suffix it so the INSERT can proceed — the file is genuinely a new item entry.
         const insertChecksum = getBypassDuplicateCheck() ? `${checksum}_bypass_${Date.now()}` : checksum;
 
-        // Probe pixel dimensions for images and videos (null for audio/flash/pdf/youtube)
+        // Probe pixel dimensions for images and videos (null for audio/flash/pdf/archive/youtube)
         let itemWidth = null;
         let itemHeight = null;
+        if (!isArchiveMime(actualMime)) {
         try {
             if (actualMime.startsWith('image/')) {
                 // Use magick identify — handles all image formats, already present for thumbnailing
@@ -411,6 +428,7 @@ export const handleUpload = async (req, res, self) => {
             }
         } catch (dimErr) {
             console.warn(`[UPLOAD] Dimension probe failed for ${actualMime} (non-fatal):`, dimErr.message);
+        }
         }
 
         // Insert
@@ -574,6 +592,7 @@ export const handleUpload = async (req, res, self) => {
                 `;
             }
         }
+
 
         // Action if auto-approved
         if (!manualApproval) {

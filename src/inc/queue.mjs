@@ -560,8 +560,37 @@ export default new class queue {
         });
       }
     }
+    else if (mime.startsWith('application/') && cfg.mimes[mime] && !['swf', 'pdf'].includes(cfg.mimes[mime])) {
+      // Any application/* MIME registered in config that isn't swf or pdf is treated as an archive.
+      // Both the detection and the label come straight from cfg.mimes — no hardcoded list needed.
+      let customThumb = cfg.websrv && cfg.websrv.archive_thumb;
+      if (customThumb && customThumb.startsWith('/')) {
+        customThumb = path.join(path.resolve(), 'public', customThumb);
+      }
+      let usedCustom = false;
+      if (customThumb) {
+        try {
+          const stat = await fs.promises.stat(customThumb).catch(() => null);
+          if (stat && stat.size > 0) {
+            await this.spawn('magick', [customThumb, tmpFile]);
+            usedCustom = true;
+          }
+        } catch (_) {}
+      }
+      if (!usedCustom) {
+        const archiveLabel = (cfg.mimes[mime] || 'arc').toUpperCase();
+        await this.spawn('magick', [
+          '-size', thumbSpec, 'xc:#1a2e1a',
+          '-gravity', 'center',
+          '-fill', '#66bb6a',
+          '-pointsize', '48',
+          '-annotate', '0', archiveLabel,
+          tmpFile
+        ]).catch(() => {});
+      }
+    }
 
-    // Determine if we should use a checkerboard background for transparency
+
     const isTransparentMime = mime === 'image/png' || mime === 'image/webp' || mime === 'image/avif' || mime === 'image/gif';
     if (isTransparentMime) {
       // Build a grey/white checkerboard via explicit xc: squares (no pattern replacement tricks):

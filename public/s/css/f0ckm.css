@@ -15907,8 +15907,6 @@ body.scroller-active #gchat-reopen-bubble {
    ARCHIVE DOWNLOAD VIEW
    ============================================= */
 .archive-download-view {
-  background: linear-gradient(135deg, #0d1a0d 0%, #111a11 50%, #0a140a 100%) !important;
-  border: 1px solid rgba(102, 187, 106, 0.15) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -15928,15 +15926,8 @@ body.scroller-active #gchat-reopen-bubble {
 
 .archive-download-icon {
   font-size: 64px;
-  color: #66bb6a;
+  color: var(--accent);
   opacity: 0.9;
-  text-shadow: 0 0 30px rgba(102, 187, 106, 0.4), 0 0 60px rgba(102, 187, 106, 0.15);
-  animation: archive-icon-pulse 3s ease-in-out infinite;
-}
-
-@keyframes archive-icon-pulse {
-  0%, 100% { text-shadow: 0 0 20px rgba(102, 187, 106, 0.3), 0 0 40px rgba(102, 187, 106, 0.1); }
-  50%       { text-shadow: 0 0 35px rgba(102, 187, 106, 0.6), 0 0 70px rgba(102, 187, 106, 0.25); }
 }
 
 .archive-download-filename {
@@ -15947,9 +15938,8 @@ body.scroller-active #gchat-reopen-bubble {
   overflow-wrap: anywhere;
   max-width: 100%;
   line-height: 1.4;
-  padding: 0 8px;
-  background: rgba(102, 187, 106, 0.06);
-  border: 1px solid rgba(102, 187, 106, 0.12);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
   border-radius: 4px;
   padding: 6px 12px;
   font-family: monospace;
@@ -15968,30 +15958,18 @@ body.scroller-active #gchat-reopen-bubble {
   align-items: center;
   gap: 10px;
   padding: 12px 32px;
-  background: linear-gradient(135deg, #388e3c, #2e7d32);
-  color: #fff !important;
+  background: var(--accent);
+  color: var(--black);
   font-weight: 700;
   font-size: 1em;
   text-decoration: none !important;
   border-radius: 4px;
-  border: 1px solid rgba(102, 187, 106, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 4px 16px rgba(56, 142, 60, 0.3);
   letter-spacing: 0.5px;
   margin-top: 4px;
 }
 
-.archive-download-btn:hover {
-  background: linear-gradient(135deg, #43a047, #388e3c);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(56, 142, 60, 0.45);
-}
-
-.archive-download-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(56, 142, 60, 0.3);
-}
 
 .archive-download-btn i {
   font-size: 1em;

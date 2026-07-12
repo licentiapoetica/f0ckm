@@ -348,7 +348,7 @@ export default (router, tpl) => {
       data.can_manage_item = !!(session && (session.admin || session.is_moderator || session.user === item.username));
       // Is the item's MIME type suitable for metadata extraction?
       // YouTube items use oEmbed via /meta/fetch; all non-flash MIME types are eligible.
-      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1);
+      data.can_extract_meta = !!(item.mime && item.mime.indexOf('flash') === -1 && !(item.mime.startsWith('application/') && cfg.mimes[item.mime] && !['swf', 'pdf'].includes(cfg.mimes[item.mime])));
       // Has the current user favorited this item?
       data.user_has_favorited = !!(session && Array.isArray(item.favorites) && item.favorites.some(f => f.user === session.user));
       // Hall columns for display
@@ -359,6 +359,7 @@ export default (router, tpl) => {
       data.item_rating_label = item.is_nsfl ? 'NSFL' : (item.is_nsfw ? 'NSFW' : (item.is_sfw ? 'SFW' : '?'));
       data.item_username_lower = (item.username || '').toLowerCase();
       data.is_flash_item = !!(item.mime && (item.mime.indexOf('flash') !== -1 || item.mime.indexOf('shockwave') !== -1));
+      data.is_archive_item = !!(item.mime && item.mime.startsWith('application/') && cfg.mimes[item.mime] && !['swf', 'pdf'].includes(cfg.mimes[item.mime]));
       data.current_hall_slug = (data.tmp && data.tmp.hall && typeof data.tmp.hall === 'object') ? data.tmp.hall.slug : (data.tmp && data.tmp.hall ? data.tmp.hall : '');
       data.current_user_hall_slug = (data.tmp && data.tmp.userHall && typeof data.tmp.userHall === 'object') ? data.tmp.userHall.slug : (data.tmp && data.tmp.userHall ? data.tmp.userHall : '');
       data.current_user_hall_owner = (data.tmp && data.tmp.userHallOwner) ? data.tmp.userHallOwner : '';

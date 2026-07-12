@@ -844,7 +844,8 @@ export default {
         is_repost: actitem.checksum ? actitem.checksum.includes('_bypass_') : false,
         reposts: repostItems,
         width: actitem.width || null,
-        height: actitem.height || null
+        height: actitem.height || null,
+        original_filename: actitem.original_filename || null
       },
       title: `${actitem.id} - ${cfg.websrv.domain}`,
       pagination: {

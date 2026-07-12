@@ -166,8 +166,12 @@ export default (router, tpl) => {
     const anchorId = qs.anchor ? parseInt(qs.anchor, 10) : null;
 
     const swfMimes = ['application/x-shockwave-flash', 'application/vnd.adobe.flash.movie'];
+    const archiveMimes = Object.entries(cfg.mimes)
+      .filter(([mime, ext]) => mime.startsWith('application/') && !['swf', 'pdf'].includes(ext))
+      .map(([mime]) => mime);
     const excludeSwfSQL = !cfg.websrv.enable_swf ? db`AND items.mime != ALL(${swfMimes})` : db``;
     const excludePdfSQL = db`AND items.mime != 'application/pdf'`;
+    const excludeArchiveSQL = db`AND items.mime != ALL(${archiveMimes})`;
     const mimeParts = (mime || '').split(',').filter(m => ['video', 'audio', 'image'].includes(m));
     const mimeSQL = mimeParts.length > 0
       ? db`AND (${mimeParts.map(m => db`items.mime ilike ${m + '/%'}`).reduce((a, b) => db`${a} OR ${b}`)})`
@@ -246,7 +250,9 @@ export default (router, tpl) => {
           WHERE items.id = ${anchorId}
             AND items.active = true
             AND ${db.unsafe(modeQuery)}
+            ${excludeSwfSQL}
             ${excludePdfSQL}
+            ${excludeArchiveSQL}
             ${!req.session && nsfp ? db`AND NOT EXISTS (SELECT 1 FROM tags_assign WHERE item_id = items.id AND (${db.unsafe(nsfp)}))` : db``}
         `;
         // If the anchor item doesn't pass the rating filter, it's inaccessible to this user.
@@ -264,6 +270,7 @@ export default (router, tpl) => {
               AND items.active = true
               ${excludeSwfSQL}
               ${excludePdfSQL}
+              ${excludeArchiveSQL}
               AND items.id != ${anchorId}
               ${excludeSQL}
               ${mimeSQL}
@@ -287,6 +294,7 @@ export default (router, tpl) => {
             AND items.active = true
             ${excludeSwfSQL}
             ${excludePdfSQL}
+            ${excludeArchiveSQL}
             ${cursorSQL}
             ${excludeSQL}
             ${mimeSQL}
@@ -341,6 +349,7 @@ export default (router, tpl) => {
           fav_count: +row.fav_count || 0,
           comment_count: +row.comment_count || 0,
           is_swf: !!(row.mime === 'application/x-shockwave-flash' || row.mime === 'application/vnd.adobe.flash.movie'),
+          is_archive: !!(row.mime && archiveMimes.includes(row.mime)),
           is_video: isVideo,
           is_youtube: isYouTube,
           is_audio: isAudio,

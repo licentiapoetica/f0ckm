@@ -30,6 +30,17 @@
 <div class="embed-responsive embed-responsive-16by9" style="background: #fff;border: 1px solid #444; overflow: hidden;">
     <iframe class="embed-responsive-item" src="{{ item.dest }}#toolbar=0" sandbox="allow-scripts allow-same-origin" loading="lazy" style="border: none; overscroll-behavior: contain !important;"></iframe>
 </div>
+@elseif(is_archive_item)
+<div class="embed-responsive embed-responsive-16by9 archive-download-view">
+    <div class="archive-download-inner">
+        <i class="fa-solid fa-file-zipper archive-download-icon"></i>
+        <div class="archive-download-filename">{{ item.original_filename || item.dest.split('/').pop() }}</div>
+        <div class="archive-download-size">{{ item.size }}</div>
+        <a class="archive-download-btn" href="{{ item.dest }}" download>
+            <i class="fa-solid fa-download"></i> Download
+        </a>
+    </div>
+</div>
 @else
 <h1>404 - Not f0cked</h1>
 @endif

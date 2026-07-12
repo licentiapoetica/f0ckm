@@ -1,4 +1,4 @@
-<form id="upload-form" class="upload-form {{ shitpost_mode ? 'shitpost-mode-active' : '' }}" enctype="multipart/form-data" data-mimes='{!! mimes_json !!}' data-max-bytes="{{ max_file_size_bytes }}" data-min-tags="{{ min_tags }}" data-comment-max-length="{{ comment_max_length }}" data-enable-swf="{{ enable_swf ? '1' : '0' }}">
+<form id="upload-form" class="upload-form {{ shitpost_mode ? 'shitpost-mode-active' : '' }}" enctype="multipart/form-data" data-mimes='{!! mimes_json !!}' data-max-bytes="{{ max_file_size_bytes }}" data-min-tags="{{ min_tags }}" data-comment-max-length="{{ comment_max_length }}" data-enable-swf="{{ enable_swf ? '1' : '0' }}" data-enable-archive="{{ enable_archive ? '1' : '0' }}">
     <div class="form-section">
         @if(web_url_upload)
         <div class="upload-mode-tabs">

@@ -77,6 +77,10 @@ const nginx502Fallback = `<html>
 </html>`;
 
 // Login + Register modal injected before </body>
+// This string is built at startup so it can reference cfg.recaptcha values.
+const _rcEnabled = !!(cfg.recaptcha && cfg.recaptcha.enabled && cfg.recaptcha.site_key);
+const _rcSiteKey = (cfg.recaptcha && cfg.recaptcha.site_key) || '';
+
 const gateLoginInjection = `
 <div id="hot-corner" style="position:fixed;bottom:0;left:0;width:20px;height:20px;z-index:9999;"></div>
 
@@ -117,6 +121,7 @@ const gateLoginInjection = `
         <input type="text" name="token" placeholder="Invite token" autocomplete="off"
           style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
         <input type="text" name="email_confirm_field" style="display:none !important;" tabindex="-1" autocomplete="off" />
+        ${_rcEnabled ? '<div id="gate-recaptcha" style="margin:4px 0;transform-origin:left top;"></div>' : ''}
         <button type="submit" id="gate-register-btn" style="background:#0051c3;color:white;border:none;padding:9px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;"
           onmouseover="this.style.background='#003681'" onmouseout="if(!this.disabled)this.style.background='#0051c3'">Create account</button>
         <p style="text-align:center;font-size:0.85em;margin:6px 0 0;color:#555;">
@@ -137,6 +142,7 @@ const gateLoginInjection = `
   function gateShowView(view) {
     document.getElementById('gate-login-view').style.display    = view === 'login'    ? '' : 'none';
     document.getElementById('gate-register-view').style.display = view === 'register' ? '' : 'none';
+    if (view === 'register') gateRenderRecaptcha();
   }
   function gateSetError(id, msg) {
     var el = document.getElementById(id);
@@ -152,6 +158,24 @@ const gateLoginInjection = `
     btn.style.cursor = loading ? 'default' : 'pointer';
   }
 
+  // reCAPTCHA
+  var _gateRcWidgetId = null;
+  var _gateRcLoaded   = false;
+  function gateRenderRecaptcha() {
+    var el = document.getElementById('gate-recaptcha');
+    if (!el || !window.grecaptcha) return;
+    if (_gateRcWidgetId !== null) {
+      try { grecaptcha.reset(_gateRcWidgetId); } catch(e) {}
+    } else {
+      _gateRcWidgetId = grecaptcha.render(el, { sitekey: '${_rcSiteKey}', theme: 'light' });
+    }
+  }
+  window.onRecaptchaGateReady = function() {
+    _gateRcLoaded = true;
+    var rv = document.getElementById('gate-register-view');
+    if (rv && rv.style.display !== 'none') gateRenderRecaptcha();
+  };
+
   document.addEventListener('DOMContentLoaded', function() {
     var modal = document.getElementById('gate-modal');
     var close = document.getElementById('gate-modal-close');
@@ -164,7 +188,7 @@ const gateLoginInjection = `
     var hc = document.getElementById('hot-corner');
     if (hc) hc.onclick = function() { openLoginGate('login'); };
 
-    // ── Login form ──────────────────────────────────────────────────────────
+    // Login form
     document.getElementById('gate-login-form').onsubmit = function(e) {
       e.preventDefault();
       gateSetError('gate-login-error', '');
@@ -182,23 +206,28 @@ const gateLoginInjection = `
           gateSetError('gate-login-error', d.msg || 'Login failed.');
           gateSetBtn('gate-login-btn', false);
         } else {
-          // success — server set the cookie, reload to enter the site
           window.location.reload();
         }
       })
-      .catch(function() {
-        // On redirect (301) fetch follows it — if the redirect lands on '/' we reload
-        window.location.reload();
-      });
+      .catch(function() { window.location.reload(); });
     };
 
-    // ── Register form ───────────────────────────────────────────────────────
+    // Register form
     document.getElementById('gate-register-form').onsubmit = function(e) {
       e.preventDefault();
       gateSetError('gate-register-error', '');
       gateSetError('gate-register-ok', '');
       gateSetBtn('gate-register-btn', true);
       var fd = new FormData(this);
+      if (_gateRcWidgetId !== null && window.grecaptcha) {
+        var token = grecaptcha.getResponse(_gateRcWidgetId);
+        if (!token) {
+          gateSetError('gate-register-error', 'Please complete the CAPTCHA.');
+          gateSetBtn('gate-register-btn', false);
+          return;
+        }
+        fd.append('g-recaptcha-response', token);
+      }
       var body = new URLSearchParams(fd).toString();
       fetch('/register', {
         method: 'POST',
@@ -210,6 +239,7 @@ const gateLoginInjection = `
         gateSetBtn('gate-register-btn', false);
         if (d.success === false) {
           gateSetError('gate-register-error', d.msg || 'Registration failed.');
+          if (_gateRcWidgetId !== null && window.grecaptcha) { try { grecaptcha.reset(_gateRcWidgetId); } catch(e) {} }
         } else {
           document.getElementById('gate-register-ok').textContent = d.msg || 'Account created! You can now sign in.';
           document.getElementById('gate-register-ok').style.display = '';
@@ -220,6 +250,7 @@ const gateLoginInjection = `
       .catch(function() {
         gateSetBtn('gate-register-btn', false);
         gateSetError('gate-register-error', 'An error occurred. Please try again.');
+        if (_gateRcWidgetId !== null && window.grecaptcha) { try { grecaptcha.reset(_gateRcWidgetId); } catch(e) {} }
       });
     };
   });
@@ -231,6 +262,7 @@ const gateLoginInjection = `
     if (_sb.length > 12) _sb = _sb.slice(-12);
   });
 </script>
+${_rcEnabled ? '<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaGateReady&render=explicit" async defer><\/script>' : ''}
 `;
 
 
@@ -1175,6 +1207,7 @@ process.on('uncaughtException', err => {
     enable_dynamic_thumbs: !!cfg.websrv.enable_dynamic_thumbs,
     comment_max_length: cfg.main.comment_max_length ?? null,
     enable_swf: !!cfg.websrv.enable_swf,
+    enable_archive: !!cfg.websrv.enable_archive,
     enable_danmaku: cfg.websrv.enable_danmaku !== false,
     enable_item_title: cfg.websrv.enable_item_title !== false,
     enable_global_chat: !!cfg.websrv.enable_global_chat,

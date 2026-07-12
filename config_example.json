@@ -121,6 +121,8 @@
     "user_alternative_steuerung": false,
     "enable_swf": false,
     "swf_thumb": "/s/img/swf.png",
+    "enable_archive": true,
+    "archive_thumb": "/s/img/archive.webp",
     "enable_item_title": true,
     "open_registration": true,
     "open_registration_web_toggle": false,
@@ -205,7 +207,16 @@
     "video/x-matroska": "mkv",
     "application/x-shockwave-flash": "swf",
     "application/vnd.adobe.flash.movie": "swf",
-    "application/pdf": "pdf"
+    "application/pdf": "pdf",
+    "application/zip": "zip",
+    "application/x-zip-compressed": "zip",
+    "application/x-rar-compressed": "rar",
+    "application/vnd.rar": "rar",
+    "application/x-7z-compressed": "7z",
+    "application/x-tar": "tar",
+    "application/gzip": "gz",
+    "application/x-bzip2": "bz2",
+    "application/x-xz": "xz"
   },
   "apis": {},
   "smtp": {

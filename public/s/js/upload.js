@@ -807,6 +807,35 @@ window.initUploadForm = (selector) => {
                     continue;
                 }
 
+                // Reject archives when archive uploads are disabled
+                const archiveEnabled = form.getAttribute('data-enable-archive') !== '0';
+                if (!archiveEnabled) {
+                    const archiveExts = new Set();
+                    try {
+                        const mimesObj = JSON.parse(mimesSource || '{}');
+                        for (const [mime, ext] of Object.entries(mimesObj)) {
+                            if (mime.startsWith('application/') && ext !== 'swf' && ext !== 'pdf') {
+                                archiveExts.add(ext);
+                            }
+                        }
+                    } catch(e) { /* ignore */ }
+
+                    const isArchiveFile = archiveExts.has(fileExt) ||
+                        (file.type && file.type.startsWith('application/') &&
+                         file.type !== 'application/x-shockwave-flash' &&
+                         file.type !== 'application/vnd.adobe.flash.movie' &&
+                         file.type !== 'application/pdf');
+
+                    if (isArchiveFile) {
+                        const label = file.type || ('.' + fileExt);
+                        const errorMsg = `${label} uploads are disabled.`;
+                        if (typeof window.flashMessage === 'function') window.flashMessage('✕ ' + errorMsg, 4000, 'error');
+                        else if (window.showFlash) window.showFlash(errorMsg, 'error');
+                        else if (statusDiv) { statusDiv.textContent = errorMsg; statusDiv.className = 'upload-status error'; }
+                        continue;
+                    }
+                }
+
                 const mimeOk = !file.type || allowedMimes.includes(file.type);
                 const extOk = allowedExts.length > 0 && allowedExts.includes(fileExt);
 
