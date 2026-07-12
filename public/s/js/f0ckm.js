@@ -2216,9 +2216,6 @@ window.cancelAnimFrame = (function () {
     }
 
 
-    // Show loading indicator immediately — before cache check so it's visible on cache-hit restores too
-    if (navbar) navbar.classList.add('pbwork');
-
     // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction.
     // The cache is checked on ANY grid navigation (not just popstate/skipPush), so clicking the
     // navbar brand from an item view restores the grid instantly without re-fetching.
