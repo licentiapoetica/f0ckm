@@ -507,7 +507,8 @@ export default (router, tpl) => {
         update "user"
         set banned = false,
             ban_reason = null,
-            ban_expires = null
+            ban_expires = null,
+            last_seen = ${~~(Date.now() / 1e3)}
         where id = ${+user_id}
       `;
 
