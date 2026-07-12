@@ -867,10 +867,10 @@ export default router => {
           Parameters: {
             rating: defaultRating
           },
-          // $json:file_url$ maps to the direct file URL in the success response JSON
-          URL: '$json:file_url$',
-          ThumbnailURL: '$json:file_url$',
-          ErrorMessage: '$json:msg$'
+          // {json:file_url} maps to the direct file URL in the success response JSON
+          URL: '{json:file_url}',
+          ThumbnailURL: '{json:file_url}',
+          ErrorMessage: '{response}'
         };
 
         const filename = `${cfg.main.url.domain}.sxcu`;
