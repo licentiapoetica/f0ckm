@@ -7166,42 +7166,23 @@ button#togglebg {
   animation: none;
 }
 
-/* ─── Posts Grid Skeleton: GPU-composited shimmer while thumbnail loads ───── */
-/* Uses ::before + transform:translateX instead of background-position.        */
-/* background-position forces a CPU repaint every frame for every element;     */
-/* transform runs on the compositor thread — no main-thread blocking.          */
+/* ─── Posts Grid Skeleton: shimmer on real items while thumbnail loads ─────── */
 div.posts>a.lazy-thumb:not(.loaded) {
-  background: rgba(255, 255, 255, 0.04);
-  overflow: hidden;
-  position: relative;
-}
-
-div.posts>a.lazy-thumb:not(.loaded)::before {
-  content: '';
-  position: absolute;
-  inset: 0;
   background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.10) 50%,
-      transparent 100%);
-  transform: translateX(-100%);
-  animation: shimmer-slide 1.6s ease-in-out infinite;
-  will-change: transform;
-  pointer-events: none;
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.10) 40%,
+      rgba(255, 255, 255, 0.04) 80%);
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
 /* Stagger shimmer phases so items feel alive individually */
-div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+2)::before {
+div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+2) {
   animation-delay: 0.2s;
 }
 
-div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+3)::before {
+div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+3) {
   animation-delay: 0.4s;
-}
-
-@keyframes shimmer-slide {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
 }
 
 
