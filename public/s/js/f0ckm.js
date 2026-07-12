@@ -3695,6 +3695,15 @@ window.cancelAnimFrame = (function () {
           targetUrl = targetUrl.replace(/[?&]strict=1/, '').replace(/[?&]$/, '');
         }
 
+        // Same-URL no-op guard: if we are already on this grid page (no hash, no different params),
+        // just scroll to top instead of tearing down and reloading all thumbnails.
+        const targetUrlNoHash = targetUrl.split('#')[0];
+        const currentUrlNoHash = window.location.href.split('#')[0];
+        if (targetUrlNoHash === currentUrlNoHash && !anyLink.hash && document.querySelector('.posts')) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return false;
+        }
+
         const parts = pathname.split('/').filter(Boolean);
         const isItemLink = !pathname.match(/\/p\//) && (
           pathname.match(/^\/\d+/) || 
