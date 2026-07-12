@@ -71,12 +71,19 @@ if (!window.UserCommentSystem) {
     }
 
     bindEvents() {
+        let _rafPending = false;
         window.addEventListener('scroll', () => {
             if (this.loading || this.finished) return;
-            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
-                this.loadMore();
-            }
-        });
+            if (_rafPending) return;
+            _rafPending = true;
+            requestAnimationFrame(() => {
+                _rafPending = false;
+                if (this.loading || this.finished) return;
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+                    this.loadMore();
+                }
+            });
+        }, { passive: true });
 
         // Listen for mode changes
         document.addEventListener('f0ck:modeChange', (e) => {
