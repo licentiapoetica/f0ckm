@@ -3068,18 +3068,12 @@ window.cancelAnimFrame = (function () {
   let tt = false;
   const stimeout = 500;
 
-  // Navbar scroll effect - throttled with rAF to avoid style recalc on every scroll tick
+  // Navbar scroll effect - make background black when scrolling
   if (navbar) {
-    let _navScrollRafPending = false;
     window.addEventListener('scroll', () => {
-      if (_navScrollRafPending) return;
-      _navScrollRafPending = true;
-      requestAnimationFrame(() => {
-        _navScrollRafPending = false;
-        const isScrolled = window.scrollY > 10;
-        navbar.classList.toggle('scrolled', isScrolled);
-      });
-    }, { passive: true });
+      const isScrolled = window.scrollY > 10;
+      navbar.classList.toggle('scrolled', isScrolled);
+    });
   }
 
   // Helper to immediately abort media downloads
@@ -4805,51 +4799,41 @@ window.cancelAnimFrame = (function () {
     };
 
     // Scroll detection - preload before reaching bottom
-    // Throttled with rAF: getBoundingClientRect() and offsetHeight reads trigger forced layout
-    // reflows. Without throttling, Chromium freezes on every scroll tick (desktop-specific
-    // because desktop Chromium doesn't async-scroll the way mobile Chrome does).
     const PRELOAD_OFFSET = 500; // pixels before bottom to trigger load
-    let _scrollRafPending = false;
 
     const onScroll = () => {
-      if (_scrollRafPending) return; // already have a frame queued, skip
-      _scrollRafPending = true;
+      const currentContainer = postsContainer;
+      // Only run if THIS container is the active one and still in DOM
+      if (!currentContainer || !document.body.contains(currentContainer)) {
+        window.removeEventListener('scroll', onScroll);
+        return;
+      }
+      if (currentContainer.classList.contains('no-infinite-scroll')) return;
+      if (!document.querySelector('#main')) return;
 
-      requestAnimationFrame(() => {
-        _scrollRafPending = false;
+      updateUrlAndPagination();
 
-        const currentContainer = postsContainer;
-        // Only run if THIS container is the active one and still in DOM
-        if (!currentContainer || !document.body.contains(currentContainer)) {
-          window.removeEventListener('scroll', onScroll);
-          return;
-        }
-        if (currentContainer.classList.contains('no-infinite-scroll')) return;
-        if (!document.querySelector('#main')) return;
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const pageHeight = document.querySelector('#main').offsetHeight;
+      const distanceFromBottom = pageHeight - scrollPosition;
 
-        updateUrlAndPagination();
+      // Load more when within PRELOAD_OFFSET pixels of bottom
+      if (distanceFromBottom < PRELOAD_OFFSET && infiniteState.hasMore && !infiniteState.loading) {
+        loadMoreItems();
+      }
 
-        const scrollPosition = window.innerHeight + window.scrollY;
-        const pageHeight = document.querySelector('#main').offsetHeight;
-        const distanceFromBottom = pageHeight - scrollPosition;
+      // Load previous when within PRELOAD_OFFSET pixels of top
+      // Also ensure we aren't already at page 1
+      if (window.scrollY < PRELOAD_OFFSET && infiniteState.hasPrev && !infiniteState.loadingUp) {
+        loadPreviousItems();
+      }
 
-        // Load more when within PRELOAD_OFFSET pixels of bottom
-        if (distanceFromBottom < PRELOAD_OFFSET && infiniteState.hasMore && !infiniteState.loading) {
-          loadMoreItems();
-        }
-
-        // Load previous when within PRELOAD_OFFSET pixels of top
-        if (window.scrollY < PRELOAD_OFFSET && infiniteState.hasPrev && !infiniteState.loadingUp) {
-          loadPreviousItems();
-        }
-
-        infiniteState.lastScrollY = window.scrollY;
-      });
+      infiniteState.lastScrollY = window.scrollY;
     };
 
     // Store scroll handler reference for cleanup
     postsContainer._scrollHandler = onScroll;
-    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll);
 
     // Initial check (in case we loaded at top/bottom)
     setTimeout(onScroll, 100);
