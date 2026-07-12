@@ -7,6 +7,224 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         .replace(/'/g, "&#039;");
 });
 
+// ============================================================
+// URL Upload Tracker — single persistent panel with queue + history
+// ============================================================
+(function () {
+    const POLL_INTERVAL  = 2000;
+    const MAX_HISTORY    = 10;
+    const STORAGE_KEY    = 'f0ck_url_upload_history';
+
+    // active jobs: jobId → { url, percent, stage, speed, eta, resolved, pollTimer }
+    const _active = new Map();
+
+    // history: [{ id, url, type, itemId, error, ts }]  — newest first
+    let _history = (() => {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+    })();
+
+    let _collapsed = false;
+
+    // ── Panel DOM ─────────────────────────────────────────────────────────────
+    const _$ = id => document.getElementById(id);
+
+    const _ensurePanel = () => {
+        if (_$('url-upload-tracker')) return;
+        const el = document.createElement('div');
+        el.id = 'url-upload-tracker';
+        el.innerHTML = `
+            <div class="uut-header">
+                <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                <span class="uut-title">URL Uploads</span>
+                <span class="uut-badge" id="uut-badge"></span>
+                <div class="uut-actions">
+                    <button class="uut-btn" id="uut-btn-clear" title="Clear history"><i class="fa-solid fa-broom"></i></button>
+                    <button class="uut-btn" id="uut-btn-toggle">−</button>
+                </div>
+            </div>
+            <div class="uut-body" id="uut-body">
+                <div id="uut-active-list"></div>
+                <div class="uut-divider" id="uut-divider"><span>Recent</span></div>
+                <div id="uut-history-list"></div>
+            </div>
+        `;
+        document.body.appendChild(el);
+        _$('uut-btn-toggle').addEventListener('click', () => {
+            _collapsed = !_collapsed;
+            _$('uut-body').style.display   = _collapsed ? 'none' : '';
+            _$('uut-btn-toggle').textContent = _collapsed ? '+' : '−';
+        });
+        _$('uut-btn-clear').addEventListener('click', () => {
+            _history = [];
+            try { localStorage.removeItem(STORAGE_KEY); } catch {}
+            _renderHistory();
+            _sync();
+        });
+    };
+
+    // ── Visibility + badge ────────────────────────────────────────────────────
+    const _sync = () => {
+        _ensurePanel();
+        const panel  = _$('url-upload-tracker');
+        const hasContent = _active.size > 0 || _history.length > 0;
+        panel.classList.toggle('uut-visible', hasContent);
+
+        const badge = _$('uut-badge');
+        if (badge) { badge.textContent = _active.size || ''; badge.style.display = _active.size ? '' : 'none'; }
+
+        const div = _$('uut-divider');
+        if (div) div.style.display = (_active.size > 0 && _history.length > 0) ? '' : 'none';
+
+        const clearBtn = _$('uut-btn-clear');
+        if (clearBtn) clearBtn.style.display = _history.length > 0 ? '' : 'none';
+    };
+
+    // ── Active job row ────────────────────────────────────────────────────────
+    const _renderJob = (jobId) => {
+        _ensurePanel();
+        const job = _active.get(jobId);
+        const list = _$('uut-active-list');
+        if (!list || !job) return;
+
+        let row = list.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'uut-job';
+            row.dataset.jid = jobId;
+            list.appendChild(row);
+        }
+
+        const pct = Math.min(Math.max(job.percent || 0, 0), 100);
+        const labels = { queued:'Queued', downloading:'Downloading', analyzing:'Analyzing', saving:'Saving', processing:'Processing', extracting:'Extracting' };
+        const label  = labels[job.stage] || job.stage || 'Processing';
+        const status = (job.stage === 'downloading' && pct > 0) ? `${label} ${pct.toFixed(1)}%` : label;
+        const speed  = (job.speed && job.eta) ? `${job.speed} · ETA ${job.eta}` : (job.speed || '');
+
+        row.innerHTML = `
+            <div class="uut-job-row">
+                <div class="uut-spinner"></div>
+                <div class="uut-job-info">
+                    <span class="uut-url" title="${window.escapeHtmlUpload(job.url)}">${window.escapeHtmlUpload(job.url)}</span>
+                    <div class="uut-meta">
+                        <span class="uut-stage">${status}</span>
+                        ${speed ? `<span class="uut-speed">${speed}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="uut-bar"><div class="uut-bar-fill" style="width:${pct}%"></div></div>
+        `;
+    };
+
+    // ── History ───────────────────────────────────────────────────────────────
+    const _saveHistory = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_history)); } catch {} };
+
+    const _pushHistory = (entry) => {
+        _history.unshift(entry);
+        if (_history.length > MAX_HISTORY) _history.length = MAX_HISTORY;
+        _saveHistory();
+        _renderHistory();
+    };
+
+    const _renderHistory = () => {
+        _ensurePanel();
+        const list = _$('uut-history-list');
+        if (!list) return;
+        if (!_history.length) { list.innerHTML = ''; return; }
+        list.innerHTML = _history.map(h => {
+            const ok   = h.type === 'upload_success';
+            const icon = ok ? '<i class="fa-solid fa-check uut-ok"></i>' : '<i class="fa-solid fa-circle-xmark uut-err"></i>';
+            const right = ok && h.itemId
+                ? `<a class="uut-link" href="/${h.itemId}">View →</a>`
+                : (h.error ? `<span class="uut-errtxt" title="${window.escapeHtmlUpload(h.error)}">${window.escapeHtmlUpload(h.error)}</span>` : '');
+            return `<div class="uut-hist-row">${icon}<span class="uut-url" title="${window.escapeHtmlUpload(h.url)}">${window.escapeHtmlUpload(h.url)}</span><div class="uut-hist-right">${right}</div></div>`;
+        }).join('');
+    };
+
+    // ── Polling ───────────────────────────────────────────────────────────────
+    const _stopPoll = (jobId) => {
+        const j = _active.get(jobId);
+        if (j?.pollTimer) { clearTimeout(j.pollTimer); j.pollTimer = null; }
+    };
+
+    const _startPolling = (jobId) => {
+        const job = _active.get(jobId);
+        if (!job || !jobId) return;
+        const poll = async () => {
+            if (!_active.has(jobId) || job.resolved) return;
+            try {
+                const resp = await fetch(`/api/v2/upload-url/progress/${jobId}?t=${Date.now()}`, { cache: 'no-store' });
+                if (!resp.ok) { job.pollTimer = setTimeout(poll, POLL_INTERVAL); return; }
+                const state = await resp.json();
+                if (!state.success) { job.pollTimer = setTimeout(poll, POLL_INTERVAL); return; }
+                if (state.percent !== undefined) job.percent = state.percent;
+                if (state.stage)                job.stage   = state.stage;
+                if (state.speed !== undefined)  job.speed   = state.speed;
+                if (state.eta   !== undefined)  job.eta     = state.eta;
+                _renderJob(jobId);
+                if (state.done) {
+                    job.pollTimer = null;
+                    setTimeout(() => { if (!job.resolved) _resolveJob(jobId, { type: state.error ? 'upload_error' : 'upload_success', item_id: null, data: state.error ? { msg: state.error } : null }); }, 2000);
+                    return;
+                }
+            } catch {}
+            job.pollTimer = setTimeout(poll, POLL_INTERVAL);
+        };
+        job.pollTimer = setTimeout(poll, POLL_INTERVAL);
+    };
+
+    // ── Resolve ───────────────────────────────────────────────────────────────
+    const _resolveJob = (jobId, notif) => {
+        const job = _active.get(jobId);
+        if (!job || job.resolved) return;
+        job.resolved = true;
+        _stopPoll(jobId);
+
+        _pushHistory({ id: jobId, url: job.url, type: notif.type, itemId: notif.item_id || null, error: notif.data?.msg || (notif.type === 'upload_error' ? 'Upload failed' : null), ts: Date.now() });
+
+        // Fade out the active row then remove
+        const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
+        if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
+        setTimeout(() => { _active.delete(jobId); _sync(); }, 350);
+    };
+
+    // ── Public API ────────────────────────────────────────────────────────────
+    const addJob = (url, jobId) => {
+        if (!jobId) jobId = `local_${Date.now()}`;
+        _ensurePanel();
+        _active.set(jobId, { url, percent: 0, stage: 'queued', speed: null, eta: null, resolved: false, pollTimer: null });
+        _renderJob(jobId);
+        _sync();
+        _startPolling(jobId);
+        return jobId;
+    };
+
+    const resolveByJobId = (jobId, notif) => { if (_active.has(jobId)) { _resolveJob(jobId, notif); return true; } return false; };
+    const resolveByUrl   = (notif, url)   => { for (const [id, j] of _active) { if (!j.resolved && j.url === url) { _resolveJob(id, notif); return true; } } return false; };
+    const resolveOldest  = (notif)        => { for (const [id, j] of _active) { if (!j.resolved) { _resolveJob(id, notif); return true; } } return false; };
+
+    // ── Notifications ─────────────────────────────────────────────────────────
+    document.addEventListener('f0ck:upload_bg_update', (e) => {
+        (e.detail || []).forEach(notif => {
+            let matched = false;
+            const jobId = notif.data?.jobId;
+            if (jobId) matched = resolveByJobId(jobId, notif);
+            if (!matched) { const url = notif.data?.url; if (url) matched = resolveByUrl(notif, url); }
+        });
+    });
+
+    // ── Init: render persisted history on load ────────────────────────────────
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => { if (_history.length) { _ensurePanel(); _renderHistory(); _sync(); } });
+    } else {
+        if (_history.length) { _ensurePanel(); _renderHistory(); _sync(); }
+    }
+
+    window.urlUploadTracker = { addJob, resolveByJobId, resolveByUrl, resolveOldest };
+})();
+
+
+
+
 // Throttled queue to capture the first frame of video files asynchronously without blocking the browser
 class VideoThumbnailQueue {
     constructor(concurrency = 3) {
@@ -2132,6 +2350,10 @@ window.initUploadForm = (selector) => {
                     if (data.success) {
                         successCount++;
                         lastData = data;
+                        // If this is a background URL upload, register it with the tracker widget
+                        if (data.pending && window.urlUploadTracker) {
+                            window.urlUploadTracker.addJob(url, data.jobId || null);
+                        }
                         if (data.itemid) {
                             try {
                                 const ts = Date.now();
@@ -2160,9 +2382,9 @@ window.initUploadForm = (selector) => {
                 if (dragModal) dragModal.classList.remove('show');
                 if (window.resetGlobalScrollState) window.resetGlobalScrollState();
                 if (window.hideAllModals) window.hideAllModals();
-                
+
                 form._f0ckUploader.reset();
-                
+
                 if (isShitpost) {
                     if (lastData?.manual_approval && typeof window.flashMessage === 'function') {
                         window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
@@ -2172,6 +2394,9 @@ window.initUploadForm = (selector) => {
                         if (typeof window.flashMessage === 'function') {
                             window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
                         }
+                    } else if (lastData?.pending) {
+                        // Background URL upload — tracker widget is already showing; just navigate home
+                        /* no additional message needed */
                     } else if (!dragModal && statusDiv) {
                         statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
                         statusDiv.className = 'upload-status success';
@@ -2181,7 +2406,7 @@ window.initUploadForm = (selector) => {
                 setTimeout(() => {
                     if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
                     else window.location.href = '/';
-                }, dragModal ? 0 : 1000);
+                }, dragModal ? 0 : (lastData?.pending ? 0 : 1000));
             } else {
                 restoreBtn();
             }
@@ -2286,9 +2511,9 @@ window.initUploadForm = (selector) => {
                         successCount++;
                         lastData = res;
                         if (res.pending) {
-                            // Background URL download — show i18n toast
-                            if (typeof window.flashMessage === 'function') {
-                                window.flashMessage(window.f0ckI18n?.upload_url_queued_background || res.msg, 4000, 'info');
+                            // Background URL download — show tracker widget entry
+                            if (window.urlUploadTracker) {
+                                window.urlUploadTracker.addJob(item.url, res.jobId || null);
                             }
                         }
                         if (res.itemid) {

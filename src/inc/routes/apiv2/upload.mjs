@@ -1,10 +1,95 @@
 import { promises as fs } from "fs";
+import { spawn as _spawnRaw } from 'child_process';
 import db from '../../sql.mjs';
 import lib from '../../lib.mjs';
 import cfg from '../../config.mjs';
 import { applyWordFilter } from '../../wordfilter.mjs';
 import queue from '../../queue.mjs';
 import path from "path";
+
+// ──────────────────────────────────────────────────────────────────────
+// In-memory job progress map (keyed by jobId string)
+// Entries: { stage, percent, speed, eta, done, error }
+// Auto-cleaned 10 min after completion.
+// ──────────────────────────────────────────────────────────────────────
+const progressMap = new Map();
+
+const setProgress = (jobId, patch) => {
+    const existing = progressMap.get(jobId) || { stage: 'queued', percent: 0, speed: null, eta: null, done: false, error: null };
+    progressMap.set(jobId, { ...existing, ...patch });
+};
+
+const cleanupJob = (jobId) => {
+    setTimeout(() => progressMap.delete(jobId), 10 * 60 * 1000);
+};
+
+/**
+ * Like queue.spawn() but streams stderr lines to a callback for live progress,
+ * while still resolving with { stdout, stderr } when the process exits.
+ * Splits on both \n and \r so yt-dlp's carriage-return progress works.
+ */
+const spawnWithProgress = (cmd, args, onLine) => {
+    return new Promise((resolve, reject) => {
+        const child = _spawnRaw(cmd, args);
+        const stdoutChunks = [];
+        const stderrChunks = [];
+        let stderrBuf = '';
+
+        if (child.stdout) child.stdout.on('data', d => stdoutChunks.push(d));
+        if (child.stderr) {
+            child.stderr.on('data', chunk => {
+                stderrChunks.push(chunk);
+                stderrBuf += chunk.toString();
+                // Split on \r or \n (yt-dlp uses \r to overwrite progress in-place)
+                const parts = stderrBuf.split(/[\r\n]/);
+                // Keep the last (potentially incomplete) segment in the buffer
+                stderrBuf = parts.pop() ?? '';
+                for (const line of parts) {
+                    // Strip ANSI escape codes
+                    const clean = line.replace(/\x1b\[[0-9;]*m/g, '').trim();
+                    if (clean && onLine) onLine(clean);
+                }
+            });
+        }
+
+        child.on('close', code => {
+            // Process any remaining buffered content
+            if (stderrBuf.trim() && onLine) {
+                const clean = stderrBuf.replace(/\x1b\[[0-9;]*m/g, '').trim();
+                if (clean) onLine(clean);
+            }
+            const stdout = Buffer.concat(stdoutChunks).toString();
+            const stderr = Buffer.concat(stderrChunks).toString();
+            if (code !== 0) {
+                const err = new Error(`Command '${cmd} ${args.join(' ')}' failed with code ${code}`);
+                err.stderr = stderr;
+                err.stdout = stdout;
+                return reject(err);
+            }
+            resolve({ stdout, stderr });
+        });
+        child.on('error', err => {
+            err.stderr = Buffer.concat(stderrChunks).toString();
+            err.stdout = Buffer.concat(stdoutChunks).toString();
+            reject(err);
+        });
+    });
+};
+
+/** Parse a yt-dlp stderr line and return a progress patch object or null. */
+const parseYtdlpLine = (line) => {
+    // [download]  47.3% of ~  58.23MiB at    3.22MiB/s ETA 00:13
+    const dlMatch = line.match(/\[download\]\s+([\d.]+)%.*?at\s+([\d.]+\s*\S+\/s)(?:.*?ETA\s+(\S+))?/);
+    if (dlMatch) {
+        return { stage: 'downloading', percent: parseFloat(dlMatch[1]), speed: dlMatch[2] || null, eta: dlMatch[3] || null };
+    }
+    // [download] Destination: ...
+    if (line.includes('[download] Destination:')) return { stage: 'downloading' };
+    if (line.includes('[Merger]') || line.includes('[ffmpeg]')) return { stage: 'processing', percent: 99 };
+    if (line.includes('[ExtractAudio]')) return { stage: 'extracting', percent: 99 };
+    return null;
+};
+
 
 // Native multipart form data parser
 const parseMultipart = (buffer, boundary) => {
@@ -79,6 +164,15 @@ const collectBody = (req) => {
 
 export default router => {
     router.group(/^\/api\/v2/, group => {
+
+        // ── GET /api/v2/upload-url/progress/:jobId ──────────────────────────────
+        group.get(/\/upload-url\/progress\/(?<jobId>[a-zA-Z0-9_-]+)$/, lib.loggedin, (req, res) => {
+            const jobId = req.params?.jobId || (req.url?.pathname || req.url || '').split('/').pop();
+            const state = progressMap.get(jobId);
+            res.setHeader?.('Cache-Control', 'no-store');
+            if (!state) return res.json({ success: false, msg: 'Job not found' }, 404);
+            return res.json({ success: true, ...state });
+        });
 
         const saveComment = async (itemid, userid, content) => {
             if (!content || !content.trim()) return;
@@ -345,9 +439,14 @@ export default router => {
                     };
 
                     // Return immediately to avoid proxy timeouts
+                    // Generate a client-side trackable job ID
+                    const jobId = await queue.genuuid();
+                    setProgress(jobId, { stage: 'queued', percent: 0, speed: null, eta: null, done: false, error: null });
+
                     res.json({
                         success: true,
                         pending: true,
+                        jobId,
                         msg: 'URL processing started in background. You will receive a notification when it is finished.'
                     });
 
@@ -392,7 +491,7 @@ export default router => {
 
                         try {
                             const proxyArgs = (cfg.main.socks && cfg.main.socks !== 'undefined') ? ['--proxy', cfg.main.socks] : [];
-                            const ytdlpArgs = ['--js-runtimes', 'node', '--geo-bypass', '--extractor-args', 'youtube:player-client=ios,web'];
+                            const ytdlpArgs = ['--js-runtimes', 'node', '--geo-bypass', '--extractor-args', 'youtube:player-client=ios,web', '--newline', '--no-colors'];
                             let maxfilesize = cfg.main.maxfilesize;
                             if (session.admin) maxfilesize = Math.floor(maxfilesize * cfg.main.adminmultiplier);
 
@@ -403,9 +502,10 @@ export default router => {
 
                             let source;
                             console.log(`[UPLOAD-URL-ASYNC] Starting Stage 1 (constrained) download for ${url} (user: ${session.user})`);
-                            
+                            setProgress(jobId, { stage: 'downloading', percent: 0 });
+
                             try {
-                                source = (await queue.spawn('yt-dlp', [
+                                source = (await spawnWithProgress('yt-dlp', [
                                     ...proxyArgs, ...ytdlpArgs,
                                     '-f', 'bv*[height<=1080]+ba/b[height<=1080] / wv*+ba/w',
                                     url,
@@ -414,22 +514,30 @@ export default router => {
                                     '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`),
                                     '--print', 'after_move:filepath',
                                     '--merge-output-format', 'mp4'
-                                ])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
+                                ], (line) => {
+                                    const patch = parseYtdlpLine(line);
+                                    if (patch) setProgress(jobId, patch);
+                                })).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
                             } catch (err) {
                                 console.warn(`[UPLOAD-URL-ASYNC] Stage 1 failed: ${err.message}`);
                                 if (isInstagram) throw new Error(sanitizeError(err));
-                                
+
+                                setProgress(jobId, { stage: 'downloading', percent: 0, speed: null, eta: null });
                                 try {
-                                    source = (await queue.spawn('yt-dlp', [
+                                    source = (await spawnWithProgress('yt-dlp', [
                                         ...proxyArgs, ...ytdlpArgs,
                                         url,
                                         '--max-filesize', `${maxfilesize / 1024}k`,
                                         '-o', path.join(cfg.paths.tmp, `${uuid}.%(ext)s`),
                                         '--print', 'after_move:filepath'
-                                    ])).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
+                                    ], (line) => {
+                                        const patch = parseYtdlpLine(line);
+                                        if (patch) setProgress(jobId, patch);
+                                    })).stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0).pop();
                                 } catch (err2) {
                                     console.warn(`[UPLOAD-URL-ASYNC] Stage 2 failed: ${err2.message}`);
                                     console.log(`[UPLOAD-URL-ASYNC] Starting Stage 3 (curl) fallback for ${url}`);
+                                    setProgress(jobId, { stage: 'downloading', percent: 0, speed: null, eta: null });
                                     const fallbackTmp = path.join(cfg.paths.tmp, `${uuid}.tmp`);
                                     let referer = url;
                                     try {
@@ -474,6 +582,8 @@ export default router => {
 
                             if (!source || source.match(/larger than/)) throw new Error('File too large or download failed');
 
+                            setProgress(jobId, { stage: 'analyzing', percent: 100, speed: null, eta: null });
+
                             const { stat } = await import('fs/promises');
                             const size = (await stat(source)).size;
                             if (size > maxfilesize) {
@@ -515,7 +625,7 @@ export default router => {
                                 const repostSum = await queue.checkrepostsum(checksum);
                                 if (repostSum) {
                                     await fs.unlink(source).catch(() => {});
-                                    await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${repostSum}, ${db.json({ url, msg: 'Duplicate detected (Checksum)' })})`;
+                                    await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${repostSum}, ${db.json({ jobId, url, msg: 'Duplicate detected (Checksum)' })})`;
                                     return;
                                 }
                             }
@@ -527,7 +637,7 @@ export default router => {
                                     const phashMatch = await queue.checkrepostphash(phash);
                                     if (phashMatch) {
                                         await fs.unlink(source).catch(() => {});
-                                        await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${phashMatch}, ${db.json({ url, msg: 'Visual duplicate detected (PHash)' })})`;
+                                        await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${phashMatch}, ${db.json({ jobId, url, msg: 'Visual duplicate detected (PHash)' })})`;
                                         return;
                                     }
                                 }
@@ -548,6 +658,7 @@ export default router => {
                                     } catch (e) { }
                                 }
                             }
+                            setProgress(jobId, { stage: 'saving', percent: 100 });
                             if (!linkedToExistingUrl) await fs.copyFile(source, path.join(destDir, filename));
                             await fs.unlink(source).catch(() => { });
 
@@ -640,12 +751,16 @@ export default router => {
                             }
 
                             // Completion notification
-                            await db`INSERT INTO notifications (user_id, type, reference_id, item_id) VALUES (${session.id}, 'upload_success', 0, ${itemid})`;
+                            setProgress(jobId, { stage: 'done', percent: 100, done: true, error: null });
+                            cleanupJob(jobId);
+                            await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_success', 0, ${itemid}, ${db.json({ jobId })})`;
 
                         } catch (err) {
                             console.error('[UPLOAD-URL-ASYNC] Final Error:', err);
                             // Error notification
-                            await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${null}, ${db.json({ url, msg: sanitizeError(err) })})`;
+                            setProgress(jobId, { stage: 'error', done: true, error: sanitizeError(err) });
+                            cleanupJob(jobId);
+                            await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${null}, ${db.json({ jobId, url, msg: sanitizeError(err) })})`;
                         }
                     })();
                 }

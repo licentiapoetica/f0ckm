@@ -7200,6 +7200,12 @@ class NotificationSystem {
     // Render the active tab
     this._renderActiveTab();
 
+    // Notify URL upload tracker widget about completed/failed background uploads
+    const bgUploads = notifications.filter(n => n.type === 'upload_success' || n.type === 'upload_error');
+    if (bgUploads.length > 0) {
+      document.dispatchEvent(new CustomEvent('f0ck:upload_bg_update', { detail: bgUploads }));
+    }
+
     // Live update for History Page
     const historyContainer = document.querySelector('.notifications-list-full');
     if (historyContainer) {
