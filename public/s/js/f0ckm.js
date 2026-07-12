@@ -117,7 +117,6 @@ window.cancelAnimFrame = (function () {
 
       // Clear grid cache to force fresh render on next navigation
       if (typeof gridCacheMap !== 'undefined') gridCacheMap.clear();
-      if (window._gridAjaxCache) window._gridAjaxCache.clear();
 
       // Update elements with data-bg (grid items).
       // We look for any data-bg or inline style containing the thumbnail path for this ID.
@@ -654,7 +653,6 @@ window.cancelAnimFrame = (function () {
           if (data.success) {
             window.flashMessage('ALL MODE ACTIVATED');
             gridCacheMap.clear();
-            if (window._gridAjaxCache) window._gridAjaxCache.clear();
             const isGridView = document.querySelector('.posts, .tags-grid');
             let reloadPromise = null;
             if (isGridView) {
@@ -710,7 +708,6 @@ window.cancelAnimFrame = (function () {
             : 'ALL MODE ACTIVATED';
           window.flashMessage(label);
           gridCacheMap.clear();
-          if (window._gridAjaxCache) window._gridAjaxCache.clear();
           const isGridView = document.querySelector('.posts, .tags-grid');
           const isItemView = document.getElementById('prev') || document.getElementById('next');
           let reloadPromise = null;
@@ -2121,16 +2118,6 @@ window.cancelAnimFrame = (function () {
   };
   window.initSidebarRightToggle();
 
-  // ── AJAX grid response cache (stale-while-revalidate) ────────────────────
-  // The AJAX endpoint has Cache-Control: no-store on the server, so the browser
-  // never caches it. Every logo click was a full DB query + round-trip, making
-  // Chromium feel slow vs Firefox (which has lower fetch overhead internally).
-  // We cache the JSON response in JS memory keyed by the stable ajaxUrl (no _t
-  // param) and serve it instantly on repeat visits, then refetch in background.
-  const _gridAjaxCache = new Map(); // key → { data, ts }
-  const _GRID_AJAX_TTL = 60_000;    // 60 s — fresh enough, fast enough
-  window._gridAjaxCache = _gridAjaxCache; // expose for clearing on mode change / upload
-
   const loadPageAjax = async (url, replace = true, options = {}) => {
     if (isNavigating) return;
 
@@ -2449,7 +2436,7 @@ window.cancelAnimFrame = (function () {
 
       const isRandom = document.cookie.includes('random_mode=1') || url.includes('random=1') || window.location.search.includes('random=1');
       if (isRandom) ajaxUrl += `&random=1`;
-      // NOTE: _t=Date.now() cache-buster removed — we use the JS-level _gridAjaxCache instead.
+      ajaxUrl += `&_t=${Date.now()}`;
       const isStrict = window.f0ckSession?.strict_mode || (localStorage.getItem('search_strict') === 'true');
       if (isStrict || url.includes('strict=1') || window.location.search.includes('strict=1')) {
         ajaxUrl += (ajaxUrl.includes('?') ? '&' : '?') + 'strict=1';
@@ -2464,32 +2451,11 @@ window.cancelAnimFrame = (function () {
 
       if (window.randomizeLogo) window.randomizeLogo();
 
-      // ── Stale-while-revalidate for grid AJAX ──────────────────────────────
-      // For grid fetches (not full-HTML structural pages), check the JS cache.
-      // Random mode gets a shorter TTL since content is expected to differ each time.
-      const _ajaxCacheTtl = isRandom ? 10_000 : _GRID_AJAX_TTL;
-      const _ajaxCached = !needsFullHtmlFetch && _gridAjaxCache.get(ajaxUrl);
-      const _ajaxCacheHit = _ajaxCached && (Date.now() - _ajaxCached.ts < _ajaxCacheTtl);
-
-      let response;
-      if (_ajaxCacheHit) {
-        // Serve from cache instantly, then kick off a background refresh
-        const _cachedData = _ajaxCached.data;
-        // Background refetch — update cache silently
-        fetch(ajaxUrl, { credentials: 'include', headers: fetchHeaders })
-          .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d) _gridAjaxCache.set(ajaxUrl, { data: d, ts: Date.now() }); })
-          .catch(() => {});
-
-        // Jump straight to processing the cached data
-        // (skip the await fetch below by injecting a resolved-response shim)
-        response = { ok: true, _cachedData };
-      } else {
-        response = await fetch(needsFullHtmlFetch ? url : ajaxUrl, {
-          credentials: 'include',
-          headers: fetchHeaders
-        });
-      }
+      const response = await fetch(needsFullHtmlFetch ? url : ajaxUrl, {
+        credentials: 'include',
+        headers: fetchHeaders,
+        cache: 'no-store'
+      });
 
       if (needsFullHtmlFetch) {
         if (!main) {
@@ -2890,17 +2856,7 @@ window.cancelAnimFrame = (function () {
         return;
       }
 
-      // Use cached data directly, or parse fresh response and store in cache
-      const data = response._cachedData
-        ? response._cachedData
-        : await (async () => {
-            const d = await response.json();
-            // Store in cache for next visit (grid fetches only, not full-HTML pages)
-            if (!needsFullHtmlFetch && d && d.success) {
-              _gridAjaxCache.set(ajaxUrl, { data: d, ts: Date.now() });
-            }
-            return d;
-          })();
+      const data = await response.json();
 
       if (data.success) {
     if (replace) {
