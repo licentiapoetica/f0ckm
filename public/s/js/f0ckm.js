@@ -2216,14 +2216,12 @@ window.cancelAnimFrame = (function () {
     }
 
 
-    // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction.
-    // The cache is checked on ANY grid navigation (not just popstate/skipPush), so clicking the
-    // navbar brand from an item view restores the grid instantly without re-fetching.
-    if (isGrid && !options.skipCache) {
+    // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction
+    if (isGrid && options.skipPush) {
        const targetCacheKey = urlObj.pathname + urlObj.search;
        if (gridCacheMap.has(targetCacheKey)) {
           const cache = gridCacheMap.get(targetCacheKey);
-          // Keep cache alive — it is already cleared on mode/filter changes (gridCacheMap.clear()).
+          gridCacheMap.delete(targetCacheKey); // Consume cache
 
           stopMedia();
 
