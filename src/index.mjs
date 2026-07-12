@@ -535,17 +535,6 @@ process.on('uncaughtException', err => {
         }
         return;
       }
-      // Thumbnails (/t/) and covers (/ca/) are static WebP files that never change at a
-      // given URL — the client appends a ?t= cache-bust param when a thumb is regenerated.
-      // Without an explicit Cache-Control header, Chromium treats these as uncacheable and
-      // re-fetches every visible thumbnail on every AJAX navigation, causing severe lag.
-      // Firefox uses a more lenient heuristic and caches them anyway — hence the difference.
-      if (req.url.pathname.match(/^\/(t|ca)\//)) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      } else if (req.url.pathname.match(/^\/(b|a|memes)\//)) {
-        // Full-size images and avatars: cache for 1 hour, re-validate after
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-      }
       return;
     }
     const availableThemes = cfg.websrv.themes || ['amoled', 'atmos', 'f0ck', 'f0ck95d', 'iced', 'orange', 'p1nk', '4d'];

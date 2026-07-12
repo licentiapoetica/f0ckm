@@ -184,68 +184,60 @@ window.cancelAnimFrame = (function () {
         return;
     }
 
-    // Chromium fix: always disconnect the old observer before creating a new one.
-    // Chromium holds detached DOM nodes in an IntersectionObserver alive much longer
-    // than Firefox does. If we reuse a stale observer after an AJAX content swap,
-    // Chromium can fire callbacks for old detached nodes, causing duplicate image
-    // fetches and flooding the network. Disconnecting releases those references.
-    if (lazyObserver) {
-        lazyObserver.disconnect();
-        lazyObserver = null;
-    }
-
-    lazyObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const thumb = entry.target;
-                let bg = thumb.dataset.bg;
-                if (bg && !thumb.classList.contains('loaded')) {
-                    const mode = thumb.getAttribute('data-mode');
-                    const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
-                    const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
-                    const blurSfw = localStorage.getItem('blurSfw') === 'true';
-                    const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
-                    
-                    let shouldBlurThis = false;
-                    if (mode === 'nsfw') shouldBlurThis = blurNsfw;
-                    else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
-                    else if (mode === 'sfw') shouldBlurThis = blurSfw;
-                    else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
-                    
-                    if (shouldBlurThis && !thumb.classList.contains('revealed')) {
-                        bg = bg.replace('.webp', '_blur.webp');
-                    }
-
-                    bg = window.applyThumbCacheBust(bg);
-                    const img = new Image();
-                    img.onload = () => {
-                        thumb.style.backgroundImage = `url('${bg}')`;
-                        thumb.classList.add('loaded');
-                        thumb.classList.remove('lazy-thumb');
-                    };
-                    img.onerror = () => {
-                        const retries = parseInt(thumb.dataset.retries || '0');
-                        if (retries < 3) {
-                            thumb.dataset.retries = retries + 1;
-                            setTimeout(() => {
-                                img.src = bg + '?r=' + Date.now();
-                            }, 1000);
-                        } else {
-                            // All retries exhausted — show fallback for audio items
-                            const mime = thumb.dataset.mime || '';
-                            if (mime.startsWith('audio/')) {
-                                thumb.style.backgroundImage = `url('/s/img/audio.webp')`;
-                                thumb.classList.add('thumb-fallback');
-                            }
-                            thumb.classList.remove('lazy-thumb');
+    if (!lazyObserver) {
+        lazyObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const thumb = entry.target;
+                    let bg = thumb.dataset.bg;
+                    if (bg && !thumb.classList.contains('loaded')) {
+                        const mode = thumb.getAttribute('data-mode');
+                        const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+                        const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+                        const blurSfw = localStorage.getItem('blurSfw') === 'true';
+                        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+                        
+                        let shouldBlurThis = false;
+                        if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+                        else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+                        else if (mode === 'sfw') shouldBlurThis = blurSfw;
+                        else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+                        
+                        if (shouldBlurThis && !thumb.classList.contains('revealed')) {
+                            bg = bg.replace('.webp', '_blur.webp');
                         }
-                    };
-                    img.src = bg;
+
+                        bg = window.applyThumbCacheBust(bg);
+                        const img = new Image();
+                        img.onload = () => {
+                            thumb.style.backgroundImage = `url('${bg}')`;
+                            thumb.classList.add('loaded');
+                            thumb.classList.remove('lazy-thumb');
+                        };
+                        img.onerror = () => {
+                            const retries = parseInt(thumb.dataset.retries || '0');
+                            if (retries < 3) {
+                                thumb.dataset.retries = retries + 1;
+                                setTimeout(() => {
+                                    img.src = bg + '?r=' + Date.now();
+                                }, 1000);
+                            } else {
+                                // All retries exhausted — show fallback for audio items
+                                const mime = thumb.dataset.mime || '';
+                                if (mime.startsWith('audio/')) {
+                                    thumb.style.backgroundImage = `url('/s/img/audio.webp')`;
+                                    thumb.classList.add('thumb-fallback');
+                                }
+                                thumb.classList.remove('lazy-thumb');
+                            }
+                        };
+                        img.src = bg;
+                    }
+                    lazyObserver.unobserve(thumb);
                 }
-                lazyObserver.unobserve(thumb);
-            }
-        });
-    }, { rootMargin: '300px 0px', threshold: 0.01 });
+            });
+        }, { rootMargin: '300px 0px', threshold: 0.01 });
+    }
 
     // Nudge lazy loading on tab switch to prevent stuck skeletons in inactive tabs
     if (!window._lazyVisibilityBound) {
@@ -262,10 +254,7 @@ window.cancelAnimFrame = (function () {
     }
 
     document.querySelectorAll('.lazy-thumb').forEach(thumb => {
-        // Reset lazyObserved on every initLazyLoading call so the fresh observer
-        // picks up all unloaded thumbs regardless of previous observation state.
-        delete thumb.dataset.lazyObserved;
-        if (!thumb.classList.contains('loaded')) {
+        if (!thumb.dataset.lazyObserved) {
             thumb.dataset.lazyObserved = 'true';
             lazyObserver.observe(thumb);
         }
