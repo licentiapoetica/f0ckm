@@ -54,6 +54,7 @@ html[theme='f0ck'] {
   /* appearance */
   background: black;
    --comment-bg: black;
+   --motd-bg: var(--gray);
 }
 
 html[theme="f0ck"] .admin-search button {
@@ -15060,6 +15061,12 @@ body.scroller-active #gchat-reopen-bubble {
   /* prevent fieldsets from blowing out grid */
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Anchor targets: offset scroll so fixed navbar + quicknav don't overlap headings */
+.settings h2[id] {
+  /* navbar (~50px) + quicknav bar (~37px) + a little breathing room */
+  scroll-margin-top: calc(var(--navbar-h, 50px) + 44px);
 }
 
 /* Settings quick-nav bar */

@@ -968,10 +968,56 @@ export default (router, tpl) => {
     }
   });
 
+  router.post(/^\/api\/v2\/admin\/users\/set-role\/?$/, lib.auth, async (req, res) => {
+    try {
+      const { user_id, role } = req.post;
+      if (!user_id) throw new Error('Missing user_id');
+      if (!['user', 'mod', 'admin'].includes(role)) throw new Error('Invalid role. Must be user, mod, or admin.');
+
+      // Fetch target
+      const target = await db`SELECT id, login FROM "user" WHERE id = ${+user_id} LIMIT 1`;
+      if (!target.length) throw new Error('User not found.');
+      if (target[0].login === 'deleted_user') throw new Error('The deleted_user account is protected.');
+
+      // Prevent self-demotion
+      if (+user_id === req.session.id && role !== 'admin') {
+        throw new Error('You cannot change your own role away from admin.');
+      }
+
+      const isAdmin = role === 'admin';
+      const isMod   = role === 'mod';
+
+      await db`
+        UPDATE "user"
+        SET admin = ${isAdmin}, is_moderator = ${isMod}
+        WHERE id = ${+user_id}
+      `;
+
+      // Invalidate sessions so permissions refresh on next login
+      await db`DELETE FROM user_sessions WHERE user_id = ${+user_id}`;
+
+      await audit.log(req.session.id, 'admin_set_role', 'user', +user_id, {
+        target_login: target[0].login,
+        role
+      });
+
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        success: true,
+        role,
+        msg: `Role for "${target[0].login}" set to ${role}.`
+      }));
+    } catch (err) {
+      console.error('[ADMIN] Set role failed:', err);
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
+    }
+  });
+
+
   router.post(/^\/api\/v2\/admin\/users\/lock-layout\/?$/, lib.auth, async (req, res) => {
     try {
       const { user_id, mode, lock } = req.post;
       if (!user_id) throw new Error('Missing user_id');
+
 
       const isLocked = lock === true || lock === 'true' || lock === 1;
       const targetMode = parseInt(mode, 10);
@@ -1334,6 +1380,71 @@ export default (router, tpl) => {
       }));
     } catch (err) {
       console.error('[ADMIN] Rename failed:', err);
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
+    }
+  });
+
+  router.post(/^\/api\/v2\/admin\/users\/create\/?$/, lib.auth, async (req, res) => {
+    try {
+      let { username, email, password, role } = req.post;
+      if (!username || !username.trim()) throw new Error('Username is required.');
+      username = username.trim();
+
+      if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+        throw new Error('Username contains invalid characters. Only A-Z, 0-9, _, -, and . are allowed.');
+      }
+      if (username.length < 2 || username.length > 32) {
+        throw new Error('Username must be between 2 and 32 characters.');
+      }
+      if (!password || password.length < 20) {
+        throw new Error('Password must be at least 20 characters long.');
+      }
+
+      // Check for existing user
+      const existing = await db`
+        SELECT id FROM "user"
+        WHERE lower(login) = lower(${username}) OR lower("user") = lower(${username})
+        ${email ? db`OR (email IS NOT NULL AND lower(email) = lower(${email}))` : db``}
+        LIMIT 1
+      `;
+      if (existing.length) throw new Error('Username or email is already taken.');
+
+      const isAdmin = role === 'admin';
+      const isMod   = role === 'mod';
+      const hash = await lib.hash(password);
+      const ts = ~~(Date.now() / 1e3);
+
+      const { getDefaultLayout } = await import('../settings.mjs');
+
+      const newUser = await db`
+        INSERT INTO "user" (login, password, "user", created_at, admin, is_moderator, email, activated, activation_token)
+        VALUES (
+          ${username.toLowerCase()}, ${hash}, ${username},
+          to_timestamp(${ts}), ${isAdmin}, ${isMod},
+          ${email || null}, true, NULL
+        )
+        RETURNING id, login
+      `;
+      const userId = newUser[0].id;
+
+      await db`
+        INSERT INTO user_options (user_id, mode, theme, fullscreen, avatar, avatar_file, use_new_layout, disable_autoplay, disable_swiping)
+        VALUES (${userId}, 3, 'amoled', 0, NULL, 'default.png', ${getDefaultLayout() === 'modern'}, ${cfg.websrv.enable_autoplay === false}, ${cfg.websrv.enable_swiping === false})
+      `;
+
+      await audit.log(req.session.id, 'admin_create_user', 'user', userId, {
+        new_login: username.toLowerCase(),
+        role: role || 'user'
+      });
+
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        success: true,
+        user_id: userId,
+        username: username.toLowerCase(),
+        msg: `User "${username.toLowerCase()}" created successfully.`
+      }));
+    } catch (err) {
+      console.error('[ADMIN] Create user failed:', err);
       return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
     }
   });

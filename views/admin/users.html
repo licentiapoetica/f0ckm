@@ -83,6 +83,97 @@
         .btn-files { background: #f08c00; }
         .btn-comms { background: #4dabf7; }
         .btn-verify { background: #5c7cfa; }
+        .btn-create { background: linear-gradient(135deg, #5c7cfa, #339af0); }
+        .btn-role   { background: rgba(180, 100, 255, 0.15); color: #c084fc; border: 1px solid rgba(180, 100, 255, 0.3); }
+        .btn-role:hover { background: rgba(180, 100, 255, 0.25); opacity: 1; }
+
+        /* Create User Modal */
+        #create-user-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+        }
+        #create-user-modal.open { display: flex; }
+        .cum-box {
+            background: #141414;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            position: relative;
+            animation: cum-in 0.2s ease;
+        }
+        @keyframes cum-in {
+            from { transform: translateY(-16px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+        .cum-box h3 {
+            margin: 0 0 20px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--white);
+        }
+        .cum-field {
+            margin-bottom: 14px;
+        }
+        .cum-field label {
+            display: block;
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 5px;
+        }
+        .cum-field input,
+        .cum-field select {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .cum-field input:focus,
+        .cum-field select:focus {
+            border-color: var(--accent);
+        }
+        .cum-field select option { background: #1a1a1a; }
+        .cum-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .cum-close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.2rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .cum-close-btn:hover { color: #fff; }
+        #cum-error {
+            font-size: 0.8rem;
+            color: #ff6b6b;
+            margin-top: 12px;
+            display: none;
+        }
 
         .user-avatar {
             width: 40px;
@@ -106,21 +197,64 @@
         }
     </style>
 
+    <!-- Create User Modal -->
+    <div id="create-user-modal">
+        <div class="cum-box">
+            <button class="cum-close-btn" onclick="closeCreateUserModal()" title="Close">&times;</button>
+            <h3><i class="fa fa-user-plus" style="margin-right: 8px; color: var(--accent);"></i>Create New User</h3>
+
+            <div class="cum-field">
+                <label for="cum-username">Username <span style="color:#e03131">*</span></label>
+                <input type="text" id="cum-username" placeholder="e.g. john_doe" autocomplete="off">
+            </div>
+            <div class="cum-field">
+                <label for="cum-email">Email <span style="color:#666">(optional)</span></label>
+                <input type="email" id="cum-email" placeholder="user@example.com" autocomplete="off">
+            </div>
+            <div class="cum-field">
+                <label for="cum-password">Password <span style="color:#e03131">*</span> <span style="color:#666;font-size:0.7rem">(min 20 chars)</span></label>
+                <input type="password" id="cum-password" placeholder="Strong password…" autocomplete="new-password">
+            </div>
+            <div class="cum-field">
+                <label for="cum-role">Role</label>
+                <select id="cum-role">
+                    <option value="user">User</option>
+                    <option value="mod">Moderator</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+
+            <div id="cum-error"></div>
+
+            <div class="cum-actions">
+                <button class="btn-modern" style="background:#333;" onclick="closeCreateUserModal()">Cancel</button>
+                <button class="btn-modern btn-create" id="cum-submit-btn" onclick="submitCreateUser()">
+                    <i class="fa fa-plus"></i> Create User
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div style="padding: 0 15px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; gap: 20px; flex-wrap: wrap;">
             <div>
                 <h2 style="margin: 0; font-weight: 800; letter-spacing: -0.5px;">User Management</h2>
                 <p style="color: #888; margin: 5px 0 0 0;">Administration hub for <span id="total-count">{!! total !!}</span> registered members.</p>
             </div>
-            <div style="flex-grow: 1; max-width: 400px; position: relative;">
-                <input type="text" id="user-search" placeholder='Search by name or email… use "exact" for exact match' 
-                       style="width: 100%; padding: 12px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;"
-                       value="{{ q }}">
-                <div id="search-spinner" style="position: absolute; right: 15px; top: 12px; display: none;">
-                    <svg class="spinner" width="20" height="20" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite;">
-                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="90,150" stroke-dashoffset="0" style="stroke-linecap: round;"></circle>
-                    </svg>
+            <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 500px;">
+                <div style="flex-grow: 1; position: relative;">
+                    <input type="text" id="user-search" placeholder='Search by name or email… use "exact" for exact match' 
+                           style="width: 100%; padding: 12px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s;"
+                           value="{{ q }}">
+                    <div id="search-spinner" style="position: absolute; right: 15px; top: 12px; display: none;">
+                        <svg class="spinner" width="20" height="20" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite;">
+                            <circle cx="25" cy="25" r="20" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="90,150" stroke-dashoffset="0" style="stroke-linecap: round;"></circle>
+                        </svg>
+                    </div>
                 </div>
+                <button class="btn-modern btn-create" onclick="openCreateUserModal()" style="padding: 10px 16px; font-size: 0.85rem; white-space: nowrap;" title="Create new user">
+                    <i class="fa fa-user-plus"></i> Create User
+                </button>
             </div>
         </div>
 
@@ -433,6 +567,117 @@
         var style = document.createElement('style');
         style.innerHTML = '@keyframes rotate { 100% { transform: rotate(360deg); } }';
         document.head.appendChild(style);
+
+        // --- Create User Modal ---
+        var createUserModal = document.getElementById('create-user-modal');
+
+        function openCreateUserModal() {
+            document.getElementById('cum-username').value = '';
+            document.getElementById('cum-email').value = '';
+            document.getElementById('cum-password').value = '';
+            document.getElementById('cum-role').value = 'user';
+            document.getElementById('cum-error').style.display = 'none';
+            document.getElementById('cum-error').textContent = '';
+            createUserModal.classList.add('open');
+            setTimeout(function() { document.getElementById('cum-username').focus(); }, 80);
+        }
+
+        function closeCreateUserModal() {
+            createUserModal.classList.remove('open');
+        }
+
+        // Close on backdrop click
+        createUserModal.addEventListener('click', function(e) {
+            if (e.target === createUserModal) closeCreateUserModal();
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && createUserModal.classList.contains('open')) closeCreateUserModal();
+        });
+
+        async function submitCreateUser() {
+            var btn = document.getElementById('cum-submit-btn');
+            var errEl = document.getElementById('cum-error');
+            var username = document.getElementById('cum-username').value.trim();
+            var email    = document.getElementById('cum-email').value.trim();
+            var password = document.getElementById('cum-password').value;
+            var role     = document.getElementById('cum-role').value;
+
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+
+            if (!username) { errEl.textContent = 'Username is required.'; errEl.style.display = 'block'; return; }
+            if (!password) { errEl.textContent = 'Password is required.'; errEl.style.display = 'block'; return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating…';
+
+            try {
+                var res = await fetch('/api/v2/admin/users/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email: email || null, password, role })
+                });
+                var data = await res.json();
+
+                if (data.success) {
+                    closeCreateUserModal();
+                    showFlash(data.msg, 'success');
+                    // Refresh the table from page 1
+                    currentPage = 1;
+                    fetchUsers(1, searchQuery, false);
+                    // Update counter
+                    var cnt = parseInt(countSpan.textContent) || 0;
+                    countSpan.textContent = cnt + 1;
+                } else {
+                    errEl.textContent = data.msg || 'Failed to create user.';
+                    errEl.style.display = 'block';
+                }
+            } catch (e) {
+                errEl.textContent = 'Network error: ' + e.message;
+                errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-plus"></i> Create User';
+            }
+        }
+        async function adminSetRole(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var currentRole = btn.dataset.role || 'user';
+
+            var hint = 'Select the new role for <strong>' + escHTML(userName) + '</strong>:<br><br>' +
+                       '<select id="set-role-select" class="input" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff;">' +
+                       '<option value="user"'   + (currentRole === 'user'  ? ' selected' : '') + '>User (no special permissions)</option>' +
+                       '<option value="mod"'    + (currentRole === 'mod'   ? ' selected' : '') + '>Moderator</option>' +
+                       '<option value="admin"'  + (currentRole === 'admin' ? ' selected' : '') + '>Admin (full access)</option>' +
+                       '</select>';
+
+            ModAction.confirm('Set Role', hint, async () => {
+                // Use querySelector as fallback since Sanitizer may strip the id attribute
+                var selectEl = document.getElementById('set-role-select') ||
+                               document.querySelector('#mod-action-content select');
+                if (!selectEl) throw new Error('Role selector not found in modal.');
+                var role = selectEl.value;
+                var res = await fetch('/api/v2/admin/users/set-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, role })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                    // Update button state in place
+                    btn.dataset.role = role;
+                    var labelMap = { user: 'User', mod: 'Mod', admin: 'Admin' };
+                    var labelEl = document.querySelector('.role-label-' + id);
+                    if (labelEl) labelEl.textContent = labelMap[role] || role;
+                } else {
+                    throw new Error(data.msg || 'Failed to set role');
+                }
+            }, { hideReason: true, confirmText: 'Apply Role', unsafeContent: true });
+        }
     </script>
 </div>
 </div>
