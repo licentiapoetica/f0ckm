@@ -2227,12 +2227,15 @@ window.cancelAnimFrame = (function () {
     }
 
 
-    // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction
-    if (isGrid && options.skipPush) {
+    // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction.
+    // We check the cache for ANY grid navigation (not just skipPush/popstate) so that clicking the
+    // logo or any other link back to a previously-viewed grid page is instant — no blank thumbs,
+    // no re-fetch. The cached DOM node already has all background-images set on the thumb elements.
+    if (isGrid) {
        const targetCacheKey = urlObj.pathname + urlObj.search;
        if (gridCacheMap.has(targetCacheKey)) {
           const cache = gridCacheMap.get(targetCacheKey);
-          gridCacheMap.delete(targetCacheKey); // Consume cache
+          gridCacheMap.delete(targetCacheKey); // Consume cache (one-shot restore)
 
           stopMedia();
 
@@ -2279,6 +2282,12 @@ window.cancelAnimFrame = (function () {
                  // Ensure loading state is reset just in case
                  if (restoredPosts._infiniteState) restoredPosts._infiniteState.loading = false;
              }
+          }
+
+          // Push URL to history for forward navigations (logo click etc.) so the back button works.
+          // skipPush navigations (popstate) must NOT push or we'd create a double history entry.
+          if (!options.skipPush) {
+            history.pushState({}, '', url);
           }
           
           // Restore Scroll Position
@@ -3704,6 +3713,18 @@ window.cancelAnimFrame = (function () {
         // Strip strict param if present to rely on session and keep URL clean
         if (targetUrl.includes('strict=1')) {
           targetUrl = targetUrl.replace(/[?&]strict=1/, '').replace(/[?&]$/, '');
+        }
+
+        // If we're already on this exact page and there's no cached grid to restore,
+        // just scroll to top — no point wiping and re-fetching the current grid.
+        const _targetBase = targetUrl.split('#')[0];
+        const _currentBase = window.location.href.split('#')[0];
+        if (_targetBase === _currentBase && !anyLink.hash) {
+          const _cacheKey = new URL(targetUrl, window.location.origin).pathname + new URL(targetUrl, window.location.origin).search;
+          if (!gridCacheMap.has(_cacheKey)) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return false;
+          }
         }
 
         const parts = pathname.split('/').filter(Boolean);
