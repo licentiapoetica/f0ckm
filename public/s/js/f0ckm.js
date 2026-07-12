@@ -2861,21 +2861,43 @@ window.cancelAnimFrame = (function () {
       if (data.success) {
     if (replace) {
           if (_isInPlaceGridReload) {
-            // Same-grid reload: fade out current content, swap, fade back in.
-            // .grid-fade-out has a 150ms opacity transition — we wait for it then swap.
+            // Same-grid reload: snapshot already-loaded backgrounds BEFORE destroying DOM,
+            // then carry them over to matching items in the new HTML so they appear instantly.
+            // Without this, every thumb goes blank on innerHTML swap because the new elements
+            // have no style.backgroundImage, and even cached image loads are async (1+ frames).
+            const _loadedBgs = new Map();
+            posts.querySelectorAll('a.loaded[data-bg]').forEach(el => {
+              if (el.pathname && el.style.backgroundImage) {
+                _loadedBgs.set(el.pathname, el.style.backgroundImage);
+              }
+            });
+
+            // Fade out, swap, carry over, fade in
             posts.classList.add('grid-fade-out');
             const _doSwap = () => {
               posts.classList.remove('grid-fade-out');
               posts.classList.add('grid-transition');
               posts.classList.remove('show');
               posts.innerHTML = data.html;
+
+              // Re-apply loaded backgrounds to matching items — zero async work needed
+              posts.querySelectorAll('a[data-bg]').forEach(el => {
+                const bg = _loadedBgs.get(el.pathname);
+                if (bg) {
+                  el.style.backgroundImage = bg;
+                  el.classList.add('loaded');
+                  el.classList.remove('lazy-thumb');
+                }
+              });
+
               window.updateVisitIndicators();
-              window.initLazyLoading();
+              window.initLazyLoading(); // only fires for truly new items not in _loadedBgs
               window.scrollTo(0, 0);
               requestAnimationFrame(() => posts.classList.add('show'));
             };
             // Wait for the .grid-fade-out transition (150ms in CSS)
             setTimeout(_doSwap, 160);
+
           } else {
             // Structural transition: content is already blank/replaced, just inject and show
             posts.innerHTML = data.html;
