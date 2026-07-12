@@ -2272,14 +2272,9 @@ window.cancelAnimFrame = (function () {
           // Restore Scroll Position
           requestAnimationFrame(() => window.scrollTo(0, cache.scroll));
           
-          // Update URL bar — push to history so the address shows / not /453
-          if (!options.skipPush) {
-            history.pushState({}, '', url);
-          }
-
           // Update Document Title
           let titleSuffix = '';
-          const urlParams = new URLSearchParams(urlObj.search);
+          const urlParams = new URLSearchParams(window.location.search);
           const page = urlParams.get('p') || urlParams.get('page');
           if (page) titleSuffix = ` - page ${page}`;
           document.title = `${window.f0ckDomain}${titleSuffix}`;
@@ -2292,8 +2287,6 @@ window.cancelAnimFrame = (function () {
            if (window.initSidebarRightToggle) window.initSidebarRightToggle(); 
            if (window.syncNavbarHeight) window.syncNavbarHeight();
            // Sync has-notif highlights — on PWA there's no visibilitychange, so poll here
-           // Also prepend any new items posted since the grid was cached — no full reload needed
-           window.NotificationSystemInstance?.checkForNewItems?.();
            window.NotificationSystemInstance?.pollDebounced?.();
            isNavigating = false;
            return; // SKIP FETCH
