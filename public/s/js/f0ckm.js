@@ -3715,18 +3715,6 @@ window.cancelAnimFrame = (function () {
           targetUrl = targetUrl.replace(/[?&]strict=1/, '').replace(/[?&]$/, '');
         }
 
-        // If we're already on this exact page and there's no cached grid to restore,
-        // just scroll to top — no point wiping and re-fetching the current grid.
-        const _targetBase = targetUrl.split('#')[0];
-        const _currentBase = window.location.href.split('#')[0];
-        if (_targetBase === _currentBase && !anyLink.hash) {
-          const _cacheKey = new URL(targetUrl, window.location.origin).pathname + new URL(targetUrl, window.location.origin).search;
-          if (!gridCacheMap.has(_cacheKey)) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            return false;
-          }
-        }
-
         const parts = pathname.split('/').filter(Boolean);
         const isItemLink = !pathname.match(/\/p\//) && (
           pathname.match(/^\/\d+/) || 
