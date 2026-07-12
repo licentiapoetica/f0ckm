@@ -846,6 +846,11 @@ export default router => {
           return res.status(404).reply({ body: 'No API key — generate one first in Settings.' });
         }
 
+        // Determine a safe default rating for the ShareX config.
+        // In shitpost mode the server accepts uploads without a rating, but
+        // we still send 'sfw' so the item gets a rating tag by default.
+        const defaultRating = 'sfw';
+
         const sxcu = {
           Version: '15.0.0',
           Name: cfg.main.url.domain,
@@ -857,7 +862,14 @@ export default router => {
           },
           Body: 'MultipartFormData',
           FileFormName: 'file',
+          // The server requires a rating field. Without it every upload is rejected.
+          // Users can change this value in ShareX's custom uploader settings.
+          Parameters: {
+            rating: defaultRating
+          },
+          // $json:url$ maps to the `url` field in the success response JSON
           URL: '$json:url$',
+          ThumbnailURL: '$json:url$',
           ErrorMessage: '$json:msg$'
         };
 

@@ -452,6 +452,8 @@ process.on('uncaughtException', err => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    // Encourage connection reuse — helps external tools like ShareX avoid repeated TCP/TLS handshakes
+    res.setHeader('Connection', 'keep-alive');
     if (isSecure) {
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }

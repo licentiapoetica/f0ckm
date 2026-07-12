@@ -278,70 +278,115 @@ export const handleUpload = async (req, res, self) => {
             return sendJson(res, { success: false, msg: 'Archive uploads are currently disabled.' }, 403);
         }
 
-        // Reclassify audio-only MP4 containers (e.g. .m4a files detected as video/mp4)
-        if (actualMime === 'video/mp4' || actualMime === 'video/quicktime') {
-            const origExt = file.filename.split('.').pop().toLowerCase();
-            if (['m4a', 'aac'].includes(origExt)) {
-                actualMime = 'audio/mp4';
-                console.log(`[UPLOAD] Reclassified ${origExt} from video/mp4 to audio/mp4`);
-            } else {
-                // Check with ffprobe if it has video streams
-                try {
-                    const probeResult = await queue.spawn('ffprobe', [
-                        '-v', 'error', '-select_streams', 'v:0',
-                        '-show_entries', 'stream=codec_type',
-                        '-of', 'csv=p=0', tmpPath
-                    ]);
-                    if (!probeResult.stdout.trim()) {
-                        actualMime = 'audio/mp4';
-                        console.log(`[UPLOAD] Reclassified audio-only MP4 to audio/mp4`);
+        // ── Phase A: parallel analysis of tmpPath ─────────────────────────────
+        // sha256sum, PHash, and dimension probing all just read the file —
+        // none depends on the other, so run them concurrently.
+        const needsPHash    = !isArchiveMime(actualMime);
+        const needsDims     = !isArchiveMime(actualMime);
+        const needsAudioMP4 = (actualMime === 'video/mp4' || actualMime === 'video/quicktime');
+
+        const [
+            checksumResult,
+            phashResult,
+            dimResult,
+            audioMp4Result
+        ] = await Promise.all([
+            // 1. SHA-256 checksum
+            queue.spawn('sha256sum', [tmpPath]).then(r => r.stdout.trim().split(' ')[0]),
+
+            // 2. Perceptual hash (skip for archives)
+            needsPHash
+                ? queue.generatePHash(tmpPath).catch(e => { console.error('[UPLOAD] PHash error:', e); return null; })
+                : Promise.resolve(null),
+
+            // 3. Pixel dimensions (skip for archives)
+            needsDims
+                ? (async () => {
+                    try {
+                        if (actualMime.startsWith('image/')) {
+                            const { stdout: magickOut } = await queue.spawn('magick', [
+                                'identify', '-format', '%wx%h\n', tmpPath + '[0]'
+                            ], { quiet: true, ignoreExitCode: true });
+                            const line = magickOut.trim().split('\n')[0];
+                            const match = line.match(/^(\d+)x(\d+)$/);
+                            if (match) return { width: parseInt(match[1], 10), height: parseInt(match[2], 10) };
+                        } else if (actualMime.startsWith('video/') && actualMime !== 'video/youtube') {
+                            const { stdout: probeOut } = await queue.spawn('ffprobe', [
+                                '-v', 'error',
+                                '-select_streams', 'v:0',
+                                '-show_entries', 'stream=width,height',
+                                '-of', 'csv=p=0',
+                                tmpPath
+                            ], { quiet: true, ignoreExitCode: true });
+                            const dimParts = probeOut.trim().split(',');
+                            if (dimParts.length >= 2) {
+                                const w = parseInt(dimParts[0], 10);
+                                const h = parseInt(dimParts[1], 10);
+                                if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) return { width: w, height: h };
+                            }
+                        }
+                    } catch (dimErr) {
+                        console.warn(`[UPLOAD] Dimension probe failed for ${actualMime} (non-fatal):`, dimErr.message);
                     }
-                } catch (err) {
-                    // ffprobe not available or failed, keep original MIME
-                }
-            }
+                    return null;
+                })()
+                : Promise.resolve(null),
+
+            // 4. Audio-only MP4 reclassification probe (only when needed)
+            needsAudioMP4
+                ? (async () => {
+                    const origExt = file.filename.split('.').pop().toLowerCase();
+                    if (['m4a', 'aac'].includes(origExt)) {
+                        return 'audio/mp4'; // Extension-based reclassification
+                    }
+                    try {
+                        const probeResult = await queue.spawn('ffprobe', [
+                            '-v', 'error', '-select_streams', 'v:0',
+                            '-show_entries', 'stream=codec_type',
+                            '-of', 'csv=p=0', tmpPath
+                        ]);
+                        if (!probeResult.stdout.trim()) return 'audio/mp4';
+                    } catch (err) { /* ffprobe unavailable, keep original */ }
+                    return null; // No reclassification needed
+                })()
+                : Promise.resolve(null),
+        ]);
+
+        const checksum = checksumResult;
+        let phash = phashResult;
+        const itemWidth  = dimResult?.width  ?? null;
+        const itemHeight = dimResult?.height ?? null;
+
+        // Apply audio/MP4 reclassification if detected
+        if (audioMp4Result) {
+            actualMime = audioMp4Result;
+            console.log(`[UPLOAD] Reclassified to ${audioMp4Result}`);
         }
 
+        // Resolve final filename now that actualMime is settled
         const ext = cfg.mimes[actualMime] || 'bin';
         const filename = `${uuid}.${ext}`;
         const destPath = path.join(cfg.paths.pending, 'b', filename);
 
-        // Constants
-        const checksum = (await queue.spawn('sha256sum', [tmpPath])).stdout.trim().split(" ")[0];
-
-        // Check repost
+        // ── Phase B: parallel duplicate checks ────────────────────────────────
+        // Both are read-only DB queries — run them together.
         if (!getBypassDuplicateCheck()) {
-            const repost = await queue.checkrepostsum(checksum);
-            if (repost) {
-                await fs.unlink(tmpPath).catch(() => { });
-                return sendJson(res, {
-                    success: false,
-                    msg: `This file already exists`,
-                    repost: repost
-                }, 409);
+            const [repostBySum, repostByPhash] = await Promise.all([
+                queue.checkrepostsum(checksum),
+                (phash ? queue.checkrepostphash(phash) : Promise.resolve(null)),
+            ]);
+
+            if (repostBySum) {
+                await fs.unlink(tmpPath).catch(() => {});
+                return sendJson(res, { success: false, msg: 'This file already exists', repost: repostBySum }, 409);
+            }
+            if (repostByPhash) {
+                await fs.unlink(tmpPath).catch(() => {});
+                return sendJson(res, { success: false, msg: 'This file is a visual duplicate', repost: repostByPhash }, 409);
             }
         }
 
-        // PHash check (skip for archives — binary blobs have no perceptual similarity)
-        let phash = null;
-        if (!isArchiveMime(actualMime)) {
-        try {
-            phash = await queue.generatePHash(tmpPath);
-            if (phash && !getBypassDuplicateCheck()) {
-                const phashMatch = await queue.checkrepostphash(phash);
-                if (phashMatch) {
-                    await fs.unlink(tmpPath).catch(() => { });
-                    return sendJson(res, {
-                        success: false,
-                        msg: `This file is a visual duplicate`,
-                        repost: phashMatch
-                    }, 409);
-                }
-            }
-        } catch (e) {
-            console.error('[UPLOAD] PHash error:', e);
-        }
-        }
+        // ─────────────────────────────────────────────────────────────────────
 
         // When bypass is active, symlink to the existing file if one already exists on disk.
         // We write the symlink straight into cfg.paths.b so we can skip the pending flow entirely.
@@ -391,45 +436,6 @@ export const handleUpload = async (req, res, self) => {
         // Suffix it so the INSERT can proceed — the file is genuinely a new item entry.
         const insertChecksum = getBypassDuplicateCheck() ? `${checksum}_bypass_${Date.now()}` : checksum;
 
-        // Probe pixel dimensions for images and videos (null for audio/flash/pdf/archive/youtube)
-        let itemWidth = null;
-        let itemHeight = null;
-        if (!isArchiveMime(actualMime)) {
-        try {
-            if (actualMime.startsWith('image/')) {
-                // Use magick identify — handles all image formats, already present for thumbnailing
-                const { stdout: magickOut } = await queue.spawn('magick', [
-                    'identify', '-format', '%wx%h\n', destPath + '[0]'
-                ], { quiet: true, ignoreExitCode: true });
-                const line = magickOut.trim().split('\n')[0];
-                const match = line.match(/^(\d+)x(\d+)$/);
-                if (match) {
-                    itemWidth  = parseInt(match[1], 10);
-                    itemHeight = parseInt(match[2], 10);
-                }
-            } else if (actualMime.startsWith('video/') && actualMime !== 'video/youtube') {
-                // Use ffprobe for videos — reads first video stream dimensions
-                const { stdout: probeOut } = await queue.spawn('ffprobe', [
-                    '-v', 'error',
-                    '-select_streams', 'v:0',
-                    '-show_entries', 'stream=width,height',
-                    '-of', 'csv=p=0',
-                    destPath
-                ], { quiet: true, ignoreExitCode: true });
-                const parts = probeOut.trim().split(',');
-                if (parts.length >= 2) {
-                    const w = parseInt(parts[0], 10);
-                    const h = parseInt(parts[1], 10);
-                    if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
-                        itemWidth  = w;
-                        itemHeight = h;
-                    }
-                }
-            }
-        } catch (dimErr) {
-            console.warn(`[UPLOAD] Dimension probe failed for ${actualMime} (non-fatal):`, dimErr.message);
-        }
-        }
 
         // Insert
         const originalFilename = file.filename || null;
