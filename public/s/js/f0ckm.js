@@ -2167,6 +2167,12 @@ window.cancelAnimFrame = (function () {
 
     const currentScroll = window.scrollY;
 
+    // Immediately fade out the current main content to provide a clean slate for the next page
+    if (main) {
+        main.classList.add('grid-transition');
+        main.classList.remove('show');
+    }
+
     // Save scroll position for the current page before we leave it (only for new navigations)
     if (!options.skipPush) {
        const currentState = history.state || {};
@@ -2209,18 +2215,18 @@ window.cancelAnimFrame = (function () {
        return loadItemAjax(url, replace, options);
     }
 
-    // ── Cache check MUST come before any DOM mutations (fade-out, pbwork) ──────
-    // Doing DOM mutations before the cache check caused IntersectionObserver to
-    // fire for ALL cached thumbnails simultaneously when they re-entered the
-    // viewport, loading them all at once instead of progressively.
+
+    // Show loading indicator immediately — before cache check so it's visible on cache-hit restores too
+    if (navbar) navbar.classList.add('pbwork');
+
+    // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction.
+    // The cache is checked on ANY grid navigation (not just popstate/skipPush), so clicking the
+    // navbar brand from an item view restores the grid instantly without re-fetching.
     if (isGrid && !options.skipCache) {
        const targetCacheKey = urlObj.pathname + urlObj.search;
        if (gridCacheMap.has(targetCacheKey)) {
           const cache = gridCacheMap.get(targetCacheKey);
           // Keep cache alive — it is already cleared on mode/filter changes (gridCacheMap.clear()).
-
-          // Show progress bar for the brief moment of DOM swap
-          if (navbar) navbar.classList.add('pbwork');
 
           stopMedia();
 
@@ -2354,14 +2360,6 @@ window.cancelAnimFrame = (function () {
     }
 
     const hash = new URL(url, window.location.origin).hash;
-
-    // Fade out current main content — only for full fetches (cache hits return early above).
-    // Doing this before the cache check caused IntersectionObserver to fire for ALL cached
-    // thumbnails at once when they re-entered the viewport after the DOM was mutated.
-    if (main) {
-        main.classList.add('grid-transition');
-        main.classList.remove('show');
-    }
 
     // Show loading indicator
     if (navbar) navbar.classList.add("pbwork");
