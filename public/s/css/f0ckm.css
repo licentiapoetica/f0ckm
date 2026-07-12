@@ -7156,6 +7156,12 @@ button#togglebg {
   opacity: 0;
 }
 
+/* Quick fade-out for in-place grid reloads (logo click) — matches the 150ms JS setTimeout */
+.grid-fade-out {
+  opacity: 0 !important;
+  transition: opacity 0.15s ease-out !important;
+}
+
 .grid-transition.show {
   opacity: 1 !important;
   transition: opacity 0.3s ease-in-out;
