@@ -751,7 +751,7 @@ export default router => {
                             }
 
                             // Completion notification
-                            setProgress(jobId, { stage: 'done', percent: 100, done: true, error: null });
+                            setProgress(jobId, { stage: 'done', percent: 100, done: true, error: null, itemId: itemid });
                             cleanupJob(jobId);
                             await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_success', 0, ${itemid}, ${db.json({ jobId })})`;
 

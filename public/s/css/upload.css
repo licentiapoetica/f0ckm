@@ -1652,57 +1652,39 @@
 }
 @keyframes uutShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-/* ── Divider between active + history ────────────── */
-.uut-divider {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 12px;
-    opacity: 0.22;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--white, #fff);
-}
-.uut-divider::before,
-.uut-divider::after { content: ''; flex: 1; height: 1px; background: currentColor; }
 
-/* ── History rows ────────────────────────────────── */
-.uut-hist-row {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 12px;
-    border-bottom: 1px solid rgba(var(--accent-rgb,120,120,120), 0.05);
-    transition: background 0.15s;
-}
-.uut-hist-row:last-child { border-bottom: none; }
-.uut-hist-row:hover { background: rgba(var(--accent-rgb,120,120,120), 0.05); }
-
+/* ── Completion states (inline, auto-dismiss) ────── */
 .uut-ok  { color: #51cf66; font-size: 10px; flex-shrink: 0; }
 .uut-err { color: #ff5050; font-size: 10px; flex-shrink: 0; }
 
-.uut-hist-right { margin-left: auto; flex-shrink: 0; }
+.uut-job-row--done { align-items: center; }
+
+.uut-job--success .uut-bar-fill,
+.uut-bar-fill--ok {
+    background: #51cf66;
+    background-image: none;
+    animation: none;
+}
+
+.uut-job--error .uut-bar-fill,
+.uut-bar-fill--err {
+    background: #ff5050;
+    background-image: none;
+    animation: none;
+}
+
+.uut-stage--ok { color: #51cf66; }
+.uut-stage--err { color: #ff5050; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; display: block; }
 
 .uut-link {
     font-size: 0.69rem;
     color: var(--accent);
     text-decoration: none;
-    opacity: 0.8;
+    opacity: 0.85;
     white-space: nowrap;
     transition: opacity 0.15s;
+    margin-left: 5px;
 }
 .uut-link:hover { opacity: 1; text-decoration: underline; }
 
-.uut-errtxt {
-    font-size: 0.67rem;
-    color: #ff5050;
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: block;
-    opacity: 0.8;
-}
 

@@ -70,7 +70,17 @@
     "btn_add_urls": "URL(s) toevoegen",
     "tags_required_shitpost": "Alle items hebben tags nodig",
     "url_queued_background": "URL wordt op de achtergrond verwerkt.",
-    "add_more": "Meer toevoegen"
+    "add_more": "Meer toevoegen",
+    "url_tracker_title": "URL Uploads",
+    "url_tracker_queued": "In wachtrij",
+    "url_tracker_downloading": "Downloaden",
+    "url_tracker_analyzing": "Analyseren",
+    "url_tracker_saving": "Opslaan",
+    "url_tracker_processing": "Verwerken",
+    "url_tracker_extracting": "Extraheren",
+    "url_tracker_complete": "Klaar!",
+    "url_tracker_failed": "Upload mislukt",
+    "url_tracker_view": "Bekijken →"
   },
   "auth": {
     "registering": "Registreren...",

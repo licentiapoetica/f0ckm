@@ -8,22 +8,21 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
 });
 
 // ============================================================
-// URL Upload Tracker — single persistent panel with queue + history
+// URL Upload Tracker — single panel, active jobs only
 // ============================================================
 (function () {
-    const POLL_INTERVAL  = 2000;
-    const MAX_HISTORY    = 10;
-    const STORAGE_KEY    = 'f0ck_url_upload_history';
+    const POLL_INTERVAL = 2000;
+    const BC_CHANNEL    = 'f0ck_uut';
+    const i18n = () => window.f0ckI18n || {};
 
-    // active jobs: jobId → { url, percent, stage, speed, eta, resolved, pollTimer }
+    // active jobs: jobId → { url, percent, stage, speed, eta, resolved, pollTimer, _remote }
     const _active = new Map();
 
-    // history: [{ id, url, type, itemId, error, ts }]  — newest first
-    let _history = (() => {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-    })();
+    // ── BroadcastChannel (cross-tab sync) ─────────────────────────────────────
+    const _bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(BC_CHANNEL) : null;
+    const _broadcast = (msg) => { try { _bc?.postMessage(msg); } catch {} };
 
-    let _collapsed = false;
+    let _closed = false;
 
     // ── Panel DOM ─────────────────────────────────────────────────────────────
     const _$ = id => document.getElementById(id);
@@ -35,29 +34,19 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         el.innerHTML = `
             <div class="uut-header">
                 <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                <span class="uut-title">URL Uploads</span>
+                <span class="uut-title">${i18n().url_tracker_title || 'URL Uploads'}</span>
                 <span class="uut-badge" id="uut-badge"></span>
-                <div class="uut-actions">
-                    <button class="uut-btn" id="uut-btn-clear" title="Clear history"><i class="fa-solid fa-broom"></i></button>
-                    <button class="uut-btn" id="uut-btn-toggle">−</button>
-                </div>
+                <button class="uut-btn" id="uut-btn-close" title="Close">×</button>
             </div>
             <div class="uut-body" id="uut-body">
                 <div id="uut-active-list"></div>
-                <div class="uut-divider" id="uut-divider"><span>Recent</span></div>
-                <div id="uut-history-list"></div>
             </div>
         `;
         document.body.appendChild(el);
-        _$('uut-btn-toggle').addEventListener('click', () => {
-            _collapsed = !_collapsed;
-            _$('uut-body').style.display   = _collapsed ? 'none' : '';
-            _$('uut-btn-toggle').textContent = _collapsed ? '+' : '−';
-        });
-        _$('uut-btn-clear').addEventListener('click', () => {
-            _history = [];
-            try { localStorage.removeItem(STORAGE_KEY); } catch {}
-            _renderHistory();
+        _$('uut-btn-close').addEventListener('click', () => {
+            _closed = true;
+            // Remove all resolved entries so they don't reappear next time
+            for (const [id, j] of _active) { if (j.resolved) _active.delete(id); }
             _sync();
         });
     };
@@ -65,18 +54,15 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
     // ── Visibility + badge ────────────────────────────────────────────────────
     const _sync = () => {
         _ensurePanel();
-        const panel  = _$('url-upload-tracker');
-        const hasContent = _active.size > 0 || _history.length > 0;
-        panel.classList.toggle('uut-visible', hasContent);
+        const panel = _$('url-upload-tracker');
+        panel.classList.toggle('uut-visible', _active.size > 0 && !_closed);
 
         const badge = _$('uut-badge');
-        if (badge) { badge.textContent = _active.size || ''; badge.style.display = _active.size ? '' : 'none'; }
-
-        const div = _$('uut-divider');
-        if (div) div.style.display = (_active.size > 0 && _history.length > 0) ? '' : 'none';
-
-        const clearBtn = _$('uut-btn-clear');
-        if (clearBtn) clearBtn.style.display = _history.length > 0 ? '' : 'none';
+        if (badge) {
+            const active = [..._active.values()].filter(j => !j.resolved).length;
+            badge.textContent = active || '';
+            badge.style.display = active ? '' : 'none';
+        }
     };
 
     // ── Active job row ────────────────────────────────────────────────────────
@@ -95,7 +81,15 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         }
 
         const pct = Math.min(Math.max(job.percent || 0, 0), 100);
-        const labels = { queued:'Queued', downloading:'Downloading', analyzing:'Analyzing', saving:'Saving', processing:'Processing', extracting:'Extracting' };
+        const t = i18n();
+        const labels = {
+            queued:      t.url_tracker_queued      || 'Queued',
+            downloading: t.url_tracker_downloading || 'Downloading',
+            analyzing:   t.url_tracker_analyzing   || 'Analyzing',
+            saving:      t.url_tracker_saving      || 'Saving',
+            processing:  t.url_tracker_processing  || 'Processing',
+            extracting:  t.url_tracker_extracting  || 'Extracting',
+        };
         const label  = labels[job.stage] || job.stage || 'Processing';
         const status = (job.stage === 'downloading' && pct > 0) ? `${label} ${pct.toFixed(1)}%` : label;
         const speed  = (job.speed && job.eta) ? `${job.speed} · ETA ${job.eta}` : (job.speed || '');
@@ -113,31 +107,45 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
             </div>
             <div class="uut-bar"><div class="uut-bar-fill" style="width:${pct}%"></div></div>
         `;
+
+        if (!job._remote) {
+            _broadcast({ type: 'job_update', jobId, state: { url: job.url, percent: job.percent, stage: job.stage, speed: job.speed, eta: job.eta } });
+        }
     };
 
-    // ── History ───────────────────────────────────────────────────────────────
-    const _saveHistory = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_history)); } catch {} };
-
-    const _pushHistory = (entry) => {
-        _history.unshift(entry);
-        if (_history.length > MAX_HISTORY) _history.length = MAX_HISTORY;
-        _saveHistory();
-        _renderHistory();
-    };
-
-    const _renderHistory = () => {
-        _ensurePanel();
-        const list = _$('uut-history-list');
+    const _renderDone = (jobId, success, itemId, errMsg) => {
+        const list = _$('uut-active-list');
         if (!list) return;
-        if (!_history.length) { list.innerHTML = ''; return; }
-        list.innerHTML = _history.map(h => {
-            const ok   = h.type === 'upload_success';
-            const icon = ok ? '<i class="fa-solid fa-check uut-ok"></i>' : '<i class="fa-solid fa-circle-xmark uut-err"></i>';
-            const right = ok && h.itemId
-                ? `<a class="uut-link" href="/${h.itemId}">View →</a>`
-                : (h.error ? `<span class="uut-errtxt" title="${window.escapeHtmlUpload(h.error)}">${window.escapeHtmlUpload(h.error)}</span>` : '');
-            return `<div class="uut-hist-row">${icon}<span class="uut-url" title="${window.escapeHtmlUpload(h.url)}">${window.escapeHtmlUpload(h.url)}</span><div class="uut-hist-right">${right}</div></div>`;
-        }).join('');
+        const row = list.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
+        if (!row) return;
+        const t = i18n();
+        const url = window.escapeHtmlUpload(_active.get(jobId)?.url || '');
+
+        if (success) {
+            row.classList.add('uut-job--success');
+            const linkText = t.url_tracker_view || 'View →';
+            const link = itemId ? ` <a class="uut-link" href="/${itemId}">${window.escapeHtmlUpload(linkText)}</a>` : '';
+            const completeText = t.url_tracker_complete || 'Complete!';
+            row.innerHTML = `
+                <div class="uut-job-row">
+                    <div class="uut-job-info">
+                        <span class="uut-url" title="${url}">${url}</span>
+                        <div class="uut-meta"><span class="uut-stage uut-stage--ok">${window.escapeHtmlUpload(completeText)}${link}</span></div>
+                    </div>
+                </div>
+            `;
+        } else {
+            row.classList.add('uut-job--error');
+            const safeErr = window.escapeHtmlUpload(errMsg || t.url_tracker_failed || 'Upload failed');
+            row.innerHTML = `
+                <div class="uut-job-row">
+                    <div class="uut-job-info">
+                        <span class="uut-url" title="${url}">${url}</span>
+                        <div class="uut-meta"><span class="uut-stage uut-stage--err" title="${safeErr}">${safeErr}</span></div>
+                    </div>
+                </div>
+            `;
+        }
     };
 
     // ── Polling ───────────────────────────────────────────────────────────────
@@ -163,7 +171,15 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
                 _renderJob(jobId);
                 if (state.done) {
                     job.pollTimer = null;
-                    setTimeout(() => { if (!job.resolved) _resolveJob(jobId, { type: state.error ? 'upload_error' : 'upload_success', item_id: null, data: state.error ? { msg: state.error } : null }); }, 2000);
+                    setTimeout(() => {
+                        if (!job.resolved) {
+                            _resolveJob(jobId, {
+                                type: state.error ? 'upload_error' : 'upload_success',
+                                item_id: state.itemId || null,
+                                data: state.error ? { msg: state.error } : null
+                            });
+                        }
+                    }, 2000);
                     return;
                 }
             } catch {}
@@ -178,19 +194,23 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         if (!job || job.resolved) return;
         job.resolved = true;
         _stopPoll(jobId);
+        _broadcast({ type: 'job_resolved', jobId, notif });
 
-        _pushHistory({ id: jobId, url: job.url, type: notif.type, itemId: notif.item_id || null, error: notif.data?.msg || (notif.type === 'upload_error' ? 'Upload failed' : null), ts: Date.now() });
+        const success = notif.type === 'upload_success';
+        const itemId  = notif.item_id || null;
+        const errMsg  = notif.data?.msg || 'Upload failed';
 
-        // Fade out the active row then remove
-        const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
-        if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
-        setTimeout(() => { _active.delete(jobId); _sync(); }, 350);
+        _renderDone(jobId, success, itemId, errMsg);
+        _sync(); // update badge count
     };
 
     // ── Public API ────────────────────────────────────────────────────────────
     const addJob = (url, jobId) => {
         if (!jobId) jobId = `local_${Date.now()}`;
         _ensurePanel();
+        _closed = false;
+        // Clean up any stale resolved entries from a previous session
+        for (const [id, j] of _active) { if (j.resolved) _active.delete(id); }
         _active.set(jobId, { url, percent: 0, stage: 'queued', speed: null, eta: null, resolved: false, pollTimer: null });
         _renderJob(jobId);
         _sync();
@@ -202,7 +222,7 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
     const resolveByUrl   = (notif, url)   => { for (const [id, j] of _active) { if (!j.resolved && j.url === url) { _resolveJob(id, notif); return true; } } return false; };
     const resolveOldest  = (notif)        => { for (const [id, j] of _active) { if (!j.resolved) { _resolveJob(id, notif); return true; } } return false; };
 
-    // ── Notifications ─────────────────────────────────────────────────────────
+    // ── SSE Notifications ─────────────────────────────────────────────────────
     document.addEventListener('f0ck:upload_bg_update', (e) => {
         (e.detail || []).forEach(notif => {
             let matched = false;
@@ -212,15 +232,48 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         });
     });
 
-    // ── Init: render persisted history on load ────────────────────────────────
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => { if (_history.length) { _ensurePanel(); _renderHistory(); _sync(); } });
-    } else {
-        if (_history.length) { _ensurePanel(); _renderHistory(); _sync(); }
+    // ── BroadcastChannel ──────────────────────────────────────────────────────
+    if (_bc) {
+        _bc.onmessage = ({ data }) => {
+            switch (data.type) {
+                case 'hello': {
+                    for (const [jobId, job] of _active) {
+                        if (!job._remote) _broadcast({ type: 'job_update', jobId, state: { url: job.url, percent: job.percent, stage: job.stage, speed: job.speed, eta: job.eta } });
+                    }
+                    break;
+                }
+                case 'job_update': {
+                    const { jobId, state } = data;
+                    if (_active.has(jobId) && !_active.get(jobId)._remote) break;
+                    if (!_active.has(jobId)) {
+                        _active.set(jobId, { ...state, resolved: false, pollTimer: null, _remote: true });
+                    } else {
+                        Object.assign(_active.get(jobId), state);
+                    }
+                    _closed = false;
+                    _renderJob(jobId);
+                    _sync();
+                    break;
+                }
+                case 'job_resolved': {
+                    const job = _active.get(data.jobId);
+                    if (!job?._remote) break;
+                    job.resolved = true;
+                    const n = data.notif || {};
+                    _renderDone(data.jobId, n.type === 'upload_success', n.item_id || null, n.data?.msg || 'Upload failed');
+                    _sync();
+                    break;
+                }
+            }
+        };
     }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    _broadcast({ type: 'hello' });
 
     window.urlUploadTracker = { addJob, resolveByJobId, resolveByUrl, resolveOldest };
 })();
+
 
 
 

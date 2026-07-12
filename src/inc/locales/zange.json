@@ -70,7 +70,17 @@
     "btn_add_urls": "Elfe hinzufügen",
     "tags_required_shitpost": "Alle Fetzen brauchen Etiketten",
     "url_queued_background": "Elfen-Hintergrundverarbeitung gestartet.",
-    "add_more": "Meer hinzufügen"
+    "add_more": "Meer hinzufügen",
+    "url_tracker_title": "Elfen-Aufladierungen",
+    "url_tracker_queued": "Warteschlange",
+    "url_tracker_downloading": "Wird hinunterladiert",
+    "url_tracker_analyzing": "Wird analysiert",
+    "url_tracker_saving": "Wird gespeichert",
+    "url_tracker_processing": "Wird verarbeitet",
+    "url_tracker_extracting": "Wird extrahiert",
+    "url_tracker_complete": "Fertig!",
+    "url_tracker_failed": "Aufladierung fehlgeschlagen",
+    "url_tracker_view": "Ansehen →"
   },
   "auth": {
     "registering": "Registrierung wird in die Wege geleitet...",

@@ -70,7 +70,17 @@
     "btn_add_urls": "URL(s) hinzufügen",
     "tags_required_shitpost": "Alle Beiträge benötigen Tags",
     "url_queued_background": "URL Verarbeitung im Hintergrund gestartet.",
-    "add_more": "Mehr hinzufügen"
+    "add_more": "Mehr hinzufügen",
+    "url_tracker_title": "URL-Uploads",
+    "url_tracker_queued": "Warteschlange",
+    "url_tracker_downloading": "Wird heruntergeladen",
+    "url_tracker_analyzing": "Wird analysiert",
+    "url_tracker_saving": "Wird gespeichert",
+    "url_tracker_processing": "Wird verarbeitet",
+    "url_tracker_extracting": "Wird extrahiert",
+    "url_tracker_complete": "Fertig!",
+    "url_tracker_failed": "Upload fehlgeschlagen",
+    "url_tracker_view": "Ansehen →"
   },
   "auth": {
     "registering": "Wird registriert...",
