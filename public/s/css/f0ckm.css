@@ -7172,24 +7172,6 @@ button#togglebg {
   animation: none;
 }
 
-/* ─── Posts Grid Skeleton: shimmer on real items while thumbnail loads ─────── */
-div.posts>a.lazy-thumb:not(.loaded) {
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.10) 40%,
-      rgba(255, 255, 255, 0.04) 80%);
-  background-size: 600px 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
-}
-
-/* Stagger shimmer phases so items feel alive individually */
-div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+2) {
-  animation-delay: 0.2s;
-}
-
-div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+3) {
-  animation-delay: 0.4s;
-}
 
 
 /* Make individual item entry subtler and faster for infinite scroll */
