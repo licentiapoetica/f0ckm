@@ -2167,12 +2167,6 @@ window.cancelAnimFrame = (function () {
 
     const currentScroll = window.scrollY;
 
-    // Immediately fade out the current main content to provide a clean slate for the next page
-    if (main) {
-        main.classList.add('grid-transition');
-        main.classList.remove('show');
-    }
-
     // Save scroll position for the current page before we leave it (only for new navigations)
     if (!options.skipPush) {
        const currentState = history.state || {};
@@ -2216,82 +2210,77 @@ window.cancelAnimFrame = (function () {
     }
 
 
-    // Check for cached grid (Index/Grid Only) - RESTORE EARLY to avoid pagination/layout destruction
-    if (isGrid && options.skipPush) {
+    // Check for cached grid — fires on ANY navigation to a grid URL (not just browser back/forward).
+    // The fade-out of main must NOT happen before this check: doing so causes the
+    // IntersectionObserver to fire for every cached thumbnail at once when they re-enter
+    // the viewport, loading them all simultaneously instead of progressively.
+    if (isGrid) {
        const targetCacheKey = urlObj.pathname + urlObj.search;
        if (gridCacheMap.has(targetCacheKey)) {
           const cache = gridCacheMap.get(targetCacheKey);
-          gridCacheMap.delete(targetCacheKey); // Consume cache
+          // Keep cache alive — cleared on mode/filter changes via gridCacheMap.clear()
 
+          if (navbar) navbar.classList.add('pbwork');
           stopMedia();
 
-          // Instant fade out background canvas (from item view)
+          // Fade out background canvas (item view blur)
           const canvas = document.getElementById('bg');
           if (canvas) {
-            canvas.style.transition = 'none'; // Disable transition
+            canvas.style.transition = 'none';
             canvas.style.opacity = '0';
             canvas.classList.remove('fader-in');
             canvas.classList.add('fader-out');
-
-            // Clean up overrides after render
             requestAnimationFrame(() => {
-               setTimeout(() => {
-                  canvas.style.transition = '';
-                  canvas.style.opacity = '';
-               }, 50);
+               setTimeout(() => { canvas.style.transition = ''; canvas.style.opacity = ''; }, 50);
             });
           }
 
           // Restore DOM
           if (main) {
-             main.innerHTML = ''; // Clear item view
+             main.innerHTML = '';
              main.appendChild(cache.node);
-             cache.node.style.display = ''; // Ensure visible
-             cache.node.classList.remove('cached-grid'); // Cleanup
+             cache.node.style.display = '';
+             cache.node.classList.remove('cached-grid');
              main.className = '';
-
-             // Clear layout-lock state now that we are restoring the grid
              document.body.classList.remove('legacy-view', 'layout-modern', 'layout-legacy');
              document.body.style.overflow = '';
              document.body.style.height = '';
-             
-             // Restore Pagination HTML
              const paginationWrapper = document.querySelector('.pagination-wrapper');
-             if (paginationWrapper && cache.pagination) {
-                paginationWrapper.innerHTML = cache.pagination;
-             }
-             
-             // Re-attach Infinite Scroll Handler
+             if (paginationWrapper && cache.pagination) paginationWrapper.innerHTML = cache.pagination;
              const restoredPosts = cache.node.querySelector('.posts');
              if (restoredPosts && restoredPosts._scrollHandler) {
-                 window.addEventListener('scroll', restoredPosts._scrollHandler);
-                 // Ensure loading state is reset just in case
+                 window.addEventListener('scroll', restoredPosts._scrollHandler, { passive: true });
                  if (restoredPosts._infiniteState) restoredPosts._infiniteState.loading = false;
              }
           }
-          
-          // Restore Scroll Position
+
+          // Update URL bar (only for explicit clicks, not browser back/forward which already did it)
+          if (!options.skipPush) history.pushState({}, '', url);
+
+          // Restore scroll position
           requestAnimationFrame(() => window.scrollTo(0, cache.scroll));
-          
-          // Update Document Title
-          let titleSuffix = '';
-          const urlParams = new URLSearchParams(window.location.search);
-          const page = urlParams.get('p') || urlParams.get('page');
-          if (page) titleSuffix = ` - page ${page}`;
-          document.title = `${window.f0ckDomain}${titleSuffix}`;
-          
-          // Reset navigation state
-          document.querySelectorAll('.pagination-container-fluid').forEach(el => el.style.display = ''); // Restore pagination visibility
-           if (navbar) navbar.classList.remove("pbwork");
-           window.updateVisitIndicators();
-           window.initLazyLoading();
-           if (window.initSidebarRightToggle) window.initSidebarRightToggle(); 
-           if (window.syncNavbarHeight) window.syncNavbarHeight();
-           // Sync has-notif highlights — on PWA there's no visibilitychange, so poll here
-           window.NotificationSystemInstance?.pollDebounced?.();
-           isNavigating = false;
-           return; // SKIP FETCH
+
+          // Update title
+          const urlParamsC = new URLSearchParams(urlObj.search);
+          const pageC = urlParamsC.get('p') || urlParamsC.get('page');
+          document.title = `${window.f0ckDomain}${pageC ? ` - page ${pageC}` : ''}`;
+
+          document.querySelectorAll('.pagination-container-fluid').forEach(el => el.style.display = '');
+          if (navbar) navbar.classList.remove('pbwork');
+          window.updateVisitIndicators();
+          window.initLazyLoading();
+          if (window.initSidebarRightToggle) window.initSidebarRightToggle();
+          if (window.syncNavbarHeight) window.syncNavbarHeight();
+          window.NotificationSystemInstance?.pollDebounced?.();
+          isNavigating = false;
+          return; // SKIP FETCH
        }
+    }
+
+    // Cache miss — full fetch path. Fade out now (safe: no cached thumbnails in DOM).
+    if (main) {
+        main.classList.add('grid-transition');
+        main.classList.remove('show');
     }
 
 
@@ -3695,6 +3684,12 @@ window.cancelAnimFrame = (function () {
           targetUrl = targetUrl.replace(/[?&]strict=1/, '').replace(/[?&]$/, '');
         }
 
+        // Already on this exact grid page — just scroll to top, no reload
+        if (targetUrl.split('#')[0] === window.location.href.split('#')[0] && !anyLink.hash && document.querySelector('.posts')) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return false;
+        }
+
         const parts = pathname.split('/').filter(Boolean);
         const isItemLink = !pathname.match(/\/p\//) && (
           pathname.match(/^\/\d+/) || 
@@ -4689,39 +4684,48 @@ window.cancelAnimFrame = (function () {
     // Scroll detection - preload before reaching bottom
     const PRELOAD_OFFSET = 500; // pixels before bottom to trigger load
 
+    // RAF throttle: getBoundingClientRect and offsetHeight force synchronous layout
+    // reflows. Without throttling, Chromium recalculates layout on every scroll
+    // event (potentially hundreds/sec), blocking the compositor and causing freezes.
+    let _scrollTicking = false;
     const onScroll = () => {
-      const currentContainer = postsContainer;
-      // Only run if THIS container is the active one and still in DOM
-      if (!currentContainer || !document.body.contains(currentContainer)) {
-        window.removeEventListener('scroll', onScroll);
-        return;
-      }
-      if (currentContainer.classList.contains('no-infinite-scroll')) return;
-      if (!document.querySelector('#main')) return;
+      if (_scrollTicking) return;
+      _scrollTicking = true;
+      requestAnimationFrame(() => {
+        _scrollTicking = false;
 
-      updateUrlAndPagination();
+        const currentContainer = postsContainer;
+        // Only run if THIS container is the active one and still in DOM
+        if (!currentContainer || !document.body.contains(currentContainer)) {
+          window.removeEventListener('scroll', onScroll);
+          return;
+        }
+        if (currentContainer.classList.contains('no-infinite-scroll')) return;
+        if (!main) return;
 
-      const scrollPosition = window.innerHeight + window.scrollY;
-      const pageHeight = document.querySelector('#main').offsetHeight;
-      const distanceFromBottom = pageHeight - scrollPosition;
+        updateUrlAndPagination();
 
-      // Load more when within PRELOAD_OFFSET pixels of bottom
-      if (distanceFromBottom < PRELOAD_OFFSET && infiniteState.hasMore && !infiniteState.loading) {
-        loadMoreItems();
-      }
+        const scrollPosition = window.innerHeight + window.scrollY;
+        const pageHeight = main.offsetHeight; // use cached ref, not querySelector every scroll
+        const distanceFromBottom = pageHeight - scrollPosition;
 
-      // Load previous when within PRELOAD_OFFSET pixels of top
-      // Also ensure we aren't already at page 1
-      if (window.scrollY < PRELOAD_OFFSET && infiniteState.hasPrev && !infiniteState.loadingUp) {
-        loadPreviousItems();
-      }
+        // Load more when within PRELOAD_OFFSET pixels of bottom
+        if (distanceFromBottom < PRELOAD_OFFSET && infiniteState.hasMore && !infiniteState.loading) {
+          loadMoreItems();
+        }
 
-      infiniteState.lastScrollY = window.scrollY;
+        // Load previous when within PRELOAD_OFFSET pixels of top
+        if (window.scrollY < PRELOAD_OFFSET && infiniteState.hasPrev && !infiniteState.loadingUp) {
+          loadPreviousItems();
+        }
+
+        infiniteState.lastScrollY = window.scrollY;
+      });
     };
 
     // Store scroll handler reference for cleanup
     postsContainer._scrollHandler = onScroll;
-    window.addEventListener("scroll", onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     // Initial check (in case we loaded at top/bottom)
     setTimeout(onScroll, 100);
@@ -8275,13 +8279,14 @@ document.addEventListener('DOMContentLoaded', () => {
          const file = thumb.dataset.file;
          const mime = thumb.dataset.mime;
          
-         // Only preview videos/gifs
-         if (!file || !mime || (!mime.startsWith('video/') && mime !== 'image/gif') || mime === 'video/youtube') return;
+         // Only preview videos (not gifs — fetching a GIF causes main-thread freeze on click)
+         if (!file || !mime || !mime.startsWith('video/') || mime === 'video/youtube') return;
 
-         // Helper to actually start video
+         // Helper to actually start video — only called AFTER the hover delay
+         // so we don't start a network fetch during the 150ms grace period.
          const run = () => {
-            if (!document.body.contains(thumb)) return; // Thumb removed
-            if (thumb !== activeThumb) return; // Switched away
+            if (!document.body.contains(thumb)) return;
+            if (thumb !== activeThumb) return;
 
             activeThumb.classList.add('previewing');
 
@@ -8291,10 +8296,12 @@ document.addEventListener('DOMContentLoaded', () => {
             video.loop = true;
             video.className = 'preview-video';
             video.playsInline = true;
-            video.preload = 'auto';
-            
+            // 'metadata' fetches only the file header (a few KB for duration/dimensions).
+            // 'auto' fetches the entire file immediately — catastrophic for large GIFs.
+            video.preload = 'metadata';
+
             video.oncanplay = () => {
-                video.play().catch(err => { /* Autoplay blocked */ });
+                video.play().catch(() => {});
                 video.classList.add('playing');
             };
 
