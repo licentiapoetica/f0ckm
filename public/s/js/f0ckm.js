@@ -2379,15 +2379,7 @@ window.cancelAnimFrame = (function () {
     // Show loading indicator
     if (navbar) navbar.classList.add("pbwork");
 
-    // For same-grid reloads (e.g. logo click while already on a grid page), keep the current
-    // thumbs visible during the network fetch — fading out before data arrives causes a long
-    // blank-thumb period.  We'll do a quick fade at the point of DOM swap instead.
-    // For structural transitions (item view → grid, profile → grid, etc.) the existing
-    // pre-fade is fine because posts was already cleared or doesn't exist yet.
-    const _postsHasContent = posts && posts.children.length > 0;
-    const _isInPlaceGridReload = replace && _postsHasContent;
-
-    if (replace && posts && !_isInPlaceGridReload) {
+    if (replace && posts) {
       posts.classList.add('grid-transition');
       posts.classList.remove('show');
     }
@@ -2860,42 +2852,24 @@ window.cancelAnimFrame = (function () {
 
       if (data.success) {
     if (replace) {
-          if (_isInPlaceGridReload) {
-            // Same-grid reload: fade out current content, swap, fade back in.
-            // .grid-fade-out has a 150ms opacity transition — we wait for it then swap.
-            posts.classList.add('grid-fade-out');
-            const _doSwap = () => {
-              posts.classList.remove('grid-fade-out');
-              posts.classList.add('grid-transition');
-              posts.classList.remove('show');
-              posts.innerHTML = data.html;
-              window.updateVisitIndicators();
-              window.initLazyLoading();
-              window.scrollTo(0, 0);
-              requestAnimationFrame(() => posts.classList.add('show'));
-            };
-            // Wait for the .grid-fade-out transition (150ms in CSS)
-            setTimeout(_doSwap, 160);
-          } else {
-            // Structural transition: content is already blank/replaced, just inject and show
-            posts.innerHTML = data.html;
-            window.updateVisitIndicators();
-            window.initLazyLoading();
+          // Atomic replacement to prevent "jumping"
+          posts.innerHTML = data.html;
+          window.updateVisitIndicators();
+          window.initLazyLoading();
 
-            // Handle Scroll Position (Restore or Reset)
-            if (options.skipPush && history.state && history.state.scroll !== undefined) {
-               // Back/Forward Navigation: Restore saved scroll position
-               requestAnimationFrame(() => window.scrollTo(0, history.state.scroll));
-            } else if (replace) {
-               // New Navigation: Reset to top
-               window.scrollTo(0, 0);
-            }
-
-            // Trigger fade-in
-            requestAnimationFrame(() => {
-              posts.classList.add('show');
-            });
+          // Handle Scroll Position (Restore or Reset)
+          if (options.skipPush && history.state && history.state.scroll !== undefined) {
+             // Back/Forward Navigation: Restore saved scroll position
+             requestAnimationFrame(() => window.scrollTo(0, history.state.scroll));
+          } else if (replace) {
+             // New Navigation: Reset to top
+             window.scrollTo(0, 0);
           }
+
+          // Trigger fade-in
+          requestAnimationFrame(() => {
+            posts.classList.add('show');
+          });
 
           // Update header (h2) for tags/users
           const container = document.querySelector('.index-container');
