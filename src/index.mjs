@@ -459,6 +459,32 @@ process.on('uncaughtException', err => {
     }
   });
 
+  // Cache-Control headers for static assets.
+  // flummpress router.static() sends no caching headers, which forces Chrome to
+  // re-fetch all thumbnails on every grid visit even when they haven't changed.
+  // Guard: only set long-lived caching when protect_files is OFF so we never attach
+  // immutable headers to a 401 response (which would be incorrectly cached by browsers).
+  app.use(async (req, res) => {
+    const p = req.url?.pathname;
+    if (!p) return;
+    if (getProtectFiles()) return; // Protect-files gates these with auth — don't cache
+    if (p.startsWith('/t/') || p.startsWith('/ca/') || p.startsWith('/b/')) {
+      // Thumbnails, covers, and source blobs: 1-year cache.
+      // These never change for a given ID (content-addressed by item ID).
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (p.startsWith('/s/') && !p.startsWith('/s/emojis/') && !p.startsWith('/s/koepfe/')) {
+      // CSS/JS/images in /s/ are versioned by query param (?v=...) — safe to cache long-term.
+      // Emojis and koepfe are excluded (user-uploadable, mutable).
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    } else if (p.startsWith('/a/')) {
+      // Avatars can be re-uploaded — use short cache with revalidation.
+      res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    } else if (p.startsWith('/memes/') || p.startsWith('/s/emojis/') || p.startsWith('/s/koepfe/')) {
+      // Mutable user content: short cache.
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+  });
+
   // Block source map requests early — flummpress crashes on unknown MIME types (e.g. .map)
   app.use(async (req, res) => {
     if (req.url?.pathname?.endsWith('.map')) {
