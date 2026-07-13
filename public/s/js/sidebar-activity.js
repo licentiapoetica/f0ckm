@@ -542,37 +542,12 @@
     const showSkeletons = () => {
         const container = document.getElementById('sidebar-activity-container');
         if (!container) return;
-        const variants = [
-            `<div class="skeleton-line skeleton-text-long"></div>
-             <div class="skeleton-line skeleton-text-medium"></div>
-             <div class="skeleton-line skeleton-text-short"></div>`,
-            `<div class="skeleton-line skeleton-text-long"></div>
-             <div class="skeleton-line skeleton-text-short"></div>`,
-            `<div class="skeleton-line skeleton-text-medium"></div>
-             <div class="skeleton-line skeleton-text-long"></div>
-             <div class="skeleton-line skeleton-text-short"></div>`,
-            `<div class="skeleton-line skeleton-text-long"></div>
-             <div class="skeleton-line skeleton-text-medium"></div>`,
-            `<div class="skeleton-line skeleton-text-short"></div>
-             <div class="skeleton-line skeleton-text-long"></div>`,
-        ];
-        let html = '';
-        for (let i = 0; i < SIDEBAR_SKELETON_COUNT; i++) {
-            html += `
-            <div class="sidebar-skeleton-item">
-              <div class="skeleton-header">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-meta">
-                  <div class="skeleton-line skeleton-name"></div>
-                  <div class="skeleton-line skeleton-time"></div>
-                </div>
-              </div>
-              ${variants[i % 5]}
-            </div>`;
-        }
-        container.innerHTML = html;
-        // Auto-play converted GIF videos
-        container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
+        container.innerHTML = `
+            <div class="sidebar-loading-state">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                <span>${window.f0ckI18n?.sidebar_loading_activity || 'Loading activity...'}</span>
+            </div>
+        `;
     };
 
     const renderFromCache = () => {

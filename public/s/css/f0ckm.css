@@ -2061,118 +2061,22 @@ body.sidebar-right-hidden .global-sidebar-right {
   margin-bottom: 4px;
 }
 
-/* ─── Sidebar Skeleton Loader ─────────────────────────────────────────────── */
+/* ─── Sidebar Loading State ────────────────────────────────────────────────── */
 
-/* GPU-composited shimmer: translate a highlight overlay instead of shifting background-position.
-   background-position changes force a repaint on every frame in Chromium;
-   transform: translateX() runs entirely on the compositor thread. */
-@keyframes skeleton-shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.sidebar-skeleton-item {
-  padding: 8px 5px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.sidebar-skeleton-item:last-child {
-  border-bottom: none;
-}
-
-.skeleton-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.skeleton-meta {
+.sidebar-loading-state {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--accent);
+  opacity: 0.6;
+  font-size: 0.85em;
+  gap: 10px;
 }
 
-/* Shared shimmer base — uses overflow:hidden + a translating pseudo-element
-   so the animation is GPU-composited and never repaints the main thread. */
-.skeleton-avatar,
-.skeleton-line {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-  overflow: hidden;
-  position: relative;
-}
-
-.skeleton-avatar::after,
-.skeleton-line::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.10) 50%,
-      transparent 100%);
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
-  will-change: transform;
-}
-
-.skeleton-avatar {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border-radius: 2px;
-}
-
-.skeleton-line {
-  height: 10px;
-}
-
-.skeleton-name {
-  width: 55%;
-}
-
-.skeleton-time {
-  width: 35%;
-  height: 8px;
-  opacity: 0.65;
-}
-
-.skeleton-text-long {
-  width: 90%;
-  margin-bottom: 6px;
-}
-
-.skeleton-text-medium {
-  width: 70%;
-  margin-bottom: 6px;
-}
-
-.skeleton-text-short {
-  width: 45%;
-  margin-bottom: 0;
-}
-
-/* Stagger the shimmer phase so each item feels alive individually (cycles every 5) */
-.sidebar-skeleton-item:nth-child(5n+2) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+2) .skeleton-line {
-  animation-delay: 0.2s;
-}
-
-.sidebar-skeleton-item:nth-child(5n+3) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+3) .skeleton-line {
-  animation-delay: 0.4s;
-}
-
-.sidebar-skeleton-item:nth-child(5n+4) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+4) .skeleton-line {
-  animation-delay: 0.6s;
-}
-
-.sidebar-skeleton-item:nth-child(5n+5) .skeleton-avatar,
-.sidebar-skeleton-item:nth-child(5n+5) .skeleton-line {
-  animation-delay: 0.8s;
+.sidebar-loading-state i {
+  font-size: 1.5em;
 }
 
 /* Mobile Stacking for Legacy Mode (max-width: 999px) */
