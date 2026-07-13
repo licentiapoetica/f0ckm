@@ -3674,6 +3674,13 @@ window.cancelAnimFrame = (function () {
         return false;
       }
 
+      // Navbar brand: always do a native full-page load, never AJAX.
+      // This gives a clean progressive thumbnail load-in every time,
+      // avoids AJAX history/cache complexity, and keeps GIF items unaffected.
+      if (anyLink.classList.contains('navbar-brand')) {
+        return; // Let the browser handle href="/" natively
+      }
+
       if (!isSpecialLink && (pathname === '/' || pathname.startsWith('/halls') || pathname.startsWith('/h/') || pathname.startsWith('/notifications') || pathname.startsWith('/tag') || pathname.startsWith('/user/') || pathname.match(/^\/(image|video|audio)/) || pathname.match(/\/p\/\d+/) || pathname.match(/^\/\d+/) || pathname.match(/^\/(about|rules|terms|upload|subscriptions|stats|docs|settings|admin|mod|ranking|messages|meme|memes)/) || pathname.startsWith('/abyss'))) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -3682,12 +3689,6 @@ window.cancelAnimFrame = (function () {
         // Strip strict param if present to rely on session and keep URL clean
         if (targetUrl.includes('strict=1')) {
           targetUrl = targetUrl.replace(/[?&]strict=1/, '').replace(/[?&]$/, '');
-        }
-
-        // Already on this exact grid page — just scroll to top, no reload
-        if (targetUrl.split('#')[0] === window.location.href.split('#')[0] && !anyLink.hash && document.querySelector('.posts')) {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          return false;
         }
 
         const parts = pathname.split('/').filter(Boolean);
