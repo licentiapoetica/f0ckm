@@ -1932,6 +1932,8 @@ body.sidebar-right-hidden .global-sidebar-right {
   padding: 5px;
   font-size: 0.9em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  content-visibility: auto;
+  contain-intrinsic-size: 100px;
 }
 
 .sidebar-activity .comment-content-inner {

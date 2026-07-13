@@ -489,8 +489,12 @@
     };
 
 
-    const checkOverflow = () => {
-        document.querySelectorAll('.sidebar-activity .comment-content-inner').forEach(inner => {
+    const checkOverflow = (targetElement) => {
+        const targets = targetElement
+            ? (targetElement.classList.contains('comment-content-inner') ? [targetElement] : targetElement.querySelectorAll('.comment-content-inner'))
+            : document.querySelectorAll('.sidebar-activity .comment-content-inner');
+
+        targets.forEach(inner => {
             const container = inner.parentElement;
             const btn = container.querySelector('.read-more-btn');
             if (!btn) return;
@@ -518,8 +522,14 @@
             if (media.dataset.loadListenerBound) return;
             media.dataset.loadListenerBound = 'true';
 
-            media.addEventListener('load', checkOverflow, { once: true });
-            media.addEventListener('loadedmetadata', checkOverflow, { once: true });
+            const inner = media.closest('.comment-content-inner');
+            if (inner) {
+                media.addEventListener('load', () => checkOverflow(inner), { once: true });
+                media.addEventListener('loadedmetadata', () => checkOverflow(inner), { once: true });
+            } else {
+                media.addEventListener('load', () => checkOverflow(), { once: true });
+                media.addEventListener('loadedmetadata', () => checkOverflow(), { once: true });
+            }
         });
     };
 
@@ -531,7 +541,7 @@
             const contentDiv = readBtn.closest('.comment-content');
             if (contentDiv) {
                 contentDiv.classList.toggle('expanded');
-                checkOverflow(); // Re-sync button text and visibility
+                checkOverflow(contentDiv); // Re-sync button text and visibility for this element
             }
             return;
         }
@@ -669,14 +679,20 @@
                 if (html) {
                     const temp = document.createElement('div');
                     temp.innerHTML = html;
+                    const addedNodes = [];
                     while (temp.firstElementChild) {
-                        container.appendChild(temp.firstElementChild);
+                        const node = temp.firstElementChild;
+                        container.appendChild(node);
+                        addedNodes.push(node);
                     }
                     // Keep the IO sentinel at the very end so it triggers on the next scroll
                     if (ioSentinel) container.appendChild(ioSentinel);
-                    attachMediaLoadListeners(container);
-                    checkOverflow();
-                    fetchSidebarYoutubeTitles(container);
+                    
+                    addedNodes.forEach(node => {
+                        attachMediaLoadListeners(node);
+                        checkOverflow(node);
+                        fetchSidebarYoutubeTitles(node);
+                    });
                     // Auto-play converted GIF videos
                     container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
