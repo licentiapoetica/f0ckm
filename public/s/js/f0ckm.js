@@ -3678,6 +3678,7 @@ window.cancelAnimFrame = (function () {
       // This gives a clean progressive thumbnail load-in every time,
       // avoids AJAX history/cache complexity, and keeps GIF items unaffected.
       if (anyLink.classList.contains('navbar-brand')) {
+        if (navbar) navbar.classList.add('pbwork'); // Show progress bar during load
         return; // Let the browser handle href="/" natively
       }
 
