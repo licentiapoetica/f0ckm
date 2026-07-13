@@ -1904,9 +1904,8 @@ body.sidebar-right-hidden .global-sidebar-right {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  touch-action: pan-y;
+  overflow: hidden;
+  touch-action: none;
   /* iOS Safari: keep horizontal swipe-to-close claimable by JS */
 }
 
@@ -1932,8 +1931,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   padding: 5px;
   font-size: 0.9em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  content-visibility: auto;
-  contain-intrinsic-size: 100px;
+  contain: layout style;
 }
 
 .sidebar-activity .comment-content-inner {
