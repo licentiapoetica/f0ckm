@@ -2013,16 +2013,24 @@ body.sidebar-right-hidden .global-sidebar-right {
   object-fit: cover;
 }
 
-/* Shimmer placeholder while avatar image is still loading */
+/* Shimmer placeholder while avatar image is still loading — GPU-composited */
 .sidebar-avatar:not(.loaded) {
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.10) 40%,
-      rgba(255, 255, 255, 0.04) 80%);
-  background-size: 600px 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
-  /* Keep border-box sizing consistent with the border already on .sidebar-avatar */
+  background: rgba(255, 255, 255, 0.05);
   box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar-avatar:not(.loaded)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.10) 50%,
+      transparent 100%);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  will-change: transform;
 }
 
 .read-more-btn,
@@ -2055,14 +2063,12 @@ body.sidebar-right-hidden .global-sidebar-right {
 
 /* ─── Sidebar Skeleton Loader ─────────────────────────────────────────────── */
 
+/* GPU-composited shimmer: translate a highlight overlay instead of shifting background-position.
+   background-position changes force a repaint on every frame in Chromium;
+   transform: translateX() runs entirely on the compositor thread. */
 @keyframes skeleton-shimmer {
-  0% {
-    background-position: -300px 0;
-  }
-
-  100% {
-    background-position: 300px 0;
-  }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .sidebar-skeleton-item {
@@ -2089,16 +2095,27 @@ body.sidebar-right-hidden .global-sidebar-right {
   min-width: 0;
 }
 
-/* Shared shimmer base */
+/* Shared shimmer base — uses overflow:hidden + a translating pseudo-element
+   so the animation is GPU-composited and never repaints the main thread. */
 .skeleton-avatar,
 .skeleton-line {
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.10) 40%,
-      rgba(255, 255, 255, 0.04) 80%);
-  background-size: 600px 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton-avatar::after,
+.skeleton-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.10) 50%,
+      transparent 100%);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  will-change: transform;
 }
 
 .skeleton-avatar {
@@ -7166,23 +7183,20 @@ button#togglebg {
   animation: none;
 }
 
-/* ─── Posts Grid Skeleton: shimmer on real items while thumbnail loads ─────── */
+/* ─── Posts Grid: no skeleton on grid thumbnails — plain dark bg while loading ─────── */
 div.posts>a.lazy-thumb:not(.loaded) {
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.10) 40%,
-      rgba(255, 255, 255, 0.04) 80%);
-  background-size: 600px 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-/* Stagger shimmer phases so items feel alive individually */
-div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+2) {
-  animation-delay: 0.2s;
+/* Smooth GPU-composited fade-in when thumbnail image finishes loading.
+   opacity transition is always compositor-promoted — no paint cost. */
+div.posts>a.thumb {
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
 }
 
-div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+3) {
-  animation-delay: 0.4s;
+div.posts>a.thumb.loaded {
+  opacity: 1;
 }
 
 
@@ -7197,9 +7211,9 @@ div.posts>a.lazy-thumb:not(.loaded):nth-child(3n+3) {
   }
 }
 
+/* Item view media fades in — grid items do NOT fade in per-item to avoid paint floods */
 img#f0ck-image,
 div.imageDoor,
-div.posts a,
 video {
   animation: 0.4s ease-out 0s 1 fadeInFX;
 }
