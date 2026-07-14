@@ -118,24 +118,15 @@ window.cancelAnimFrame = (function () {
       // Clear grid cache to force fresh render on next navigation
       if (typeof gridCacheMap !== 'undefined') gridCacheMap.clear();
 
-      // Update elements with data-bg (grid items).
-      // We look for any data-bg or inline style containing the thumbnail path for this ID.
-      document.querySelectorAll(`[data-bg*="/t/${idStr}.webp"], [data-bg*="/t/${idStr}_blur.webp"], [style*="/t/${idStr}.webp"], [style*="/t/${idStr}_blur.webp"]`).forEach(el => {
-          // If it has data-bg, update it (this handles lazy-thumb logic)
+      document.querySelectorAll(`[data-bg*="/t/${idStr}.webp"], [data-bg*="/t/${idStr}_blur.webp"]`).forEach(el => {
           if (el.dataset.bg) {
               el.dataset.bg = window.applyThumbCacheBust(el.dataset.bg);
           }
-          // If it's already showing the background, update the style directly
-          if (el.style.backgroundImage || el.getAttribute('style')?.includes('background-image')) {
-              const currentStyle = el.getAttribute('style') || '';
-              // Match url(...) contents
-              const newStyle = currentStyle.replace(/url\(['"]?([^'"]+)['"]?\)/g, (match, p1) => {
-                  if (p1.includes(`/t/${idStr}.webp`) || p1.includes(`/t/${idStr}_blur.webp`)) {
-                      return `url('${window.applyThumbCacheBust(p1)}')`;
-                  }
-                  return match;
-              });
-              el.setAttribute('style', newStyle);
+          // Update the --thumb-bg CSS custom property used by the ::after pseudo-element
+          const currentBg = el.style.getPropertyValue('--thumb-bg');
+          if (currentBg && (currentBg.includes(`/t/${idStr}.webp`) || currentBg.includes(`/t/${idStr}_blur.webp`))) {
+              const newUrl = currentBg.replace(/url\(['"](.*?)['"]\)/, (_, p1) => `url('${window.applyThumbCacheBust(p1)}')`);
+              el.style.setProperty('--thumb-bg', newUrl);
           }
       });
 
@@ -180,24 +171,26 @@ window.cancelAnimFrame = (function () {
         return window.applyThumbCacheBust(bg);
     };
 
+    // Helper: apply thumb image via CSS custom property — picked up by the loaded CSS rule
+    const applyThumb = (thumb, finalBg) => {
+        thumb.style.setProperty('--thumb-bg', `url('${finalBg}')`);
+        thumb.classList.add('loaded');
+        thumb.classList.remove('lazy-thumb');
+        window.loadedThumbs.add(finalBg);
+    };
+
     // Synchronously resolve any already-loaded thumbnails before observer starts
     document.querySelectorAll('.lazy-thumb').forEach(thumb => {
         const finalBg = getFinalBg(thumb);
         if (finalBg && window.loadedThumbs.has(finalBg)) {
-            thumb.style.backgroundImage = `url('${finalBg}')`;
-            thumb.classList.add('loaded');
-            thumb.classList.remove('lazy-thumb');
+            applyThumb(thumb, finalBg);
         }
     });
 
     if (!('IntersectionObserver' in window)) {
         document.querySelectorAll('.lazy-thumb').forEach(thumb => {
              const finalBg = getFinalBg(thumb);
-             if (finalBg) {
-                  thumb.style.backgroundImage = `url('${finalBg}')`;
-                  thumb.classList.remove('lazy-thumb');
-                  window.loadedThumbs.add(finalBg);
-             }
+             if (finalBg) applyThumb(thumb, finalBg);
         });
         return;
     }
@@ -207,36 +200,24 @@ window.cancelAnimFrame = (function () {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const thumb = entry.target;
-                    let bg = thumb.dataset.bg;
-                    if (bg && !thumb.classList.contains('loaded')) {
+                    if (thumb.dataset.bg && !thumb.classList.contains('loaded')) {
                         const finalBg = getFinalBg(thumb);
                         if (finalBg) {
                             const img = new Image();
                             img.src = finalBg;
                             if (img.complete && img.naturalWidth > 0) {
-                                thumb.style.backgroundImage = `url('${finalBg}')`;
-                                thumb.classList.add('loaded');
-                                thumb.classList.remove('lazy-thumb');
-                                window.loadedThumbs.add(finalBg);
+                                applyThumb(thumb, finalBg);
                             } else {
-                                img.onload = () => {
-                                    thumb.style.backgroundImage = `url('${finalBg}')`;
-                                    thumb.classList.add('loaded');
-                                    thumb.classList.remove('lazy-thumb');
-                                    window.loadedThumbs.add(finalBg);
-                                };
+                                img.onload = () => applyThumb(thumb, finalBg);
                                 img.onerror = () => {
                                     const retries = parseInt(thumb.dataset.retries || '0');
                                     if (retries < 3) {
                                         thumb.dataset.retries = retries + 1;
-                                        setTimeout(() => {
-                                            img.src = finalBg + '?r=' + Date.now();
-                                        }, 1000);
+                                        setTimeout(() => { img.src = finalBg + '?r=' + Date.now(); }, 1000);
                                     } else {
-                                        // All retries exhausted — show fallback for audio items
                                         const mime = thumb.dataset.mime || '';
                                         if (mime.startsWith('audio/')) {
-                                            thumb.style.backgroundImage = `url('/s/img/audio.webp')`;
+                                            thumb.style.setProperty('--thumb-bg', `url('/s/img/audio.webp')`);
                                             thumb.classList.add('thumb-fallback');
                                         }
                                         thumb.classList.remove('lazy-thumb');
@@ -256,7 +237,6 @@ window.cancelAnimFrame = (function () {
         window._lazyVisibilityBound = true;
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && typeof window.initLazyLoading === 'function') {
-                // Clear observation state for pending items to force re-observation
                 document.querySelectorAll('.lazy-thumb:not(.loaded)').forEach(t => {
                     delete t.dataset.lazyObserved;
                 });
@@ -7710,8 +7690,8 @@ class NotificationSystem {
     thumb.dataset.mode = mode;
     thumb.dataset.bg = `/t/${data.id}.webp`;
     thumb.dataset.size = '1'; // New items start with no contributions → tier 1
-    thumb.style.backgroundImage = `url('/t/${data.id}.webp')`;
-    thumb.style.opacity = '0';
+    thumb.style.setProperty('--thumb-bg', `url('/t/${data.id}.webp')`);
+    thumb.classList.add('loaded');
     thumb.style.transform = 'scale(0.9)';
     thumb.innerHTML = '<p></p>' + (data.is_oc ? '<span class="oc-indicator anim">OC</span>' : '');
 
@@ -10144,7 +10124,7 @@ document.addEventListener('click', (e) => {
         
         if (baseBg && shouldBlurThis) {
           const finalBg = window.applyThumbCacheBust(baseBg.replace('.webp', '_blur.webp'));
-          thumb.style.backgroundImage = `url('${finalBg}')`;
+          thumb.style.setProperty('--thumb-bg', `url('${finalBg}')`);
         }
       }
       return;
@@ -10171,7 +10151,7 @@ document.addEventListener('click', (e) => {
         const baseBg = thumb.dataset.bg;
         if (baseBg && shouldBlurThis) {
           const finalBg = window.applyThumbCacheBust(baseBg);
-          thumb.style.backgroundImage = `url('${finalBg}')`;
+          thumb.style.setProperty('--thumb-bg', `url('${finalBg}')`);
         }
         
         // Dynamically inject the hide-again eye-slash button inside <p>

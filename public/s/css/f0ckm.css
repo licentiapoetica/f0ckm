@@ -7098,20 +7098,43 @@ button#togglebg {
   animation: none;
 }
 
-/* ─── Posts Grid: no skeleton on grid thumbnails — plain dark bg while loading ─────── */
+/* ─── Posts Grid Skeleton: always visible shimmer while image loads ──────────────────
+   The <a.thumb> is always visible — skeleton shimmer shows immediately.
+   Once the image is loaded (.loaded class added), the shimmer is removed and
+   the background-image (set via --thumb-bg) is shown. Children stay on top
+   via their own stacking context. */
+
+/* Skeleton shimmer on unloaded thumbs — always visible */
 div.posts>a.lazy-thumb:not(.loaded) {
-  background: rgba(255, 255, 255, 0.04);
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.09) 45%,
+    rgba(255,255,255,0.04) 90%);
+  background-size: 300% 100%;
+  animation: thumb-shimmer 1.8s ease-in-out infinite;
 }
 
-/* Smooth GPU-composited fade-in when thumbnail image finishes loading.
-   opacity transition is always compositor-promoted — no paint cost. */
-div.posts>a.thumb {
-  opacity: 0;
-  transition: opacity 0.25s ease-out;
+@keyframes thumb-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
 }
 
+/* Once loaded: show the real image and fade in smoothly */
 div.posts>a.thumb.loaded {
-  opacity: 1;
+  background-image: var(--thumb-bg);
+  animation: thumb-reveal 0.3s ease-out both;
+}
+
+@keyframes thumb-reveal {
+  from { opacity: 0.4; }
+  to   { opacity: 1; }
+}
+
+/* Ensure child elements (indicators, labels) are always visible above background */
+div.posts>a.thumb > *,
+div.posts>a.thumb .thumb-indicators {
+  position: relative;
+  z-index: 1;
 }
 
 
