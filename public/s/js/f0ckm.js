@@ -2228,7 +2228,10 @@ window.cancelAnimFrame = (function () {
     // the viewport, loading them all simultaneously instead of progressively.
     if (isGrid) {
        const targetCacheKey = urlObj.pathname + urlObj.search;
-       if (gridCacheMap.has(targetCacheKey)) {
+       if (options.bypassCache) {
+          gridCacheMap.delete(targetCacheKey);
+       }
+       if (gridCacheMap.has(targetCacheKey) && !options.bypassCache) {
           const cache = gridCacheMap.get(targetCacheKey);
           // Keep cache alive — cleared on mode/filter changes via gridCacheMap.clear()
 
@@ -3708,7 +3711,8 @@ window.cancelAnimFrame = (function () {
           const _inComment = anyLink.closest(".comment, .comment-content, .comment-body, .motd-content");
           loadItemAjax(targetUrl, !_inComment);
         } else {
-          loadPageAjax(targetUrl, true);
+          const isBrand = anyLink.classList.contains('navbar-brand');
+          loadPageAjax(targetUrl, true, { bypassCache: isBrand });
         }
         return false;
       }
