@@ -7107,15 +7107,9 @@ div.posts>a.lazy-thumb:not(.loaded) {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Once loaded: apply real image and briefly fade in */
+/* Once loaded: apply real image instantly */
 div.posts>a.thumb.loaded {
   background-image: var(--thumb-bg);
-  animation: thumb-reveal 0.25s ease-out both;
-}
-
-@keyframes thumb-reveal {
-  from { opacity: 0.5; }
-  to   { opacity: 1; }
 }
 
 /* Ensure child elements (labels, indicators) stay above the background */
