@@ -3443,7 +3443,6 @@ window.cancelAnimFrame = (function () {
   // Intercept clicks
   document.addEventListener('click', (e) => {
     const target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
-    console.log('[f0ck-debug] Document clicked, target:', target);
 
     // Check for mode selection (only applies to <a href="/mode/..."> links, not plain buttons)
     const modeBtn = target.closest('.mode-btn');
@@ -3687,18 +3686,9 @@ window.cancelAnimFrame = (function () {
         return false;
       }
 
-      // Navbar brand: always do a native full-page load, never AJAX.
-      // This gives a clean progressive thumbnail load-in every time,
-      // avoids AJAX history/cache complexity, and keeps GIF items unaffected.
-      if (anyLink.classList.contains('navbar-brand')) {
-        if (navbar) navbar.classList.add('pbwork'); // Show progress bar during load
-        return; // Let the browser handle href="/" natively
-      }
-
       if (!isSpecialLink && (pathname === '/' || pathname.startsWith('/halls') || pathname.startsWith('/h/') || pathname.startsWith('/notifications') || pathname.startsWith('/tag') || pathname.startsWith('/user/') || pathname.match(/^\/(image|video|audio)/) || pathname.match(/\/p\/\d+/) || pathname.match(/^\/\d+/) || pathname.match(/^\/(about|rules|terms|upload|subscriptions|stats|docs|settings|admin|mod|ranking|messages|meme|memes)/) || pathname.startsWith('/abyss'))) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        console.log('[f0ck-debug] Intercepted link navigation:', { pathname, href: anyLink.href });
 
         let targetUrl = anyLink.href;
         // Strip strict param if present to rely on session and keep URL clean
