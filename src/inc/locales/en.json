@@ -154,6 +154,8 @@
     "alternative_infobox_hint": "Show a rich author card with avatar and bio on item pages",
     "alternative_steuerung": "Icon nav style",
     "alternative_steuerung_hint": "Replace text navigation (← prev | random | next →) with compact chevron icons",
+    "f_for_fullscreen": "F is for Fullscreen",
+    "f_for_fullscreen_hint": "Pressing F will toggle fullscreen in the video player instead of favoriting the post.",
     "disable_autoplay": "Disable Autoplay",
     "disable_autoplay_hint": "Prevent videos and audio from playing automatically",
     "disable_swiping": "Disable Swiping",

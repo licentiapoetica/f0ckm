@@ -154,6 +154,8 @@
     "alternative_infobox_hint": "Zeigt einen erweiterten Autor-Block mit Avatar und Bio auf Beitragsseiten",
     "alternative_steuerung": "Icon-Navigationsstil",
     "alternative_steuerung_hint": "Ersetzt die Text-Navigation (← zurück | Zufall | weiter →) durch kompakte Chevron-Icons",
+    "f_for_fullscreen": "F is for Fullscreen",
+    "f_for_fullscreen_hint": "Das Drücken der F-Taste leitet die Vollbildlichkeit des Abspielers ein, statt den Pfosten zu favorisieren.",
     "disable_autoplay": "Automatische Wiedergabe deaktivieren",
     "disable_autoplay_hint": "Vermeiden Sie das automatische Abspielen von Videos und Tondateien",
     "disable_swiping": "Wischen deaktivieren",

@@ -755,6 +755,14 @@
         });
     }
 
+    const fForFullscreenToggle = document.getElementById('f_for_fullscreen_toggle');
+    if (fForFullscreenToggle) {
+        fForFullscreenToggle.checked = localStorage.getItem('fForFullscreen') === 'true';
+        fForFullscreenToggle.addEventListener('change', () => {
+            localStorage.setItem('fForFullscreen', fForFullscreenToggle.checked);
+        });
+    }
+
     // Granular Thumbnail Blur Toggles
     const blurNsfwToggle = document.getElementById('blur_nsfw_toggle');
     if (blurNsfwToggle) {

@@ -4158,7 +4158,21 @@ window.cancelAnimFrame = (function () {
     "d": clickOnNavBinding("#next"),
     "r": clickOnElementBinding("#random, #nav-random"),
     "p": clickOnElementBinding("button#a_toggle"),
-    "f": clickOnElementBinding("#a_favo"),
+    "f": () => {
+      if (localStorage.getItem('fForFullscreen') === 'true') {
+        const fsBtn = document.querySelector('.v0ck_fs_btn');
+        const imgBtn = document.querySelector('.image-modal-btn');
+        if (fsBtn) {
+          fsBtn.click();
+        } else if (imgBtn) {
+          imgBtn.click();
+        } else {
+          clickOnElementBinding("#a_favo")();
+        }
+      } else {
+        clickOnElementBinding("#a_favo")();
+      }
+    },
     "i": clickOnElementBinding("a#a_addtag"),
     "l": () => window.toggleBackground(),
     "y": () => {
