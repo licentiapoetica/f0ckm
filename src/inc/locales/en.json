@@ -290,6 +290,7 @@
     "next_prev": "next/prev",
     "volume": "volume",
     "scroll_nav": "next/prev",
+    "frame_skip": "frame step (paused) / 5s skip",
     "show_help": "show help"
   },
   "notifications": {

@@ -290,6 +290,7 @@
     "next_prev": "Weiter/Zurück",
     "volume": "Lautstärke",
     "scroll_nav": "Weiter/Zurück",
+    "frame_skip": "Einzelbildsteuerung (pausiert) / 5s Sprung",
     "show_help": "Hilfe anzeigen"
   },
   "notifications": {

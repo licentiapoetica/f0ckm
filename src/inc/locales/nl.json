@@ -290,6 +290,7 @@
     "next_prev": "volgende/vorige",
     "volume": "volume",
     "scroll_nav": "next/prev",
+    "frame_skip": "frame-stap (gepauzeerd) / 5s overslaan",
     "show_help": "help tonen"
   },
   "notifications": {

@@ -288,6 +288,7 @@
     "next_prev": "nächster/vorheriger",
     "volume": "Lautstärke",
     "scroll_nav": "nächster/vorheriger",
+    "frame_skip": "Einzelbildrücken (pausiert) / 5s Hüpfen",
     "show_help": "Hilfe anzeigen"
   },
   "notifications": {

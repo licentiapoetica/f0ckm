@@ -527,9 +527,14 @@ class v0ck {
     document.addEventListener('fullscreenchange', toggleFullScreenClasses);
     toggleFullScreenClasses(); // Check initial state (important for transitions)
 
+    let keyHoldTimer = null;
+    let isHoldingKey = false;
+    let heldKey = null;
+    let reverseInterval = null;
+
     function handleKeyDown(e) {
       if (!document.body.contains(video)) {
-        document.removeEventListener('keydown', handleKeyDown);
+        cleanupKeyboardListeners();
         return;
       }
 
@@ -556,8 +561,129 @@ class v0ck {
         handleVolumeButton(newVol);
         showHUD(newVol);
       }
+
+      if (e.key === "." || e.key === ",") {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        e.preventDefault();
+        if (!Number.isFinite(video.currentTime)) return;
+        const duration = Number.isFinite(video.duration) ? video.duration : video.currentTime;
+        const direction = e.key === "." ? 1 : -1;
+
+        if (heldKey && heldKey !== e.key) return;
+        const isCurrentHold = heldKey === e.key;
+
+        if (video.paused || isCurrentHold) {
+          if (!e.repeat) {
+            heldKey = e.key;
+            isHoldingKey = false;
+            if (keyHoldTimer) clearTimeout(keyHoldTimer);
+            keyHoldTimer = setTimeout(() => {
+              isHoldingKey = true;
+              if (heldKey === ".") {
+                video.play();
+              } else if (heldKey === ",") {
+                if (reverseInterval) clearInterval(reverseInterval);
+                reverseInterval = setInterval(() => {
+                  if (video.currentTime > 0) {
+                    video.currentTime = Math.max(0, video.currentTime - 0.04);
+                  } else {
+                    clearInterval(reverseInterval);
+                    reverseInterval = null;
+                  }
+                }, 40);
+              }
+            }, 200);
+          } else {
+            if (keyHoldTimer && !isHoldingKey) {
+              clearTimeout(keyHoldTimer);
+              keyHoldTimer = null;
+              isHoldingKey = true;
+              if (heldKey === ".") {
+                video.play();
+              } else if (heldKey === ",") {
+                if (reverseInterval) clearInterval(reverseInterval);
+                reverseInterval = setInterval(() => {
+                  if (video.currentTime > 0) {
+                    video.currentTime = Math.max(0, video.currentTime - 0.04);
+                  } else {
+                    clearInterval(reverseInterval);
+                    reverseInterval = null;
+                  }
+                }, 40);
+              }
+            }
+          }
+        } else {
+          video.currentTime = Math.max(0, Math.min(duration, video.currentTime + direction * 5));
+        }
+        showControlsAndReset();
+      }
     }
+
+    function handleKeyUp(e) {
+      if (!document.body.contains(video)) {
+        cleanupKeyboardListeners();
+        return;
+      }
+      if (e.key === "." || e.key === ",") {
+        if (heldKey === e.key) {
+          if (keyHoldTimer) {
+            clearTimeout(keyHoldTimer);
+            keyHoldTimer = null;
+          }
+          if (isHoldingKey) {
+            if (heldKey === ".") {
+              video.pause();
+            } else if (heldKey === ",") {
+              if (reverseInterval) {
+                clearInterval(reverseInterval);
+                reverseInterval = null;
+              }
+            }
+          } else {
+            if (Number.isFinite(video.currentTime)) {
+              const duration = Number.isFinite(video.duration) ? video.duration : video.currentTime;
+              const direction = heldKey === "." ? 1 : -1;
+              const frameTime = 1 / 30;
+              video.currentTime = Math.max(0, Math.min(duration, video.currentTime + direction * frameTime));
+            }
+          }
+          heldKey = null;
+          isHoldingKey = false;
+          showControlsAndReset();
+        }
+      }
+    }
+
+    function handleBlur() {
+      if (!document.body.contains(video)) {
+        cleanupKeyboardListeners();
+        return;
+      }
+      if (keyHoldTimer) clearTimeout(keyHoldTimer);
+      if (reverseInterval) clearInterval(reverseInterval);
+      keyHoldTimer = null;
+      reverseInterval = null;
+      if (isHoldingKey) {
+        if (heldKey === ".") {
+          video.pause();
+        }
+      }
+      heldKey = null;
+      isHoldingKey = false;
+    }
+
+    function cleanupKeyboardListeners() {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      if (keyHoldTimer) clearTimeout(keyHoldTimer);
+      if (reverseInterval) clearInterval(reverseInterval);
+    }
+
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
 
     video.volume = _volume = volumeSlider.value = +(localStorage.getItem('volume') ?? defaultVolume);
     handleVolumeButton(video.volume);
