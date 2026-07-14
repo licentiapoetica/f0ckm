@@ -2120,7 +2120,6 @@ window.cancelAnimFrame = (function () {
   window.initSidebarRightToggle();
 
   const loadPageAjax = async (url, replace = true, options = {}) => {
-    console.log('[f0ck-debug] loadPageAjax called:', { url, replace, options, isNavigating });
     if (isNavigating) return;
 
     // Immediately restore scrollability and hide modals
@@ -2946,7 +2945,7 @@ window.cancelAnimFrame = (function () {
       }
 
     } catch (err) {
-      console.error('[f0ck-debug] loadPageAjax failed with error:', err);
+      console.error(err);
       window.location.href = url; // Fallback
     } finally {
       isNavigating = false;
