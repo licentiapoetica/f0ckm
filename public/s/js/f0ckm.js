@@ -179,7 +179,7 @@ window.cancelAnimFrame = (function () {
         window.loadedThumbs.add(finalBg);
     };
 
-    // Synchronously resolve any already-loaded thumbnails before observer starts
+    // Synchronously resolve any already-loaded thumbnails (cached from previous navigation)
     document.querySelectorAll('.lazy-thumb').forEach(thumb => {
         const finalBg = getFinalBg(thumb);
         if (finalBg && window.loadedThumbs.has(finalBg)) {
@@ -194,6 +194,32 @@ window.cancelAnimFrame = (function () {
         });
         return;
     }
+
+    // ── Synchronous first pass: load all thumbs currently visible in the viewport ──
+    // IntersectionObserver fires asynchronously — visible items would show skeleton
+    // for a brief frame. This eliminates that by loading them in the same JS tick.
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    document.querySelectorAll('.lazy-thumb').forEach(thumb => {
+        if (thumb.classList.contains('loaded')) return;
+        const r = thumb.getBoundingClientRect();
+        // In viewport (with a small tolerance for partially visible items)
+        if (r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw) {
+            const finalBg = getFinalBg(thumb);
+            if (finalBg) {
+                const img = new Image();
+                img.src = finalBg;
+                if (img.complete && img.naturalWidth > 0) {
+                    applyThumb(thumb, finalBg);
+                } else {
+                    img.onload = () => applyThumb(thumb, finalBg);
+                    img.onerror = () => thumb.classList.remove('lazy-thumb');
+                }
+                // Mark so the observer doesn't double-process it
+                thumb.dataset.lazyObserved = 'true';
+            }
+        }
+    });
 
     if (!lazyObserver) {
         lazyObserver = new IntersectionObserver((entries) => {
@@ -229,7 +255,7 @@ window.cancelAnimFrame = (function () {
                     lazyObserver.unobserve(thumb);
                 }
             });
-        }, { rootMargin: '300px 0px', threshold: 0.01 });
+        }, { rootMargin: '200px 0px', threshold: 0.01 });
     }
 
     // Nudge lazy loading on tab switch to prevent stuck skeletons in inactive tabs
@@ -245,6 +271,7 @@ window.cancelAnimFrame = (function () {
         });
     }
 
+    // Observe only off-screen thumbs — visible ones were already handled above
     document.querySelectorAll('.lazy-thumb').forEach(thumb => {
         if (!thumb.dataset.lazyObserved) {
             thumb.dataset.lazyObserved = 'true';
