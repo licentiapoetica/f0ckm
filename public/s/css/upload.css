@@ -1652,39 +1652,3 @@
 }
 @keyframes uutShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-
-/* ── Completion states (inline, auto-dismiss) ────── */
-.uut-ok  { color: #51cf66; font-size: 10px; flex-shrink: 0; }
-.uut-err { color: #ff5050; font-size: 10px; flex-shrink: 0; }
-
-.uut-job-row--done { align-items: center; }
-
-.uut-job--success .uut-bar-fill,
-.uut-bar-fill--ok {
-    background: #51cf66;
-    background-image: none;
-    animation: none;
-}
-
-.uut-job--error .uut-bar-fill,
-.uut-bar-fill--err {
-    background: #ff5050;
-    background-image: none;
-    animation: none;
-}
-
-.uut-stage--ok { color: #51cf66; }
-.uut-stage--err { color: #ff5050; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; display: block; }
-
-.uut-link {
-    font-size: 0.69rem;
-    color: var(--accent);
-    text-decoration: none;
-    opacity: 0.85;
-    white-space: nowrap;
-    transition: opacity 0.15s;
-    margin-left: 5px;
-}
-.uut-link:hover { opacity: 1; text-decoration: underline; }
-
-

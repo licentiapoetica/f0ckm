@@ -113,41 +113,6 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         }
     };
 
-    const _renderDone = (jobId, success, itemId, errMsg) => {
-        const list = _$('uut-active-list');
-        if (!list) return;
-        const row = list.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
-        if (!row) return;
-        const t = i18n();
-        const url = window.escapeHtmlUpload(_active.get(jobId)?.url || '');
-
-        if (success) {
-            row.classList.add('uut-job--success');
-            const linkText = t.url_tracker_view || 'View →';
-            const link = itemId ? ` <a class="uut-link" href="/${itemId}">${window.escapeHtmlUpload(linkText)}</a>` : '';
-            const completeText = t.url_tracker_complete || 'Complete!';
-            row.innerHTML = `
-                <div class="uut-job-row">
-                    <div class="uut-job-info">
-                        <span class="uut-url" title="${url}">${url}</span>
-                        <div class="uut-meta"><span class="uut-stage uut-stage--ok">${window.escapeHtmlUpload(completeText)}${link}</span></div>
-                    </div>
-                </div>
-            `;
-        } else {
-            row.classList.add('uut-job--error');
-            const safeErr = window.escapeHtmlUpload(errMsg || t.url_tracker_failed || 'Upload failed');
-            row.innerHTML = `
-                <div class="uut-job-row">
-                    <div class="uut-job-info">
-                        <span class="uut-url" title="${url}">${url}</span>
-                        <div class="uut-meta"><span class="uut-stage uut-stage--err" title="${safeErr}">${safeErr}</span></div>
-                    </div>
-                </div>
-            `;
-        }
-    };
-
     // ── Polling ───────────────────────────────────────────────────────────────
     const _stopPoll = (jobId) => {
         const j = _active.get(jobId);
@@ -179,7 +144,7 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
                                 data: state.error ? { msg: state.error } : null
                             });
                         }
-                    }, 2000);
+                    }, 500);
                     return;
                 }
             } catch {}
@@ -196,12 +161,10 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         _stopPoll(jobId);
         _broadcast({ type: 'job_resolved', jobId, notif });
 
-        const success = notif.type === 'upload_success';
-        const itemId  = notif.item_id || null;
-        const errMsg  = notif.data?.msg || 'Upload failed';
-
-        _renderDone(jobId, success, itemId, errMsg);
-        _sync(); // update badge count
+        // Fade row out and remove — no lingering done state
+        const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
+        if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
+        setTimeout(() => { _active.delete(jobId); _sync(); }, 350);
     };
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -209,8 +172,6 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         if (!jobId) jobId = `local_${Date.now()}`;
         _ensurePanel();
         _closed = false;
-        // Clean up any stale resolved entries from a previous session
-        for (const [id, j] of _active) { if (j.resolved) _active.delete(id); }
         _active.set(jobId, { url, percent: 0, stage: 'queued', speed: null, eta: null, resolved: false, pollTimer: null });
         _renderJob(jobId);
         _sync();
@@ -259,9 +220,9 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
                     const job = _active.get(data.jobId);
                     if (!job?._remote) break;
                     job.resolved = true;
-                    const n = data.notif || {};
-                    _renderDone(data.jobId, n.type === 'upload_success', n.item_id || null, n.data?.msg || 'Upload failed');
-                    _sync();
+                    const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(data.jobId)}"]`);
+                    if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
+                    setTimeout(() => { _active.delete(data.jobId); _sync(); }, 350);
                     break;
                 }
             }
