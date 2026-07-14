@@ -2239,6 +2239,12 @@ body.layout-legacy #comments-container.faded-out {
   pointer-events: none;
 }
 
+body.layout-legacy .comment-input {
+  border-top: 1px solid var(--nav-border-color);
+  border-left: 1px solid var(--nav-border-color);
+  border-right: 1px solid var(--nav-border-color);
+}
+
 .item-sidebar-left .sidebar-tags-container,
 .item-sidebar-left .tag-controls {
   transition: transform 0.3s ease-in-out;
