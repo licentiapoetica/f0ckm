@@ -8145,7 +8145,7 @@ video.autoplay-gif {
   padding: 15px;
   text-align: center;
   background: var(--bg);
-  margin-bottom: 5px;
+  border-bottom: 1px solid var(--nav-link-hover-bg);
 }
 
 /* Markdown Styles */
