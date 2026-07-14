@@ -47,25 +47,11 @@
           el.classList.add('anchor-target');
         }
 
-        function scrollToHash(hash, smooth) {
-          var target = document.querySelector(hash);
-          if (!target) return;
-          // Defer one frame so --navbar-h / layout is fully settled
-          // (important in PJAX context where syncNavbarHeight runs after injection)
-          requestAnimationFrame(function() {
-            var absTop = 0, el = target;
-            while (el) { absTop += el.offsetTop; el = el.offsetParent; }
-            var navBottom = nav.getBoundingClientRect().bottom;
-            window.scrollTo({ top: absTop - navBottom - 8, behavior: smooth ? 'smooth' : 'auto' });
-          });
-        }
-
         function initFromHash() {
           var hash = location.hash;
           if (hash && nav.querySelector('a[href="' + hash + '"]')) {
             setActive(hash);
             highlightTarget(hash);
-            scrollToHash(hash, false);
           } else {
             var first = nav.querySelector('a[href^="#"]');
             if (first) setActive(first.getAttribute('href'));
@@ -76,14 +62,12 @@
         initFromHash();
         setTimeout(initFromHash, 50);
 
-        // Click: prevent native jump, scroll to target just below the quicknav
+        // Click: set active + highlight target immediately
         nav.addEventListener('click', function(e) {
           var link = e.target.closest('a[href^="#"]');
           if (!link) return;
-          e.preventDefault();
           var href = link.getAttribute('href');
           setActive(href);
-          scrollToHash(href, true);
           requestAnimationFrame(function() { highlightTarget(href); });
         });
       })();
