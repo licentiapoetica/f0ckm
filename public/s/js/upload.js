@@ -161,10 +161,30 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
         _stopPoll(jobId);
         _broadcast({ type: 'job_resolved', jobId, notif });
 
-        // Fade row out and remove — no lingering done state
-        const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
-        if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
-        setTimeout(() => { _active.delete(jobId); _sync(); }, 350);
+        const success = notif.type === 'upload_success';
+
+        if (success) {
+            // Success: fade and remove immediately
+            const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
+            if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
+            setTimeout(() => { _active.delete(jobId); _sync(); }, 350);
+        } else {
+            // Failure: update the row to show the error, keep until user closes
+            const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(jobId)}"]`);
+            if (row) {
+                const errMsg = notif.data?.msg || i18n().url_tracker_failed || 'Upload failed';
+                const stageEl = row.querySelector('.uut-stage');
+                if (stageEl) {
+                    stageEl.textContent = errMsg;
+                    stageEl.style.color = '#ff5050';
+                }
+                const spinner = row.querySelector('.uut-spinner');
+                if (spinner) spinner.style.display = 'none';
+                const barFill = row.querySelector('.uut-bar-fill');
+                if (barFill) { barFill.style.width = '100%'; barFill.style.background = '#ff5050'; barFill.style.backgroundImage = 'none'; barFill.style.animation = 'none'; }
+            }
+            _sync(); // update badge (count stays 0 for resolved jobs)
+        }
     };
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -220,9 +240,24 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
                     const job = _active.get(data.jobId);
                     if (!job?._remote) break;
                     job.resolved = true;
-                    const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(data.jobId)}"]`);
-                    if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
-                    setTimeout(() => { _active.delete(data.jobId); _sync(); }, 350);
+                    const n = data.notif || {};
+                    if (n.type === 'upload_success') {
+                        const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(data.jobId)}"]`);
+                        if (row) { row.classList.add('uut-job--fading'); setTimeout(() => row.remove(), 300); }
+                        setTimeout(() => { _active.delete(data.jobId); _sync(); }, 350);
+                    } else {
+                        const row = _$('uut-active-list')?.querySelector(`[data-jid="${CSS.escape(data.jobId)}"]`);
+                        if (row) {
+                            const errMsg = n.data?.msg || i18n().url_tracker_failed || 'Upload failed';
+                            const stageEl = row.querySelector('.uut-stage');
+                            if (stageEl) { stageEl.textContent = errMsg; stageEl.style.color = '#ff5050'; }
+                            const spinner = row.querySelector('.uut-spinner');
+                            if (spinner) spinner.style.display = 'none';
+                            const barFill = row.querySelector('.uut-bar-fill');
+                            if (barFill) { barFill.style.width = '100%'; barFill.style.background = '#ff5050'; barFill.style.backgroundImage = 'none'; barFill.style.animation = 'none'; }
+                        }
+                        _sync();
+                    }
                     break;
                 }
             }
@@ -2393,9 +2428,19 @@ window.initUploadForm = (selector) => {
             }
 
             if (successCount > 0) {
-                if (dragModal) dragModal.classList.remove('show');
-                if (window.resetGlobalScrollState) window.resetGlobalScrollState();
-                if (window.hideAllModals) window.hideAllModals();
+                if (lastData?.pending) {
+                    // Background URL upload: close modal gently — delay scroll reset
+                    // so queued pointer/keyboard events don't fire on the underlying page
+                    if (dragModal) dragModal.classList.remove('show');
+                    setTimeout(() => {
+                        if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+                        if (window.hideAllModals) window.hideAllModals();
+                    }, 400);
+                } else {
+                    if (dragModal) dragModal.classList.remove('show');
+                    if (window.resetGlobalScrollState) window.resetGlobalScrollState();
+                    if (window.hideAllModals) window.hideAllModals();
+                }
 
                 form._f0ckUploader.reset();
 
@@ -2408,19 +2453,14 @@ window.initUploadForm = (selector) => {
                         if (typeof window.flashMessage === 'function') {
                             window.flashMessage(window.f0ckI18n?.upload_pending_approval_patient || 'Upload awaits approval', 3000, 'warning');
                         }
-                    } else if (lastData?.pending) {
-                        // Background URL upload — tracker widget is already showing; just navigate home
-                        /* no additional message needed */
-                    } else if (!dragModal && statusDiv) {
+                    } else if (!lastData?.pending && !dragModal && statusDiv) {
                         statusDiv.innerHTML = '✓ ' + (lastData?.msg || 'Upload successful');
                         statusDiv.className = 'upload-status success';
                     }
                 }
 
-                setTimeout(() => {
-                    if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
-                    else window.location.href = '/';
-                }, dragModal ? 0 : (lastData?.pending ? 0 : 1000));
+                // URL uploads: always stay on current page — tracker panel shows progress
+                // (no redirect here; the file upload path below handles its own redirect)
             } else {
                 restoreBtn();
             }
@@ -2591,10 +2631,14 @@ window.initUploadForm = (selector) => {
                     }
                 }
 
-                setTimeout(() => {
-                    if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
-                    else window.location.href = '/';
-                }, dragModal ? 0 : 1000);
+                // Skip redirect if every item was a background URL job
+                const allPending = lastData?.pending && selectedFiles.every(i => i.type === 'url');
+                if (!allPending) {
+                    setTimeout(() => {
+                        if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
+                        else window.location.href = '/';
+                    }, dragModal ? 0 : 1000);
+                }
             } else {
                 restoreBtn();
                 if (progressContainer) progressContainer.style.display = 'none';

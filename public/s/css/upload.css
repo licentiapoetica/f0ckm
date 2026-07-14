@@ -1497,7 +1497,7 @@
     font-size: 0.8rem;
     opacity: 0;
     transform: translateY(10px);
-    transition: opacity 0.28s ease, transform 0.28s ease;
+    transition: opacity 1.5s ease, transform 1.5s ease;
     pointer-events: none;
 }
 
