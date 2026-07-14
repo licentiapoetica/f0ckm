@@ -8284,9 +8284,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
          const file = thumb.dataset.file;
          const mime = thumb.dataset.mime;
+         const ext = thumb.dataset.ext;
          
          // Only preview videos (not gifs — fetching a GIF causes main-thread freeze on click)
-         if (!file || !mime || !mime.startsWith('video/') || mime === 'video/youtube') return;
+         if (!file || !mime || !mime.startsWith('video/') || mime === 'video/youtube' || (ext && ext.toLowerCase() === 'gif')) return;
 
          // Helper to actually start video — only called AFTER the hover delay
          // so we don't start a network fetch during the 150ms grace period.
