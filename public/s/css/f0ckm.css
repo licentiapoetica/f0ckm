@@ -2297,9 +2297,9 @@ body.layout-legacy #comments-container.faded-out {
 }
 
 .comment-input {
-  background: var(--comment-bg);
+  background: var(--bg);
   padding: 5px;
-  border: 1px solid var(--nav-border-color);
+  border-bottom: 1px solid var(--nav-border-color);
   border-radius: 0;
 }
 
@@ -2877,6 +2877,7 @@ body.layout-modern .comments-list {
   /* Scroll comments here, not on the container */
   overflow-x: hidden;
   min-height: 0;
+  background: var(--bg);
 }
 
 body.layout-legacy .comments-list {
@@ -2892,6 +2893,10 @@ body.layout-legacy .comments-list {
   padding-right: 0px;
   padding-left: 0px;
   padding-top: 0px;
+}
+
+body.layout-legacy .blahlol {
+  background: var(--bg);
 }
 
 body.layout-legacy .comments-list:not(:has(.comment)) {
@@ -8022,7 +8027,7 @@ video.autoplay-gif {
 
 .comment {
   padding: 10px;
-  background: var(--comment-bg);
+  background: var(--bg);
   display: flex;
   gap: 15px;
   margin-bottom: 0px;
@@ -10707,7 +10712,7 @@ body.layout-legacy .navbar-header {
 
 .sidebar-tags-container {
   padding: 5px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg);
   border-top: 1px solid var(--nav-border-color);
   overflow: visible;
   flex-shrink: 0;
@@ -11229,8 +11234,13 @@ body.modal-open {
 }
 
 body.layout-modern .tag-controls {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg);
   border-top: 1px solid var(--nav-border-color);
+}
+
+body.layout-modern .sidebar-tags-container {
+  background: var(--bg);
+
 }
 
 body.layout-modern .tag-ac-wrapper {
