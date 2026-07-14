@@ -584,6 +584,7 @@
 
     const SIDEBAR_PAGE_LIMIT = 15;
     const SIDEBAR_INITIAL_LIMIT = 15;
+    const SIDEBAR_MAX_COMMENTS = 20;
 
     const loadActivity = async (silent = false) => {
         const container = document.getElementById('sidebar-activity-container');
@@ -609,11 +610,12 @@
             const data = await res.json();
 
             if (data.success && data.comments && data.comments.length > 0) {
-                window._sidebarActivityCache = data.comments.map(c => ({
+                window._sidebarActivityCache = data.comments.slice(0, SIDEBAR_MAX_COMMENTS).map(c => ({
                     ...c,
                     body: c.content || c.body
                 }));
-                hasMore = data.hasMore === true || data.comments.length === SIDEBAR_INITIAL_LIMIT;
+                hasMore = (data.hasMore === true || data.comments.length === SIDEBAR_INITIAL_LIMIT)
+                    && window._sidebarActivityCache.length < SIDEBAR_MAX_COMMENTS;
                 renderFromCache();
                 // Also check after a delay to account for image/emoji loading shifts
                 setTimeout(checkOverflow, 500);
@@ -662,16 +664,20 @@
 
             if (data.success && data.comments && data.comments.length > 0) {
                 currentPage++;
-                hasMore = data.hasMore === true;
 
-                // Append only comments not already in the cache
+                // Append only comments not already in the cache, up to the global cap
+                const remaining = SIDEBAR_MAX_COMMENTS - window._sidebarActivityCache.length;
                 const existingIds = new Set(window._sidebarActivityCache.map(c => String(c.id)));
-                const newComments = data.comments.filter(c => !existingIds.has(String(c.id))).map(c => ({
-                    ...c,
-                    body: c.content || c.body
-                }));
+                const newComments = data.comments
+                    .filter(c => !existingIds.has(String(c.id)))
+                    .slice(0, remaining)
+                    .map(c => ({ ...c, body: c.content || c.body }));
 
                 window._sidebarActivityCache.push(...newComments);
+
+                // Stop loading more if the hard cap is reached
+                hasMore = data.hasMore === true
+                    && window._sidebarActivityCache.length < SIDEBAR_MAX_COMMENTS;
 
                 // Append new items to DOM
                 let html = '';
@@ -687,7 +693,7 @@
                     }
                     // Keep the IO sentinel at the very end so it triggers on the next scroll
                     if (ioSentinel) container.appendChild(ioSentinel);
-                    
+
                     addedNodes.forEach(node => {
                         attachMediaLoadListeners(node);
                         checkOverflow(node);
@@ -695,6 +701,14 @@
                     });
                     // Auto-play converted GIF videos
                     container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
+                }
+
+                if (!hasMore) {
+                    // Show end-of-feed indicator
+                    const end = document.createElement('div');
+                    end.style.cssText = 'text-align:center;padding:8px 0;font-size:0.75em;color:#444;';
+                    end.textContent = window.f0ckI18n?.sidebar_end_of_activity || '─ end of activity ─';
+                    container.appendChild(end);
                 }
             } else {
                 hasMore = false;
@@ -722,13 +736,22 @@
             return;
         }
 
-        // 2. Update cache (prepend, no hard cap — infinite scroll handles depth)
+        // 2. Update cache (prepend, capped at SIDEBAR_MAX_COMMENTS)
         const newItem = {
             ...data,
             body: data.body || data.content,
             timeago: (window.f0ckI18n && window.f0ckI18n.timeago_just_now) || 'just now'
         };
         window._sidebarActivityCache.unshift(newItem);
+
+        // Trim cache to the hard cap and remove the evicted DOM node (if any)
+        if (window._sidebarActivityCache.length > SIDEBAR_MAX_COMMENTS) {
+            const evicted = window._sidebarActivityCache.pop();
+            if (container && evicted) {
+                const evictedEl = document.getElementById('sc' + evicted.id);
+                if (evictedEl) evictedEl.remove();
+            }
+        }
 
         // Update DOM if visible
         if (container) {
