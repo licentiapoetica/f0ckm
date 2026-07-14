@@ -155,31 +155,49 @@ window.cancelAnimFrame = (function () {
       }
   };
 
+  window.loadedThumbs = window.loadedThumbs || new Set();
+
   let lazyObserver;
   window.initLazyLoading = () => {
+    const getFinalBg = (thumb) => {
+        let bg = thumb.dataset.bg;
+        if (!bg) return null;
+        const mode = thumb.getAttribute('data-mode');
+        const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
+        const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
+        const blurSfw = localStorage.getItem('blurSfw') === 'true';
+        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
+        
+        let shouldBlurThis = false;
+        if (mode === 'nsfw') shouldBlurThis = blurNsfw;
+        else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
+        else if (mode === 'sfw') shouldBlurThis = blurSfw;
+        else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
+        
+        if (shouldBlurThis && !thumb.classList.contains('revealed')) {
+            bg = bg.replace('.webp', '_blur.webp');
+        }
+        return window.applyThumbCacheBust(bg);
+    };
+
+    // Synchronously resolve any already-loaded thumbnails before observer starts
+    document.querySelectorAll('.lazy-thumb').forEach(thumb => {
+        const finalBg = getFinalBg(thumb);
+        if (finalBg && window.loadedThumbs.has(finalBg)) {
+            thumb.style.backgroundImage = `url('${finalBg}')`;
+            thumb.classList.add('loaded');
+            thumb.classList.remove('lazy-thumb');
+        }
+    });
+
     if (!('IntersectionObserver' in window)) {
         document.querySelectorAll('.lazy-thumb').forEach(thumb => {
-            let bg = thumb.dataset.bg;
-            if (bg) {
-                 const mode = thumb.getAttribute('data-mode');
-                 const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
-                 const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
-                 const blurSfw = localStorage.getItem('blurSfw') === 'true';
-                 const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
-                 
-                 let shouldBlurThis = false;
-                 if (mode === 'nsfw') shouldBlurThis = blurNsfw;
-                 else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
-                 else if (mode === 'sfw') shouldBlurThis = blurSfw;
-                 else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
-                 
-                 if (shouldBlurThis && !thumb.classList.contains('revealed')) {
-                     bg = bg.replace('.webp', '_blur.webp');
-                 }
-                 const finalBg = window.applyThumbCacheBust(bg);
-                 thumb.style.backgroundImage = `url('${finalBg}')`;
-                 thumb.classList.remove('lazy-thumb');
-            }
+             const finalBg = getFinalBg(thumb);
+             if (finalBg) {
+                  thumb.style.backgroundImage = `url('${finalBg}')`;
+                  thumb.classList.remove('lazy-thumb');
+                  window.loadedThumbs.add(finalBg);
+             }
         });
         return;
     }
@@ -191,47 +209,41 @@ window.cancelAnimFrame = (function () {
                     const thumb = entry.target;
                     let bg = thumb.dataset.bg;
                     if (bg && !thumb.classList.contains('loaded')) {
-                        const mode = thumb.getAttribute('data-mode');
-                        const blurNsfw = localStorage.getItem('blurNsfw') === 'true';
-                        const blurNsfl = localStorage.getItem('blurNsfl') === 'true';
-                        const blurSfw = localStorage.getItem('blurSfw') === 'true';
-                        const blurUntagged = localStorage.getItem('blurUntagged') === 'true';
-                        
-                        let shouldBlurThis = false;
-                        if (mode === 'nsfw') shouldBlurThis = blurNsfw;
-                        else if (mode === 'nsfl') shouldBlurThis = blurNsfl;
-                        else if (mode === 'sfw') shouldBlurThis = blurSfw;
-                        else if (mode === 'null' || !mode) shouldBlurThis = blurUntagged;
-                        
-                        if (shouldBlurThis && !thumb.classList.contains('revealed')) {
-                            bg = bg.replace('.webp', '_blur.webp');
-                        }
-
-                        bg = window.applyThumbCacheBust(bg);
-                        const img = new Image();
-                        img.onload = () => {
-                            thumb.style.backgroundImage = `url('${bg}')`;
-                            thumb.classList.add('loaded');
-                            thumb.classList.remove('lazy-thumb');
-                        };
-                        img.onerror = () => {
-                            const retries = parseInt(thumb.dataset.retries || '0');
-                            if (retries < 3) {
-                                thumb.dataset.retries = retries + 1;
-                                setTimeout(() => {
-                                    img.src = bg + '?r=' + Date.now();
-                                }, 1000);
-                            } else {
-                                // All retries exhausted — show fallback for audio items
-                                const mime = thumb.dataset.mime || '';
-                                if (mime.startsWith('audio/')) {
-                                    thumb.style.backgroundImage = `url('/s/img/audio.webp')`;
-                                    thumb.classList.add('thumb-fallback');
-                                }
+                        const finalBg = getFinalBg(thumb);
+                        if (finalBg) {
+                            const img = new Image();
+                            img.src = finalBg;
+                            if (img.complete && img.naturalWidth > 0) {
+                                thumb.style.backgroundImage = `url('${finalBg}')`;
+                                thumb.classList.add('loaded');
                                 thumb.classList.remove('lazy-thumb');
+                                window.loadedThumbs.add(finalBg);
+                            } else {
+                                img.onload = () => {
+                                    thumb.style.backgroundImage = `url('${finalBg}')`;
+                                    thumb.classList.add('loaded');
+                                    thumb.classList.remove('lazy-thumb');
+                                    window.loadedThumbs.add(finalBg);
+                                };
+                                img.onerror = () => {
+                                    const retries = parseInt(thumb.dataset.retries || '0');
+                                    if (retries < 3) {
+                                        thumb.dataset.retries = retries + 1;
+                                        setTimeout(() => {
+                                            img.src = finalBg + '?r=' + Date.now();
+                                        }, 1000);
+                                    } else {
+                                        // All retries exhausted — show fallback for audio items
+                                        const mime = thumb.dataset.mime || '';
+                                        if (mime.startsWith('audio/')) {
+                                            thumb.style.backgroundImage = `url('/s/img/audio.webp')`;
+                                            thumb.classList.add('thumb-fallback');
+                                        }
+                                        thumb.classList.remove('lazy-thumb');
+                                    }
+                                };
                             }
-                        };
-                        img.src = bg;
+                        }
                     }
                     lazyObserver.unobserve(thumb);
                 }
@@ -2108,6 +2120,7 @@ window.cancelAnimFrame = (function () {
   window.initSidebarRightToggle();
 
   const loadPageAjax = async (url, replace = true, options = {}) => {
+    console.log('[f0ck-debug] loadPageAjax called:', { url, replace, options, isNavigating });
     if (isNavigating) return;
 
     // Immediately restore scrollability and hide modals
@@ -2405,7 +2418,7 @@ window.cancelAnimFrame = (function () {
 
       const needsFullHtmlFetch = isProfile || isUserHall || isUserHalls || isTags || isHall || isHalls || isComments || isNotifs || isAdmin || isMod || isSettings || isStatic || isMessages || isAbyss;
 
-      const fetchHeaders = { 'Credentials': 'include', 'Cache-Control': 'no-store' };
+      const fetchHeaders = { 'Credentials': 'include', 'Cache-Control': 'no-cache' };
       if (!needsFullHtmlFetch) {
         fetchHeaders['X-Requested-With'] = 'XMLHttpRequest';
       }
@@ -2415,7 +2428,7 @@ window.cancelAnimFrame = (function () {
       const response = await fetch(needsFullHtmlFetch ? url : ajaxUrl, {
         credentials: 'include',
         headers: fetchHeaders,
-        cache: 'no-store'
+        cache: 'no-cache'
       });
 
       if (needsFullHtmlFetch) {
@@ -2933,7 +2946,7 @@ window.cancelAnimFrame = (function () {
       }
 
     } catch (err) {
-      console.error(err);
+      console.error('[f0ck-debug] loadPageAjax failed with error:', err);
       window.location.href = url; // Fallback
     } finally {
       isNavigating = false;
@@ -3431,6 +3444,7 @@ window.cancelAnimFrame = (function () {
   // Intercept clicks
   document.addEventListener('click', (e) => {
     const target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+    console.log('[f0ck-debug] Document clicked, target:', target);
 
     // Check for mode selection (only applies to <a href="/mode/..."> links, not plain buttons)
     const modeBtn = target.closest('.mode-btn');
@@ -3685,6 +3699,7 @@ window.cancelAnimFrame = (function () {
       if (!isSpecialLink && (pathname === '/' || pathname.startsWith('/halls') || pathname.startsWith('/h/') || pathname.startsWith('/notifications') || pathname.startsWith('/tag') || pathname.startsWith('/user/') || pathname.match(/^\/(image|video|audio)/) || pathname.match(/\/p\/\d+/) || pathname.match(/^\/\d+/) || pathname.match(/^\/(about|rules|terms|upload|subscriptions|stats|docs|settings|admin|mod|ranking|messages|meme|memes)/) || pathname.startsWith('/abyss'))) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        console.log('[f0ck-debug] Intercepted link navigation:', { pathname, href: anyLink.href });
 
         let targetUrl = anyLink.href;
         // Strip strict param if present to rely on session and keep URL clean
