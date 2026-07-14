@@ -288,6 +288,7 @@
     "toggle_rating": "toggle item rating",
     "play_pause": "play/pause",
     "next_prev": "next/prev",
+    "volume": "volume",
     "scroll_nav": "next/prev",
     "show_help": "show help"
   },

@@ -527,6 +527,38 @@ class v0ck {
     document.addEventListener('fullscreenchange', toggleFullScreenClasses);
     toggleFullScreenClasses(); // Check initial state (important for transitions)
 
+    function handleKeyDown(e) {
+      if (!document.body.contains(video)) {
+        document.removeEventListener('keydown', handleKeyDown);
+        return;
+      }
+
+      // Block interaction if content warning is visible
+      const cwModal = document.getElementById('content-warning-modal');
+      if (cwModal && cwModal.style.display !== 'none') return;
+
+      // Don't fire if user is typing in an input, textarea or editing content
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) return;
+
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        let newVol = video.volume;
+        if (e.key === "ArrowUp") {
+          newVol = Math.min(1, newVol + 0.05);
+        } else {
+          newVol = Math.max(0, newVol - 0.05);
+        }
+        video.volume = newVol;
+        if (volumeSlider) {
+          volumeSlider.value = newVol;
+        }
+        _volume = newVol;
+        handleVolumeButton(newVol);
+        showHUD(newVol);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+
     video.volume = _volume = volumeSlider.value = +(localStorage.getItem('volume') ?? defaultVolume);
     handleVolumeButton(video.volume);
 
