@@ -6732,6 +6732,39 @@ span#favs {
   font-size: 15px;
 }
 
+._error_filter_hint {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px dashed rgba(242, 239, 11, 0.35);
+  background: rgba(242, 239, 11, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.82em;
+  line-height: 1.5;
+  text-align: center;
+  text-shadow: none;
+}
+
+._error_filter_hint i {
+  margin-right: 5px;
+  opacity: 0.7;
+}
+
+._error_filter_hint strong {
+  color: var(--accent, #f2ef0b);
+  font-weight: 700;
+}
+
+._error_filter_hint a {
+  color: var(--accent, #f2ef0b);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+._error_filter_hint a:hover {
+  opacity: 0.8;
+}
+
 /* Admin search css early test */
 .admin-search {
   margin-top: 15px;
@@ -15932,4 +15965,88 @@ body.scroller-active #gchat-reopen-bubble {
 
 .archive-download-btn i {
   font-size: 1em;
+}
+
+/* ── Filtered-upload ghost thumbnail ──────────────────────────────────────────
+   Shown when the current user's freshly-uploaded item is hidden by an active
+   content filter (SFW / NSFW / NSFL mode). Disappears on manual page reload.
+   ──────────────────────────────────────────────────────────────────────────── */
+a.thumb.filtered-upload-ghost,
+a.lazy-thumb.filtered-upload-ghost {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px dashed rgba(255, 255, 255, 0.25) !important;
+  box-sizing: border-box;
+}
+
+/* Strongly blur the background thumbnail image */
+a.thumb.filtered-upload-ghost::before,
+a.lazy-thumb.filtered-upload-ghost::before {
+  content: '';
+  position: absolute;
+  inset: -6px; /* bleed out so blur edges don't show */
+  background: var(--thumb-bg) center / cover no-repeat;
+  filter: blur(14px) brightness(0.45);
+  z-index: 0;
+}
+
+/* Dark overlay to give the label good contrast */
+a.thumb.filtered-upload-ghost::after,
+a.lazy-thumb.filtered-upload-ghost::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+/* Hover: slightly brighten to hint it's clickable */
+a.thumb.filtered-upload-ghost:hover::before,
+a.lazy-thumb.filtered-upload-ghost:hover::before {
+  filter: blur(14px) brightness(0.6);
+}
+
+a.thumb.filtered-upload-ghost:hover::after,
+a.lazy-thumb.filtered-upload-ghost:hover::after {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Overlay label inside the ghost thumb */
+.filtered-upload-ghost-label {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  text-align: center;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.92);
+  user-select: none;
+}
+
+.filtered-upload-ghost-label .fug-icon {
+  font-size: 1.4em;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.filtered-upload-ghost-label .fug-title {
+  font-size: 0.65em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  opacity: 0.95;
+}
+
+.filtered-upload-ghost-label .fug-hint {
+  font-size: 0.58em;
+  opacity: 0.6;
+  line-height: 1.3;
+  font-weight: 400;
 }

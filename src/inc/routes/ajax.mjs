@@ -1,6 +1,7 @@
 import f0cklib from "../routeinc/f0cklib.mjs";
 import url from "url";
 import cfg from "../config.mjs";
+import { createI18n } from "../i18n.mjs";
 
 export default (router, tpl) => {
     router.get(/\/ajax\/item\/(?<itemid>\d+)/, async (req, res) => {
@@ -57,9 +58,17 @@ export default (router, tpl) => {
         const tAjaxFetch = Date.now();
 
         if (!data.success) {
+            const reqMode = (query.mode !== undefined ? +query.mode : req.mode) ?? 0;
+            const modeLabels = { 0: 'SFW', 1: 'NSFW', 2: 'Untagged', 4: 'NSFL' };
+            const errorModeLabel = (req.session && reqMode !== 3) ? (modeLabels[reqMode] || null) : null;
+            const { t: tErr } = createI18n(req.session?.language || req.lang || 'en');
             const errorHtml = tpl.render('error-partial', {
-                message: data.message || '404 - Not f0cked',
-                tmp: null
+                message: tErr('error.post_not_visible'),
+                tmp: null,
+                session: req.session ? { ...req.session } : false,
+                error_mode_label: errorModeLabel,
+                error_filter_hint: errorModeLabel ? tErr('error.filter_hint', { mode: `<strong>${errorModeLabel}</strong>` }) : null,
+                error_filter_hint_link: tErr('error.filter_hint_link')
             }, req);
             return res.reply({
                 headers: { 'Content-Type': 'application/json' },

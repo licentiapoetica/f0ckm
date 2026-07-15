@@ -1,20 +1,22 @@
-<div class="pagewrapper">
-  <div id="main">
-    <div class="_error_wrapper">
-      <div class="err">
-        <div class="_error_topbar">
-          <span>(Ͼ˳Ͽ)..!!!</span>
-        </div>
-        <div class="_error_content">
-          <a href="/random">
-            <img src="/s/img/404.gif" alt="ZOMG">
-          </a>
-          <div class="_error_message">
-            <span>Error</span>
-            <code>{{ message }}</code>
-          </div>
-        </div>
+<div class="_error_wrapper">
+  <div class="err">
+    <div class="_error_topbar">
+      <span>(Ͼ˳Ͽ)..!!!</span>
+    </div>
+    <div class="_error_content">
+      <a href="/random">
+        <img src="/s/img/404.gif" alt="ZOMG">
+      </a>
+      <div class="_error_message">
+        <span>{{ t('error.label') }}</span>
+        <code>{{ message }}</code>
       </div>
+      @if(session && error_filter_hint)
+      <div class="_error_filter_hint">
+        {{ error_filter_hint }} <br>
+        <a href="#" data-action="open-filter-modal">{{ error_filter_hint_link }}</a>
+      </div>
+      @endif
     </div>
   </div>
 </div>

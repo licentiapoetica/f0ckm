@@ -676,11 +676,14 @@ window.cancelAnimFrame = (function () {
             window.flashMessage('ALL MODE ACTIVATED');
             gridCacheMap.clear();
             const isGridView = document.querySelector('.posts, .tags-grid');
+            const isItemView = document.getElementById('prev') || document.getElementById('next') || /^\/\d+/.test(window.location.pathname);
             let reloadPromise = null;
             if (isGridView) {
               const currentUrl = new URL(window.location.href);
               currentUrl.searchParams.delete('mode');
-              reloadPromise = loadPageAjax(currentUrl.toString(), true, { skipCache: true });
+              reloadPromise = window.loadPageAjax ? window.loadPageAjax(currentUrl.toString(), true, { skipCache: true }) : null;
+            } else if (isItemView) {
+              reloadPromise = window.loadItemAjax ? window.loadItemAjax(window.location.href, true, { skipCache: true }) : null;
             }
             if (fromFilterModal) Promise.resolve(reloadPromise).finally(() => { window._keepFilterModal = false; });
           }
@@ -731,14 +734,15 @@ window.cancelAnimFrame = (function () {
           window.flashMessage(label);
           gridCacheMap.clear();
           const isGridView = document.querySelector('.posts, .tags-grid');
-          const isItemView = document.getElementById('prev') || document.getElementById('next');
+          const isItemView = document.getElementById('prev') || document.getElementById('next') || /^\/\d+/.test(window.location.pathname);
           let reloadPromise = null;
           if (isGridView) {
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.delete('mode');
-            reloadPromise = loadPageAjax(currentUrl.toString(), true, { skipCache: true });
+            reloadPromise = window.loadPageAjax ? window.loadPageAjax(currentUrl.toString(), true, { skipCache: true }) : null;
           } else if (isItemView) {
             updateNavForMode(window.activeMode);
+            reloadPromise = window.loadItemAjax ? window.loadItemAjax(window.location.href, true, { skipCache: true }) : null;
           }
           if (fromFilterModal) Promise.resolve(reloadPromise).finally(() => { window._keepFilterModal = false; });
         } else {
@@ -5495,6 +5499,14 @@ window.cancelAnimFrame = (function () {
       });
     }
 
+    // Delegated handler: [data-action="open-filter-modal"] links (e.g. error page hint)
+    document.addEventListener('click', (e) => {
+      const trigger = e.target.closest('[data-action="open-filter-modal"]');
+      if (!trigger) return;
+      e.preventDefault();
+      toggleModal(true);
+    });
+
     close.addEventListener('click', () => toggleModal(false));
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) toggleModal(false);
@@ -7957,12 +7969,74 @@ class NotificationSystem {
         window.location.pathname.includes('/h/') || 
         window.location.pathname.includes('/user/')) return;
 
-    // Respect mode filter
+    // Respect mode filter — but if this is the current user's own upload,
+    // show a blurred "ghost" thumbnail so they know it was uploaded successfully
+    // even though the active filter hides it from the grid.
     if (typeof window.activeMode !== 'undefined' && window.activeMode !== 3) { // 3 is ALL
-      if (window.activeMode === 0 && data.tag_id !== 1) return; // SFW mode, item is not SFW
-      if (window.activeMode === 1 && data.tag_id !== 2) return; // NSFW mode, item is not NSFW
-      if (window.activeMode === 4 && data.tag_id != window.f0ckSession?.nsfl_tag_id) return;   // NSFL mode, item is not NSFL
-      if (window.activeMode === 2) return; // Untagged mode, new uploads are never untagged
+      let filtered = false;
+      let filterReason = '';
+      if (window.activeMode === 0 && data.tag_id !== 1) { filtered = true; filterReason = 'SFW'; }       // SFW mode, item is not SFW
+      else if (window.activeMode === 1 && data.tag_id !== 2) { filtered = true; filterReason = 'NSFW'; } // NSFW mode, item is not NSFW
+      else if (window.activeMode === 4 && data.tag_id != window.f0ckSession?.nsfl_tag_id) { filtered = true; filterReason = 'NSFL'; } // NSFL mode
+      else if (window.activeMode === 2) { filtered = true; filterReason = 'untagged'; }
+
+      if (filtered) {
+        // Check if this is the current user's own upload
+        const sessionUser = (window.f0ckSession?.user || '').toLowerCase();
+        const itemUser = (data.username || '').toLowerCase();
+        const isOwnUpload = sessionUser && itemUser && sessionUser === itemUser;
+
+        if (!isOwnUpload) return; // Silently drop as before for other users' uploads
+
+        // Don't add duplicates
+        if (grid.querySelector(`a[href$="/${data.id}"]`)) return;
+
+        // Determine the link prefix from existing items
+        const firstThumb = grid.querySelector('a.thumb, a.lazy-thumb');
+        const linkBase = firstThumb ? firstThumb.getAttribute('href').replace(/\d+$/, '') : '/';
+
+        // Build filter-reason label
+        const i18n = window.f0ckI18n || {};
+        const filterLabel = filterReason === 'SFW'    ? (i18n.filter_mode_sfw    || 'SFW filter active')
+                          : filterReason === 'NSFW'   ? (i18n.filter_mode_nsfw   || 'NSFW filter active')
+                          : filterReason === 'NSFL'   ? (i18n.filter_mode_nsfl   || 'NSFL filter active')
+                          : (i18n.filter_mode_other   || 'Filter active');
+        const ghostTitle = i18n.filtered_upload_title || 'Your upload';
+        const ghostHint  = i18n.filtered_upload_hint  || 'Hidden by filter · click to view';
+
+        const nsflId = window.f0ckSession?.nsfl_tag_id;
+        const mode = data.tag_id ? (data.tag_id === 1 ? 'sfw' : (data.tag_id === 2 ? 'nsfw' : (data.tag_id == nsflId ? 'nsfl' : 'null'))) : 'null';
+
+        const ghost = document.createElement('a');
+        ghost.href = `${linkBase}${data.id}`;
+        ghost.className = 'thumb lazy-thumb filtered-upload-ghost loaded';
+        ghost.dataset.file = data.dest;
+        ghost.dataset.mime = data.mime;
+        ghost.dataset.user = data.display_name || data.username;
+        ghost.dataset.mode = mode;
+        ghost.style.setProperty('--thumb-bg', `url('/t/${data.id}.webp')`);
+        ghost.style.opacity = '0';
+        ghost.style.transform = 'scale(0.9)';
+        ghost.innerHTML = `
+          <div class="filtered-upload-ghost-label">
+            <i class="fa-solid fa-eye-slash"></i>
+          </div>`;
+
+        const pinnedItems = grid.querySelectorAll('.is-pinned');
+        if (pinnedItems.length > 0) {
+          pinnedItems[pinnedItems.length - 1].after(ghost);
+        } else {
+          grid.prepend(ghost);
+        }
+
+        requestAnimationFrame(() => {
+          ghost.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+          ghost.style.opacity = '1';
+          ghost.style.transform = 'scale(1)';
+        });
+
+        return; // Ghost injected — done
+      }
     }
 
     // Don't add duplicates

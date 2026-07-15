@@ -2,6 +2,7 @@ import cfg from "../config.mjs";
 import db from "../sql.mjs";
 import lib from "../lib.mjs";
 import f0cklib from "../routeinc/f0cklib.mjs";
+import { createI18n } from "../i18n.mjs";
 
 const auth = async (req, res, next) => {
   if (!req.session)
@@ -270,13 +271,21 @@ export default (router, tpl) => {
         // Return 200 for filtered NSFW items (has item data) so Discord parses og:image
         // Return 404 only for truly missing items
         const statusCode = data.item ? 200 : 404;
+        const reqMode = req.mode ?? 0;
+        const modeLabels = { 0: 'SFW', 1: 'NSFW', 2: 'Untagged', 4: 'NSFL' };
+        const errorModeLabel = (req.session && reqMode !== 3) ? (modeLabels[reqMode] || null) : null;
+        const { t: tErr } = createI18n(req.session?.language || req.lang || 'en');
         return res.reply({
           code: statusCode,
           body: tpl.render('error', {
-            message: data.message,
+            message: tErr('error.post_not_visible'),
             item: data.item, // For OG meta tags on filtered NSFW items
             domain: cfg.main.url.domain,
-            tmp: null
+            tmp: null,
+            session: req.session ? { ...req.session } : false,
+            error_mode_label: errorModeLabel,
+            error_filter_hint: errorModeLabel ? tErr('error.filter_hint', { mode: `<strong>${errorModeLabel}</strong>` }) : null,
+            error_filter_hint_link: tErr('error.filter_hint_link')
           }, req)
         });
       }

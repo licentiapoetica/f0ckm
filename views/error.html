@@ -14,6 +14,12 @@
             <span>{{ t('error.label') }}</span>
             <code>{{ message }}</code>
           </div>
+          @if(session && error_filter_hint)
+          <div class="_error_filter_hint">
+            {{ error_filter_hint }} <br>
+            <a href="#" data-action="open-filter-modal">{{ error_filter_hint_link }}</a>
+          </div>
+          @endif
         </div>
       </div>
     </div>

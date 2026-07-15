@@ -327,7 +327,10 @@
     "scroll_for_more": "Scrollen für mehr..."
   },
   "error": {
-    "label": "Fehler"
+    "label": "Fehler",
+    "post_not_visible": "Dieser Beitrag ist derzeit leider nicht sichtbar.",
+    "filter_hint": "Dein aktueller Filter ist auf {mode} gesetzt.",
+    "filter_hint_link": "Um diesen Inhalt zu sehen, ändere deinen Filter entsprechend."
   },
   "drop": {
     "drop_anywhere": "Überall ablegen zum Hochladen"

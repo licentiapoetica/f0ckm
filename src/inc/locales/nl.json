@@ -327,7 +327,10 @@
     "scroll_for_more": "Scroll voor meer..."
   },
   "error": {
-    "label": "Fout"
+    "label": "Fout",
+    "post_not_visible": "Sorry, deze post is momenteel niet zichtbaar.",
+    "filter_hint": "Je huidige filter is ingesteld op {mode}.",
+    "filter_hint_link": "Om deze inhoud te bekijken, pas je filter aan."
   },
   "drop": {
     "drop_anywhere": "Overal slepen om te uploaden"

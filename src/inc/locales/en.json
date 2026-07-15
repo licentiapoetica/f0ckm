@@ -327,7 +327,10 @@
     "scroll_for_more": "Scroll for more..."
   },
   "error": {
-    "label": "Error"
+    "label": "Error",
+    "post_not_visible": "Sorry, this post is currently not visible.",
+    "filter_hint": "Your current filter is set to {mode}.",
+    "filter_hint_link": "To view this content, change your filter accordingly."
   },
   "drop": {
     "drop_anywhere": "Drop anywhere to upload"
