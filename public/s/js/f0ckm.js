@@ -1351,6 +1351,71 @@ window.cancelAnimFrame = (function () {
   }
 
 
+  const prefetchNextPrevItems = () => {
+    const nextBtn = document.getElementById('next');
+    const prevBtn = document.getElementById('prev');
+    
+    [nextBtn, prevBtn].forEach(btn => {
+      if (!btn || !btn.href || btn.href.endsWith('#')) return;
+      
+      const pathSegments = new URL(btn.href, window.location.origin).pathname.split('/');
+      const numericSegments = pathSegments.filter(s => /^\d+$/.test(s));
+      if (numericSegments.length === 0) return;
+      const itemId = numericSegments.pop();
+      
+      let ajaxUrl = `/ajax/item/${itemId}`;
+      const params = new URLSearchParams();
+      params.append('mode', window.activeMode);
+      
+      const tagMatch = btn.href.match(/\/tag\/([^/?]+)/);
+      if (tagMatch) params.append('tag', decodeURIComponent(tagMatch[1]));
+      
+      const userHallMatch = btn.href.match(/\/user\/([^/]+)\/hall\/([^/]+)/);
+      if (userHallMatch) {
+        params.append('userHall', decodeURIComponent(userHallMatch[2]));
+        params.append('userHallOwner', decodeURIComponent(userHallMatch[1]));
+      } else {
+        const userMatch = btn.href.match(/\/user\/([^/]+)/);
+        if (userMatch) {
+          params.append('user', decodeURIComponent(userMatch[1]));
+          if (btn.href.match(/\/user\/[^/]+\/favs(\/|$|\?)/)) params.append('fav', 'true');
+        }
+      }
+      
+      const hallMatch = btn.href.match(/\/h\/([^/?]+)/);
+      if (hallMatch) params.append('hall', decodeURIComponent(hallMatch[1]));
+      
+      const isStrict = window.f0ckSession?.strict_mode || (localStorage.getItem('search_strict') === 'true');
+      if (isStrict) params.append('strict', '1');
+      
+      if (params.toString() !== '') {
+        ajaxUrl += (ajaxUrl.includes('?') ? '&' : '?') + params.toString();
+      }
+      
+      if (itemCacheMap.has(ajaxUrl)) return;
+      
+      fetch(ajaxUrl, { credentials: 'include', priority: 'low' })
+        .then(r => r.ok ? r.text() : null)
+        .then(rawText => {
+          if (!rawText) return;
+          let html = rawText;
+          try {
+            const data = JSON.parse(rawText);
+            if (data && typeof data.html === 'string') html = data.html;
+          } catch (_) {}
+          
+          if (html) {
+            itemCacheMap.set(ajaxUrl, { html, ts: Date.now() });
+            if (itemCacheMap.size > ITEM_CACHE_MAX) {
+              itemCacheMap.delete(itemCacheMap.keys().next().value);
+            }
+            window.f0ckDebug('[prefetch] Cached AJAX template for item', itemId);
+          }
+        })
+        .catch(() => {});
+    });
+  };
+
   const setupMedia = () => {
     const elem = document.querySelector("#my-video") || document.querySelector("audio#my-video");
     if (elem) {
@@ -1363,6 +1428,11 @@ window.cancelAnimFrame = (function () {
   // Initial Load
   document.addEventListener('DOMContentLoaded', () => {
     setupMedia();
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => prefetchNextPrevItems());
+    } else {
+      setTimeout(prefetchNextPrevItems, 500);
+    }
   });
 
   // Export init function for dynamic calls
@@ -3557,6 +3627,12 @@ window.cancelAnimFrame = (function () {
         }
       } catch (err) {
         console.error("updateStrictLinks error:", err);
+      }
+
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => prefetchNextPrevItems());
+      } else {
+        setTimeout(prefetchNextPrevItems, 200);
       }
 
       // After comments have rendered (f0ck:contentLoaded above triggers synchronous render),

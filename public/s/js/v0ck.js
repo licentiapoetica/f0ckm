@@ -342,9 +342,18 @@ class v0ck {
         }
     });
 
-    // Loader events
-    const showLoader = () => loader.classList.remove('v0ck_hidden');
-    const hideLoader = () => loader.classList.add('v0ck_hidden');
+    // Loader events with debounce to prevent flicker on fast starts/seeking
+    let loaderTimeout = null;
+    const showLoader = () => {
+      if (loaderTimeout) clearTimeout(loaderTimeout);
+      loaderTimeout = setTimeout(() => {
+        loader.classList.remove('v0ck_hidden');
+      }, 250);
+    };
+    const hideLoader = () => {
+      if (loaderTimeout) clearTimeout(loaderTimeout);
+      loader.classList.add('v0ck_hidden');
+    };
     video.addEventListener('waiting', showLoader);
     video.addEventListener('stalled', showLoader);
     video.addEventListener('canplay', hideLoader);
