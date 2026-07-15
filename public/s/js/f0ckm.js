@@ -332,6 +332,8 @@ window.cancelAnimFrame = (function () {
   let posts = document.querySelector('.posts');
   const navbar = document.querySelector("nav.navbar");
   const gridCacheMap = new Map(); // Cache for detached grid nodes (URL -> {node, scroll})
+  const itemCacheMap = new Map(); // Stale-while-revalidate cache for item AJAX HTML (cacheKey -> {html, ts})
+  const ITEM_CACHE_MAX = 30; // Max entries; evict oldest on overflow
   window.activeMode = 0; // Default
   let audioCtx = null;
   let visualizerRafId = null;
@@ -3222,7 +3224,7 @@ window.cancelAnimFrame = (function () {
       }
       
       // Note: mime is no longer appended to params, server reads from cookie automatically
-      params.append('_t', Date.now());
+      // _t cache-buster removed — stable URL enables both HTTP and in-memory caching.
 
       const isRandom = document.cookie.includes('random_mode=1') || url.includes('random=1') || window.location.search.includes('random=1');
       if (isRandom) {
@@ -3240,9 +3242,125 @@ window.cancelAnimFrame = (function () {
         ajaxUrl += (ajaxUrl.includes('?') ? '&' : '?') + params.toString();
       }
 
+      // ── Stale-while-revalidate item cache ──────────────────────────────────
+      // cacheKey is the stable ajaxUrl (no _t), scoped to mode+context.
+      const _itemCacheKey = ajaxUrl;
+      const _cachedItem = !options.skipCache ? itemCacheMap.get(_itemCacheKey) : null;
+
       if (window.randomizeLogo) window.randomizeLogo();
 
-      window.f0ckDebug("Fetching:", ajaxUrl);
+      // ── CACHE HIT: render immediately, revalidate in background ────────────
+      if (_cachedItem) {
+        window.f0ckDebug("[itemCache] HIT for", _itemCacheKey);
+
+        // ── Render cached HTML (same DOM setup as the normal path below) ──
+        const _html = _cachedItem.html;
+        let _container = document.querySelector('#main .container') || (document.getElementById('main')?.classList.contains('item-view') ? document.getElementById('main') : null);
+        const _isStructuralPage = !!document.querySelector('.pagewrapper');
+        const _isModeratorPage  = !!document.querySelector('.approval-grid, .audit-log-container, .mod-reports-page');
+        const _isNotificationsPage = !!document.querySelector('.notifications-page, .notif-history-container');
+        const _isIndexPage  = !!document.querySelector('.index-container, .posts');
+        const _isStaticPage = !!document.querySelector('.static-page, .about-container, .upload-container');
+
+        if (!options.keepMedia && (!_container || _isModeratorPage || _isNotificationsPage || _isIndexPage || _isStaticPage || _isStructuralPage)) {
+          if (main) {
+            const _iw = main.querySelector('.index-layout-wrapper');
+            const _ic = main.querySelector('.index-container');
+            const _ntc = _iw || _ic;
+            if (_ntc && _isIndexPage) {
+              const _ck = window.location.pathname + window.location.search;
+              const _pw = document.querySelector('.pagination-wrapper');
+              gridCacheMap.set(_ck, { node: _ntc, scroll: currentScroll, pagination: _pw ? _pw.innerHTML : '' });
+              _ntc.remove();
+            }
+            main.className = 'item-view';
+            document.body.classList.remove('legacy-view', 'layout-modern', 'layout-legacy');
+            if (window.f0ckSession && !window.f0ckSession.use_new_layout) {
+              document.body.classList.add('layout-legacy');
+            } else {
+              document.body.classList.add('layout-modern');
+            }
+            if (window.syncNavbarHeight) window.syncNavbarHeight();
+            main.innerHTML = '';
+            _container = main;
+          }
+        } else if (_container && !options.keepMedia) {
+          _container.innerHTML = '';
+          _container.removeAttribute('style');
+          if (main) main.className = 'item-view';
+        }
+
+        if (options.keepMedia) {
+          const _parser = new DOMParser();
+          const _doc = _parser.parseFromString(_html, 'text/html');
+          ['.previous-post','.next-post','.steuerung','.sidebar-tags-container','.blahlol','.location','.gapRight','.tag-controls'].forEach(sel => {
+            const _o = _container.querySelector(sel);
+            const _n = _doc.querySelector(sel);
+            if (_o && _n) _o.replaceWith(_n.cloneNode(true));
+          });
+        } else {
+          _container.insertAdjacentHTML('beforeend', _html);
+        }
+
+        if (options.skipPush && history.state?.scroll !== undefined) {
+          requestAnimationFrame(() => window.scrollTo(0, history.state.scroll));
+        } else if (!options.keepMedia) {
+          window.scrollTo(0, 0);
+        }
+
+        const _hash = new URL(url, window.location.origin).hash;
+        let _pushUrl = `/${itemid}`;
+        if (userHall && userHallOwner)  _pushUrl = `/user/${encodeURIComponent(userHallOwner)}/hall/${encodeURIComponent(userHall)}/${itemid}`;
+        else if (user)  { _pushUrl = `/user/${encodeURIComponent(user)}/${itemid}`; if (isFavs) _pushUrl = `/user/${encodeURIComponent(user)}/favs/${itemid}`; }
+        else if (tag)   _pushUrl = `/tag/${encodeURIComponent(tag).replace(/%2C/g,',').replace(/%20/g,' ')}/${itemid}`;
+        else if (hall)  _pushUrl = `/h/${encodeURIComponent(hall).replace(/%20/g,' ')}/${itemid}`;
+        if (mime) _pushUrl = _pushUrl.replace(new RegExp(`/${itemid}$`), `/${mime}/${itemid}`);
+        if (_hash) _pushUrl += _hash;
+
+        if (!options.keepMedia && !options.skipPush) history.pushState({}, '', _pushUrl);
+
+        document.title = `${window.f0ckDomain} - ${itemid}`;
+        if (navbar) navbar.classList.remove('pbwork');
+
+        if (!options.keepMedia) {
+          setupMedia();
+          const _canvas = document.getElementById('bg');
+          if (_canvas) _canvas.classList.remove('fader-out', 'fast-fade');
+          if (window.initBackground) window.initBackground();
+          if (window.initVisualizer) window.initVisualizer();
+        }
+
+        document.dispatchEvent(new Event('f0ck:contentLoaded'));
+        if (window.initSidebarRightToggle) window.initSidebarRightToggle();
+        if (window.updateMimeLabel) window.updateMimeLabel();
+        try { if (window.updateStrictLinks && window.f0ckSession) window.updateStrictLinks(window.f0ckSession.strict_mode); } catch(_) {}
+
+        isNavigating = false;
+        window.trackVisit(itemid);
+        window.f0ckDebug('[itemCache] Cache hit render complete, revalidating in background...');
+
+        // ── Background revalidation — silently refresh cache for next visit ──
+        fetch(ajaxUrl, { credentials: 'include' })
+          .then(r => r.ok ? r.text() : null)
+          .then(freshText => {
+            if (!freshText) return;
+            try { JSON.parse(freshText); } catch(_) {}
+            // Re-parse to get html string
+            let freshHtml = freshText;
+            try {
+              const d = JSON.parse(freshText);
+              if (d && typeof d.html === 'string') freshHtml = d.html;
+            } catch(_) {}
+            itemCacheMap.set(_itemCacheKey, { html: freshHtml, ts: Date.now() });
+            window.f0ckDebug('[itemCache] Background revalidation complete for', _itemCacheKey);
+          })
+          .catch(() => {});
+
+        return; // Done — served from cache
+      }
+      // ── END CACHE HIT ───────────────────────────────────────────────────────
+
+      window.f0ckDebug("[itemCache] MISS — fetching:", ajaxUrl);
       const tStart = performance.now();
       const response = await fetch(ajaxUrl, { credentials: 'include' });
       const tHeaders = performance.now();
@@ -3278,7 +3396,16 @@ window.cancelAnimFrame = (function () {
         // If JSON parse fails, assume it's HTML text
         html = rawText;
       }
-      
+
+      // ── Store in item cache (stale-while-revalidate) ───────────────────────
+      if (html && !options.skipCache) {
+        itemCacheMap.set(_itemCacheKey, { html, ts: Date.now() });
+        if (itemCacheMap.size > ITEM_CACHE_MAX) {
+          // Evict oldest entry
+          itemCacheMap.delete(itemCacheMap.keys().next().value);
+        }
+      }
+
       // Track visit for guests
       window.trackVisit(itemid);
 
