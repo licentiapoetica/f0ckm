@@ -1275,6 +1275,7 @@ html[theme='95'] .item-main-content .metadata {
   padding: 2px 2px;
   border-radius: 3px;
   line-height: 1;
+  font-weight: bold;
 }
 
 .flash-error {

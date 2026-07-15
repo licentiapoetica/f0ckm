@@ -1788,9 +1788,27 @@ if (window.__dmLoaded) {
             el._stickerIsVideo = isVideo;
             // Hold-to-preview (uses shared window.stickerPreview from comments.js)
             let holdTimer = null;
-            const startHold = () => { holdTimer = setTimeout(() => window.stickerPreview?.show(url, isVideo), 400); };
+            let holdFired = false;
+            const startHold = () => {
+                holdFired = false;
+                holdTimer = setTimeout(() => {
+                    holdFired = true;
+                    window.stickerPreview?.show(url, isVideo);
+                }, 400);
+            };
             const cancelHold = () => { clearTimeout(holdTimer); };
-            const endHold = () => { clearTimeout(holdTimer); window.stickerPreview?.hide(); };
+            const endHold = () => {
+                clearTimeout(holdTimer);
+                if (holdFired) {
+                    holdFired = false;
+                    // Suppress the click that fires on mouseup after a preview gesture
+                    el.addEventListener('click', (e) => {
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                    }, { once: true, capture: true });
+                }
+                window.stickerPreview?.hide();
+            };
             el.addEventListener('mousedown', startHold);
             el.addEventListener('mouseup', endHold);
             el.addEventListener('mouseleave', cancelHold);
