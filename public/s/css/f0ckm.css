@@ -13557,7 +13557,7 @@ textarea#profile_description {
 body.layout-modern .xd-score-wrapper {
   margin: 0;
   padding: 0px 5px 0px 5px;
-  background: var(--comment-bg);
+  background: var(--bg);
 }
 
 @keyframes xd-pulse {
