@@ -4155,7 +4155,9 @@ class CommentSystem {
                         // Rebuild content only if the cache has been updated since last build
                         buildPickerContent();
                         picker.style.display = ''; // Reset to CSS default (flex)
-                        requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                        requestAnimationFrame(() => requestAnimationFrame(() =>
+                            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+                        ));
                         closeHandler = (ev) => {
                             if (!picker.contains(ev.target) && ev.target !== trigger) {
                                 picker.style.display = 'none';
@@ -4225,7 +4227,9 @@ class CommentSystem {
                 }
 
                 container.appendChild(picker);
-                requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                requestAnimationFrame(() => requestAnimationFrame(() =>
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+                ));
 
                 // Set up close handler
                 // Set up close handler

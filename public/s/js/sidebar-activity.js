@@ -25,7 +25,11 @@
 
     const renderEmoji = (match, name) => {
         if (customEmojis[name]) {
-            return `<img class="sidebar-comment-img emoji" src="${customEmojis[name]}" alt="${name}" title=":${name}:" loading="lazy">`;
+            const url = customEmojis[name];
+            if (url.endsWith('.webm')) {
+                return `<video class="sidebar-comment-img emoji" src="${url}" title=":${name}:" autoplay loop muted playsinline></video>`;
+            }
+            return `<img class="sidebar-comment-img emoji" src="${url}" alt="${name}" title=":${name}:" loading="lazy">`;
         }
         return match;
     };
@@ -35,6 +39,15 @@
         const div = document.createElement('div');
         div.textContent = unsafe;
         return div.innerHTML;
+    };
+
+    const playSidebarEmojiVideos = (container) => {
+        if (!container) return;
+        container.querySelectorAll('video.emoji').forEach(v => {
+            v.play().catch(() => {
+                v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true });
+            });
+        });
     };
 
     const ytOembedCache = new Map(); // videoId -> meta object
@@ -592,8 +605,9 @@
         attachMediaLoadListeners(container);
         checkOverflow();
         fetchSidebarYoutubeTitles(container);
-        // Auto-play converted GIF videos
+        // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
+        playSidebarEmojiVideos(container);
         return true;
     };
 
@@ -713,8 +727,9 @@
                         attachMediaLoadListeners(node);
                         checkOverflow(node);
                         fetchSidebarYoutubeTitles(node);
+                        playSidebarEmojiVideos(node);
                     });
-                    // Auto-play converted GIF videos
+                    // Auto-play converted GIF videos and webm emoji stickers
                     container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
 
@@ -780,6 +795,7 @@
                 attachMediaLoadListeners(node);
                 checkOverflow(node);
                 fetchSidebarYoutubeTitles(container);
+                playSidebarEmojiVideos(node);
             }
         }
     };

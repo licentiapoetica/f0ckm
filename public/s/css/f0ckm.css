@@ -5624,7 +5624,8 @@ body[type='login'] {
   position: relative;
   width: 100%;
   max-width: 100%;
-  max-height: 135px;
+  min-height: 200px;
+  max-height: 200px;
   background: var(--dropdown-bg);
   border: 1px solid var(--black);
   padding: 5px;
@@ -5640,6 +5641,7 @@ body[type='login'] {
 
 /* Tabbed mode — switched to column layout by JS when packs are present */
 .emoji-picker.has-tabs {
+  min-height: 200px;
   max-height: 200px;
   overflow: hidden;
   flex-direction: column;
@@ -8967,9 +8969,18 @@ span.badge.badge-current {
 }*/
 
 .sidebar-comment-img.emoji {
-  height: auto;
-  max-width: 60px !important;
+  height: 32px;
+  width: auto;
+  max-width: 200px !important;
   vertical-align: middle;
+  object-fit: contain;
+}
+
+video.sidebar-comment-img.emoji {
+  max-width: 200px !important;
+  vertical-align: middle;
+  object-fit: contain;
+  display: inline-block;
 }
 
 .sidebar-activity .video-embed-wrap {
