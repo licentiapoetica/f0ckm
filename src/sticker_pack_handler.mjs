@@ -199,6 +199,14 @@ export const handleImportTelegramPack = async (req, res) => {
     let failed = 0;
     const errors = [];
 
+    // Derive a slug from the pack's display name (admin-supplied > Telegram title > URL slug)
+    // e.g. "My Cool Pack" → "my_cool_pack"
+    const safeName = packTitle
+        .replace(/[^a-z0-9]/gi, '_')
+        .toLowerCase()
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '') || tgName.replace(/[^a-z0-9_]/gi, '_').toLowerCase();
+
     for (let i = 0; i < stickers.length; i++) {
         const sticker = stickers[i];
         try {
@@ -226,8 +234,7 @@ export const handleImportTelegramPack = async (req, res) => {
             const downloadUrl = 'https://api.telegram.org/file/bot' + botToken + '/' + filePath;
             const buffer = await downloadBuffer(downloadUrl);
 
-            // Generate emoji name from pack name + index
-            const safeName  = tgName.replace(/[^a-z0-9_]/gi, '_').toLowerCase();
+            // Generate emoji name: <pack_display_slug>_<padded_index>
             const emojiName = safeName + '_' + String(i + 1).padStart(3, '0');
 
             // Check for name conflict

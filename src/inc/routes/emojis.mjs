@@ -168,7 +168,7 @@ export default (router, tpl) => {
         }
     });
 
-    // Rename a sticker pack (Admin)
+    // Rename a sticker pack (Admin) — optionally backfills emoji names and comment references
     router.post(/\/api\/v2\/admin\/sticker-packs\/(?<id>\d+)\/rename/, async (req, res) => {
         if (!req.session || !req.session.admin) {
             return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
@@ -178,17 +178,85 @@ export default (router, tpl) => {
             return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Invalid CSRF token" }) });
         }
         const id = req.params.id;
-        const newName = (req.body?.name || req.post?.name || '').trim();
+        let body = {};
+        try {
+            const raw = req.body || req.post || {};
+            body = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch (_) {}
+        const newName = (body.name || '').trim();
+        const backfill = body.backfill === true;
         if (!newName) {
             return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'name is required' }) });
         }
+
         try {
-            await db`UPDATE sticker_packs SET name = ${newName} WHERE id = ${id}`;
+            if (!backfill) {
+                // Simple rename only
+                await db`UPDATE sticker_packs SET name = ${newName} WHERE id = ${id}`;
+                await db`NOTIFY emojis_updated, '{}'`;
+                return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+            }
+
+            // ── Backfill: rename emojis + update comment references ──────────
+            // Build new slug from new display name (same logic as import)
+            const newSlug = newName
+                .replace(/[^a-z0-9]/gi, '_')
+                .toLowerCase()
+                .replace(/_+/g, '_')
+                .replace(/^_|_$/, '');
+
+            // Load all emojis in this pack
+            const emojis = await db`SELECT id, name FROM custom_emojis WHERE pack_id = ${id} ORDER BY id`;
+
+            // Build rename map: old_name → new_name
+            const renames = [];
+            for (const emoji of emojis) {
+                const suffixMatch = emoji.name.match(/_(\d+)$/);
+                if (!suffixMatch) continue; // skip non-standard names
+                const newEmojiName = newSlug + '_' + suffixMatch[1].padStart(3, '0');
+                if (newEmojiName !== emoji.name) {
+                    renames.push({ id: emoji.id, oldName: emoji.name, newName: newEmojiName });
+                }
+            }
+
+            // Apply everything in a transaction
+            let emojiRenamed = 0;
+            let commentRowsUpdated = 0;
+
+            await db.begin(async sql => {
+                // Rename the pack
+                await sql`UPDATE sticker_packs SET name = ${newName} WHERE id = ${id}`;
+
+                for (const r of renames) {
+                    // Check name conflict (another emoji already has this name)
+                    const [conflict] = await sql`SELECT id FROM custom_emojis WHERE name = ${r.newName} AND id != ${r.id} LIMIT 1`;
+                    if (conflict) {
+                        console.warn(`[RENAME] Skipping ${r.oldName} → ${r.newName}: name conflict`);
+                        continue;
+                    }
+                    // Rename the emoji
+                    await sql`UPDATE custom_emojis SET name = ${r.newName} WHERE id = ${r.id}`;
+                    emojiRenamed++;
+
+                    // Replace :old_name: with :new_name: in all comments
+                    const result = await sql`
+                        UPDATE comments
+                        SET content = REPLACE(content, ${':' + r.oldName + ':'}, ${':' + r.newName + ':'})
+                        WHERE content LIKE ${'%:' + r.oldName + ':%'}
+                    `;
+                    commentRowsUpdated += result.count ?? 0;
+                }
+            });
+
             await db`NOTIFY emojis_updated, '{}'`;
-            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+            return res.reply({
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: true, emojiRenamed, commentRowsUpdated })
+            });
+
         } catch (e) {
-            console.error(e);
-            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
+            console.error('[RENAME PACK]', e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error: " + e.message }) });
         }
     });
 
