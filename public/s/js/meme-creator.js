@@ -27,7 +27,7 @@
         }
 
         const memeFont = 'Impact, Charcoal, sans-serif';
-        const memeLetterSpacing = '0.15em';
+        const memeLetterSpacing = '0.10em';
 
         function wrapText(ctx, text, maxWidth) {
             const paragraphs = text.split('\n');
