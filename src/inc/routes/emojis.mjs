@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { execFile as _execFile } from "child_process";
 import { promisify } from "util";
+import crypto from "crypto";
 
 const execFile = promisify(_execFile);
 
@@ -281,19 +282,53 @@ export default (router, tpl) => {
             return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'thumb_url must be a local /s/emojis/ path' }) });
         }
         try {
+            let finalThumbUrl = thumbUrl;
+
+            // For .webm stickers: extract first frame -> save as WebP so tabs always show a static image
+            if (thumbUrl.endsWith('.webm')) {
+                try {
+                    const webmPath = path.join(cfg.paths.emojis, path.basename(thumbUrl));
+                    const randSuffix = crypto.randomBytes(24).toString('hex');
+                    const tmpPng  = path.join(cfg.paths.emojis, randSuffix + '_tmp.png');
+                    const webpPath = path.join(cfg.paths.emojis, randSuffix + '_thumb.webp');
+
+                    // Step 1: ffmpeg extracts first frame to a temp PNG file
+                    await execFile('ffmpeg', [
+                        '-y', '-i', webmPath,
+                        '-vframes', '1',
+                        tmpPng
+                    ], { maxBuffer: 20 * 1024 * 1024 });
+
+                    // Step 2: ImageMagick converts PNG -> WebP
+                    try {
+                        await execFile('magick', [tmpPng, '-quality', '85', webpPath], { env: magickEnv });
+                    } finally {
+                        await fs.unlink(tmpPng).catch(() => {});
+                    }
+
+                    const stat = await fs.stat(webpPath).catch(() => null);
+                    if (stat && stat.size > 0) {
+                        finalThumbUrl = '/s/emojis/' + randSuffix + '_thumb.webp';
+                        console.log('[SET THUMB] Generated WebP thumbnail from .webm: ' + finalThumbUrl);
+                    }
+                } catch (thumbErr) {
+                    console.warn('[SET THUMB] Could not generate WebP from .webm:', thumbErr.message);
+                }
+            }
+
             try {
-                await db`UPDATE sticker_packs SET thumb_url = ${thumbUrl} WHERE id = ${id}`;
+                await db`UPDATE sticker_packs SET thumb_url = ${finalThumbUrl} WHERE id = ${id}`;
             } catch (colErr) {
                 // Column might not exist yet — add it and retry once
                 if (colErr.message && colErr.message.includes('thumb_url')) {
                     await db`ALTER TABLE public.sticker_packs ADD COLUMN IF NOT EXISTS thumb_url text`;
-                    await db`UPDATE sticker_packs SET thumb_url = ${thumbUrl} WHERE id = ${id}`;
+                    await db`UPDATE sticker_packs SET thumb_url = ${finalThumbUrl} WHERE id = ${id}`;
                 } else {
                     throw colErr;
                 }
             }
             await db`NOTIFY emojis_updated, '{}'`;
-            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, thumb_url: finalThumbUrl }) });
         } catch (e) {
             console.error(e);
             return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });

@@ -420,9 +420,9 @@
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            // Update local pack data so re-render shows correct current icon
+                            // Use the URL the server actually stored (may be a generated WebP for .webm stickers)
                             var pack = (window.emojiAdmin.packs || []).find(function(p) { return p.id === packId; });
-                            if (pack) pack.thumb_url = thumbUrl;
+                            if (pack) pack.thumb_url = data.thumb_url || thumbUrl;
                             // Re-render only this pack's grid — grid stays open
                             renderPackGrid(packId);
                         } else {
