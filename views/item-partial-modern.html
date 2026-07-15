@@ -127,7 +127,7 @@
                     <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary"><i class="fa-solid fa-layer-group"></i> {{ item.primaryHall.name }}</a>@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
                 </span> —
                 @endif
-                <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
+                <span class="badge badge-dark"><a href="/{{ item.id }}" class="timestamp-link"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></a></span>
             <div class="gapRight">
                 @if(session)
                 @if(user_has_favorited)

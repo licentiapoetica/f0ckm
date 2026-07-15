@@ -13454,6 +13454,17 @@ textarea#profile_description {
   letter-spacing: 0.5px;
 }
 
+.timestamp-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.timestamp-link:hover {
+  text-decoration: underline;
+  color: var(--accent);
+}
+
+
 .user-infobox-description {
   font-size: 0.9em;
   line-height: 1.5;

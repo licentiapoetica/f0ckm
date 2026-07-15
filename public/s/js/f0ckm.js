@@ -848,6 +848,15 @@ window.cancelAnimFrame = (function () {
     }
   });
 
+  // Prevent left-click navigation on timestamp links
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.timestamp-link')) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
+  }, true);
+
   // Modal Logic (Login, Forgot, Reset, Register)
   const loginBtn = document.getElementById('nav-login-btn');
   const loginModal = document.getElementById('login-modal');

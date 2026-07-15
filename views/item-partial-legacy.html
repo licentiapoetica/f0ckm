@@ -102,7 +102,7 @@
                             <div class="user-infobox-username-container">
                                 <a id="a_username" data-username="{{ item.username || '' }}" data-author-id="{{ item.author_id || '' }}" href="/user/{{ (item.username || '').toLowerCase() }}" tooltip="ID: {{ item.author_id }}" class="user-infobox-username">{!! item.author_display_name || item.username !!}</a>
                             </div>
-                            <span class="user-infobox-timestamp"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>
+                            <span class="user-infobox-timestamp"><a href="/{{ item.id }}" class="timestamp-link"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></a></span>
                         </div>
                         <div class="user-infobox-description">
                             {!! item.author_description || '' !!}
@@ -117,7 +117,7 @@
                     @if(!user_alternative_infobox) — [<a id="a_username" data-username="{{ item.username || '' }}" @if(session) data-author-id="{{ item.author_id || '' }}" @endif href="/user/{{ (item.username || '').toLowerCase() }}" @if(session && item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @endif
                     @if(item.is_oc)@if(!user_alternative_infobox) — @endif<span class="oc-badge" tooltip="Original Content">OC</span>@endif
                 </span>
-                @if(!user_alternative_infobox) — <span class="badge badge-dark"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></span>@if(halls_enabled && item.primaryHall) — @endif @endif
+                @if(!user_alternative_infobox) — <span class="badge badge-dark"><a href="/{{ item.id }}" class="timestamp-link"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></a></span>@if(halls_enabled && item.primaryHall) — @endif @endif
                 @if(halls_enabled && item.primaryHall)
                 <span class="badge hall-badge-wrap">
                     <a href="/h/{{ item.primaryHall.slug }}" class="hall-badge-primary"><i class="fa-solid fa-layer-group"></i> {{ item.primaryHall.name }}</a>@if(item.otherHalls && item.otherHalls.length)<span class="hall-overflow-pill">+{{ item.otherHalls.length }}<span class="hall-overflow-tooltip">@each(item.otherHalls as oh)<a href="/h/{{ oh.slug }}">{{ oh.name }}</a>@endeach</span></span>@endif
