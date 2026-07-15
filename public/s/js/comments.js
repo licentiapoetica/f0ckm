@@ -4039,6 +4039,12 @@ class CommentSystem {
                         _hideTimer = setTimeout(() => { overlay.innerHTML = ''; }, 200);
                     }
                 };
+                // Click anywhere on the overlay to dismiss
+                overlay.addEventListener('click', () => window.stickerPreview.hide());
+                // Global mouseup: dismiss if the mouse is released anywhere outside the picker
+                document.addEventListener('mouseup', () => {
+                    if (window.stickerPreview.isShowing) window.stickerPreview.hide();
+                });
             }
 
             const buildPickerContent = () => {
