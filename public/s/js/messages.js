@@ -359,16 +359,25 @@ if (window.__dmLoaded) {
         }
 
         // Pre-fetch emojis so :name: syntax renders correctly even on first /messages load.
-        // This mirrors CommentSystem.loadEmojis() but works without a comment system instance.
-        (async () => {
-            if ((typeof CommentSystem !== 'undefined' && CommentSystem.emojiCache)
-                || window.commentSystem?.customEmojis) {
-                // Already loaded — dispatch so the re-render handler can fire if needed
-                const cached = (typeof CommentSystem !== 'undefined' && CommentSystem.emojiCache)
-                             || window.commentSystem.customEmojis;
-                window.dispatchEvent(new CustomEvent('f0ck:emojis_ready', { detail: cached }));
+        // Must be awaited before loadThread() so the cache is populated when renderDmEmojis runs.
+        await (async () => {
+            const cachedInstance = window.commentSystem?.customEmojis;
+            const cachedStatic   = (typeof CommentSystem !== 'undefined') ? CommentSystem.emojiCache : null;
+            const activeCache    = cachedStatic || cachedInstance;
+
+            // Only skip if the cache is non-empty (an empty {} means "no patterns scanned",
+            // not "no emojis exist" — we must still fetch for the DM thread).
+            if (activeCache && Object.keys(activeCache).length > 0) return;
+
+            // If a fetch is already in flight, wait for it to resolve instead of firing a second one.
+            if (typeof CommentSystem !== 'undefined' && CommentSystem.loadingEmojis) {
+                await new Promise(resolve => {
+                    const h = () => { window.removeEventListener('f0ck:emojis_ready', h); resolve(); };
+                    window.addEventListener('f0ck:emojis_ready', h);
+                });
                 return;
             }
+
             try {
                 const res  = await fetch('/api/v2/emojis');
                 const data = await res.json();
@@ -376,7 +385,7 @@ if (window.__dmLoaded) {
                     const map = {};
                     data.emojis.forEach(e => { map[e.name] = e.url; });
                     if (typeof CommentSystem !== 'undefined') CommentSystem.emojiCache = map;
-                    window.dispatchEvent(new CustomEvent('f0ck:emojis_ready', { detail: map }));
+                    if (window.commentSystem) window.commentSystem.customEmojis = map;
                 }
             } catch { /* non-critical — emojis can fall back to :name: text */ }
         })();
