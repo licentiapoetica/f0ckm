@@ -1929,7 +1929,7 @@ body.sidebar-right-hidden .global-sidebar-right {
 #sidebar-activity-container.sidebar-comments-list .comment {
   margin-bottom: 5px;
   padding: 5px;
-  font-size: 1.2em;
+  font-size: 1em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   contain: layout style;
 }
