@@ -1415,7 +1415,17 @@ window.initUploadForm = (selector) => {
             }
             // preview-media-small sizing only applies to standalone (non-col) media
             if (!mediaCol) {
-                mediaElem.classList.add('preview-media-small');
+                // In shitpost mode, wrap videos in a rigid container to prevent Chrome from
+                // expanding the video element when native controls are clicked
+                if (isShitpost && mediaElem.tagName === 'VIDEO') {
+                    const videoWrapper = document.createElement('div');
+                    videoWrapper.className = 'preview-media-small preview-video-wrapper';
+                    mediaElem.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain;';
+                    videoWrapper.appendChild(mediaElem);
+                    mediaElem = videoWrapper;
+                } else {
+                    mediaElem.classList.add('preview-media-small');
+                }
             }
 
             // If URL item: finish building the media column (media + badge below)

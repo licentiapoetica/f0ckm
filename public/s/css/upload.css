@@ -225,12 +225,7 @@
     object-fit: contain;
 }
 
-.upload-form.shitpost-mode-active .preview-media-small {
-    width: 120px;
-    height: 80px;
-    object-fit: contain;
-    min-height: auto;
-}
+
 
 .preview-media-small {
     flex-shrink: 0;
@@ -431,25 +426,36 @@
 }
 
 /* Bigger Previews in Shitpost Mode */
-.file-preview-item {
+.upload-form.shitpost-mode-active .file-preview-item {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     padding: 15px;
-    gap: 0;
+    gap: 16px;
     width: 100%;
     border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
-.preview-media-small {
+.upload-form.shitpost-mode-active .preview-media-small {
     flex: 0 0 50%;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 120px;
-    max-height: 350px;
+    width: 50% !important;
+    max-width: 50% !important;
+    height: 240px !important;
+    max-height: 240px !important;
     object-fit: contain;
     border-radius: 8px;
     background: rgba(0,0,0,0.3);
+    overflow: hidden; /* Clip the video — Chrome cannot expand past this */
+}
+
+/* Inner video inside the wrapper fills the container and cannot resize it */
+.upload-form.shitpost-mode-active .preview-video-wrapper > video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    display: block;
+    object-fit: contain;
 }
 
 /* Per-item Tags */
@@ -1308,6 +1314,7 @@
     .upload-form.shitpost-mode-active .preview-media-small,
     .upload-form.shitpost-mode-active .item-media-col {
         width: 100% !important;
+        max-width: 100% !important;
         flex: 0 0 auto;
         min-height: auto;
     }
