@@ -8995,7 +8995,6 @@ span.badge.badge-current {
 }*/
 
 .sidebar-comment-img.emoji {
-  height: 32px;
   width: auto;
   max-width: 200px !important;
   vertical-align: middle;
@@ -9452,11 +9451,6 @@ html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
 }
 
 /* Fade in video on page load */
-
-video {
-  opacity: 0;
-  animation: fadeIn 2s forwards;
-}
 
 @keyframes fadeIn {
   to {

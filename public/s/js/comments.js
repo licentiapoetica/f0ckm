@@ -4220,7 +4220,8 @@ class CommentSystem {
                             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
                         ));
                         closeHandler = (ev) => {
-                            if (!picker.contains(ev.target) && ev.target !== trigger) {
+                            const isSubmit = ev.target.closest?.('.submit-comment');
+                            if (!picker.contains(ev.target) && ev.target !== trigger && !isSubmit) {
                                 picker.style.display = 'none';
                                 document.removeEventListener('click', closeHandler);
                                 closeHandler = null;
@@ -4295,7 +4296,8 @@ class CommentSystem {
                 // Set up close handler
                 // Set up close handler
                 closeHandler = (ev) => {
-                    if (!picker.contains(ev.target) && ev.target !== trigger) {
+                    const isSubmit = ev.target.closest?.('.submit-comment');
+                    if (!picker.contains(ev.target) && ev.target !== trigger && !isSubmit) {
                         picker.style.display = 'none';
                         document.removeEventListener('click', closeHandler);
                         closeHandler = null;
