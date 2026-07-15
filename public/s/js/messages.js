@@ -497,9 +497,13 @@ if (window.__dmLoaded) {
             if (oldestMsgId === null || m.id < oldestMsgId) oldestMsgId = m.id;
 
             if (prepend) {
-                thread.insertBefore(buildMessageBubble(m), thread.firstChild);
+                const bubble = buildMessageBubble(m);
+                thread.insertBefore(bubble, thread.firstChild);
+                playDmEmojiVideos(bubble);
             } else {
-                thread.appendChild(buildMessageBubble(m));
+                const bubble = buildMessageBubble(m);
+                thread.appendChild(bubble);
+                playDmEmojiVideos(bubble);
             }
         }
 
@@ -531,7 +535,9 @@ if (window.__dmLoaded) {
             renderedIds.add(m.id);
             threadMessages.push(m);
             if (m.id > latestMsgId) latestMsgId = m.id;
-            thread.appendChild(buildMessageBubble(m));
+            const bubble = buildMessageBubble(m);
+            thread.appendChild(bubble);
+            playDmEmojiVideos(bubble);
             appended = true;
         }
 
@@ -582,7 +588,19 @@ if (window.__dmLoaded) {
         return text.replace(/:([a-z0-9_]+):/g, (match, name) => {
             const url = emojis[name];
             if (!url) return match;
+            if (url.endsWith('.webm')) {
+                return `<video src="${url}" class="emoji" title="${match}" autoplay loop muted playsinline></video>`;
+            }
             return `<img src="${url}" class="emoji" alt="${match}" title="${match}" loading="lazy">`;
+        });
+    }
+
+    function playDmEmojiVideos(el) {
+        if (!el) return;
+        el.querySelectorAll('video.emoji').forEach(v => {
+            v.play().catch(() => {
+                v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true });
+            });
         });
     }
 
@@ -1748,39 +1766,127 @@ if (window.__dmLoaded) {
         window.addEventListener('resize', () => { if (autocomplete.style.display !== 'none') positionAC(); });
         // ─────────────────────────────────────────────────────────────────────
 
-        function renderEmojisIntoPicker(emojis) {
-            picker.innerHTML = '';
-            Object.entries(emojis).forEach(([name, url]) => {
-                const img = document.createElement('img');
-                img.src     = url;
-                img.title   = `:${name}:`;
-                img.loading = 'lazy';
-                img.onerror = () => { img.style.display = 'none'; };
-                img.addEventListener('click', (ev) => {
-                    ev.stopPropagation();
-                    const pos = textarea.selectionStart ?? textarea.value.length;
-                    const val = textarea.value;
-                    textarea.value = val.slice(0, pos) + ` :${name}: ` + val.slice(pos);
-                    textarea.focus();
-                    textarea.selectionStart = textarea.selectionEnd = pos + name.length + 4;
-                });
-                picker.appendChild(img);
-            });
+        // ── Helper: img or video element for a given emoji URL ────────────────
+        function makeDmEmojiEl(url, name) {
+            let el;
+            if (url && url.endsWith('.webm')) {
+                el = document.createElement('video');
+                el.src = url;
+                el.autoplay = true;
+                el.loop = true;
+                el.muted = true;
+                el.playsInline = true;
+            } else {
+                el = document.createElement('img');
+                el.src = url;
+                el.loading = 'lazy';
+            }
+            el.title = `:${name}:`;
+            el.onerror = () => { el.style.display = 'none'; };
+            return el;
         }
 
-        function populatePicker() {
-            if (picker.querySelector('img')) return; // already populated
+        function buildDmPickerContent(emojis, packs) {
+            picker.innerHTML = '';
+            picker.classList.remove('has-tabs');
 
-            // Prefer CommentSystem static cache (filled on any item page in this session)
-            const cached = (typeof CommentSystem !== 'undefined' && CommentSystem.emojiCache)
-                        || window.commentSystem?.customEmojis;
+            const hasPacks = packs && packs.length > 0;
 
-            if (cached && Object.keys(cached).length) {
-                renderEmojisIntoPicker(cached);
+            if (!hasPacks) {
+                // Flat list — old behaviour
+                Object.entries(emojis).forEach(([name, url]) => {
+                    const el = makeDmEmojiEl(url, name);
+                    el.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        const pos = textarea.selectionStart ?? textarea.value.length;
+                        const val = textarea.value;
+                        textarea.value = val.slice(0, pos) + ` :${name}: ` + val.slice(pos);
+                        textarea.focus();
+                        textarea.selectionStart = textarea.selectionEnd = pos + name.length + 4;
+                    });
+                    picker.appendChild(el);
+                });
                 return;
             }
 
-            // No cache — fetch directly (happens when /messages is the first page visited)
+            // ── Tabbed picker ──
+            picker.classList.add('has-tabs');
+
+            const tabBar = document.createElement('div');
+            tabBar.className = 'emoji-picker-tabs';
+
+            const gridArea = document.createElement('div');
+            gridArea.className = 'emoji-picker-grid';
+
+            let activeTabId = null;
+
+            const showTab = (packId) => {
+                activeTabId = packId;
+                tabBar.querySelectorAll('.ep-tab').forEach(t =>
+                    t.classList.toggle('active', t.dataset.packId === String(packId ?? 'null'))
+                );
+                gridArea.innerHTML = '';
+                const pack = packs.find(p => String(p.id ?? null) === String(packId ?? null)) || packs[0];
+                if (!pack) return;
+                pack.emojis.forEach(({ name, url }) => {
+                    const el = makeDmEmojiEl(url, name);
+                    el.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        const pos = textarea.selectionStart ?? textarea.value.length;
+                        const val = textarea.value;
+                        textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                        textarea.focus();
+                        const newPos = pos + name.length + 2;
+                        textarea.setSelectionRange(newPos, newPos);
+                    });
+                    gridArea.appendChild(el);
+                });
+                // Autoplay any webm stickers in the grid
+                gridArea.querySelectorAll('video').forEach(v =>
+                    v.play().catch(() => v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }))
+                );
+            };
+
+            packs.forEach((pack) => {
+                const tab = document.createElement('button');
+                tab.className = 'ep-tab';
+                tab.dataset.packId = String(pack.id ?? null);
+                tab.title = pack.name || 'Emojis';
+                tab.type = 'button';
+                // Always use static img for tab icon (thumb_url or first non-video emoji)
+                if (pack.emojis && pack.emojis.length > 0) {
+                    const iconUrl = pack.thumb_url
+                        || (pack.emojis.find(e => !e.url.endsWith('.webm')) || pack.emojis[0]).url;
+                    const icon = document.createElement('img');
+                    icon.src = iconUrl;
+                    icon.alt = pack.name;
+                    icon.loading = 'lazy';
+                    tab.appendChild(icon);
+                } else {
+                    tab.textContent = '☺';
+                }
+                tab.addEventListener('mousedown', e => e.preventDefault());
+                tab.addEventListener('click', () => showTab(pack.id ?? null));
+                tabBar.appendChild(tab);
+            });
+
+            picker.appendChild(tabBar);
+            picker.appendChild(gridArea);
+            showTab(packs[0]?.id ?? null);
+        }
+
+        function populatePicker() {
+            // Only use cache if BOTH emojis and packs are present — otherwise fetch fresh
+            // so the tab bar is always built from the full /api/v2/emojis response.
+            const cachedPacks  = (typeof CommentSystem !== 'undefined' && CommentSystem.emojiPacks) || null;
+            const cachedEmojis = (typeof CommentSystem !== 'undefined' && CommentSystem.emojiCache) || null;
+
+            if (cachedEmojis && Object.keys(cachedEmojis).length && cachedPacks && cachedPacks.length > 0) {
+                buildDmPickerContent(cachedEmojis, cachedPacks);
+                return;
+            }
+
+            // Fetch fresh — ensures packs are always included
             picker.innerHTML = '<div style="padding:8px;color:#aaa;font-size:0.82em;">Loading…</div>';
             fetch('/api/v2/emojis')
                 .then(r => r.json())
@@ -1788,9 +1894,11 @@ if (window.__dmLoaded) {
                     if (data.success && data.emojis?.length) {
                         const map = {};
                         data.emojis.forEach(e => { map[e.name] = e.url; });
-                        // Populate CommentSystem cache for future use
-                        if (typeof CommentSystem !== 'undefined') CommentSystem.emojiCache = map;
-                        renderEmojisIntoPicker(map);
+                        if (typeof CommentSystem !== 'undefined') {
+                            CommentSystem.emojiCache = map;
+                            CommentSystem.emojiPacks = data.packs || [];
+                        }
+                        buildDmPickerContent(map, data.packs || []);
                     } else {
                         picker.innerHTML = '<div style="padding:8px;color:#aaa;font-size:0.82em;">No emojis yet</div>';
                     }
@@ -1807,6 +1915,9 @@ if (window.__dmLoaded) {
             if (isHidden) {
                 populatePicker();
                 picker.style.display = '';
+                requestAnimationFrame(() => requestAnimationFrame(() =>
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+                ));
                 closeHandler = (ev) => {
                     if (!picker.contains(ev.target) && ev.target !== trigger) {
                         picker.style.display = 'none';
@@ -1821,8 +1932,10 @@ if (window.__dmLoaded) {
             }
         });
 
-        // Ensure the emoji picker is updated when emojis are ready
-        window.addEventListener('f0ck:emojis_ready', populatePicker);
+        // Refresh picker when emojis are ready (e.g. first page load)
+        window.addEventListener('f0ck:emojis_ready', () => {
+            if (picker.style.display !== 'none') populatePicker();
+        });
     }
 
     function setupSendForm() {
@@ -1908,7 +2021,9 @@ if (window.__dmLoaded) {
                         renderedIds.add(res.id);
                         if (res.id > latestMsgId) latestMsgId = res.id;
                         const msg = { id: res.id, sender_id: myId, plaintext: text, created_at: res.created_at || new Date().toISOString() };
-                        thread.appendChild(buildMessageBubble(msg));
+                        const sentBubble = buildMessageBubble(msg);
+                        thread.appendChild(sentBubble);
+                        playDmEmojiVideos(sentBubble);
                         snapToBottom(thread, true); // Force scroll for your own sent message
                     }
                 } else {
@@ -2429,7 +2544,9 @@ if (window.__dmLoaded) {
             // Re-render everyone
             for (const m of threadMessages) {
                 renderedIds.add(m.id);
-                thread.appendChild(buildMessageBubble(m));
+                const bubble = buildMessageBubble(m);
+                thread.appendChild(bubble);
+                playDmEmojiVideos(bubble);
             }
 
             if (isAtBottom) snapToBottom(thread, true);
