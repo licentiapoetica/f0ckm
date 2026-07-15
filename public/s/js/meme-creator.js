@@ -27,6 +27,7 @@
         }
 
         const memeFont = 'Impact, Charcoal, sans-serif';
+        const memeLetterSpacing = '0.06em';
 
         function wrapText(ctx, text, maxWidth) {
             const paragraphs = text.split('\n');
@@ -251,6 +252,7 @@
                 
                 const fontSize = layer.fontSize || 40;
                 ctx.font = `bold ${fontSize}px ${memeFont}`;
+                ctx.letterSpacing = memeLetterSpacing;
 
                 let displayStr = layer.text.toUpperCase();
                 const lines = wrapText(ctx, displayStr, canvas.width * 0.9);
@@ -274,6 +276,7 @@
                     
                     ctx.save();
                     ctx.font = `bold ${fontSize}px ${memeFont}`; // Ensure correct font size per line
+                    ctx.letterSpacing = memeLetterSpacing;
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = Math.max(2, fontSize / 8); // Slightly thicker stroke for better legibility
                     ctx.strokeText(line, renderX, renderY);
@@ -301,6 +304,7 @@
             const fontSize = layer.fontSize || 40;
             ctx.save();
             ctx.font = `bold ${fontSize}px ${memeFont}`;
+            ctx.letterSpacing = memeLetterSpacing;
             const lines = wrapText(ctx, layer.text.toUpperCase(), canvas.width * 0.9);
             ctx.restore();
             const w = canvas.width * 0.95;
@@ -417,6 +421,7 @@
                 if (isOrakelBingoApu) {
                     // Draw "KOPS" in normal meme text style on the selected corner
                     uCtx.font = `bold 28px ${memeFont}`;
+                    uCtx.letterSpacing = memeLetterSpacing;
                     uCtx.textAlign = 'center';
                     uCtx.textBaseline = 'middle';
                     uCtx.fillStyle = '#fff';
@@ -428,6 +433,7 @@
                     uCtx.fillText('KOPS', selectedCorner.x, selectedCorner.y);
                 } else {
                     uCtx.font = (isOrakelVon10) ? 'bold 150px Impact' : 'bold 80px Impact'; // Bigger font for the rating
+                    uCtx.letterSpacing = memeLetterSpacing;
                     uCtx.textAlign = 'center';
                     uCtx.textBaseline = 'middle';
                     
@@ -470,11 +476,13 @@
 
                         let currentFontSize = 74;
                         uCtx.font = `bold ${currentFontSize}px Impact`;
+                        uCtx.letterSpacing = memeLetterSpacing;
                         
                         // First attempt: Shrink entire text on one line down to 58px if needed
                         while (uCtx.measureText(combinedText).width > userMaxWidth && currentFontSize > 58) {
                             currentFontSize -= 2;
                             uCtx.font = `bold ${currentFontSize}px Impact`;
+                            uCtx.letterSpacing = memeLetterSpacing;
                         }
 
                         const combinedFits = uCtx.measureText(combinedText).width <= userMaxWidth;
@@ -486,9 +494,11 @@
                             // Two lines — auto-fit just the name, ID below
                             let nameFontSize = 74;
                             uCtx.font = `bold ${nameFontSize}px Impact`;
+                            uCtx.letterSpacing = memeLetterSpacing;
                             while (uCtx.measureText(namePart).width > userMaxWidth && nameFontSize > 16) {
                                 nameFontSize -= 2;
                                 uCtx.font = `bold ${nameFontSize}px Impact`;
+                                uCtx.letterSpacing = memeLetterSpacing;
                             }
 
                             const idFontSize = Math.max(18, Math.round(nameFontSize * 0.45));
@@ -497,16 +507,19 @@
                             const idY = Math.round(yPos + lineGap / 2) + 2;
 
                             uCtx.font = `bold ${nameFontSize}px Impact`;
+                            uCtx.letterSpacing = memeLetterSpacing;
                             uCtx.fillText(namePart, xPos, nameY);
 
                             if (idPart) {
                                 uCtx.font = `bold ${idFontSize}px Impact`;
+                                uCtx.letterSpacing = memeLetterSpacing;
                                 uCtx.fillText(idPart, xPos, idY);
                             }
                         }
                     } else {
                         // Normal / von10 — single line as before
                         uCtx.font = `bold ${orakelFontSize}px Impact`;
+                        uCtx.letterSpacing = memeLetterSpacing;
                         uCtx.strokeText(result, xPos, yPos);
                         uCtx.fillText(result, xPos, yPos);
                     }
