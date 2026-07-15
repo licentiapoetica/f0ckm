@@ -9,6 +9,14 @@
     if (!window._sidebarActivityCache) window._sidebarActivityCache = [];
 
     const loadEmojis = async () => {
+        // Prefer CommentSystem's already-fetched cache to avoid a redundant request
+        const csCache = (typeof CommentSystem !== 'undefined' && CommentSystem.emojiCache)
+                     || null;
+        if (csCache && Object.keys(csCache).length > 0) {
+            Object.assign(customEmojis, csCache);
+            return;
+        }
+        // No shared cache yet — fetch directly
         if (Object.keys(customEmojis).length > 0) return;
         try {
             const res = await fetch('/api/v2/emojis');
@@ -857,6 +865,20 @@
     window.addEventListener('f0ck:comment_edited', (e) => {
         window.f0ckDebug("Sidebar Activity: Live edit received", e.detail);
         handleLiveEdit(e.detail);
+    });
+
+    // When emojis are refreshed (e.g. after sticker pack import), sync the sidebar
+    // cache and re-render so newly imported stickers appear in existing entries.
+    window.addEventListener('f0ck:emojis_ready', () => {
+        const csCache = (typeof CommentSystem !== 'undefined' && CommentSystem.emojiCache) || null;
+        if (!csCache || Object.keys(csCache).length === 0) return;
+        // Merge new emojis into local cache (additive — never removes)
+        const hadBefore = Object.keys(customEmojis).length;
+        Object.assign(customEmojis, csCache);
+        const hasNew = Object.keys(customEmojis).length > hadBefore;
+        if (hasNew && window._sidebarActivityCache.length > 0) {
+            renderFromCache();
+        }
     });
 
     let lastBoundMode = typeof window.activeMode !== 'undefined' ? window.activeMode : null;
