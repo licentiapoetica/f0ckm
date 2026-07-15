@@ -1768,8 +1768,9 @@ if (window.__dmLoaded) {
 
         // ── Helper: img or video element for a given emoji URL ────────────────
         function makeDmEmojiEl(url, name) {
+            const isVideo = url && url.endsWith('.webm');
             let el;
-            if (url && url.endsWith('.webm')) {
+            if (isVideo) {
                 el = document.createElement('video');
                 el.src = url;
                 el.autoplay = true;
@@ -1783,6 +1784,17 @@ if (window.__dmLoaded) {
             }
             el.title = `:${name}:`;
             el.onerror = () => { el.style.display = 'none'; };
+            // Hold-to-preview (uses shared window.stickerPreview from comments.js)
+            let holdTimer = null;
+            const startHold = () => { holdTimer = setTimeout(() => window.stickerPreview?.show(url, isVideo), 400); };
+            const cancelHold = () => { clearTimeout(holdTimer); };
+            const endHold = () => { clearTimeout(holdTimer); window.stickerPreview?.hide(); };
+            el.addEventListener('mousedown', startHold);
+            el.addEventListener('mouseup', endHold);
+            el.addEventListener('mouseleave', cancelHold);
+            el.addEventListener('touchstart', startHold, { passive: true });
+            el.addEventListener('touchend', endHold);
+            el.addEventListener('touchcancel', endHold);
             return el;
         }
 

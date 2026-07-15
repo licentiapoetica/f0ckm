@@ -5649,6 +5649,33 @@ body[type='login'] {
   padding: 0;
 }
 
+/* Hold-to-preview sticker overlay */
+.sticker-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.sticker-preview-overlay.visible {
+  opacity: 1;
+}
+.sticker-preview-overlay img,
+.sticker-preview-overlay video {
+  max-width: min(85vw, 420px);
+  max-height: min(85vh, 420px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
 .emoji-picker img {
   width: 60px;
   height: 60px;
@@ -5690,7 +5717,6 @@ body[type='login'] {
   background: transparent;
   cursor: pointer;
   opacity: 0.55;
-  border-radius: 6px;
   padding: 4px;
 }
 

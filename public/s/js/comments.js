@@ -4014,6 +4014,30 @@ class CommentSystem {
             let picker = null;
             let closeHandler = null;
 
+            // ── Shared sticker hold-to-preview overlay ────────────────────────
+            if (!window.stickerPreview) {
+                const overlay = document.createElement('div');
+                overlay.className = 'sticker-preview-overlay';
+                document.body.appendChild(overlay);
+                let _hideTimer = null;
+                window.stickerPreview = {
+                    show(src, isVideo) {
+                        clearTimeout(_hideTimer);
+                        overlay.innerHTML = '';
+                        const el = isVideo ? document.createElement('video') : document.createElement('img');
+                        el.src = src;
+                        if (isVideo) { el.autoplay = true; el.loop = true; el.muted = true; el.playsInline = true; }
+                        overlay.appendChild(el);
+                        overlay.classList.add('visible');
+                        if (isVideo) el.play().catch(() => {});
+                    },
+                    hide() {
+                        overlay.classList.remove('visible');
+                        _hideTimer = setTimeout(() => { overlay.innerHTML = ''; }, 200);
+                    }
+                };
+            }
+
             const buildPickerContent = () => {
                 if (!picker) return;
                 picker.innerHTML = '';
@@ -4028,8 +4052,9 @@ class CommentSystem {
 
                 // Helper: create img or video element for a given emoji URL
                 const makeEmojiEl = (url, name) => {
+                    const isVideo = url && url.endsWith('.webm');
                     let el;
-                    if (url && url.endsWith('.webm')) {
+                    if (isVideo) {
                         el = document.createElement('video');
                         el.src = url;
                         el.autoplay = true;
@@ -4043,6 +4068,17 @@ class CommentSystem {
                     }
                     el.title = `:${name}:`;
                     el.onerror = () => { el.style.display = 'none'; };
+                    // Hold-to-preview
+                    let holdTimer = null;
+                    const startHold = () => { holdTimer = setTimeout(() => window.stickerPreview?.show(url, isVideo), 400); };
+                    const cancelHold = () => { clearTimeout(holdTimer); };
+                    const endHold = () => { clearTimeout(holdTimer); window.stickerPreview?.hide(); };
+                    el.addEventListener('mousedown', startHold);
+                    el.addEventListener('mouseup', endHold);
+                    el.addEventListener('mouseleave', cancelHold);
+                    el.addEventListener('touchstart', startHold, { passive: true });
+                    el.addEventListener('touchend', endHold);
+                    el.addEventListener('touchcancel', endHold);
                     return el;
                 };
 
