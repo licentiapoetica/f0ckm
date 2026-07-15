@@ -1496,8 +1496,14 @@ window.cancelAnimFrame = (function () {
 
         // Only reset canvas dimensions when turning ON (avoids clearing pixels mid-fade-out).
         const context = canvas.getContext('2d');
-        const cw = canvas.width = canvas.clientWidth | 0;
-        const ch = canvas.height = canvas.clientHeight | 0;
+        // Draw at 1/4 resolution — the canvas is stretched to full-screen by CSS,
+        // so a smaller internal resolution is imperceptible for a blurred background.
+        // This reduces blur computation from O(W*H) to O(W/4 * H/4) = 1/16th the pixels.
+        const SCALE = 0.25;
+        const cw = canvas.width  = Math.max(1, (canvas.clientWidth  * SCALE) | 0);
+        const ch = canvas.height = Math.max(1, (canvas.clientHeight * SCALE) | 0);
+        // Blur radius scaled proportionally to the downsampled canvas size
+        const blurPx = Math.round(100 * SCALE) || 1;
 
         const drawOnce = () => {
             if (!background || !context) return;
@@ -1518,15 +1524,27 @@ window.cancelAnimFrame = (function () {
                 // Step 1: draw thumbnail immediately for instant background
                 const thumb = new Image();
                 thumb.onload = () => {
-                    try { context.drawImage(thumb, 0, 0, cw, ch); } catch (e) {}
+                    try {
+                        context.filter = `blur(${blurPx}px)`;
+                        context.drawImage(thumb, 0, 0, cw, ch);
+                        context.filter = 'none';
+                    } catch (e) {}
                     showCanvas();
                     // Step 2: upgrade with full image when it's ready (skip for AUDIO elements)
                     if (isDrawable) {
                         if (elem.complete) {
-                            try { context.drawImage(elem, 0, 0, cw, ch); } catch (e) {}
+                            try {
+                                context.filter = `blur(${blurPx}px)`;
+                                context.drawImage(elem, 0, 0, cw, ch);
+                                context.filter = 'none';
+                            } catch (e) {}
                         } else {
                             elem.onload = () => {
-                                try { context.drawImage(elem, 0, 0, cw, ch); } catch (e) {}
+                                try {
+                                    context.filter = `blur(${blurPx}px)`;
+                                    context.drawImage(elem, 0, 0, cw, ch);
+                                    context.filter = 'none';
+                                } catch (e) {}
                             };
                         }
                     }
@@ -1535,11 +1553,19 @@ window.cancelAnimFrame = (function () {
                     // Thumbnail failed — fall back to waiting for the main image (skip for AUDIO)
                     if (isDrawable) {
                         if (elem.complete) {
-                            try { context.drawImage(elem, 0, 0, cw, ch); } catch (e) {}
+                            try {
+                                context.filter = `blur(${blurPx}px)`;
+                                context.drawImage(elem, 0, 0, cw, ch);
+                                context.filter = 'none';
+                            } catch (e) {}
                             showCanvas();
                         } else {
                             elem.onload = () => {
-                                try { context.drawImage(elem, 0, 0, cw, ch); } catch (e) {}
+                                try {
+                                    context.filter = `blur(${blurPx}px)`;
+                                    context.drawImage(elem, 0, 0, cw, ch);
+                                    context.filter = 'none';
+                                } catch (e) {}
                                 showCanvas();
                             };
                         }
@@ -1552,11 +1578,19 @@ window.cancelAnimFrame = (function () {
             } else if (isDrawable) {
                 // No item ID — fall back to waiting for the main image
                 if (elem.complete) {
-                    try { context.drawImage(elem, 0, 0, cw, ch); } catch (e) {}
+                    try {
+                        context.filter = `blur(${blurPx}px)`;
+                        context.drawImage(elem, 0, 0, cw, ch);
+                        context.filter = 'none';
+                    } catch (e) {}
                     showCanvas();
                 } else {
                     elem.onload = () => {
-                        try { context.drawImage(elem, 0, 0, cw, ch); } catch (e) {}
+                        try {
+                            context.filter = `blur(${blurPx}px)`;
+                            context.drawImage(elem, 0, 0, cw, ch);
+                            context.filter = 'none';
+                        } catch (e) {}
                         showCanvas();
                     };
                 }
@@ -1569,7 +1603,9 @@ window.cancelAnimFrame = (function () {
             return;
           }
           try {
+              context.filter = `blur(${blurPx}px)`;
               context.drawImage(elem, 0, 0, cw, ch);
+              context.filter = 'none';
           } catch (e) {
               bgRafId = null;
               return;
@@ -1618,11 +1654,17 @@ window.cancelAnimFrame = (function () {
         const itemId = window.getCurrentItemId();
         if (itemId) {
           const context = canvas.getContext('2d');
-          const cw = canvas.width = canvas.clientWidth | 0;
-          const ch = canvas.height = canvas.clientHeight | 0;
+          const _SCALE = 0.25;
+          const cw = canvas.width  = Math.max(1, (canvas.clientWidth  * _SCALE) | 0);
+          const ch = canvas.height = Math.max(1, (canvas.clientHeight * _SCALE) | 0);
+          const blurPx = Math.round(100 * _SCALE) || 1;
           const thumb = new Image();
           thumb.onload = () => {
-            try { context.drawImage(thumb, 0, 0, cw, ch); } catch (e) {}
+            try {
+              context.filter = `blur(${blurPx}px)`;
+              context.drawImage(thumb, 0, 0, cw, ch);
+              context.filter = 'none';
+            } catch (e) {}
             canvas.classList.remove('fader-out', 'fast-fade');
             canvas.classList.add('fader-in');
           };

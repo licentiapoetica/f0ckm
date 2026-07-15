@@ -7012,8 +7012,10 @@ div.favs div.posts {
   right: 0;
   width: 100%;
   height: 100%;
-  -webkit-filter: blur(100px);
-  filter: blur(100px);
+  /* blur is applied in canvas 2D context at draw time — no CSS filter needed.
+     CSS filter: blur() on a full-screen fixed element forces Chromium to run
+     a GPU blur pass on every compositor frame (incl. during the fade transition),
+     which is extremely expensive. Firefox uses a cheaper path for this. */
   transform: translate3d(0, 0, 0);
   z-index: 0;
   transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1);
