@@ -2673,31 +2673,39 @@ window.initUploadForm = (selector) => {
                     }
                 }
 
-                // Immediately inject the new item into the main grid using the HTTP response data.
-                // This eliminates the SSE race condition where the async new_item event could
-                // arrive during or after page navigation and be silently lost.
-                if (lastData && !lastData.manual_approval && !lastData.pending &&
-                    lastData.itemid && lastData.dest && lastData.mime &&
-                    window.NotificationSystemInstance &&
-                    typeof window.NotificationSystemInstance.handleNewItem === 'function') {
-                    window.NotificationSystemInstance.handleNewItem({
-                        id: lastData.itemid,
-                        dest: lastData.dest,
-                        mime: lastData.mime,
-                        username: lastData.username || window.f0ckSession?.user || '',
-                        display_name: lastData.display_name || window.f0ckSession?.display_name || null,
-                        tag_id: lastData.tag_id ?? 0,
-                        is_oc: !!lastData.is_oc
-                    });
-                }
+                // Helper: inject the new item into the grid (deduplication is handled inside handleNewItem)
+                const injectNewItem = () => {
+                    if (lastData && !lastData.manual_approval && !lastData.pending &&
+                        lastData.itemid && lastData.dest && lastData.mime &&
+                        window.NotificationSystemInstance &&
+                        typeof window.NotificationSystemInstance.handleNewItem === 'function') {
+                        window.NotificationSystemInstance.handleNewItem({
+                            id: lastData.itemid,
+                            dest: lastData.dest,
+                            mime: lastData.mime,
+                            username: lastData.username || window.f0ckSession?.user || '',
+                            display_name: lastData.display_name || window.f0ckSession?.display_name || null,
+                            tag_id: lastData.tag_id ?? 0,
+                            is_oc: !!lastData.is_oc
+                        });
+                    }
+                };
 
                 // Skip redirect if every item was a background URL job
                 const allPending = lastData?.pending && selectedFiles.every(i => i.type === 'url');
                 if (!allPending) {
-                    setTimeout(() => {
-                        if (typeof window.loadPageAjax === 'function') window.loadPageAjax('/');
-                        else window.location.href = '/';
-                    }, dragModal ? 0 : 1000);
+                    // Inject now if the grid is already in the DOM (upload modal open on main page)
+                    injectNewItem();
+                    // Navigate to main page, then inject again after the grid has loaded.
+                    // Awaiting loadPageAjax ensures the .posts grid DOM is present before the
+                    // handleNewItem call — this covers the item-page drag-and-upload scenario
+                    // where no grid exists until after navigation completes.
+                    if (typeof window.loadPageAjax === 'function') {
+                        await window.loadPageAjax('/');
+                        injectNewItem();
+                    } else {
+                        window.location.href = '/';
+                    }
                 }
             } else {
                 restoreBtn();
