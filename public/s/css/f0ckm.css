@@ -9041,7 +9041,7 @@ video.sidebar-comment-img.emoji {
   display: block;
   cursor: pointer;
   max-width: 480px;
-  width: 100%;
+  width: auto;
 }
 
 /* Smaller emojis in the narrow left sidebar */
