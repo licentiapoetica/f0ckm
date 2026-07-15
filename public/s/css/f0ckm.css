@@ -5749,8 +5749,8 @@ body[type='login'] {
 
 .emoji-picker-grid img,
 .emoji-picker-grid video {
-  width: 52px;
-  height: 52px;
+  width: 77px;
+  height: 77px;
   object-fit: contain;
   cursor: pointer;
   padding: 4px;
