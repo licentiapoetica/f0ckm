@@ -775,7 +775,14 @@ export const handleUpload = async (req, res, self) => {
             manual_approval: manualApproval,
             redirect: !manualApproval ? `/${itemid}` : null,
             url: !manualApproval ? `${cfg.main.url.full}/${itemid}` : `${cfg.main.url.full}/`,
-            file_url: !manualApproval ? `${cfg.main.url.full}${imagesPath}/${filename}` : null
+            file_url: !manualApproval ? `${cfg.main.url.full}${imagesPath}/${filename}` : null,
+            // Fields for immediate client-side grid injection (avoids SSE race condition)
+            dest: filename,
+            mime: actualMime,
+            tag_id: effectiveRating ? (effectiveRating === 'sfw' ? 1 : (effectiveRating === 'nsfw' ? 2 : (cfg.nsfl_tag_id || 3))) : 0,
+            is_oc: !!is_oc,
+            display_name: req.session.display_name || null,
+            username: req.session.user
         });
 
     } catch (err) {
