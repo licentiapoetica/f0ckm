@@ -5738,24 +5738,27 @@ body[type='login'] {
 }
 
 .emoji-picker-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
   gap: 0;
   overflow-y: auto;
   flex: 1;
   padding: 4px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.2) transparent;
+  align-content: start;
 }
 
 .emoji-picker-grid img,
 .emoji-picker-grid video {
-  width: 77px;
-  height: 77px;
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
   object-fit: contain;
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .emoji-picker-grid img:hover,
