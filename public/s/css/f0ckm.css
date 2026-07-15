@@ -5673,8 +5673,6 @@ body[type='login'] {
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
 }
 
 .emoji-picker img {
