@@ -116,22 +116,22 @@ export default async bot => {
       // Check for !w command
       const isWCommand = e.message.match(/\!w(0bm)?\b/i);
 
-      // Matrix-specific: enforce strict !w format
-      let matrixRating = null; // 'sfw' or 'nsfw'
-      let matrixTags = [];     // user-provided tags
+      // Matrix / Telegram: enforce strict !w format with rating + tags
+      let botRating = null; // 'sfw' or 'nsfw'
+      let botTags = [];     // user-provided tags
       let isNSFW = false;
-      if (isWCommand && e.type === 'matrix') {
+      if (isWCommand && (e.type === 'matrix' || e.type === 'tg')) {
         const msgLower = e.message.toLowerCase();
         const hasSfw = /(?:^|\s)-sfw\b/i.test(msgLower);
         const hasNsfw = /(?:^|\s)-nsfw\b/i.test(msgLower);
-        console.log(`[PARSER DEBUG] Matrix Flags: hasSfw=${hasSfw}, hasNsfw=${hasNsfw}, msg='${msgLower}'`);
+        console.log(`[PARSER DEBUG] ${e.type} Flags: hasSfw=${hasSfw}, hasNsfw=${hasNsfw}, msg='${msgLower}'`);
         const hasRating = hasSfw || hasNsfw;
         const tagMatch = e.message.match(/-t\s+([^\s].+)/i);
         const hasTags = !!tagMatch;
 
         // Bare !w with no arguments → show help
         if (!hasRating && !hasTags) {
-          await e.reply(`!w -sfw/nsfw -t tag1,tag2,tag3 (at least ${getMinTags()} tags required)`);
+          await e.reply(`!w -sfw/-nsfw -t tag1,tag2,tag3 (at least ${getMinTags()} tags required)`);
           return false;
         }
 
@@ -143,12 +143,12 @@ export default async bot => {
 
         // Missing rating
         if (!hasRating) {
-          await e.reply('missing rating: !w -sfw/nsfw -t tag1,tag2,tag3');
+          await e.reply('missing rating: !w -sfw/-nsfw -t tag1,tag2,tag3');
           return false;
         }
 
         // Parse rating
-        matrixRating = hasNsfw ? 'nsfw' : 'sfw';
+        botRating = hasNsfw ? 'nsfw' : 'sfw';
         if (hasNsfw) isNSFW = true;
 
         const minTags = getMinTags();
@@ -167,10 +167,10 @@ export default async bot => {
         }
 
         // Split by commas only to support multi-word tags
-        matrixTags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        botTags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
         
-        if (matrixTags.length < minTags) {
-          await e.reply(`at least ${minTags} tags required (got ${matrixTags.length}): !w -sfw/nsfw tag1, tag2, tag3`);
+        if (botTags.length < minTags) {
+          await e.reply(`at least ${minTags} tags required (got ${botTags.length}): !w -sfw/-nsfw -t tag1, tag2, tag3`);
           return false;
         }
       }
@@ -624,6 +624,18 @@ export default async bot => {
           return await e.reply(`lol, go f0ck yourself (${mime})`);
         }
 
+        // Enforce allowedMimes whitelist from config (e.g. block archives/pdf if not configured)
+        const allowedMimes = cfg.allowedMimes || [];
+        const mimeCategory = mime.split('/')[0]; // e.g. 'video', 'image', 'audio', 'application'
+        const mimeAllowed = allowedMimes.some(allowed => allowed === mime || allowed === mimeCategory);
+        if (!mimeAllowed) {
+          await fs.promises.unlink(source).catch(_ => { });
+          const blockedMsg = `lol, go f0ck yourself (blocked type: ${mime})`;
+          if (e.type == 'tg')
+            return await tgEdit(blockedMsg);
+          return await e.reply(blockedMsg);
+        }
+
         // generate checksum
         const checksum = (await queue.spawn('sha256sum', [source])).stdout.trim().split(" ")[0];
 
@@ -715,6 +727,44 @@ export default async bot => {
             console.error('[PARSER] Failed to auto-subscribe uploader:', err);
           }
 
+          // Telegram: assign rating + user tags (same as Matrix)
+          if (botRating && botTags.length >= getMinTags()) {
+            try {
+              const userId = websiteUser ? websiteUser.id : 1;
+
+              // Assign rating tag (sfw=1, nsfw=2)
+              const ratingTagId = botRating === 'sfw' ? 1 : 2;
+              await db`
+                insert into "tags_assign" ${db({
+                  tag_id: ratingTagId,
+                  item_id: itemid,
+                  user_id: userId
+                })}
+              `;
+
+              // Assign user-provided tags
+              for (const tagName of botTags) {
+                let tagid;
+                const tag_exists = await db`select id from "tags" where tag = ${tagName}`;
+                if (tag_exists.length === 0) {
+                  tagid = (await db`insert into "tags" ${db({ tag: tagName })} returning id`)[0].id;
+                } else {
+                  tagid = tag_exists[0].id;
+                }
+                await db`
+                  insert into "tags_assign" ${db({
+                    tag_id: tagid,
+                    item_id: itemid,
+                    user_id: userId
+                  })}
+                `;
+              }
+              console.log(`[PARSER] TG tags assigned: ${botRating}, [${botTags.join(', ')}] to item ${itemid}`);
+            } catch (err) {
+              console.error('[PARSER] Failed to assign TG tags:', err);
+            }
+          }
+
           // Generate Thumbnail
           try {
             await queue.genThumbnail(filename, mime, itemid, link, manualApproval);
@@ -783,13 +833,13 @@ export default async bot => {
               console.error('[PARSER] Failed to auto-subscribe uploader:', err);
             }
 
-            // Matrix: assign rating + user tags
-            if (e.type === 'matrix' && matrixRating && matrixTags.length >= getMinTags()) {
+            // Matrix / Telegram: assign rating + user tags
+            if (botRating && botTags.length >= getMinTags()) {
               try {
                 const userId = websiteUser ? websiteUser.id : 1;
 
                 // Assign rating tag (sfw=1, nsfw=2)
-                const ratingTagId = matrixRating === 'sfw' ? 1 : 2;
+                const ratingTagId = botRating === 'sfw' ? 1 : 2;
                 await db`
                   insert into "tags_assign" ${db({
                     tag_id: ratingTagId,
@@ -799,7 +849,7 @@ export default async bot => {
                 `;
 
                 // Assign user-provided tags
-                for (const tagName of matrixTags) {
+                for (const tagName of botTags) {
                   let tagid;
                   const tag_exists = await db`
                     select id from "tags" where tag = ${tagName}
@@ -820,9 +870,9 @@ export default async bot => {
                     })}
                   `;
                 }
-                console.log(`[PARSER] Matrix tags assigned: ${matrixRating}, [${matrixTags.join(', ')}] to item ${itemid}`);
+                console.log(`[PARSER] Tags assigned: ${botRating}, [${botTags.join(', ')}] to item ${itemid}`);
               } catch (err) {
-                console.error('[PARSER] Failed to assign Matrix tags:', err);
+                console.error('[PARSER] Failed to assign tags:', err);
               }
             }
 
