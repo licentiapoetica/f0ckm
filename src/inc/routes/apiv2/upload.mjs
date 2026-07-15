@@ -625,7 +625,9 @@ export default router => {
                                 const repostSum = await queue.checkrepostsum(checksum);
                                 if (repostSum) {
                                     await fs.unlink(source).catch(() => {});
-                                    await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${repostSum}, ${db.json({ jobId, url, msg: 'Duplicate detected (Checksum)' })})`;
+                                    setProgress(jobId, { stage: 'error', done: true, error: 'This file already exists', itemId: repostSum });
+                                    cleanupJob(jobId);
+                                    await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${repostSum}, ${db.json({ jobId, url, msg: 'This file already exists' })})`;
                                     return;
                                 }
                             }
@@ -637,7 +639,9 @@ export default router => {
                                     const phashMatch = await queue.checkrepostphash(phash);
                                     if (phashMatch) {
                                         await fs.unlink(source).catch(() => {});
-                                        await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${phashMatch}, ${db.json({ jobId, url, msg: 'Visual duplicate detected (PHash)' })})`;
+                                        setProgress(jobId, { stage: 'error', done: true, error: 'This file is a visual duplicate', itemId: phashMatch });
+                                        cleanupJob(jobId);
+                                        await db`INSERT INTO notifications (user_id, type, reference_id, item_id, data) VALUES (${session.id}, 'upload_error', 0, ${phashMatch}, ${db.json({ jobId, url, msg: 'This file is a visual duplicate' })})`;
                                         return;
                                     }
                                 }

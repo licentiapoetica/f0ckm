@@ -175,7 +175,11 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
                 const errMsg = notif.data?.msg || i18n().url_tracker_failed || 'Upload failed';
                 const stageEl = row.querySelector('.uut-stage');
                 if (stageEl) {
-                    stageEl.textContent = errMsg;
+                    if (notif.item_id) {
+                        stageEl.innerHTML = `${window.escapeHtmlUpload(errMsg)} (<a href="/${notif.item_id}" class="repost-link">view existing</a>)`;
+                    } else {
+                        stageEl.textContent = errMsg;
+                    }
                     stageEl.style.color = '#ff5050';
                 }
                 const spinner = row.querySelector('.uut-spinner');
@@ -250,7 +254,14 @@ window.escapeHtmlUpload = window.escapeHtmlUpload || ((unsafe) => {
                         if (row) {
                             const errMsg = n.data?.msg || i18n().url_tracker_failed || 'Upload failed';
                             const stageEl = row.querySelector('.uut-stage');
-                            if (stageEl) { stageEl.textContent = errMsg; stageEl.style.color = '#ff5050'; }
+                            if (stageEl) {
+                                if (n.item_id) {
+                                    stageEl.innerHTML = `${window.escapeHtmlUpload(errMsg)} (<a href="/${n.item_id}" class="repost-link">view existing</a>)`;
+                                } else {
+                                    stageEl.textContent = errMsg;
+                                }
+                                stageEl.style.color = '#ff5050';
+                            }
                             const spinner = row.querySelector('.uut-spinner');
                             if (spinner) spinner.style.display = 'none';
                             const barFill = row.querySelector('.uut-bar-fill');
@@ -2425,12 +2436,18 @@ window.initUploadForm = (selector) => {
                             } catch(e) {}
                         }
                     } else if (!isShitpost) {
-                        throw new Error(data.msg || 'Upload failed');
+                        const err = new Error(data.msg || 'Upload failed');
+                        if (data.repost) err.repost = data.repost;
+                        throw err;
                     }
                 } catch (err) {
                     console.error('[UPLOAD ERROR]', err);
                     if (!isShitpost) {
-                        statusDiv.textContent = '✕ ' + err.message;
+                        if (err.repost) {
+                            statusDiv.innerHTML = '✕ ' + window.escapeHtmlUpload(err.message) + ` (<a href="/${err.repost}" class="repost-link">view existing</a>)`;
+                        } else {
+                            statusDiv.textContent = '✕ ' + err.message;
+                        }
                         statusDiv.className = 'upload-status error';
                         restoreBtn();
                         return;
@@ -2596,29 +2613,43 @@ window.initUploadForm = (selector) => {
                         const errMsg = res.msg || 'Upload failed';
                         if (isShitpost) {
                             // In shitpost mode there's no persistent statusDiv — use flash
+                            let flashMsg = `✕ ${errMsg}`;
+                            if (res.repost) {
+                                flashMsg += ` (<a href="/${res.repost}" style="color:#1fb2b0;text-decoration:underline;">view existing</a>)`;
+                            }
                             if (typeof window.flashMessage === 'function') {
-                                window.flashMessage(`✕ ${errMsg}`, 5000, 'error');
+                                window.flashMessage(flashMsg, 5000, 'error');
                             } else if (typeof window.showFlash === 'function') {
-                                window.showFlash(errMsg, 'error');
+                                window.showFlash(res.repost ? errMsg + ` (<a href="/${res.repost}" style="color:#1fb2b0;text-decoration:underline;">view existing</a>)` : errMsg, 'error');
                             }
                         } else {
-                            throw new Error(errMsg);
+                            const err = new Error(errMsg);
+                            if (res.repost) err.repost = res.repost;
+                            throw err;
                         }
                     }
                 } catch (err) {
                     console.error('[UPLOAD ERROR]', err);
                     if (!isShitpost) {
-                        statusDiv.textContent = '✕ ' + err.message;
+                        if (err.repost) {
+                            statusDiv.innerHTML = '✕ ' + window.escapeHtmlUpload(err.message) + ` (<a href="/${err.repost}" class="repost-link">view existing</a>)`;
+                        } else {
+                            statusDiv.textContent = '✕ ' + err.message;
+                        }
                         statusDiv.className = 'upload-status error';
                         if (progressContainer) progressContainer.style.display = 'none';
                         restoreBtn();
                         return;
                     } else {
-                        // Shitpost mode: show via flash toast
+                        // Shitpost mode: show via flash toast for general exceptions
+                        let flashMsg = `✕ ${err.message}`;
+                        if (err.repost) {
+                            flashMsg += ` (<a href="/${err.repost}" style="color:#1fb2b0;text-decoration:underline;">view existing</a>)`;
+                        }
                         if (typeof window.flashMessage === 'function') {
-                            window.flashMessage(`✕ ${err.message}`, 5000, 'error');
+                            window.flashMessage(flashMsg, 5000, 'error');
                         } else if (typeof window.showFlash === 'function') {
-                            window.showFlash(err.message, 'error');
+                            window.showFlash(err.repost ? err.message + ` (<a href="/${err.repost}" style="color:#1fb2b0;text-decoration:underline;">view existing</a>)` : err.message, 'error');
                         }
                     }
                 }

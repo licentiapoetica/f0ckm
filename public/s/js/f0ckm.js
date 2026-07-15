@@ -304,9 +304,13 @@ window.cancelAnimFrame = (function () {
     }
 
     const flash = document.createElement('div');
-    flash.textContent = text;
+    if (typeof text === 'string' && text.includes('<a ')) {
+      flash.innerHTML = text;
+    } else {
+      flash.textContent = text;
+    }
 
-    let baseStyle = 'color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;opacity:0;transition:opacity 0.3s,transform 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);transform:translateY(6px);';
+    let baseStyle = 'color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;opacity:0;transition:opacity 0.3s,transform 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);transform:translateY(6px);pointer-events:auto;';
     if (type === 'error') {
       baseStyle += 'background:rgba(200,30,30,0.95);';
     } else if (type === 'success') {
@@ -8775,10 +8779,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const flash = document.createElement('div');
         flash.className = `flash-message flash-${type}`;
-        flash.textContent = message;
+        if (typeof message === 'string' && message.includes('<a ')) {
+            flash.innerHTML = message;
+        } else {
+            flash.textContent = message;
+        }
         
         // Add close behavior on click
-        flash.onclick = () => flash.remove();
+        flash.onclick = (e) => {
+            if (e.target.tagName.toLowerCase() !== 'a') {
+                flash.remove();
+            }
+        };
 
         container.appendChild(flash);
 
