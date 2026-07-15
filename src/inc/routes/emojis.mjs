@@ -430,6 +430,60 @@ export default (router, tpl) => {
         }
     });
 
+    // ── User Emoji Favorites ─────────────────────────────────────────
+    // Create table lazily on first use (idempotent)
+    const ensureFavTable = async () => {
+        await db`
+            CREATE TABLE IF NOT EXISTS user_emoji_favorites (
+                user_id   integer NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                emoji_name text   NOT NULL,
+                emoji_url  text   NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                PRIMARY KEY (user_id, emoji_name)
+            )`;
+    };
+
+    // GET /api/v2/user/emoji-favorites — returns logged-in user's favorites
+    router.get('/api/v2/user/emoji-favorites', lib.loggedin, async (req, res) => {
+        try {
+            await ensureFavTable();
+            const rows = await db`
+                SELECT emoji_name AS name, emoji_url AS url
+                FROM user_emoji_favorites
+                WHERE user_id = ${req.session.id}
+                ORDER BY created_at ASC
+            `;
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true, favorites: rows }) });
+        } catch (e) {
+            console.error('[EMOJI FAVS GET]', e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
+        }
+    });
+
+    // POST /api/v2/user/emoji-favorites/toggle — add or remove a single favorite
+    router.post('/api/v2/user/emoji-favorites/toggle', lib.loggedin, async (req, res) => {
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: 'Invalid CSRF token' }) });
+        }
+        let body = {};
+        try { const raw = req.body || req.post || {}; body = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (_) {}
+        const { name, url, action } = body;
+        if (!name || !url) return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'name and url required' }) });
+        try {
+            await ensureFavTable();
+            if (action === 'remove') {
+                await db`DELETE FROM user_emoji_favorites WHERE user_id = ${req.session.id} AND emoji_name = ${name}`;
+            } else {
+                await db`INSERT INTO user_emoji_favorites (user_id, emoji_name, emoji_url) VALUES (${req.session.id}, ${name}, ${url}) ON CONFLICT (user_id, emoji_name) DO NOTHING`;
+            }
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+        } catch (e) {
+            console.error('[EMOJI FAVS TOGGLE]', e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false }) });
+        }
+    });
+
     // Edit emoji (Admin only) — handled by bypass middleware in index.mjs
 
     return router;

@@ -4069,10 +4069,33 @@ class CommentSystem {
                         toggle(name, url) {
                             const favs = this.get();
                             const idx = favs.findIndex(f => f.name === name);
+                            const action = idx >= 0 ? 'remove' : 'add';
                             if (idx >= 0) favs.splice(idx, 1); else favs.push({ name, url });
                             localStorage.setItem(this.KEY, JSON.stringify(favs));
+                            // Sync to DB for logged-in users (fire-and-forget)
+                            const csrf = window.f0ckSession?.csrf_token;
+                            if (csrf) {
+                                fetch('/api/v2/user/emoji-favorites/toggle', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                                    body: JSON.stringify({ name, url, action })
+                                }).catch(() => {});
+                            }
+                        },
+                        syncFromDB() {
+                            fetch('/api/v2/user/emoji-favorites', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                                .then(r => r.ok ? r.json() : null)
+                                .then(data => {
+                                    if (data?.success && Array.isArray(data.favorites)) {
+                                        localStorage.setItem(this.KEY, JSON.stringify(data.favorites));
+                                    }
+                                }).catch(() => {});
                         }
                     };
+                    // Seed from DB on first open if logged in
+                    if (window.f0ckSession?.id) {
+                        window._emojiPickerFavUtils.syncFromDB();
+                    }
                 }
                 if (!window._favContextMenu) {
                     const menu = document.createElement('div');
@@ -4135,21 +4158,40 @@ class CommentSystem {
                         badge.className = 'fa-solid fa-star ep-fav-badge';
                         el.appendChild(badge);
                     }
-                    // Hold-to-preview
+                    // Hold-to-preview (400ms) + Long-hold-to-favorite (700ms, mobile-friendly)
                     let holdTimer = null;
+                    let favHoldTimer = null;
                     let holdFired = false;
+                    let favHoldFired = false;
                     const startHold = () => {
                         holdFired = false;
+                        favHoldFired = false;
                         holdTimer = setTimeout(() => {
                             holdFired = true;
                             window.stickerPreview?.show(url, isVideo);
                         }, 400);
+                        // 700ms: transition from preview to favorites menu (mobile long-press)
+                        favHoldTimer = setTimeout(() => {
+                            if (holdFired) {
+                                window.stickerPreview?.hide();
+                                holdFired = false;
+                                favHoldFired = true;
+                                const rect = el.getBoundingClientRect();
+                                window._favContextMenu?.show(
+                                    rect.left + rect.width / 2, rect.top,
+                                    name, url,
+                                    () => showTab(activeTabId)
+                                );
+                            }
+                        }, 700);
                     };
-                    const cancelHold = () => { clearTimeout(holdTimer); };
+                    const cancelHold = () => { clearTimeout(holdTimer); clearTimeout(favHoldTimer); };
                     const endHold = () => {
                         clearTimeout(holdTimer);
-                        if (holdFired) {
+                        clearTimeout(favHoldTimer);
+                        if (holdFired || favHoldFired) {
                             holdFired = false;
+                            favHoldFired = false;
                             el.addEventListener('click', (e) => {
                                 e.stopImmediatePropagation();
                                 e.preventDefault();
@@ -4166,12 +4208,13 @@ class CommentSystem {
                     media.addEventListener('touchstart', startHold, { passive: true });
                     media.addEventListener('touchend', endHold);
                     media.addEventListener('touchcancel', endHold);
-                    // Right-click → favorites context menu
+                    // Right-click (desktop) → favorites; suppressed on mobile when hold gesture is active
                     media.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (holdFired || favHoldFired) return;
                         window._favContextMenu?.show(e.clientX, e.clientY, name, url, () => {
-                            showTab(activeTabId); // refresh to update star badges
+                            showTab(activeTabId);
                         });
                     });
                     return el;
