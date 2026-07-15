@@ -1815,9 +1815,12 @@
                     const streamUrl = `/api/v2/export/stream?id=${streamId}&filename=${encodeURIComponent(suggestedFileName)}`;
                     const worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
                     
-                    // The SW must be controlling this page to intercept /api/v2/export/stream.
-                    // .controller is null after hard refresh — in that case, reload once.
-                    const sw = navigator.serviceWorker.controller;
+                    // The SW must be controlling this page or be active to intercept /api/v2/export/stream.
+                    let sw = navigator.serviceWorker.controller;
+                    if (!sw) {
+                        const reg = await navigator.serviceWorker.getRegistration('/api/v2/export/');
+                        sw = reg ? reg.active : null;
+                    }
                     if (!sw) {
                         worker.terminate();
                         exportStatusMsg.textContent = 'Reloading to activate Service Worker...';

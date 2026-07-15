@@ -198,12 +198,21 @@ window.cancelAnimFrame = (function () {
     // ── Synchronous first pass: load all thumbs currently visible in the viewport ──
     // IntersectionObserver fires asynchronously — visible items would show skeleton
     // for a brief frame. This eliminates that by loading them in the same JS tick.
+    //
+    // IMPORTANT: batch all getBoundingClientRect() reads before any writes.
+    // Chromium invalidates its layout cache on every DOM write, so interleaving
+    // reads (getBoundingClientRect) and writes (classList.add, style.setProperty)
+    // inside one loop causes one full layout recalculation per thumbnail — O(n) thrash.
+    // Separating into a read pass then a write pass means a single layout flush.
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    document.querySelectorAll('.lazy-thumb').forEach(thumb => {
-        if (thumb.classList.contains('loaded')) return;
-        const r = thumb.getBoundingClientRect();
-        // In viewport (with a small tolerance for partially visible items)
+    const unloadedThumbs = Array.from(document.querySelectorAll('.lazy-thumb'))
+        .filter(t => !t.classList.contains('loaded'));
+    // ── Read phase: one layout flush for all rects ──
+    const thumbRects = unloadedThumbs.map(t => t.getBoundingClientRect());
+    // ── Write phase: no layout reads ──
+    unloadedThumbs.forEach((thumb, i) => {
+        const r = thumbRects[i];
         if (r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw) {
             const finalBg = getFinalBg(thumb);
             if (finalBg) {
@@ -215,7 +224,6 @@ window.cancelAnimFrame = (function () {
                     img.onload = () => applyThumb(thumb, finalBg);
                     img.onerror = () => thumb.classList.remove('lazy-thumb');
                 }
-                // Mark so the observer doesn't double-process it
                 thumb.dataset.lazyObserved = 'true';
             }
         }
@@ -2491,7 +2499,6 @@ window.cancelAnimFrame = (function () {
 
       const isRandom = document.cookie.includes('random_mode=1') || url.includes('random=1') || window.location.search.includes('random=1');
       if (isRandom) ajaxUrl += `&random=1`;
-      ajaxUrl += `&_t=${Date.now()}`;
       const isStrict = window.f0ckSession?.strict_mode || (localStorage.getItem('search_strict') === 'true');
       if (isStrict || url.includes('strict=1') || window.location.search.includes('strict=1')) {
         ajaxUrl += (ajaxUrl.includes('?') ? '&' : '?') + 'strict=1';
@@ -2499,7 +2506,7 @@ window.cancelAnimFrame = (function () {
 
       const needsFullHtmlFetch = isProfile || isUserHall || isUserHalls || isTags || isHall || isHalls || isComments || isNotifs || isAdmin || isMod || isSettings || isStatic || isMessages || isAbyss;
 
-      const fetchHeaders = { 'Credentials': 'include', 'Cache-Control': 'no-cache' };
+      const fetchHeaders = { 'Credentials': 'include' };
       if (!needsFullHtmlFetch) {
         fetchHeaders['X-Requested-With'] = 'XMLHttpRequest';
       }
