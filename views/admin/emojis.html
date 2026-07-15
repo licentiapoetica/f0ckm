@@ -182,28 +182,41 @@
                 }).join('');
             }
 
-            function togglePackEmojis(packId) {
+            function renderPackGrid(packId) {
                 var container = document.getElementById('sp-emojis-' + packId);
                 if (!container) return;
-                if (container.style.display !== 'none') { container.style.display = 'none'; return; }
-                container.style.display = 'block';
-                if (container.dataset.loaded) return;
-
+                var pack = (window.emojiAdmin.packs || []).find(function(p) { return p.id === packId; });
+                var currentThumb = pack ? (pack.thumb_url || '') : '';
                 var packEmojis = (window.emojiAdmin.emojis || []).filter(function(e) { return e.pack_id === packId; });
                 if (packEmojis.length === 0) {
                     container.innerHTML = '<p style="opacity:0.5;font-size:0.82em;padding:8px 0;">No stickers.</p>';
                 } else {
                     container.innerHTML = '<div class="emoji-grid" style="max-height:320px;overflow-y:auto;">' +
                         packEmojis.map(function(e) {
+                            var isCurrent = currentThumb && e.url === currentThumb;
+                            var btnBg  = isCurrent ? 'rgba(40,167,69,0.18)' : 'rgba(255,200,0,0.15)';
+                            var btnClr = isCurrent ? '#4caf50'              : '#ffd700';
+                            var btnBdr = isCurrent ? 'rgba(40,167,69,0.35)' : 'rgba(255,200,0,0.3)';
+                            var btnLbl = isCurrent ? '&#10003; Current Icon' : '&#11088; Set as icon';
                             return '<div class="emoji-card" style="position:relative;">' +
                                 '<button class="emoji-delete" onclick="window.emojiAdmin.deleteEmoji(' + e.id + ')" title="Delete">x</button>' +
                                 stickerEl(e.url, e.name, ' loading="lazy"') +
                                 '<span class="emoji-label">:' + esc(e.name) + ':</span>' +
+                                '<button onclick="window.emojiAdmin.setPackThumb(' + packId + ',' + e.id + ')"' +
+                                ' title="Use as tab icon" style="margin-top:5px;width:100%;padding:3px 0;font-size:0.72em;background:' + btnBg + ';color:' + btnClr + ';border:1px solid ' + btnBdr + ';border-radius:3px;cursor:pointer;">' + btnLbl + '</button>' +
                                 '</div>';
                         }).join('') +
                         '</div>';
                 }
                 container.dataset.loaded = '1';
+            }
+
+            function togglePackEmojis(packId) {
+                var container = document.getElementById('sp-emojis-' + packId);
+                if (!container) return;
+                if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+                container.style.display = 'block';
+                renderPackGrid(packId);
             }
 
             /* ── STANDALONE EMOJI ACTIONS ── */
@@ -377,6 +390,30 @@
                     .catch(function(err) { alert('Error: ' + err.message); });
             }
 
+            function setPackThumb(packId, emojiId) {
+                var emoji = (window.emojiAdmin.emojis || []).find(function(e) { return e.id === emojiId; });
+                if (!emoji || !emoji.url) return alert('Could not find emoji URL.');
+                var thumbUrl = emoji.url;
+                fetch('/api/v2/admin/sticker-packs/' + packId + '/thumb', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ thumb_url: thumbUrl })
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            // Update local pack data so re-render shows correct current icon
+                            var pack = (window.emojiAdmin.packs || []).find(function(p) { return p.id === packId; });
+                            if (pack) pack.thumb_url = thumbUrl;
+                            // Re-render only this pack's grid — grid stays open
+                            renderPackGrid(packId);
+                        } else {
+                            alert('Failed to set icon: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(function(err) { alert('Error: ' + err.message); });
+            }
+
             // Global scope for onclick handlers
             window.emojiAdmin = {
                 deleteEmoji: deleteEmoji,
@@ -386,6 +423,7 @@
                 importPack: importPack,
                 deletePack: deletePack,
                 renamePack: renamePack,
+                setPackThumb: setPackThumb,
                 togglePackEmojis: togglePackEmojis,
                 emojis: [],
                 packs: []

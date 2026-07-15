@@ -2906,4 +2906,28 @@ CREATE INDEX IF NOT EXISTS idx_comment_poll_options_poll  ON public.comment_poll
 CREATE INDEX IF NOT EXISTS idx_comment_poll_votes_poll    ON public.comment_poll_votes(poll_id);
 CREATE INDEX IF NOT EXISTS idx_comment_poll_votes_user    ON public.comment_poll_votes(user_id);
 
+-- Sticker Packs (Migration 010)
+-- sticker_packs table: holds imported Telegram (or custom) sticker pack metadata
+CREATE TABLE IF NOT EXISTS public.sticker_packs (
+    id            serial PRIMARY KEY,
+    name          text NOT NULL,
+    tg_name       text UNIQUE,
+    tg_title      text,
+    thumb_url     text,
+    sticker_count integer DEFAULT 0,
+    created_at    timestamp with time zone DEFAULT now()
+);
+
+ALTER TABLE public.sticker_packs OWNER TO f0ckm;
+
+-- Link custom_emojis to a sticker pack (NULL = standalone emoji)
+ALTER TABLE public.custom_emojis
+    ADD COLUMN IF NOT EXISTS pack_id integer REFERENCES public.sticker_packs(id) ON DELETE SET NULL;
+
+-- Ensure thumb_url exists even on databases created before this column was added
+ALTER TABLE public.sticker_packs
+    ADD COLUMN IF NOT EXISTS thumb_url text;
+
+CREATE INDEX IF NOT EXISTS custom_emojis_pack_id_idx ON public.custom_emojis (pack_id);
+
 \unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG

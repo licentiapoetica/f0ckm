@@ -192,6 +192,46 @@ export default (router, tpl) => {
         }
     });
 
+    // Set tab thumbnail for a sticker pack (Admin)
+    router.post(/\/api\/v2\/admin\/sticker-packs\/(?<id>\d+)\/thumb/, async (req, res) => {
+        if (!req.session || !req.session.admin) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+        }
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Invalid CSRF token" }) });
+        }
+        const id = req.params.id;
+        let body = {};
+        try {
+            const raw = req.body || req.post || {};
+            body = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch (_) {}
+        const thumbUrl = (body.thumb_url || '').trim();
+        // Only allow local emoji paths to prevent SSRF
+        if (!thumbUrl || !thumbUrl.startsWith('/s/emojis/')) {
+            return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'thumb_url must be a local /s/emojis/ path' }) });
+        }
+        try {
+            try {
+                await db`UPDATE sticker_packs SET thumb_url = ${thumbUrl} WHERE id = ${id}`;
+            } catch (colErr) {
+                // Column might not exist yet — add it and retry once
+                if (colErr.message && colErr.message.includes('thumb_url')) {
+                    await db`ALTER TABLE public.sticker_packs ADD COLUMN IF NOT EXISTS thumb_url text`;
+                    await db`UPDATE sticker_packs SET thumb_url = ${thumbUrl} WHERE id = ${id}`;
+                } else {
+                    throw colErr;
+                }
+            }
+            await db`NOTIFY emojis_updated, '{}'`;
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+        } catch (e) {
+            console.error(e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
+        }
+    });
+
     // Reconvert all existing emoji files to WebP (Admin only)
     router.post('/api/v2/admin/emojis/reconvert', async (req, res) => {
         if (!req.session || !req.session.admin) {
