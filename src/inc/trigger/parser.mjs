@@ -408,8 +408,6 @@ export default async bot => {
             console.error(`[METADATA ERROR] General yt-dlp failed for ${link}:`, err.message);
             if (err.stderr) console.error(`[METADATA ERROR] stderr:`, err.stderr);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
-            if (e.type == 'tg')
-              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
             return await e.reply(errorMsg);
           }
         }
@@ -424,6 +422,13 @@ export default async bot => {
         const msg = await e.reply(`[charging my lazor] downloading`, {
           disable_notification: true
         });
+
+        // Safe TG edit helper — falls back to e.reply() if the charging message was never sent
+        const tgEdit = (text) => {
+          if (msg?.result)
+            return e.editMessageText(msg.result.chat.id, msg.result.message_id, text);
+          return e.reply(text);
+        };
 
         // <download data>
         const start = new Date();
@@ -455,7 +460,7 @@ export default async bot => {
             console.error('Pornhub dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
             if (e.type == 'tg')
-              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
+              return await tgEdit(errorMsg);
             return await e.reply(errorMsg);
           }
         }
@@ -467,7 +472,7 @@ export default async bot => {
             console.error('Instagram dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
             if (e.type == 'tg')
-              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
+              return await tgEdit(errorMsg);
             return await e.reply(errorMsg);
           }
         }
@@ -528,7 +533,7 @@ export default async bot => {
                 console.error(`[PARSER] All Imgur download stages failed for ${link}:`, fallbackErr.message);
                 const errorMsg = `something went wrong lol`.slice(0, 1024);
                 if (e.type == 'tg')
-                  return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
+                  return await tgEdit(errorMsg);
                 return await e.reply(errorMsg);
             }
           }
@@ -540,7 +545,7 @@ export default async bot => {
             console.error('YouTube dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
             if (e.type == 'tg')
-              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
+              return await tgEdit(errorMsg);
             return await e.reply(errorMsg);
           }
         }
@@ -551,7 +556,7 @@ export default async bot => {
             console.error('4chan dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
             if (e.type == 'tg')
-              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
+              return await tgEdit(errorMsg);
             return await e.reply(errorMsg);
           }
         }
@@ -562,20 +567,20 @@ export default async bot => {
             console.error('General dl error:', err);
             const errorMsg = `something went wrong lol`.slice(0, 1024);
             if (e.type == 'tg')
-              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, errorMsg);
+              return await tgEdit(errorMsg);
             return await e.reply(errorMsg);
           }
         }
 
         if (!source) {
           if (e.type == 'tg')
-            return await e.editMessageText(msg.result.chat.id, msg.result.message_id, "something went wrong lol");
+            return await tgEdit("something went wrong lol");
           return await e.reply("something went wrong lol");
         }
 
         if (source.match(/larger than/)) {
           if (e.type == 'tg')
-            return await e.editMessageText(msg.result.chat.id, msg.result.message_id, "too large lol");
+            return await tgEdit("too large lol");
           return await e.reply("too large lol");
         }
         const end = ~~((new Date() - start) / 1e3);
@@ -585,7 +590,7 @@ export default async bot => {
         if (size > maxfilesize) {
           await fs.promises.unlink(source).catch(_ => { });
           if (e.type == 'tg')
-            return await e.editMessageText(msg.result.chat.id, msg.result.message_id, `too large lol. (${lib.formatSize(size)} / ${lib.formatSize(maxfilesize)})`);
+            return await tgEdit(`too large lol. (${lib.formatSize(size)} / ${lib.formatSize(maxfilesize)})`);
           return await e.reply(`too large lol. (${lib.formatSize(size)} / ${lib.formatSize(maxfilesize)})`);
         }
 
@@ -608,14 +613,14 @@ export default async bot => {
         } catch (err) {
           await fs.promises.unlink(source).catch(_ => { });
           if (e.type == 'tg')
-            return await e.editMessageText(msg.result.chat.id, msg.result.message_id, "something went wrong lol");
+            return await tgEdit("something went wrong lol");
           return await e.reply("something went wrong lol");
         }
 
         if (!Object.keys(cfg.mimes).includes(mime)) {
           await fs.promises.unlink(source).catch(_ => { });
           if (e.type == 'tg')
-            return await e.editMessageText(msg.result.chat.id, msg.result.message_id, `lol, go f0ck yourself (${mime})`);
+            return await tgEdit(`lol, go f0ck yourself (${mime})`);
           return await e.reply(`lol, go f0ck yourself (${mime})`);
         }
 
@@ -650,8 +655,11 @@ export default async bot => {
 
         if (repost) {
           await fs.promises.unlink(source).catch(_ => { });
-          if (e.type == 'tg')
-            return await e.editMessageText(msg.result.chat.id, msg.result.message_id, `repost motherf0cker (checksum): ${cfg.main.url.full}/${repost}`);
+          if (e.type == 'tg') {
+            if (msg?.result)
+              return await e.editMessageText(msg.result.chat.id, msg.result.message_id, `repost motherf0cker (checksum): ${cfg.main.url.full}/${repost}`);
+            return await e.reply(`repost motherf0cker (checksum): ${cfg.main.url.full}/${repost}`);
+          }
 
           if (e.type === 'discord') {
             // For Discord, we EDIT the original "charging" message
@@ -734,7 +742,8 @@ export default async bot => {
             console.error('[PARSER] Matrix notification error:', err);
           }
 
-          await e.deleteMessage(msg.result.chat.id, msg.result.message_id);
+          if (msg?.result)
+            await e.deleteMessage(msg.result.chat.id, msg.result.message_id);
           await e.reply(`${outputmsgirc} | link: ${cfg.main.url.full}/${itemid}`);
         }
         else {
