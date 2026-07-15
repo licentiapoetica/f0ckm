@@ -357,16 +357,18 @@ export default router => {
             ? cfg.main.socks.replace(/^socks5:\/\//, 'socks5h://')
             : null;
 
-        // 1. YouTube: go straight to oEmbed — faster and more reliable than yt-dlp for these
+        // 1. YouTube: try oEmbed first (fast), then fall through to yt-dlp on failure
         if (isYouTube) {
             try {
                 const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+                // Do NOT use --fail: non-2xx responses (e.g. age-restricted/private videos) still
+                // return valid JSON we can attempt to parse. Use ignoreExitCode so we always get output.
                 const { stdout: oembedOut } = await queue.spawn('curl', [
-                    '-s', '--max-time', '10', '--fail',
-                    '--user-agent', 'Mozilla/5.0 (compatible; oEmbed)',
+                    '-s', '--max-time', '15',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
                     ...(socksH ? ['--proxy', socksH] : []),
                     oembedUrl
-                ]);
+                ], { ignoreExitCode: true });
                 if (oembedOut && oembedOut.trim()) {
                     const data = JSON.parse(oembedOut);
                     if (data.title) {
@@ -376,15 +378,43 @@ export default router => {
                             author: data.author_name || 'Unknown'
                         };
                         await setCache(url, meta);
-                        return res.json({
-                            success: true,
-                            meta
-                        });
+                        return res.json({ success: true, meta });
                     }
                 }
             } catch (oembedErr) {
-                console.error(`[META-FETCH] YouTube oEmbed failed:`, oembedErr.message || oembedErr);
+                console.error(`[META-FETCH] YouTube oEmbed failed, will try yt-dlp:`, oembedErr.message || oembedErr);
             }
+
+            // oEmbed failed — fall back to yt-dlp for YouTube (handles age-restricted, private, etc.)
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const { stdout: ytOut } = await queue.spawn('yt-dlp', [
+                        ...proxyArgs,
+                        '--quiet',
+                        '--no-warnings',
+                        '--js-runtimes', 'node',
+                        '--print', '%(title)s',
+                        '--print', '%(uploader)s',
+                        '--skip-download',
+                        url
+                    ]);
+                    const ytLines = ytOut.trim().split('\n');
+                    const ytTitle = ytLines[0] ? ytLines[0].trim() : '';
+                    if (ytTitle) {
+                        const meta = {
+                            title: ytTitle,
+                            site_name: 'youtube.com',
+                            author: ytLines[1] ? ytLines[1].trim() : 'Unknown'
+                        };
+                        await setCache(url, meta);
+                        return res.json({ success: true, meta });
+                    }
+                } catch (ytErr) {
+                    if (attempt < 2) { await sleep(1000); continue; }
+                    console.error(`[META-FETCH] YouTube yt-dlp fallback failed:`, ytErr.message || ytErr);
+                }
+            }
+
             return res.json({ success: false, msg: 'Failed to extract YouTube metadata' }, 500);
         }
 
