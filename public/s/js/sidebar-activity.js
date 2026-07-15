@@ -494,19 +494,35 @@
             ? (targetElement.classList.contains('comment-content-inner') ? [targetElement] : targetElement.querySelectorAll('.comment-content-inner'))
             : document.querySelectorAll('.sidebar-activity .comment-content-inner');
 
+        const results = [];
+        // Read phase: batch layout reads first
         targets.forEach(inner => {
             const container = inner.parentElement;
-            const btn = container.querySelector('.read-more-btn');
+            const btn = container ? container.querySelector('.read-more-btn') : null;
             if (!btn) return;
 
-            // If expanded, always show "see less"
-            if (container.classList.contains('expanded')) {
+            const isExpanded = container.classList.contains('expanded');
+            const scrollHeight = inner.scrollHeight;
+            const clientHeight = inner.clientHeight;
+
+            results.push({
+                container,
+                btn,
+                isExpanded,
+                scrollHeight,
+                clientHeight
+            });
+        });
+
+        // Write phase: perform DOM updates after all reads are completed
+        results.forEach(({ container, btn, isExpanded, scrollHeight, clientHeight }) => {
+            if (isExpanded) {
                 btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_see_less || 'see less';
                 return;
             }
 
-            if (inner.scrollHeight > inner.clientHeight + 2) { // 2px buffer for rounding
+            if (scrollHeight > clientHeight + 2) { // 2px buffer for rounding
                 btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_read_more || 'read more';
                 container.classList.add('has-overflow');
@@ -518,7 +534,9 @@
     };
 
     const attachMediaLoadListeners = (element) => {
-        element.querySelectorAll('img, video').forEach(media => {
+        // Only target images and videos inside comment-content-inner.
+        // Avatars, emojis, and item preview thumbnails have fixed sizes and do not affect text overflow.
+        element.querySelectorAll('.comment-content-inner img:not(.emoji), .comment-content-inner video').forEach(media => {
             if (media.dataset.loadListenerBound) return;
             media.dataset.loadListenerBound = 'true';
 
@@ -526,9 +544,6 @@
             if (inner) {
                 media.addEventListener('load', () => checkOverflow(inner), { once: true });
                 media.addEventListener('loadedmetadata', () => checkOverflow(inner), { once: true });
-            } else {
-                media.addEventListener('load', () => checkOverflow(), { once: true });
-                media.addEventListener('loadedmetadata', () => checkOverflow(), { once: true });
             }
         });
     };
@@ -763,7 +778,7 @@
                 node.classList.add('new-item-fade');
                 container.prepend(node);
                 attachMediaLoadListeners(node);
-                checkOverflow();
+                checkOverflow(node);
                 fetchSidebarYoutubeTitles(container);
             }
         }
@@ -814,7 +829,7 @@
                     void el.offsetWidth;
                     el.classList.add('new-item-fade');
                     attachMediaLoadListeners(inner);
-                    checkOverflow();
+                    checkOverflow(inner);
                     fetchSidebarYoutubeTitles(el);
                     // Auto-play converted GIF videos
                     inner.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
