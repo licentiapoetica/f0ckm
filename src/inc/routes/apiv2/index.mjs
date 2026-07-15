@@ -300,8 +300,8 @@ export default router => {
     });
 
     // F-002 Security: Require authentication to prevent SSRF via arbitrary URL fetching.
-    // Guests use cached entries from DB (populated by authenticated user requests).
-    group.get(/\/meta\/fetch$/, lib.loggedin, async (req, res) => {
+    // Guests may read from the cache (in-memory or DB); only authenticated users trigger real outbound fetches.
+    group.get(/\/meta\/fetch$/, async (req, res) => {
         if (!cfg.websrv.web_meta_extraction) {
             return res.json({ success: false, msg: 'Metadata extraction is disabled' }, 403);
         }
@@ -323,6 +323,11 @@ export default router => {
             }
         } catch (err) {
             console.error('[META-CACHE] DB lookup failed:', err);
+        }
+
+        // Cache miss — require auth to perform real outbound fetch (SSRF prevention)
+        if (!req.session) {
+            return res.json({ success: false, msg: 'Not cached' }, 401);
         }
 
         const setCache = async (u, m) => {
