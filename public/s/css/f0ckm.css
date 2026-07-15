@@ -7115,7 +7115,7 @@ div.posts>a.thumb.loaded {
 /* Ensure child elements (labels, indicators) stay above the background */
 div.posts>a.thumb > .thumb-indicators,
 div.posts>a.thumb > p {
-  position: relative;
+  position: absolute;
   z-index: 1;
 }
 
