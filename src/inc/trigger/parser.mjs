@@ -187,9 +187,10 @@ export default async bot => {
       // --- LINKED ACCOUNT CHECK ---
       let websiteUser = null;
       
-      if (e.type === 'matrix' || e.type === 'discord') {
-          // Identify lookup key
+      if (e.type === 'matrix' || e.type === 'discord' || e.type === 'tg') {
+          // Identify lookup key and type
           // Matrix: Use unique ID (MXID)
+          // Telegram: Use numeric user ID (most stable, never changes)
           // Discord: Use Nick or Username (Legacy) - TODO: Migration to ID recommended later
           let lookupAlias = e.user.nick || e.user.username; 
           let lookupType = 'discord'; // default check
@@ -197,6 +198,9 @@ export default async bot => {
           if (e.type === 'matrix') {
               lookupAlias = e.user.account; // MXID
               lookupType = 'matrix';
+          } else if (e.type === 'tg') {
+              lookupAlias = e.user.account; // numeric Telegram user ID as string
+              lookupType = 'telegram';
           }
 
           // Check DB
@@ -220,7 +224,8 @@ export default async bot => {
 
           // Enforce Link for !w command
           if (isWCommand && !websiteUser) {
-              await e.reply(`You must link your account to use this command. Go to ${cfg.main.url.full}/settings to link your ${e.type} account.`);
+              const linkType = e.type === 'tg' ? 'Telegram' : e.type;
+              await e.reply(`You must link your account to use this command. Go to ${cfg.main.url.full}/settings to link your ${linkType} account. Then send !link <TOKEN> to this bot.`);
               return false;
           }
       }

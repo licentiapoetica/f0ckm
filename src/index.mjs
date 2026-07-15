@@ -1227,6 +1227,7 @@ process.on('uncaughtException', err => {
     get cleanup_start_date() { return getCleanupStartDate(); },
     get cleanup_end_date() { return getCleanupEndDate(); },
     matrix_enabled: cfg.clients.find(c => c.type === 'matrix')?.enabled || false,
+    telegram_enabled: cfg.clients.find(c => c.type === 'tg')?.enabled || false,
     ts: Date.now(),
     get default_layout() { return getDefaultLayout(); },
     show_koepfe: !!cfg.websrv.show_koepfe,

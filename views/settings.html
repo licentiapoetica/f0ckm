@@ -12,7 +12,7 @@
         <a href="#export">{{ t('settings.export_data_title') }}</a>
         @endif
         <a href="#account">{{ t('settings.account') }}</a>
-        @if(matrix_enabled)
+        @if(matrix_enabled || telegram_enabled)
         <a href="#linked">{{ t('settings.linked_accounts') }}</a>
         @endif
         @if(enable_user_api_keys)
@@ -517,7 +517,7 @@
           </div>
         </div>
       </div>
-      @if(matrix_enabled)
+      @if(matrix_enabled || telegram_enabled)
       <!-- ═══════════════════════════════ LINKED ACCOUNTS ═══════════════════════════════ -->
       <h2 id="linked">{{ t('settings.linked_accounts') }}</h2>
       <div class="linked-accounts-wrapper">
@@ -532,9 +532,14 @@
 
         <div class="link-action-area">
           <h4 style="margin-top: 20px;">{{ t('settings.add_new_link') }}</h4>
-          <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9em;">
+          <p style="margin-bottom: 10px; color: var(--text-muted); font-size: 0.9em;">
             {!! t('settings.matrix_instructions') !!}
           </p>
+          @if(telegram_enabled)
+          <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9em;">
+            <strong>Telegram:</strong> Generate a token below, then send <code>!link &lt;TOKEN&gt;</code> to the Telegram bot.
+          </p>
+          @endif
 
           <div id="token-display-area" style="display: none; margin-bottom: 15px;">
             <div class="alert alert-info">
