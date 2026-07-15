@@ -708,6 +708,14 @@ class v0ck {
       }
     }
 
+    // Upgrade preload from 'metadata' → 'auto' for video elements so the browser
+    // starts buffering data immediately during player setup. With just 'metadata',
+    // play() triggers a brand-new range request and the user sees the loader spinner
+    // until enough data arrives. 'auto' closes that gap for both autoplay and manual play.
+    if (video.tagName === 'VIDEO' && video.preload !== 'auto') {
+      video.preload = 'auto';
+    }
+
     // Attempt autoplay and show overlay if blocked
     const shouldAutoplay = !isBlurredDetail && window.f0ckSession?.disable_autoplay !== true;
     if (shouldAutoplay) {

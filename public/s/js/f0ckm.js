@@ -3485,6 +3485,24 @@ window.cancelAnimFrame = (function () {
         });
       } else {
         container.insertAdjacentHTML('beforeend', html);
+
+        // ── Prefetch video src immediately after DOM injection ──────────────
+        // <link rel="prefetch"> tells the browser to start downloading the
+        // video file now, racing against v0ck init so play() has data waiting.
+        const _vidEl = container.querySelector('#my-video[src]');
+        if (_vidEl && _vidEl.tagName === 'VIDEO') {
+          const _vidSrc = _vidEl.getAttribute('src');
+          if (_vidSrc) {
+            document.head.querySelector('link[data-v0ck-prefetch]')?.remove();
+            const _pLink = document.createElement('link');
+            _pLink.rel = 'prefetch';
+            _pLink.as = 'video';
+            _pLink.href = _vidSrc;
+            _pLink.setAttribute('data-v0ck-prefetch', '1');
+            document.head.appendChild(_pLink);
+            window.f0ckDebug('[v0ck] Prefetch link injected for', _vidSrc);
+          }
+        }
       }
 
 
@@ -8466,6 +8484,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             thumb.appendChild(video);
             activeVideo = video;
+
+             // ── Prefetch first 512 KB to prime browser cache before click ──
+             // Low-priority range request fires while user is still hovering.
+             // On click, the item page video element hits cache instead of network.
+             if (!window._prefetchedVideos) window._prefetchedVideos = new Set();
+             const _pUrl = `/b/${file}`;
+             if (!window._prefetchedVideos.has(_pUrl)) {
+               window._prefetchedVideos.add(_pUrl);
+               fetch(_pUrl, {
+                 method: 'GET',
+                 headers: { 'Range': 'bytes=0-524287' },
+                 credentials: 'include',
+                 priority: 'low',
+               }).catch(() => { window._prefetchedVideos.delete(_pUrl); });
+             }
          };
 
          if (delay === 0) {
