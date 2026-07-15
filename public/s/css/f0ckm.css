@@ -248,7 +248,7 @@ html[theme='amoled'] {
 }
 
 html[theme="amoled"] .comment-input textarea {
-  border: 1px solid #ffffff1c;
+  border: 1px solid var(--nav-border-color);
 }
 
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
@@ -5626,8 +5626,8 @@ body[type='login'] {
   max-width: 100%;
   min-height: 200px;
   max-height: 200px;
-  background: var(--dropdown-bg);
-  border: 1px solid var(--black);
+  background: var(--bg);
+  border: 1px solid var(--nav-border-color);
   padding: 5px;
   z-index: 1000;
   overflow-y: auto;
@@ -5699,10 +5699,10 @@ body[type='login'] {
   overflow-x: auto;
   overflow-y: hidden;
   flex-shrink: 0;
-  background: rgba(0,0,0,0.25);
+  background: var(--bg);
   border-bottom: 1px solid rgba(255,255,255,0.07);
   scrollbar-width: none;
-  padding: 0 2px;
+  padding: 0;
 }
 .emoji-picker-tabs::-webkit-scrollbar { display: none; }
 

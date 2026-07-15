@@ -4021,6 +4021,7 @@ class CommentSystem {
                 document.body.appendChild(overlay);
                 let _hideTimer = null;
                 window.stickerPreview = {
+                    isShowing: false,
                     show(src, isVideo) {
                         clearTimeout(_hideTimer);
                         overlay.innerHTML = '';
@@ -4029,9 +4030,11 @@ class CommentSystem {
                         if (isVideo) { el.autoplay = true; el.loop = true; el.muted = true; el.playsInline = true; }
                         overlay.appendChild(el);
                         overlay.classList.add('visible');
+                        this.isShowing = true;
                         if (isVideo) el.play().catch(() => {});
                     },
                     hide() {
+                        this.isShowing = false;
                         overlay.classList.remove('visible');
                         _hideTimer = setTimeout(() => { overlay.innerHTML = ''; }, 200);
                     }
@@ -4068,6 +4071,8 @@ class CommentSystem {
                     }
                     el.title = `:${name}:`;
                     el.onerror = () => { el.style.display = 'none'; };
+                    el._stickerSrc = url;
+                    el._stickerIsVideo = isVideo;
                     // Hold-to-preview
                     let holdTimer = null;
                     const startHold = () => { holdTimer = setTimeout(() => window.stickerPreview?.show(url, isVideo), 400); };
@@ -4076,6 +4081,10 @@ class CommentSystem {
                     el.addEventListener('mousedown', startHold);
                     el.addEventListener('mouseup', endHold);
                     el.addEventListener('mouseleave', cancelHold);
+                    // Instant switch: if already previewing and mouse enters a new emoji, show it immediately
+                    el.addEventListener('mouseenter', () => {
+                        if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo);
+                    });
                     el.addEventListener('touchstart', startHold, { passive: true });
                     el.addEventListener('touchend', endHold);
                     el.addEventListener('touchcancel', endHold);
@@ -4136,6 +4145,16 @@ class CommentSystem {
                         };
                         gridArea.appendChild(el);
                     });
+
+                    // Touch slide: switch preview immediately as finger moves over a new sticker
+                    gridArea.addEventListener('touchmove', (e) => {
+                        if (!window.stickerPreview?.isShowing) return;
+                        const touch = e.touches[0];
+                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                        if (target && target !== gridArea && (target.tagName === 'IMG' || target.tagName === 'VIDEO') && target._stickerSrc) {
+                            window.stickerPreview.show(target._stickerSrc, target._stickerIsVideo);
+                        }
+                    }, { passive: true });
                 };
 
                 // Build tab buttons

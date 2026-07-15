@@ -1784,6 +1784,8 @@ if (window.__dmLoaded) {
             }
             el.title = `:${name}:`;
             el.onerror = () => { el.style.display = 'none'; };
+            el._stickerSrc = url;
+            el._stickerIsVideo = isVideo;
             // Hold-to-preview (uses shared window.stickerPreview from comments.js)
             let holdTimer = null;
             const startHold = () => { holdTimer = setTimeout(() => window.stickerPreview?.show(url, isVideo), 400); };
@@ -1792,6 +1794,10 @@ if (window.__dmLoaded) {
             el.addEventListener('mousedown', startHold);
             el.addEventListener('mouseup', endHold);
             el.addEventListener('mouseleave', cancelHold);
+            // Instant switch when already previewing
+            el.addEventListener('mouseenter', () => {
+                if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo);
+            });
             el.addEventListener('touchstart', startHold, { passive: true });
             el.addEventListener('touchend', endHold);
             el.addEventListener('touchcancel', endHold);
@@ -1857,6 +1863,16 @@ if (window.__dmLoaded) {
                 gridArea.querySelectorAll('video').forEach(v =>
                     v.play().catch(() => v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }))
                 );
+                // Touch slide: switch preview immediately as finger moves over a new sticker
+                gridArea.onTouchMoveBound = null; // reset before re-adding
+                gridArea.addEventListener('touchmove', (e) => {
+                    if (!window.stickerPreview?.isShowing) return;
+                    const touch = e.touches[0];
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (target && target !== gridArea && (target.tagName === 'IMG' || target.tagName === 'VIDEO') && target._stickerSrc) {
+                        window.stickerPreview.show(target._stickerSrc, target._stickerIsVideo);
+                    }
+                }, { passive: true });
             };
 
             packs.forEach((pack) => {
