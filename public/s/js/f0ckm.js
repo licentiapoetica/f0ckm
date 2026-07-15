@@ -3058,10 +3058,9 @@ window.cancelAnimFrame = (function () {
     media.forEach(m => {
       try {
         m.pause();
-        m.src = '';
         m.removeAttribute('src');
+        m.load(); // Correctly aborts media resource selection and frees network sockets
         m.preload = 'none'; // Prevent further buffering
-        // m.load(); // Intentionally removed: calling load() with no src can fetch current page URL
         window.f0ckDebug("Media aborted:", m);
       } catch (e) { console.error("Error stopping media:", e); }
     });
