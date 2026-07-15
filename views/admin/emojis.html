@@ -88,6 +88,28 @@
         </div>
     </div>
 
+    <!-- Rename Pack Modal -->
+    <div id="rename-pack-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content" style="max-width:440px;background:var(--dropdown-bg,#222);border:1px solid var(--nav-border-color,#444);border-radius:10px;padding:24px;">
+            <h3 style="margin:0 0 18px;border-bottom:1px solid var(--nav-border-color,rgba(255,255,255,0.1));padding-bottom:12px;color:var(--white);font-size:1rem;">Rename Sticker Pack</h3>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                <div>
+                    <label style="display:block;font-size:0.82em;margin-bottom:5px;color:rgba(255,255,255,0.6);">New pack name</label>
+                    <input type="text" id="rename-pack-input" style="width:100%;background:var(--bg,#111);border:1px solid var(--nav-border-color,#555);padding:9px 11px;color:var(--white);border-radius:5px;box-sizing:border-box;font-size:0.95em;">
+                </div>
+                <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:0.88em;color:rgba(255,255,255,0.75);">
+                    <input type="checkbox" id="rename-pack-backfill" style="width:15px;height:15px;accent-color:#26a5e4;cursor:pointer;">
+                    Also rename all stickers and update comment references
+                </label>
+                <div id="rename-pack-result" style="display:none;font-size:0.82em;padding:8px 12px;border-radius:5px;background:rgba(40,167,69,0.15);border:1px solid rgba(40,167,69,0.3);color:#4caf50;"></div>
+            </div>
+            <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:10px;">
+                <button id="rename-pack-cancel" style="padding:8px 16px;background:rgba(255,255,255,0.08);color:var(--white);border:1px solid rgba(255,255,255,0.2);border-radius:5px;cursor:pointer;font-size:0.9em;">Cancel</button>
+                <button id="rename-pack-submit" style="padding:8px 20px;background:#26a5e4;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:700;font-size:0.9em;">Rename</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (() => {
             var i18n = window.f0ckI18n || {};
@@ -380,16 +402,44 @@
                     .catch(function(err) { alert('Error: ' + err.message); });
             }
 
+            var _renamePendingId = null;
+            var _renamePendingCurrentName = null;
+
             function renamePack(id) {
                 var pack = (window.emojiAdmin.packs || []).find(function(p) { return p.id === id; });
-                var currentName = pack ? pack.name : '';
-                var newName = prompt('New pack name:', currentName);
-                if (!newName || newName.trim() === currentName) return;
-                newName = newName.trim();
+                _renamePendingId = id;
+                _renamePendingCurrentName = pack ? pack.name : '';
 
-                var backfill = confirm('Rename all stickers too? OK = rename sticker names (old_001 -> new_001) and update comments. Cancel = pack label only.');
+                document.getElementById('rename-pack-input').value = _renamePendingCurrentName;
+                document.getElementById('rename-pack-backfill').checked = false;
+                document.getElementById('rename-pack-result').style.display = 'none';
+                document.getElementById('rename-pack-result').textContent = '';
+                document.getElementById('rename-pack-submit').disabled = false;
+                document.getElementById('rename-pack-submit').textContent = 'Rename';
+                document.getElementById('rename-pack-modal').style.display = 'flex';
+                setTimeout(function() { document.getElementById('rename-pack-input').focus(); }, 50);
+            }
 
-                fetch('/api/v2/admin/sticker-packs/' + id + '/rename', {
+            document.getElementById('rename-pack-cancel').addEventListener('click', function() {
+                document.getElementById('rename-pack-modal').style.display = 'none';
+            });
+
+            document.getElementById('rename-pack-submit').addEventListener('click', function() {
+                var newName = (document.getElementById('rename-pack-input').value || '').trim();
+                var backfill = document.getElementById('rename-pack-backfill').checked;
+                if (!newName) return;
+
+                // Allow same name when backfill is requested
+                if (newName === _renamePendingCurrentName && !backfill) {
+                    document.getElementById('rename-pack-modal').style.display = 'none';
+                    return;
+                }
+
+                var btn = document.getElementById('rename-pack-submit');
+                btn.disabled = true;
+                btn.textContent = 'Renaming...';
+
+                fetch('/api/v2/admin/sticker-packs/' + _renamePendingId + '/rename', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf, 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ name: newName, backfill: backfill })
@@ -398,15 +448,41 @@
                     .then(function(data) {
                         if (data.success) {
                             if (backfill) {
-                                alert('Done! ' + (data.emojiRenamed || 0) + ' sticker(s) renamed, ' + (data.commentRowsUpdated || 0) + ' comment row(s) updated.');
+                                var res = document.getElementById('rename-pack-result');
+                                res.textContent = (data.emojiRenamed || 0) + ' sticker(s) renamed, ' + (data.commentRowsUpdated || 0) + ' comment row(s) updated.';
+                                res.style.display = 'block';
+                                setTimeout(function() {
+                                    document.getElementById('rename-pack-modal').style.display = 'none';
+                                    loadAll();
+                                }, 2000);
+                            } else {
+                                document.getElementById('rename-pack-modal').style.display = 'none';
+                                loadAll();
                             }
-                            loadAll();
                         } else {
-                            alert('Rename failed: ' + (data.message || 'Unknown error'));
+                            var res = document.getElementById('rename-pack-result');
+                            res.textContent = 'Rename failed: ' + (data.message || 'Unknown error');
+                            res.style.background = 'rgba(220,53,69,0.15)';
+                            res.style.borderColor = 'rgba(220,53,69,0.3)';
+                            res.style.color = '#e55';
+                            res.style.display = 'block';
+                            btn.disabled = false;
+                            btn.textContent = 'Rename';
                         }
                     })
-                    .catch(function(err) { alert('Error: ' + err.message); });
-            }
+                    .catch(function(err) {
+                        var res = document.getElementById('rename-pack-result');
+                        res.textContent = 'Error: ' + err.message;
+                        res.style.display = 'block';
+                        btn.disabled = false;
+                        btn.textContent = 'Rename';
+                    });
+            });
+
+            // Close modal on overlay click
+            document.getElementById('rename-pack-modal').addEventListener('click', function(e) {
+                if (e.target === this) this.style.display = 'none';
+            });
 
             function setPackThumb(packId, emojiId) {
                 var emoji = (window.emojiAdmin.emojis || []).find(function(e) { return e.id === emojiId; });
