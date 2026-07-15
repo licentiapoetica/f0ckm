@@ -4060,25 +4060,81 @@ class CommentSystem {
                 }
 
                 // Helper: create img or video element for a given emoji URL
+                // ── Favorites (singleton utils + context menu) ──────────────
+                if (!window._emojiPickerFavUtils) {
+                    window._emojiPickerFavUtils = {
+                        KEY: 'f0ck_emoji_favs',
+                        get()  { try { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); } catch(e) { return []; } },
+                        has(name) { return this.get().some(f => f.name === name); },
+                        toggle(name, url) {
+                            const favs = this.get();
+                            const idx = favs.findIndex(f => f.name === name);
+                            if (idx >= 0) favs.splice(idx, 1); else favs.push({ name, url });
+                            localStorage.setItem(this.KEY, JSON.stringify(favs));
+                        }
+                    };
+                }
+                if (!window._favContextMenu) {
+                    const menu = document.createElement('div');
+                    menu.style.cssText = 'position:fixed;z-index:99999;background:var(--dropdown-bg,#222);border:1px solid var(--nav-border-color,#444);border-radius:7px;padding:4px 0;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:none;min-width:180px;';
+                    document.body.appendChild(menu);
+                    window._favContextMenu = {
+                        el: menu,
+                        show(x, y, name, url, onToggle) {
+                            const isFav = window._emojiPickerFavUtils.has(name);
+                            menu.innerHTML = '';
+                            const item = document.createElement('div');
+                            item.style.cssText = 'padding:9px 16px;cursor:pointer;font-size:0.875em;color:var(--white,#fff);display:flex;align-items:center;gap:8px;border-radius:4px;margin:2px 4px;';
+                            item.innerHTML = '<span style="font-size:1.1em;">' + (isFav ? '&#9733;' : '&#9734;') + '</span>' + (isFav ? 'Remove from Favorites' : 'Add to Favorites');
+                            item.addEventListener('mouseenter', () => { item.style.background = 'rgba(255,255,255,0.09)'; });
+                            item.addEventListener('mouseleave', () => { item.style.background = ''; });
+                            item.addEventListener('click', (e) => { e.stopPropagation(); window._emojiPickerFavUtils.toggle(name, url); menu.style.display = 'none'; if (onToggle) onToggle(); });
+                            menu.appendChild(item);
+                            menu.style.left = x + 'px'; menu.style.top = y + 'px'; menu.style.display = 'block';
+                            requestAnimationFrame(() => {
+                                const r = menu.getBoundingClientRect();
+                                if (r.right  > window.innerWidth)  menu.style.left = (x - r.width)  + 'px';
+                                if (r.bottom > window.innerHeight) menu.style.top  = (y - r.height) + 'px';
+                            });
+                        },
+                        hide() { menu.style.display = 'none'; }
+                    };
+                    document.addEventListener('click', () => window._favContextMenu.hide());
+                    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window._favContextMenu.hide(); });
+                }
+
                 const makeEmojiEl = (url, name) => {
                     const isVideo = url && url.endsWith('.webm');
-                    let el;
+                    // media element (img or video)
+                    let media;
                     if (isVideo) {
-                        el = document.createElement('video');
-                        el.src = url;
-                        el.autoplay = true;
-                        el.loop = true;
-                        el.muted = true;
-                        el.playsInline = true;
+                        media = document.createElement('video');
+                        media.src = url;
+                        media.autoplay = true;
+                        media.loop = true;
+                        media.muted = true;
+                        media.playsInline = true;
                     } else {
-                        el = document.createElement('img');
-                        el.src = url;
-                        el.loading = 'lazy';
+                        media = document.createElement('img');
+                        media.src = url;
+                        media.loading = 'lazy';
                     }
-                    el.title = `:${name}:`;
-                    el.onerror = () => { el.style.display = 'none'; };
+                    media.title = `:${name}:`;
+                    media.onerror = () => { media.style.display = 'none'; };
+                    media._stickerSrc = url;
+                    media._stickerIsVideo = isVideo;
+                    // Wrapper div — needed to position the fav badge overlay
+                    const el = document.createElement('div');
+                    el.className = 'ep-sticker-wrap';
                     el._stickerSrc = url;
                     el._stickerIsVideo = isVideo;
+                    el.appendChild(media);
+                    // Fav star badge
+                    if (window._emojiPickerFavUtils?.has(name)) {
+                        const badge = document.createElement('i');
+                        badge.className = 'fa-solid fa-star ep-fav-badge';
+                        el.appendChild(badge);
+                    }
                     // Hold-to-preview
                     let holdTimer = null;
                     let holdFired = false;
@@ -4094,7 +4150,6 @@ class CommentSystem {
                         clearTimeout(holdTimer);
                         if (holdFired) {
                             holdFired = false;
-                            // Suppress the click that fires on mouseup after a preview gesture
                             el.addEventListener('click', (e) => {
                                 e.stopImmediatePropagation();
                                 e.preventDefault();
@@ -4102,16 +4157,23 @@ class CommentSystem {
                         }
                         window.stickerPreview?.hide();
                     };
-                    el.addEventListener('mousedown', startHold);
-                    el.addEventListener('mouseup', endHold);
-                    el.addEventListener('mouseleave', cancelHold);
-                    // Instant switch: if already previewing and mouse enters a new emoji, show it immediately
-                    el.addEventListener('mouseenter', () => {
+                    media.addEventListener('mousedown', startHold);
+                    media.addEventListener('mouseup', endHold);
+                    media.addEventListener('mouseleave', cancelHold);
+                    media.addEventListener('mouseenter', () => {
                         if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo);
                     });
-                    el.addEventListener('touchstart', startHold, { passive: true });
-                    el.addEventListener('touchend', endHold);
-                    el.addEventListener('touchcancel', endHold);
+                    media.addEventListener('touchstart', startHold, { passive: true });
+                    media.addEventListener('touchend', endHold);
+                    media.addEventListener('touchcancel', endHold);
+                    // Right-click → favorites context menu
+                    media.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window._favContextMenu?.show(e.clientX, e.clientY, name, url, () => {
+                            showTab(activeTabId); // refresh to update star badges
+                        });
+                    });
                     return el;
                 };
 
@@ -4153,6 +4215,34 @@ class CommentSystem {
                     tabBar.querySelectorAll('.ep-tab').forEach(t => t.classList.toggle('active', t.dataset.packId === String(packId ?? 'null')));
 
                     gridArea.innerHTML = '';
+                    gridArea.classList.toggle('favs-active', packId === '__favs__');
+
+                    // ── Favorites tab ──
+                    if (packId === '__favs__') {
+                        const favs = window._emojiPickerFavUtils?.get() || [];
+                        if (!favs.length) {
+                            const empty = document.createElement('div');
+                            empty.style.cssText = 'grid-column:1/-1;text-align:center;padding:28px 12px;opacity:0.45;font-size:0.82em;line-height:1.5;';
+                            empty.textContent = 'No favorites yet. Right-click any sticker to add it here.';
+                            gridArea.appendChild(empty);
+                        } else {
+                            favs.forEach(({ name, url }) => {
+                                const el = makeEmojiEl(url, name);
+                                el.onclick = (ev) => {
+                                    ev.stopPropagation();
+                                    const pos = textarea.selectionStart ?? textarea.value.length;
+                                    const val = textarea.value;
+                                    textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                                    textarea.focus();
+                                    const newPos = pos + name.length + 2;
+                                    textarea.setSelectionRange(newPos, newPos);
+                                };
+                                gridArea.appendChild(el);
+                            });
+                        }
+                        return;
+                    }
+
                     const pack = packs.find(p => String(p.id ?? null) === String(packId ?? null)) || packs[0];
                     if (!pack) return;
 
@@ -4181,7 +4271,17 @@ class CommentSystem {
                     }, { passive: true });
                 };
 
-                // Build tab buttons
+                // Build tab buttons — Favorites first
+                const favTab = document.createElement('button');
+                favTab.className = 'ep-tab ep-tab-favs';
+                favTab.dataset.packId = '__favs__';
+                favTab.title = 'Favorites';
+                favTab.type = 'button';
+                favTab.innerHTML = '<i class="fa-solid fa-star" style="color:var(--emoji-fav-color,#f5c518);font-size:1.1em;"></i>';
+                favTab.addEventListener('mousedown', e => e.preventDefault());
+                favTab.addEventListener('click', () => showTab('__favs__'));
+                tabBar.appendChild(favTab);
+
                 packs.forEach((pack, i) => {
                     const tab = document.createElement('button');
                     tab.className = 'ep-tab';
@@ -4226,26 +4326,12 @@ class CommentSystem {
                     const isVisible = picker.style.display !== 'none';
                     if (isVisible) {
                         picker.style.display = 'none';
-                        if (closeHandler) {
-                            document.removeEventListener('click', closeHandler);
-                            closeHandler = null;
-                        }
                     } else {
-                        // Rebuild content only if the cache has been updated since last build
                         buildPickerContent();
-                        picker.style.display = ''; // Reset to CSS default (flex)
+                        picker.style.display = '';
                         requestAnimationFrame(() => requestAnimationFrame(() =>
                             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
                         ));
-                        closeHandler = (ev) => {
-                            const isSubmit = ev.target.closest?.('.submit-comment');
-                            if (!picker.contains(ev.target) && ev.target !== trigger && !isSubmit) {
-                                picker.style.display = 'none';
-                                document.removeEventListener('click', closeHandler);
-                                closeHandler = null;
-                            }
-                        };
-                        setTimeout(() => document.addEventListener('click', closeHandler), 0);
                     }
                     return;
                 }
@@ -4311,17 +4397,6 @@ class CommentSystem {
                     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
                 ));
 
-                // Set up close handler
-                // Set up close handler
-                closeHandler = (ev) => {
-                    const isSubmit = ev.target.closest?.('.submit-comment');
-                    if (!picker.contains(ev.target) && ev.target !== trigger && !isSubmit) {
-                        picker.style.display = 'none';
-                        document.removeEventListener('click', closeHandler);
-                        closeHandler = null;
-                    }
-                };
-                setTimeout(() => document.addEventListener('click', closeHandler), 0);
             });
         }
     }

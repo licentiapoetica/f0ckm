@@ -12,6 +12,7 @@
 html[theme='f0ck'] {
   --accent: #9f0;
   --accent-rgb: 153, 255, 0;
+  --emoji-fav-color: #f5c518;
   --bg: #111;
   --black: #000;
   --white: #fff;
@@ -5727,6 +5728,11 @@ body[type='login'] {
   border-bottom: 2px solid var(--accent, #fff);
 }
 
+.ep-tab-favs.active {
+  border-bottom-color: var(--emoji-fav-color, #f5c518);
+  background: rgba(245,197,24,0.1);
+}
+
 .ep-tab img,
 .ep-tab video {
   width: 28px;
@@ -5757,6 +5763,38 @@ body[type='login'] {
   padding: 4px;
   border-radius: 4px;
   box-sizing: border-box;
+}
+
+/* Sticker wrapper — holds img/video + optional fav badge */
+.ep-sticker-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.ep-sticker-wrap:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Fav star badge — top-right corner of sticker */
+.ep-fav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 9px;
+  color: var(--emoji-fav-color, #f5c518);
+  pointer-events: none;
+  line-height: 1;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.7));
+}
+
+/* Hide badge in the favorites tab itself — everything there is already a fav */
+.emoji-picker-grid.favs-active .ep-fav-badge {
+  display: none;
 }
 
 .emoji-picker-grid img:hover,
@@ -8255,7 +8293,6 @@ video.autoplay-gif {
   border: none;
   color: var(--white);
   padding: 10px;
-  border-radius: 4px;
   font-family: inherit;
   resize: vertical;
 }
