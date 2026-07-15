@@ -14031,8 +14031,6 @@ body.layout-modern .xd-score-wrapper {
 
 .emoji-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 0 12px rgba(var(--accent-rgb, 100, 100, 255), .25);
-  transform: translateY(-2px);
 }
 
 .emoji-card .emoji-preview,
