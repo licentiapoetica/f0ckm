@@ -9051,9 +9051,11 @@ body.layout-modern .comment-content img.emoji {
 }
 
 body.layout-legacy .comment-content img.emoji {
-  height: auto !important;
+  height: auto;
+  width: auto;
   max-width: 200px;
   vertical-align: text-top;
+  
 }
 
 @keyframes flashGreen {
