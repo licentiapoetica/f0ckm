@@ -23,14 +23,169 @@ export default (router, tpl) => {
         });
     });
 
-    // List all emojis (Public)
+    // List all emojis — returns both a flat list and a grouped-by-pack structure
     router.get('/api/v2/emojis', async (req, res) => {
         try {
-            const emojis = await db`SELECT id, name, url FROM custom_emojis ORDER BY id DESC`;
+            // Try the full pack-aware query first; fall back if pack_id column doesn't exist yet
+            let emojis;
+            let hasPacks = true;
+            try {
+                emojis = await db`
+                    SELECT e.id, e.name, e.url, e.pack_id,
+                           p.name as pack_name, p.tg_name, p.tg_title, p.thumb_url as pack_thumb_url
+                    FROM custom_emojis e
+                    LEFT JOIN sticker_packs p ON p.id = e.pack_id
+                    ORDER BY e.pack_id NULLS FIRST, e.id ASC
+                `;
+            } catch (colErr) {
+                // column pack_id or thumb_url may not exist — try without thumb_url, then flat
+                try {
+                    emojis = await db`
+                        SELECT e.id, e.name, e.url, e.pack_id,
+                               p.name as pack_name, p.tg_name, p.tg_title, NULL as pack_thumb_url
+                        FROM custom_emojis e
+                        LEFT JOIN sticker_packs p ON p.id = e.pack_id
+                        ORDER BY e.pack_id NULLS FIRST, e.id ASC
+                    `;
+                } catch (_) {
+                    // pack_id column missing entirely — serve flat list
+                    console.warn('[EMOJIS] pack_id column missing, serving flat list');
+                    hasPacks = false;
+                    emojis = await db`SELECT id, name, url FROM custom_emojis ORDER BY id ASC`;
+                }
+            }
+
+            // Flat list (backwards compat)
+            const flat = emojis.map(e => ({ id: e.id, name: e.name, url: e.url, pack_id: e.pack_id ?? null }));
+
+            if (!hasPacks) {
+                return res.reply({
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ success: true, emojis: flat, packs: [] })
+                });
+            }
+
+            // Grouped by pack
+            const packsMap = new Map();
+            // "No pack" group for standalone emojis
+            packsMap.set(null, { id: null, name: 'Custom Emojis', tg_name: null, emojis: [] });
+
+            for (const e of emojis) {
+                if (e.pack_id && !packsMap.has(e.pack_id)) {
+                    packsMap.set(e.pack_id, {
+                        id: e.pack_id,
+                        name: e.pack_name || e.tg_title || `Pack #${e.pack_id}`,
+                        tg_name: e.tg_name,
+                        thumb_url: e.pack_thumb_url || null,
+                        emojis: []
+                    });
+                }
+                const packKey = e.pack_id ?? null;
+                packsMap.get(packKey).emojis.push({ id: e.id, name: e.name, url: e.url });
+            }
+
+            // Filter out empty groups
+            const packs = [...packsMap.values()].filter(p => p.emojis.length > 0);
+
             return res.reply({
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ success: true, emojis })
+                body: JSON.stringify({ success: true, emojis: flat, packs })
             });
+        } catch (e) {
+
+            console.error(e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
+        }
+    });
+
+    // List sticker packs (Admin)
+    router.get('/api/v2/admin/sticker-packs', async (req, res) => {
+        if (!req.session || !req.session.admin) {
+            return res.reply({ code: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+        }
+        try {
+            let packs;
+            try {
+                packs = await db`
+                    SELECT sp.id, sp.name, sp.tg_name, sp.tg_title, sp.thumb_url, sp.sticker_count, sp.created_at,
+                           count(e.id)::int as actual_count
+                    FROM sticker_packs sp
+                    LEFT JOIN custom_emojis e ON e.pack_id = sp.id
+                    GROUP BY sp.id
+                    ORDER BY sp.created_at DESC
+                `;
+            } catch (_) {
+                // thumb_url column may not exist yet — fall back without it
+                packs = await db`
+                    SELECT sp.id, sp.name, sp.tg_name, sp.tg_title, NULL as thumb_url, sp.sticker_count, sp.created_at,
+                           count(e.id)::int as actual_count
+                    FROM sticker_packs sp
+                    LEFT JOIN custom_emojis e ON e.pack_id = sp.id
+                    GROUP BY sp.id
+                    ORDER BY sp.created_at DESC
+                `;
+            }
+            return res.reply({
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: true, packs })
+            });
+        } catch (e) {
+            console.error(e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
+        }
+    });
+
+
+    // Delete a sticker pack and all its emojis (Admin)
+    router.delete(/\/api\/v2\/admin\/sticker-packs\/(?<id>\d+)/, async (req, res) => {
+        if (!req.session || !req.session.admin) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+        }
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Invalid CSRF token" }) });
+        }
+        const id = req.params.id;
+        try {
+            // Fetch emoji file URLs before deletion for filesystem cleanup
+            const emojiFiles = await db`SELECT url FROM custom_emojis WHERE pack_id = ${id}`;
+            await db`DELETE FROM custom_emojis WHERE pack_id = ${id}`;
+            await db`DELETE FROM sticker_packs WHERE id = ${id}`;
+
+            // Clean up local files
+            for (const e of emojiFiles) {
+                if (e.url && e.url.startsWith('/s/emojis/')) {
+                    const filename = path.basename(e.url);
+                    await fs.unlink(path.join(cfg.paths.emojis, filename)).catch(() => {});
+                }
+            }
+
+            await db`NOTIFY emojis_updated, '{}'`;
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
+        } catch (e) {
+            console.error(e);
+            return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
+        }
+    });
+
+    // Rename a sticker pack (Admin)
+    router.post(/\/api\/v2\/admin\/sticker-packs\/(?<id>\d+)\/rename/, async (req, res) => {
+        if (!req.session || !req.session.admin) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Forbidden" }) });
+        }
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!req.session.csrf_token || !csrfToken || csrfToken !== req.session.csrf_token) {
+            return res.reply({ code: 403, body: JSON.stringify({ success: false, message: "Invalid CSRF token" }) });
+        }
+        const id = req.params.id;
+        const newName = (req.body?.name || req.post?.name || '').trim();
+        if (!newName) {
+            return res.reply({ code: 400, body: JSON.stringify({ success: false, message: 'name is required' }) });
+        }
+        try {
+            await db`UPDATE sticker_packs SET name = ${newName} WHERE id = ${id}`;
+            await db`NOTIFY emojis_updated, '{}'`;
+            return res.reply({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ success: true }) });
         } catch (e) {
             console.error(e);
             return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
@@ -131,6 +286,8 @@ export default (router, tpl) => {
             return res.reply({ code: 500, body: JSON.stringify({ success: false, message: "Database error" }) });
         }
     });
+
+    // Edit emoji (Admin only) — handled by bypass middleware in index.mjs
 
     return router;
 };

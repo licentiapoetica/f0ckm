@@ -5638,6 +5638,15 @@ body[type='login'] {
   margin-top: 5px;
 }
 
+/* Tabbed mode — switched to column layout by JS when packs are present */
+.emoji-picker.has-tabs {
+  max-height: 200px;
+  overflow: hidden;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  padding: 0;
+}
+
 .emoji-picker img {
   width: 60px;
   height: 60px;
@@ -5652,6 +5661,95 @@ body[type='login'] {
   transform: scale(1.1);
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* ── Tabbed picker ── */
+.emoji-picker-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  scrollbar-width: none;
+  padding: 0 2px;
+}
+.emoji-picker-tabs::-webkit-scrollbar { display: none; }
+
+.ep-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.55;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.ep-tab:hover { opacity: 1; background: rgba(255,255,255,0.07); }
+
+.ep-tab.active {
+  opacity: 1;
+  background: rgba(255,255,255,0.12);
+  border-bottom: 2px solid var(--accent, #fff);
+}
+
+.ep-tab img,
+.ep-tab video {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.emoji-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+
+.emoji-picker-grid img,
+.emoji-picker-grid video {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.emoji-picker-grid img:hover,
+.emoji-picker-grid video:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* video emojis in comment content */
+.comment-content video.emoji,
+video.emoji {
+  height: 200px;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+/* video in emoji autocomplete dropdown */
+.emoji-ac-item video {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 
 /* User Mentions */
 .mention {
@@ -13902,7 +14000,8 @@ body.layout-modern .xd-score-wrapper {
   transform: translateY(-2px);
 }
 
-.emoji-card .emoji-preview {
+.emoji-card .emoji-preview,
+.emoji-card video.emoji-preview {
   height: 80px;
   max-width: 90px;
   object-fit: contain;

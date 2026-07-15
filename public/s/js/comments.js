@@ -263,7 +263,9 @@ class CommentSystem {
                     this.customEmojis[e.name] = e.url;
                 });
                 CommentSystem.emojiCache = this.customEmojis;
-                _f0ckDebug('Loaded Emojis:', this.customEmojis);
+                // Store pack structure for tabbed picker
+                CommentSystem.emojiPacks = data.packs || [];
+                _f0ckDebug('Loaded Emojis:', this.customEmojis, 'Packs:', CommentSystem.emojiPacks);
 
                 if (this.container && this.lastData) {
                     const state = this.saveState();
@@ -304,7 +306,11 @@ class CommentSystem {
     renderEmoji(match, name) {
         // _f0ckDebug('Rendering Emoji:', name, this.customEmojis ? this.customEmojis[name] : 'No list');
         if (this.customEmojis && this.customEmojis[name]) {
-            return `<img src="${this.customEmojis[name]}" style="height:60px;vertical-align:middle;" alt="${name}">`;
+            const url = this.customEmojis[name];
+            if (url.endsWith('.webm')) {
+                return `<video src="${url}" style="height:60px;vertical-align:middle;" autoplay loop muted playsinline title=":${name}:"></video>`;
+            }
+            return `<img src="${url}" style="height:60px;vertical-align:middle;" alt=":${name}:">`;
         }
         return match;
     }
@@ -559,6 +565,7 @@ class CommentSystem {
             contentEl.dataset.raw = this.escapeHtml(fullContent);
             contentEl.innerHTML = this.renderCommentContent(fullContent, commentId);
             CommentSystem.autoplayConvertedGifs(contentEl);
+            CommentSystem.playEmojiVideos(contentEl);
         } catch (e) {
             _f0ckDebug('[CommentSystem] _patchLiveCommentContent failed:', e);
         }
@@ -583,6 +590,7 @@ class CommentSystem {
         if (contentEl) {
             contentEl.innerHTML = this.renderCommentContent(data.content, data.comment_id);
             CommentSystem.autoplayConvertedGifs(contentEl);
+            CommentSystem.playEmojiVideos(contentEl);
 
             // Flash effect to draw attention
             el.classList.remove('new-item-fade');
@@ -1296,6 +1304,7 @@ class CommentSystem {
         }
         this.syncSubscribeButton(isSubscribed);
         CommentSystem.autoplayConvertedGifs(this.container);
+        CommentSystem.playEmojiVideos(this.container);
 
         // Attach media load listeners to re-stabilize scroll if a hash is active.
         // Only during the initial anchor scroll — never on subsequent renders (tab re-focus,
@@ -1415,6 +1424,7 @@ class CommentSystem {
                     _f0ckDebug(`[CommentSystem] Reconcile: Updating content for #c${id}`);
                     contentEl.innerHTML = this.renderCommentContent(incoming.content, incoming.id);
                     CommentSystem.autoplayConvertedGifs(contentEl);
+                    CommentSystem.playEmojiVideos(contentEl);
                     contentEl.dataset.raw = incoming.content;
                 }
 
@@ -1929,6 +1939,15 @@ class CommentSystem {
         });
     }
 
+    static playEmojiVideos(container) {
+        if (!container) return;
+        container.querySelectorAll('video.emoji').forEach(v => {
+            v.play().catch(() => {
+                v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true });
+            });
+        });
+    }
+
     buildBacklinkMap(comments) {
         this.backlinkMap = {};
         const process = (c) => {
@@ -1959,7 +1978,11 @@ class CommentSystem {
 
     renderEmoji(match, name) {
         if (this.customEmojis && this.customEmojis[name]) {
-            return `<img src="${this.customEmojis[name]}" class="emoji" alt="${match}" title="${match}">`;
+            const url = this.customEmojis[name];
+            if (url.endsWith('.webm')) {
+                return `<video src="${url}" class="emoji" autoplay loop muted playsinline title=":${name}:"></video>`;
+            }
+            return `<img src="${url}" class="emoji" alt="${match}" title="${match}">`;
         }
         return match;
     }
@@ -3383,6 +3406,7 @@ class CommentSystem {
                             const newEl = tmp.firstElementChild;
                             if (newEl) {
                                 parent.replaceChild(newEl, existingReply);
+                                CommentSystem.playEmojiVideos(newEl);
                                 requestAnimationFrame(() => {
                                     newEl.classList.add('comment-entering', 'new-item-fade');
                                     newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3404,6 +3428,7 @@ class CommentSystem {
                                 if (commentEl) {
                                     repliesEl.appendChild(commentEl);
                                     this._ensureTruncationButton(commentEl, newComment.content);
+                                    CommentSystem.playEmojiVideos(commentEl);
                                     requestAnimationFrame(() => {
                                         commentEl.classList.add('comment-entering', 'new-item-fade');
                                         commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3421,6 +3446,7 @@ class CommentSystem {
                             const newEl = tmp.firstElementChild;
                             if (newEl) {
                                 parent.replaceChild(newEl, existingTop);
+                                CommentSystem.playEmojiVideos(newEl);
                                 requestAnimationFrame(() => {
                                     newEl.classList.add('comment-entering', 'new-item-fade');
                                     newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3442,6 +3468,7 @@ class CommentSystem {
                                         list.appendChild(commentEl);
                                     }
                                     this._ensureTruncationButton(commentEl, newComment.content);
+                                    CommentSystem.playEmojiVideos(commentEl);
                                     requestAnimationFrame(() => {
                                         commentEl.classList.add('comment-entering', 'new-item-fade');
                                         commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3586,6 +3613,7 @@ class CommentSystem {
             const cs = window.commentSystem;
             if (!cs) return;
             CommentSystem.emojiCache = null;
+            CommentSystem.emojiPacks = null;
             CommentSystem.loadingEmojis = false;
             cs.loadEmojis(true); // force=true: bypass page-scan, admin just changed emojis
         });
@@ -3797,13 +3825,24 @@ class CommentSystem {
                 const item = document.createElement('div');
                 item.className = 'emoji-ac-item';
                 item.dataset.idx = idx;
-                const img = document.createElement('img');
-                img.src = this.customEmojis[name];
-                img.alt = name;
-                img.loading = 'lazy';
+                const url = this.customEmojis[name];
+                let preview;
+                if (url && url.endsWith('.webm')) {
+                    preview = document.createElement('video');
+                    preview.src = url;
+                    preview.autoplay = true;
+                    preview.loop = true;
+                    preview.muted = true;
+                    preview.playsInline = true;
+                } else {
+                    preview = document.createElement('img');
+                    preview.src = url;
+                    preview.alt = name;
+                    preview.loading = 'lazy';
+                }
                 const label = document.createElement('span');
                 label.textContent = `:${name}:`;
-                item.appendChild(img);
+                item.appendChild(preview);
                 item.appendChild(label);
                 item.addEventListener('mousedown', ev => {
                     ev.preventDefault(); // don't blur textarea
@@ -3978,35 +4017,120 @@ class CommentSystem {
             const buildPickerContent = () => {
                 if (!picker) return;
                 picker.innerHTML = '';
-                if (this.customEmojis && Object.keys(this.customEmojis).length > 0) {
+
+                const packs = CommentSystem.emojiPacks || [];
+                const hasPacks = packs.length > 0;
+
+                if (!this.customEmojis || Object.keys(this.customEmojis).length === 0) {
+                    picker.innerHTML = '<div style="padding:8px 10px;color:rgba(255,255,255,0.5);font-size:0.8em;">No emojis found</div>';
+                    return;
+                }
+
+                // Helper: create img or video element for a given emoji URL
+                const makeEmojiEl = (url, name) => {
+                    let el;
+                    if (url && url.endsWith('.webm')) {
+                        el = document.createElement('video');
+                        el.src = url;
+                        el.autoplay = true;
+                        el.loop = true;
+                        el.muted = true;
+                        el.playsInline = true;
+                    } else {
+                        el = document.createElement('img');
+                        el.src = url;
+                        el.loading = 'lazy';
+                    }
+                    el.title = `:${name}:`;
+                    el.onerror = () => { el.style.display = 'none'; };
+                    return el;
+                };
+
+                if (!hasPacks) {
+                    // Flat list — old behaviour for sites without packs
+                    picker.classList.remove('has-tabs');
                     Object.keys(this.customEmojis).forEach(name => {
                         const url = this.customEmojis[name];
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.title = `:${name}:`;
-                        img.loading = 'lazy'; // Use native lazy loading
-
-                        // Add error handling for failed loads
-                        img.onerror = () => {
-                            console.warn(`Failed to load emoji: ${name}`);
-                            img.style.display = 'none';
-                        };
-
-                        img.onclick = (ev) => {
+                        const el = makeEmojiEl(url, name);
+                        el.onclick = (ev) => {
                             ev.stopPropagation();
                             const pos = textarea.selectionStart ?? textarea.value.length;
                             const val = textarea.value;
                             textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
                             textarea.focus();
-                            // Move cursor after the inserted emoji
                             const newPos = pos + name.length + 2;
                             textarea.setSelectionRange(newPos, newPos);
                         };
-                        picker.appendChild(img);
+                        picker.appendChild(el);
                     });
-                } else {
-                    picker.innerHTML = '<div style="padding:5px;color:white;font-size:0.8em;">No emojis found</div>';
+                    return;
                 }
+
+                // ── Tabbed picker with sticker packs ──
+                picker.classList.add('has-tabs');
+
+                // Tab bar
+                const tabBar = document.createElement('div');
+                tabBar.className = 'emoji-picker-tabs';
+
+                // Emoji grid area
+                const gridArea = document.createElement('div');
+                gridArea.className = 'emoji-picker-grid';
+
+                let activeTabId = null;
+
+                const showTab = (packId) => {
+                    activeTabId = packId;
+                    tabBar.querySelectorAll('.ep-tab').forEach(t => t.classList.toggle('active', t.dataset.packId === String(packId ?? 'null')));
+
+                    gridArea.innerHTML = '';
+                    const pack = packs.find(p => String(p.id ?? null) === String(packId ?? null)) || packs[0];
+                    if (!pack) return;
+
+                    pack.emojis.forEach(({ name, url }) => {
+                        const el = makeEmojiEl(url, name);
+                        el.onclick = (ev) => {
+                            ev.stopPropagation();
+                            const pos = textarea.selectionStart ?? textarea.value.length;
+                            const val = textarea.value;
+                            textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                            textarea.focus();
+                            const newPos = pos + name.length + 2;
+                            textarea.setSelectionRange(newPos, newPos);
+                        };
+                        gridArea.appendChild(el);
+                    });
+                };
+
+                // Build tab buttons
+                packs.forEach((pack, i) => {
+                    const tab = document.createElement('button');
+                    tab.className = 'ep-tab';
+                    tab.dataset.packId = String(pack.id ?? null);
+                    tab.title = pack.name || 'Emojis';
+                    tab.type = 'button';
+                    // Tab icon — always use a static img (thumb_url from import, or first non-video emoji)
+                    if (pack.emojis && pack.emojis.length > 0) {
+                        const iconUrl = pack.thumb_url
+                            || (pack.emojis.find(e => !e.url.endsWith('.webm')) || pack.emojis[0]).url;
+                        const icon = document.createElement('img');
+                        icon.src = iconUrl;
+                        icon.alt = pack.name;
+                        icon.loading = 'lazy';
+                        tab.appendChild(icon);
+                    } else {
+                        tab.textContent = '☺';
+                    }
+                    tab.addEventListener('mousedown', e => e.preventDefault());
+                    tab.addEventListener('click', () => showTab(pack.id ?? null));
+                    tabBar.appendChild(tab);
+                });
+
+                picker.appendChild(tabBar);
+                picker.appendChild(gridArea);
+
+                // Show first pack by default
+                showTab(packs[0]?.id ?? null);
             };
 
             trigger.addEventListener('click', (e) => {

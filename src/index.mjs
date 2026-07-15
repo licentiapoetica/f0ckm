@@ -13,6 +13,7 @@ import { handleAvatarUpload, handleAvatarDelete } from "./avatar_handler.mjs";
 import { handleRethumbUpload } from "./rethumb_handler.mjs";
 import { handleMemeUpload, handleMemeEdit } from "./meme_upload_handler.mjs";
 import { handleEmojiUpload, handleEmojiEdit } from "./emoji_upload_handler.mjs";
+import { handleImportTelegramPack } from "./sticker_pack_handler.mjs";
 import { handleHallImageUpload, handleHallImageDelete, handleHallDelete, handleHallUpdate, handleHallCreate } from "./hall_image_handler.mjs";
 import { handleMetaExtract } from "./meta_extract_handler.mjs";
 import { handleMetaStrip } from "./meta_strip_handler.mjs";
@@ -784,7 +785,7 @@ process.on('uncaughtException', err => {
   // because the session middleware will have completed by the time router callbacks execute.
   app.use(async (req, res) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
-    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta', '/api/v2/comments/upload'].includes(req.url.pathname)) return;
+    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta', '/api/v2/comments/upload', '/api/v2/admin/sticker-packs/import'].includes(req.url.pathname)) return;
     // DM attachment upload validates CSRF internally
     if (req.url.pathname.match(/^\/api\/dm\/attachment\/upload\//)) return;
     // Hall manager routes are handled by bypass middleware with their own session auth
@@ -871,6 +872,14 @@ process.on('uncaughtException', err => {
       req.params = { id: editMatch[1] };
       await handleEmojiEdit(req, res);
       req.url.pathname = '/handled_emoji_edit_bypass';
+    }
+  });
+
+  // Bypass middleware for Telegram sticker pack import
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/admin/sticker-packs/import') {
+      await handleImportTelegramPack(req, res);
+      req.url.pathname = '/handled_sticker_pack_import_bypass';
     }
   });
 
