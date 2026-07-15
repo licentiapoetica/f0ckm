@@ -1233,27 +1233,35 @@ window.initUploadForm = (selector) => {
                     mediaElem = document.createElement('img');
                     mediaElem.src = URL.createObjectURL(file);
                 } else if (file.type.startsWith('video/')) {
-                    mediaElem = document.createElement('video');
-                    mediaElem.src = URL.createObjectURL(file);
-                    mediaElem.muted = true;
-                    mediaElem.controls = true;
-                    mediaElem.loop = true;
+                    const videoElem = document.createElement('video');
+                    videoElem.src = URL.createObjectURL(file);
+                    videoElem.muted = true;
+                    videoElem.controls = true;
+                    videoElem.loop = true;
 
                     if (isShitpost) {
-                        mediaElem.autoplay = false;
-                        mediaElem.preload = 'none';
-                        mediaElem.classList.add('video-thumbnail-loading');
+                        videoElem.autoplay = false;
+                        videoElem.preload = 'none';
+                        videoElem.classList.add('video-thumbnail-loading');
 
                         videoThumbnailQueue.add(file, (dataUrl) => {
                             if (dataUrl) {
-                                mediaElem.poster = dataUrl;
-                                mediaElem.classList.remove('video-thumbnail-loading');
+                                videoElem.poster = dataUrl;
+                                videoElem.classList.remove('video-thumbnail-loading');
                             } else {
-                                mediaElem.classList.remove('video-thumbnail-loading');
+                                videoElem.classList.remove('video-thumbnail-loading');
                             }
                         });
+
+                        // Wrap immediately so mediaElem is always the rigid container
+                        const videoWrapper = document.createElement('div');
+                        videoWrapper.className = 'preview-media-small preview-video-wrapper';
+                        videoElem.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain;';
+                        videoWrapper.appendChild(videoElem);
+                        mediaElem = videoWrapper;
                     } else {
-                        mediaElem.autoplay = true;
+                        videoElem.autoplay = true;
+                        mediaElem = videoElem;
                     }
                 } else if (file.type.startsWith('audio/')) {
                     mediaElem = document.createElement('audio');
@@ -1415,15 +1423,8 @@ window.initUploadForm = (selector) => {
             }
             // preview-media-small sizing only applies to standalone (non-col) media
             if (!mediaCol) {
-                // In shitpost mode, wrap videos in a rigid container to prevent Chrome from
-                // expanding the video element when native controls are clicked
-                if (isShitpost && mediaElem.tagName === 'VIDEO') {
-                    const videoWrapper = document.createElement('div');
-                    videoWrapper.className = 'preview-media-small preview-video-wrapper';
-                    mediaElem.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain;';
-                    videoWrapper.appendChild(mediaElem);
-                    mediaElem = videoWrapper;
-                } else {
+                // Videos in shitpost mode were already wrapped at creation time (above)
+                if (!mediaElem.classList.contains('preview-media-small') && !mediaElem.classList.contains('preview-video-wrapper')) {
                     mediaElem.classList.add('preview-media-small');
                 }
             }
