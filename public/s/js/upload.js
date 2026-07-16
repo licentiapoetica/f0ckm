@@ -752,6 +752,38 @@ window.initUploadForm = (selector) => {
         return [...new Set(fields)];
     };
 
+    // Try YouTube oEmbed directly from the client browser (bypasses Tor/proxy consent walls).
+    // Returns { success, meta } matching the server's /meta/fetch response shape, or null on failure.
+    const tryClientYouTubeOembed = async (url) => {
+        try {
+            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+            const resp = await fetch(oembedUrl);
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            if (!data.title) return null;
+            const meta = {
+                title: data.title,
+                site_name: 'youtube.com',
+                author: data.author_name || 'Unknown'
+            };
+            // Push to server cache so future requests (sidebar, other users) don't need Tor
+            try {
+                const csrf = window.f0ckSession?.csrf_token;
+                fetch('/api/v2/meta/cache', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrf ? { 'X-CSRF-Token': csrf } : {})
+                    },
+                    body: JSON.stringify({ url, meta })
+                }).catch(() => {}); // fire-and-forget
+            } catch (_) {}
+            return { success: true, meta };
+        } catch (e) {
+            return null;
+        }
+    };
+
     if (urlInput) {
         const fetchMetadata = async (url) => {
             const currentVal = urlInput.value.trim();
@@ -765,8 +797,12 @@ window.initUploadForm = (selector) => {
             // In shitpost mode: fetch silently (cache only, badge stays hidden)
             if (isShitpost) {
                 try {
-                    const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(currentVal)}`);
-                    const data = await resp.json();
+                    // YouTube: try client-side oEmbed first (avoids Tor consent walls)
+                    let data = ytRegex.test(currentVal) ? await tryClientYouTubeOembed(currentVal) : null;
+                    if (!data) {
+                        const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(currentVal)}`);
+                        data = await resp.json();
+                    }
                     if (data.success && data.meta) {
                         const fields = extractFieldsFromMeta(data.meta);
                         metaCache.set(currentVal, fields);
@@ -785,8 +821,12 @@ window.initUploadForm = (selector) => {
                 urlBadge.style.display = 'flex';
 
                 try {
-                    const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(currentVal)}`);
-                    const data = await resp.json();
+                    // YouTube: try client-side oEmbed first (avoids Tor consent walls)
+                    let data = ytRegex.test(currentVal) ? await tryClientYouTubeOembed(currentVal) : null;
+                    if (!data) {
+                        const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(currentVal)}`);
+                        data = await resp.json();
+                    }
                     if (data.success && data.meta) {
                         const fields = extractFieldsFromMeta(data.meta);
                         // Cache the fields for instant use when item is committed
@@ -1672,10 +1712,14 @@ window.initUploadForm = (selector) => {
 
                         setBadgeFetching();
                         try {
-                            const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(item.url)}`, {
-                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                            });
-                            const data = await resp.json();
+                            // YouTube: try client-side oEmbed first (avoids Tor consent walls)
+                            let data = ytRegex.test(item.url) ? await tryClientYouTubeOembed(item.url) : null;
+                            if (!data) {
+                                const resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(item.url)}`, {
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                });
+                                data = await resp.json();
+                            }
                             if (data.success && data.meta) {
                                 const fields = extractFieldsFromMeta(data.meta);
                                 metaCache.set(item.url, fields);

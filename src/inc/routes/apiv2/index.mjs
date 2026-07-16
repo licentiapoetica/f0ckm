@@ -299,6 +299,46 @@ export default router => {
         }
     });
 
+    // Allow authenticated clients to push metadata they fetched client-side (e.g. YouTube oEmbed
+    // fetched directly from the browser, bypassing Tor/proxy consent walls).
+    group.post(/\/meta\/cache$/, lib.loggedin, async (req, res) => {
+        if (!cfg.websrv.web_meta_extraction) {
+            return res.json({ success: false, msg: 'Metadata extraction is disabled' }, 403);
+        }
+        try {
+            const body = await collectBody(req);
+            const payload = JSON.parse(body.toString());
+            const { url, meta } = payload || {};
+            if (!url || !meta || !meta.title) {
+                return res.json({ success: false, msg: 'url and meta.title required' }, 400);
+            }
+            // Only accept YouTube URLs to prevent arbitrary cache poisoning
+            if (!/(youtube\.com|youtu\.be)/i.test(url)) {
+                return res.json({ success: false, msg: 'Only YouTube URLs accepted' }, 400);
+            }
+            // Sanitise — only store known-safe fields
+            const safeMeta = {
+                title: String(meta.title).substring(0, 500),
+                site_name: 'youtube.com',
+                author: meta.author ? String(meta.author).substring(0, 200) : 'Unknown'
+            };
+            metaCache.set(url, safeMeta);
+            if (metaCache.size > MAX_META_CACHE) {
+                const first = metaCache.keys().next().value;
+                metaCache.delete(first);
+            }
+            try {
+                await db`INSERT INTO meta_cache (url, data) VALUES (${url}, ${safeMeta})
+                         ON CONFLICT (url) DO UPDATE SET data = EXCLUDED.data, created_at = CURRENT_TIMESTAMP`;
+            } catch (err) {
+                console.error('[META-CACHE] DB save failed:', err);
+            }
+            return res.json({ success: true });
+        } catch (err) {
+            return res.json({ success: false, msg: 'Invalid request body' }, 400);
+        }
+    });
+
     // F-002 Security: Require authentication to prevent SSRF via arbitrary URL fetching.
     // Guests may read from the cache (in-memory or DB); only authenticated users trigger real outbound fetches.
     group.get(/\/meta\/fetch$/, async (req, res) => {
@@ -370,19 +410,26 @@ export default router => {
                     oembedUrl
                 ], { ignoreExitCode: true });
                 if (oembedOut && oembedOut.trim()) {
-                    const data = JSON.parse(oembedOut);
-                    if (data.title) {
-                        const meta = {
-                            title: data.title,
-                            site_name: 'youtube.com',
-                            author: data.author_name || 'Unknown'
-                        };
-                        await setCache(url, meta);
-                        return res.json({ success: true, meta });
+                    const trimmed = oembedOut.trim();
+                    // YouTube often returns HTML (consent/cookie walls, CAPTCHAs, geo-blocks)
+                    // instead of JSON when accessed through a proxy — skip those gracefully.
+                    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+                        console.warn(`[META-FETCH] YouTube oEmbed returned non-JSON (likely HTML wall), falling back to yt-dlp`);
+                    } else {
+                        const data = JSON.parse(trimmed);
+                        if (data.title) {
+                            const meta = {
+                                title: data.title,
+                                site_name: 'youtube.com',
+                                author: data.author_name || 'Unknown'
+                            };
+                            await setCache(url, meta);
+                            return res.json({ success: true, meta });
+                        }
                     }
                 }
             } catch (oembedErr) {
-                console.error(`[META-FETCH] YouTube oEmbed failed, will try yt-dlp:`, oembedErr.message || oembedErr);
+                console.warn(`[META-FETCH] YouTube oEmbed failed, will try yt-dlp:`, oembedErr.message || oembedErr);
             }
 
             // oEmbed failed — fall back to yt-dlp for YouTube (handles age-restricted, private, etc.)
