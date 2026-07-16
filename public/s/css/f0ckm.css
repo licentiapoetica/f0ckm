@@ -3758,7 +3758,6 @@ html[theme="f0ck95d"] a {
 }
 
 html[theme="f0ck95d"] span#favs {
-  border: inset 1px gray;
   background: rgba(255, 255, 255, .04), rgba(255, 255, 255, 0);
   background-image: linear-gradient(to bottom, var(--nav-link-background-linear-gradient));
 
@@ -6929,8 +6928,17 @@ span#favs {
   border-top: 1px solid var(--nav-border-color);
 }
 
+span#favs[hidden] {
+  display: none !important;
+}
+
+#favs>a {
+  display: flex;
+}
+
 #favs>a img {
   border: 2px solid var(--accent);
+  display: block;
 }
 
 /* audio thumbnails */
