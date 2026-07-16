@@ -27,7 +27,7 @@
         }
 
         const memeFont = 'Impact, Charcoal, sans-serif';
-        const memeLetterSpacing = '0.10em';
+        const memeLetterSpacing = '0.03em';
 
         function wrapText(ctx, text, maxWidth) {
             const paragraphs = text.split('\n');
@@ -115,6 +115,10 @@
 
         // Ensure font is loaded before first draw
         if (document.fonts) {
+            // Force browser to load the Impact font
+            document.fonts.load('bold 40px Impact');
+            document.fonts.load('bold 80px Impact');
+            document.fonts.load('bold 150px Impact');
             document.fonts.ready.then(() => {
                 draw();
             });

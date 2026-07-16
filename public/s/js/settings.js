@@ -1718,7 +1718,7 @@
             src: url('/s/fonts/${fontFile}');
           }
           :root { --font: 'CustomUserFont', monospace !important; }
-          *:not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.fa-light):not(.fa-thin):not(.fa-duotone):not([class*=" fa-"]):not([class^="fa-"]) {
+          *:not(canvas):not(.meme-title):not(.force-impact):not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.fa-light):not(.fa-thin):not(.fa-duotone):not([class*=" fa-"]):not([class^="fa-"]) {
             font-family: 'CustomUserFont', monospace !important;
           }
           .fa-solid::before, .fa-regular::before, .fa-brands::before,
