@@ -2943,7 +2943,7 @@ body.layout-legacy .scroll-to-bottom svg {
   padding: 10px;
   background: var(--comment-bg);
   /* Very light seethrough */
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--nav-border-color);
   border-radius: 0;
   /* No rounded corners */
   position: relative;

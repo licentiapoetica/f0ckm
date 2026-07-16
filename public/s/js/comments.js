@@ -4243,7 +4243,7 @@ class CommentSystem {
                         holdTimer = setTimeout(() => {
                             holdFired = true;
                             window.stickerPreview?.show(url, isVideo, name, url);
-                        }, 400);
+                        }, 600);
                     };
                     const cancelHold = () => { clearTimeout(holdTimer); isTouchHold = false; };
                     const endHold = () => {
@@ -4273,8 +4273,9 @@ class CommentSystem {
                         if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo, name, url);
                     });
                     media.addEventListener('touchstart', () => startHold(true), { passive: true });
+                    media.addEventListener('touchmove', cancelHold, { passive: true });
                     media.addEventListener('touchend', endHold);
-                    media.addEventListener('touchcancel', endHold);
+                    media.addEventListener('touchcancel', cancelHold);
                     // Right-click (desktop) → favorites; suppressed on mobile when hold gesture is active
                     media.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
