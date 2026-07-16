@@ -525,18 +525,24 @@
             const isExpanded = container.classList.contains('expanded');
             const scrollHeight = inner.scrollHeight;
             const clientHeight = inner.clientHeight;
+            // Check for images that haven't finished loading yet — their height is 0,
+            // which makes content appear shorter than it will actually be after load.
+            const hasUnloadedImages = Array.from(inner.querySelectorAll('img:not(.emoji)')).some(
+                img => !img.complete || img.naturalHeight === 0
+            );
 
             results.push({
                 container,
                 btn,
                 isExpanded,
                 scrollHeight,
-                clientHeight
+                clientHeight,
+                hasUnloadedImages
             });
         });
 
         // Write phase: perform DOM updates after all reads are completed
-        results.forEach(({ container, btn, isExpanded, scrollHeight, clientHeight }) => {
+        results.forEach(({ container, btn, isExpanded, scrollHeight, clientHeight, hasUnloadedImages }) => {
             if (isExpanded) {
                 btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_see_less || 'see less';
@@ -548,8 +554,12 @@
                 btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_read_more || 'read more';
                 container.classList.add('has-overflow');
+            } else if (hasUnloadedImages) {
+                // Images haven't loaded yet — their height is 0 so we can't tell if content
+                // will overflow. Keep has-overflow set; attachMediaLoadListeners will
+                // re-run checkOverflow once images finish loading.
             } else {
-                // Content fits — remove the default-on clamped state
+                // Content fits and all images are loaded — safe to remove clamped state
                 btn.style.display = 'none';
                 container.classList.remove('has-overflow');
             }
@@ -614,10 +624,19 @@
         }
         attachMediaLoadListeners(container);
         // has-overflow is set by default in the HTML template so long comments are clamped
-        // from the first paint. Reading scrollHeight inside checkOverflow forces a synchronous
-        // reflow, so this call immediately removes has-overflow from short comments before
-        // anything is painted — no rAF deferral needed.
+        // from the first paint. Sync checkOverflow cleans up short text-only comments immediately.
         checkOverflow();
+        // For comments with images, the sync pass skips removal (unloaded images guard).
+        // Schedule a deferred re-check so those comments get evaluated once images are painted.
+        // Only re-checks comments that still have unloaded images — no-op for everything else.
+        setTimeout(() => {
+            container.querySelectorAll('.comment-content-inner').forEach(inner => {
+                const hasUnloaded = Array.from(inner.querySelectorAll('img:not(.emoji)')).some(
+                    img => !img.complete || img.naturalHeight === 0
+                );
+                if (hasUnloaded) checkOverflow(inner);
+            });
+        }, 300);
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
@@ -653,15 +672,22 @@
             const data = await res.json();
 
             if (data.success && data.comments && data.comments.length > 0) {
+                const newIds = data.comments.slice(0, SIDEBAR_MAX_COMMENTS).map(c => String(c.id)).join(',');
+                const currentIds = (window._sidebarActivityCache || []).map(c => String(c.id)).join(',');
+                const dataChanged = newIds !== currentIds;
+
                 window._sidebarActivityCache = data.comments.slice(0, SIDEBAR_MAX_COMMENTS).map(c => ({
                     ...c,
                     body: c.content || c.body
                 }));
                 hasMore = (data.hasMore === true || data.comments.length === SIDEBAR_INITIAL_LIMIT)
                     && window._sidebarActivityCache.length < SIDEBAR_MAX_COMMENTS;
-                renderFromCache();
-                // Also check after a delay to account for image/emoji loading shifts
-                setTimeout(checkOverflow, 500);
+
+                // Only re-render if the set of comments actually changed.
+                // If the data is identical (common on navigation), leave the DOM untouched.
+                if (dataChanged) {
+                    renderFromCache();
+                }
             } else if (!hasCache) {
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">' + (window.f0ckI18n?.sidebar_no_activity || 'No recent activity.') + '</div>';
                 hasMore = false;

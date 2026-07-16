@@ -634,8 +634,12 @@
         // Visual state: strike-through when disabled
         const swfButtons = Array.from(document.querySelectorAll('.v0ck_menu_item')).filter(b => b.textContent.trim() === 'SWF');
 
-        // Handle floating badge visibility
-        ui.floatingBadge.style.display = swfButtons.length > 0 ? 'none' : 'block';
+        // Handle floating badge visibility — only show as fallback when on an item page
+        // with the primary player present but no in-player SWF button (e.g. v0ck not loaded).
+        // Never show it just because sidebar .webm stickers exist.
+        const primaryVideo = document.getElementById('my-video') ||
+            document.querySelector('video.viewer, video.v0ck_video');
+        ui.floatingBadge.style.display = (swfButtons.length === 0 && !!primaryVideo) ? 'block' : 'none';
 
         // Style both (if they exist)
         [ui.floatingBadge, ...swfButtons].forEach(b => {
