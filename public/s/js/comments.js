@@ -1022,6 +1022,25 @@ class CommentSystem {
         document.body.appendChild(preview);
         CommentSystem.playEmojiVideos(preview);
 
+        // If the emoji cache isn't ready yet but this preview contains :emoji: shortcodes,
+        // trigger a load and re-render just the preview's content once the cache arrives.
+        const previewContentEl = preview.querySelector('.comment-content');
+        if (previewContentEl && !CommentSystem.emojiCache && /:([a-z0-9_]+):/.test(previewContentEl.textContent)) {
+            const rerender = () => {
+                if (!document.body.contains(preview)) return;
+                const raw = previewContentEl.dataset.raw;
+                if (raw) {
+                    previewContentEl.innerHTML = this.renderCommentContent(raw);
+                    CommentSystem.playEmojiVideos(previewContentEl);
+                }
+            };
+            if (!CommentSystem.loadingEmojis) {
+                this.loadEmojis(true).then(rerender);
+            } else {
+                window.addEventListener('f0ck:emojis_ready', rerender, { once: true });
+            }
+        }
+
         const previewRect = preview.getBoundingClientRect();
 
         // Boundary checks

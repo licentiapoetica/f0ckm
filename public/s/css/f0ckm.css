@@ -9268,12 +9268,12 @@ body.layout-legacy .comment-content img.emoji {
 }
 
 .comment-highlighted {
-  border-left: 3px solid var(--accent) !important;
+  box-shadow: inset 3px 0px 0px var(--accent) !important;
   background: var(--bg) !important;
 }
 
 .anchor-target {
-  border-left: 3px solid var(--accent) !important;
+  box-shadow: inset 3px 0px 0px var(--accent) !important;
   background: rgba(17, 17, 17, 0.55) !important;
   padding-left: 5px;
 }
