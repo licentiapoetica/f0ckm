@@ -8276,6 +8276,7 @@ input#s_avatar {
   color: var(--white);
   white-space: nowrap;
   max-width: 140px;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
