@@ -106,6 +106,12 @@
                 titleSpan.textContent = 'YouTube Video';
             }
             titleSpan.dataset.loaded = 'true';
+            
+            // Re-check overflow since the new text might cause wrapping
+            const inner = link.closest('.comment-content-inner');
+            if (inner && typeof checkOverflow === 'function') {
+                checkOverflow(inner);
+            }
         }
     };
 
@@ -548,8 +554,12 @@
             const clientHeight = inner.clientHeight;
             const hasUnloadedImages = Array.from(inner.querySelectorAll('img:not(.emoji), video')).some(
                 media => {
-                    if (media.tagName === 'IMG') return !media.complete;
-                    if (media.tagName === 'VIDEO') return media.readyState < 1; // HAVE_METADATA
+                    if (media.tagName === 'IMG') {
+                        return (!media.complete || media.naturalHeight === 0) && media.dataset.error !== 'true';
+                    }
+                    if (media.tagName === 'VIDEO') {
+                        return media.readyState < 1 && media.dataset.error !== 'true'; // HAVE_METADATA
+                    }
                     return false;
                 }
             );
@@ -602,8 +612,12 @@
             const inner = media.closest('.comment-content-inner');
             if (inner) {
                 const handler = () => checkOverflow(inner);
+                const errorHandler = () => {
+                    media.dataset.error = 'true';
+                    checkOverflow(inner);
+                };
                 media.addEventListener('load', handler, { once: true });
-                media.addEventListener('error', handler, { once: true });
+                media.addEventListener('error', errorHandler, { once: true });
                 media.addEventListener('loadedmetadata', handler, { once: true });
                 
                 // Also use ResizeObserver to catch layout changes (e.g. cached image layout deferred)
