@@ -549,18 +549,29 @@ window.cancelAnimFrame = (function () {
     img.src = randomImg;
   };
 
-  // Initialize active mode: prefer mode cookie, then session, then legacy mode-btn
-  const _modeCookieRaw = document.cookie.split('; ').find(r => r.startsWith('mode='));
-  if (_modeCookieRaw) {
-    window.activeMode = +_modeCookieRaw.split('=')[1];
-  } else if (window.f0ckSession && window.f0ckSession.mode !== undefined) {
+  // Initialize active mode.
+  // For logged-in users, the server's f0ckSession.mode (sourced from user_options DB) is the
+  // authoritative cross-device truth. A stale local `mode` cookie from a previous session on
+  // this device could disagree (e.g. PC had ALL, mobile set SFW — PC cookie still says 3).
+  // Fix: prefer f0ckSession.mode when logged in and reconcile the local cookie to match.
+  // For guests: fall back to cookie (no session = cookie is the only persistence).
+  if (window.f0ckSession && window.f0ckSession.logged_in && window.f0ckSession.mode !== undefined) {
     window.activeMode = +window.f0ckSession.mode;
+    // Reconcile the local cookie so future reads are consistent on this device
+    document.cookie = `mode=${window.activeMode}; Path=/; Max-Age=31536000`;
   } else {
-    // Legacy fallback: read from old .mode-btn.active if present
-    const activeModeBtn = document.querySelector('.mode-btn.active');
-    if (activeModeBtn && activeModeBtn.href) {
-      const modeMatch = activeModeBtn.href.match(/\/mode\/(\d)/);
-      if (modeMatch) window.activeMode = +modeMatch[1];
+    const _modeCookieRaw = document.cookie.split('; ').find(r => r.startsWith('mode='));
+    if (_modeCookieRaw) {
+      window.activeMode = +_modeCookieRaw.split('=')[1];
+    } else if (window.f0ckSession && window.f0ckSession.mode !== undefined) {
+      window.activeMode = +window.f0ckSession.mode;
+    } else {
+      // Legacy fallback: read from old .mode-btn.active if present
+      const activeModeBtn = document.querySelector('.mode-btn.active');
+      if (activeModeBtn && activeModeBtn.href) {
+        const modeMatch = activeModeBtn.href.match(/\/mode\/(\d)/);
+        if (modeMatch) window.activeMode = +modeMatch[1];
+      }
     }
   }
 
