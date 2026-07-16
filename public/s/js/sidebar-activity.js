@@ -611,7 +611,12 @@
             container.appendChild(ioSentinel);
         }
         attachMediaLoadListeners(container);
-        checkOverflow();
+        // Defer overflow check until after the browser has performed layout on the
+        // newly-injected innerHTML — a synchronous call here fires before paint so
+        // scrollHeight === clientHeight, causing has-overflow to be stripped and the
+        // "read more" button to flash away. Double-rAF guarantees we measure after
+        // the first layout/paint cycle.
+        requestAnimationFrame(() => requestAnimationFrame(() => checkOverflow()));
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
