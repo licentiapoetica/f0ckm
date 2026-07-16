@@ -1936,6 +1936,7 @@ body.layout-modern .global-sidebar-right {
 #sidebar-activity-container.sidebar-comments-list {
   flex: 1;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 5px;
   touch-action: pan-y;
 }
