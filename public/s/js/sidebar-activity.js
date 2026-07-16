@@ -765,6 +765,9 @@
                         fetchSidebarYoutubeTitles(node);
                         playSidebarEmojiVideos(node);
                     });
+                    // Deferred re-check for image comments — mirrors renderFromCache behaviour.
+                    // Images in newly appended nodes may not be laid out yet at append time.
+                    setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 1000);
                     // Auto-play converted GIF videos and webm emoji stickers
                     container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
