@@ -1815,6 +1815,25 @@ body.layout-modern .global-sidebar-right {
     grid-column: 1;
   }
 
+  /* Body-level left-sidebar hide — set by blocking inline script before first paint
+     to prevent the sidebar from flashing visible. Mirrors the .sidebar-hidden rules above
+     but activates from the body class so it works before the container element exists. */
+  body.layout-modern.sidebar-left-hidden .item-layout-container {
+    grid-template-columns: minmax(0, 1fr) 400px;
+  }
+
+  body.layout-modern.sidebar-left-hidden.sidebar-right-hidden .item-layout-container {
+    grid-template-columns: 1fr;
+  }
+
+  body.layout-modern.sidebar-left-hidden .item-layout-container .item-sidebar-left {
+    display: none;
+  }
+
+  body.layout-modern.sidebar-left-hidden .item-layout-container .item-main-content {
+    grid-column: 1;
+  }
+
   body.layout-modern .item-sidebar-right,
   body.layout-modern .global-sidebar-right {
     grid-column: 3;
@@ -5440,13 +5459,14 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
   } */
 
   /* layout-modern: both sidebar AND comments visible — column is narrow, full 16:9 fits */
-  body.layout-modern:not(.sidebar-right-hidden) .item-layout-container:not(.sidebar-hidden) .embed-responsive-16by9::before {
+  body.layout-modern:not(.sidebar-right-hidden):not(.sidebar-left-hidden) .item-layout-container:not(.sidebar-hidden) .embed-responsive-16by9::before {
     padding-top: 54.25%;
   }
 
   /* layout-modern: either sidebar OR comments hidden (or both) — column is wider, reduce */
   body.layout-modern.sidebar-right-hidden .embed-responsive-16by9::before,
-  body.layout-modern .item-layout-container.sidebar-hidden .embed-responsive-16by9::before {
+  body.layout-modern .item-layout-container.sidebar-hidden .embed-responsive-16by9::before,
+  body.layout-modern.sidebar-left-hidden .embed-responsive-16by9::before {
     padding-top: 40.25%;
   }
 }

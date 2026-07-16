@@ -6618,6 +6618,7 @@ window.cancelAnimFrame = (function () {
       sb.style.setProperty('transition', 'none', 'important');
       if (isHidden) {
         layout.classList.remove('sidebar-hidden');
+        document.body.classList.remove('sidebar-left-hidden');
         sb.style.display = '';
         sb.querySelectorAll('.faded-out').forEach(el => el.classList.remove('faded-out'));
         const c = sb.querySelector('#comments-container');
@@ -6643,11 +6644,13 @@ window.cancelAnimFrame = (function () {
         if (shouldOpen) {
           sb.style.removeProperty('transform');
           localStorage.setItem('comments_hidden', 'false');
+          document.body.classList.remove('sidebar-left-hidden');
         } else {
           // Hide BEFORE removing transform to prevent snap-back flash
           sb.style.display = 'none';
           layout.classList.add('sidebar-hidden');
           localStorage.setItem('comments_hidden', 'true');
+          document.body.classList.add('sidebar-left-hidden');
           sb.style.removeProperty('transform');
         }
         requestAnimationFrame(() => syncLeftEdgeZone());

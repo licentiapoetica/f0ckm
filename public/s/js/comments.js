@@ -41,6 +41,9 @@ class CommentSystem {
         };
 
         // Restore visibility state
+        // The body class 'sidebar-left-hidden' is already set by the blocking
+        // inline script in header.html (prevents flash). Here we sync the
+        // container-level class and display state to match.
         if (this.container) {
             const isHidden = localStorage.getItem('comments_hidden') === 'true';
             // Force show if hash is present
@@ -48,9 +51,13 @@ class CommentSystem {
                 this.container.classList.remove('faded-out');
                 this.container.style.display = 'block';
                 localStorage.setItem('comments_hidden', 'false');
+                document.body.classList.remove('sidebar-left-hidden');
+                const layout = this.container.closest('.item-layout-container');
+                if (layout) layout.classList.remove('sidebar-hidden');
             } else if (isHidden) {
                 this.container.classList.add('faded-out');
                 this.container.style.display = 'none';
+                document.body.classList.add('sidebar-left-hidden');
                 const layout = this.container.closest('.item-layout-container');
                 if (layout) layout.classList.add('sidebar-hidden');
             }
@@ -3784,6 +3791,7 @@ class CommentSystem {
         if (isHidden) {
             // SHOW: expand grid first, then slide content in
             if (layout) layout.classList.remove('sidebar-hidden');
+            document.body.classList.remove('sidebar-left-hidden');
             this.container.style.display = '';
             localStorage.setItem('comments_hidden', 'false');
             void this.container.offsetWidth; // force reflow so transition fires
@@ -3798,6 +3806,7 @@ class CommentSystem {
                 if (!this.container.classList.contains('faded-out')) return;
                 this.container.style.display = 'none';
                 if (layout) layout.classList.add('sidebar-hidden');
+                document.body.classList.add('sidebar-left-hidden');
             }, 300);
         }
     }
