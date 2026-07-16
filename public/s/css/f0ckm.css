@@ -5595,7 +5595,7 @@ body[type='login'] {
   background: var(--bg);
   border: 1px solid var(--nav-border-color);
   padding: 5px;
-  z-index: 1000;
+  z-index: 0;
   overflow-y: auto;
   display: flex;
   flex-wrap: wrap;
