@@ -4862,15 +4862,15 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
 }
 
 @media 
-  (-webkit-min-device-pixel-ratio: 1.39) and (-webkit-max-device-pixel-ratio: 1.55) and (min-width: 700px), 
-  (min-resolution: 1.39dppx) and (max-resolution: 1.55dppx) and (min-width: 700px) {
+  (-webkit-min-device-pixel-ratio: 1.39) and (min-width: 700px), 
+  (min-resolution: 1.39dppx) and (min-width: 700px) {
     
     body.layout-legacy .embed-responsive-16by9::before {
-      padding-top: 36.25%;
+      padding-top: 41.25%;
     }
 
     body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-      padding-top: 36.25%;
+      padding-top: 41.25%;
     }
 }
 
@@ -4903,10 +4903,18 @@ html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsi
 
 /* ~139–154% zoom (the 150% tier) */
 html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 36.25%;
+  padding-top: 41.25%;
 }
 html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 36.25%;
+  padding-top: 41.25%;
+}
+
+/* ≥155% zoom (high DPR — covers fractional scaling + zoom combos) */
+html[data-dpr="dpr-high"] body.layout-legacy .embed-responsive-16by9::before {
+  padding-top: 41.25%;
+}
+html[data-dpr="dpr-high"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+  padding-top: 41.25%;
 }
 
 .embed-responsive-4by3::before {
