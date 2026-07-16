@@ -6823,10 +6823,12 @@ window.cancelAnimFrame = (function () {
       const isHidden = layout.classList.contains('sidebar-hidden');
       if (isHidden) {
         leftEdgeZone.style.left = '0';
+        leftEdgeZone.style.width = '30px';
         leftEdgeZone.style.pointerEvents = 'all';
       } else {
-        const rect = sb.getBoundingClientRect();
-        leftEdgeZone.style.left = (rect.right - 5) + 'px';
+        const sw = sb.offsetWidth;
+        leftEdgeZone.style.left = sw + 'px';
+        leftEdgeZone.style.width = '25px';
         leftEdgeZone.style.pointerEvents = 'all';
       }
     };

@@ -1648,11 +1648,12 @@ body.sidebar-right-hidden .global-sidebar-right {
   height: 56px;
 }
 
-/* Left sidebar edge zone drag handle */
+/* Left sidebar edge zone drag handle — mirrors #sidebar-drag-zone */
 #sidebar-left-drag-zone {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: 10px;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -1675,7 +1676,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   height: 56px;
 }
 
-/* Always show the left handle on touch devices */
+/* Always show the handle on touch devices (no hover state available) */
 @media (pointer: coarse) {
   #sidebar-left-drag-zone {
     opacity: 0.7;
@@ -9751,6 +9752,7 @@ ol {
   font-family: var(--font);
   border-bottom: 1px solid var(--nav-border-color);
   background: var(--nav-bg);
+  box-shadow: 5px 0px 10px black;
 }
 
 /* Brand: always visible, flush left */
