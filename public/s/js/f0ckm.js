@@ -6817,9 +6817,11 @@ window.cancelAnimFrame = (function () {
     const syncLeftEdgeZone = () => {
       const { sb, layout } = getLS();
       if (!sb || !layout || !document.body.classList.contains('layout-modern')) {
+        leftEdgeZone.style.display = 'none';
         leftEdgeZone.style.pointerEvents = 'none';
         return;
       }
+      leftEdgeZone.style.display = '';
       const isHidden = layout.classList.contains('sidebar-hidden');
       if (isHidden) {
         leftEdgeZone.style.left = '0';
