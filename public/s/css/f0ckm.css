@@ -9117,7 +9117,7 @@ span.badge.badge-current {
 .comment-content img {
   /*max-height: 200px;*/
   max-width: 480px;
-  width: 100%;
+  width: 200px;
 }
 
 /*.sidebar-comment-img {
