@@ -7393,6 +7393,11 @@ class NotificationSystem {
       const userName = user || window.f0ckSession?.user;
       if (!userName) return;
 
+      // Store last known state so we can re-apply after PJAX navigation or bfcache restore
+      if (window.f0ckSession && userName === window.f0ckSession.user) {
+        this._lastKnownBanner = { banner_file, banner_position, banner_size };
+      }
+
       const setBannerStyle = (el) => {
         if (banner_file) {
           el.style.setProperty('--author-banner', `url('/a/${banner_file}?t=${Date.now()}')`);
@@ -7415,6 +7420,31 @@ class NotificationSystem {
         if (previewBlock) setBannerStyle(previewBlock);
       }
     };
+
+    // Re-apply own banner after every PJAX navigation and bfcache restore.
+    // Fixes the case where SSE fired on the settings page before the item page DOM was loaded.
+    const reapplyOwnBanner = () => {
+      if (!window.f0ckSession?.user || !this._lastKnownBanner) return;
+      const { banner_file, banner_position, banner_size } = this._lastKnownBanner;
+      const userName = window.f0ckSession.user;
+      const setBannerStyle = (el) => {
+        if (banner_file) {
+          el.style.setProperty('--author-banner', `url('/a/${banner_file}?t=${Date.now()}')`);
+          el.style.setProperty('--author-banner-position', banner_position || 'center');
+          el.style.setProperty('--author-banner-size', banner_size || 'cover');
+        } else {
+          el.style.removeProperty('--author-banner');
+          el.style.removeProperty('--author-banner-position');
+          el.style.removeProperty('--author-banner-size');
+        }
+      };
+      document.querySelectorAll(
+        `.profile_head[data-banner-user="${userName}"], .user-infobox-block[data-banner-user="${userName}"]`
+      ).forEach(el => setBannerStyle(el));
+    };
+
+    document.addEventListener('f0ck:contentLoaded', reapplyOwnBanner);
+    window.addEventListener('pageshow', (e) => { if (e.persisted) reapplyOwnBanner(); });
 
     // Poll fresh display_name from DB — used on tab focus to catch missed SSE events
     this.syncDisplayName = async () => {
