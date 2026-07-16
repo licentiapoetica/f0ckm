@@ -504,7 +504,7 @@
                         </div>
                         <span class="comment-time timeago" tooltip="${fullDate}" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content has-overflow"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn" style="display:block">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content has-overflow"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;
@@ -544,11 +544,8 @@
 
         // Write phase: perform DOM updates after all reads are completed.
         // Visibility of the button is controlled entirely by the CSS rule on
-        // .comment-content.has-overflow > .read-more-btn — no btn.style.display here.
+        // .comment-content.has-overflow > .read-more-btn — JS only toggles the class.
         results.forEach(({ container, btn, isExpanded, scrollHeight, clientHeight, hasUnloadedImages }) => {
-            // Clear any leftover inline display style (e.g. from the HTML template's
-            // style="display:block") so the CSS class-based rule is the single source of truth.
-            btn.style.display = '';
 
             if (isExpanded) {
                 btn.textContent = window.f0ckI18n?.sidebar_see_less || 'see less';
@@ -638,19 +635,17 @@
         }
         attachMediaLoadListeners(container);
         // has-overflow is set by default in the HTML template so all comments start
-        // clamped with the "read more" button visible.  We must NOT run checkOverflow
-        // synchronously here — the browser has not yet laid out the freshly injected
-        // innerHTML, so scrollHeight / clientHeight are 0 and checkOverflow would
-        // incorrectly hide every button.  Instead we defer to after the first layout
-        // frame so measurements are accurate and short comments get their buttons
-        // removed while long comments keep them visible from the very first paint.
-        requestAnimationFrame(() => {
-            checkOverflow();
-            // After 1s, re-check everything — by then even slow ctrl+F5 images will
-            // have loaded and been laid out, so scrollHeight is accurate for all
-            // image comments.
-            setTimeout(checkOverflow, 1000);
-        });
+        // clamped with the "read more" button visible (CSS handles this via the
+        // .has-overflow > .read-more-btn rule).  We intentionally do NOT run
+        // checkOverflow eagerly — on production, layout measurements are unreliable
+        // even inside requestAnimationFrame and the function would incorrectly
+        // remove has-overflow from comments that genuinely overflow, causing the
+        // button to disappear and re-appear.  Instead we only run checkOverflow
+        // after a comfortable delay so short comments get their buttons cleaned up
+        // once layout is fully settled.
+        setTimeout(checkOverflow, 300);
+        // Safety-net re-check: images may still be loading at 300ms.
+        setTimeout(checkOverflow, 1500);
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
@@ -773,13 +768,10 @@
                         fetchSidebarYoutubeTitles(node);
                         playSidebarEmojiVideos(node);
                     });
-                    // Defer overflow checks to after layout so measurements are accurate.
-                    requestAnimationFrame(() => {
-                        addedNodes.forEach(node => checkOverflow(node));
-                        // Deferred re-check for image comments — mirrors renderFromCache behaviour.
-                        // Images in newly appended nodes may not be laid out yet at append time.
-                        setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 1000);
-                    });
+                    // Defer overflow checks so layout measurements are accurate.
+                    setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 300);
+                    // Safety-net re-check for image comments whose layout settles later.
+                    setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 1500);
                     // Auto-play converted GIF videos and webm emoji stickers
                     container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
@@ -844,7 +836,7 @@
                 node.classList.add('new-item-fade');
                 container.prepend(node);
                 attachMediaLoadListeners(node);
-                requestAnimationFrame(() => checkOverflow(node));
+                setTimeout(() => checkOverflow(node), 300);
                 fetchSidebarYoutubeTitles(container);
                 playSidebarEmojiVideos(node);
             }
@@ -896,7 +888,7 @@
                     void el.offsetWidth;
                     el.classList.add('new-item-fade');
                     attachMediaLoadListeners(inner);
-                    requestAnimationFrame(() => checkOverflow(inner));
+                    setTimeout(() => checkOverflow(inner), 300);
                     fetchSidebarYoutubeTitles(el);
                     // Auto-play converted GIF videos
                     inner.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
