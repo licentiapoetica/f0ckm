@@ -465,7 +465,7 @@
                 || (c.files && c.files.length > 0);
         }
         // Always force isLong if there are inline media tags that expand vertically
-        if (!isLong && (/\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawContent) || displayContent.includes('<video'))) {
+        if (!isLong && (/\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawContent) || displayContent.includes('<video') || displayContent.includes('<img'))) {
             isLong = true;
         }
 
