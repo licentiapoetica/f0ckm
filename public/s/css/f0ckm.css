@@ -4443,7 +4443,7 @@ span.placeholder {
   bottom: 0;
   left: 0;
   /* Match sidebar width so centering is relative to the content area */
-  right: 300px;
+  right: 400px;
   pointer-events: none;
   z-index: 10;
   /* Mirror the sidebar slide transition */
@@ -4680,7 +4680,7 @@ body.sidebar-right-hidden .pagination-container-fluid {
 
   /* Reserve space for the fixed sidebar so content doesn't flow behind it */
   .index-layout-wrapper {
-    padding-right: 300px;
+    padding-right: 400px;
   }
 
   /* Collapse reserved space when sidebar is hidden */
@@ -9615,7 +9615,7 @@ html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
 
 @media (min-width: 1200px) {
   .pagewrapper {
-    padding-right: 300px;
+    padding-right: 400px;
   }
 
   body.sidebar-right-hidden .pagewrapper {
@@ -11079,7 +11079,7 @@ body.layout-legacy .navbar-header {
    Specialized pages (index, item, meme) manage their own layout, so exclude them. */
 @media (min-width: 1200px) {
   body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)) {
-    padding-right: 300px;
+    padding-right: 400px;
   }
 
   body.layout-modern.sidebar-right-hidden>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)) {
@@ -12667,7 +12667,7 @@ body.layout-modern .tag-ac-input {
 
   @media (min-width: 1200px) {
     body:not(.sidebar-right-hidden) .messages-convo-page {
-      right: 300px !important;
+      right: 400px !important;
     }
   }
 
