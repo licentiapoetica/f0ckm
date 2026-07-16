@@ -696,6 +696,7 @@
                             a.href = `/user/${window.f0ckSession?.user}`;
                             a.target = '_blank';
                             a.style.display = 'block';
+                            a.style.width = '100%';
                             const newDiv = document.createElement('div');
                             newDiv.id = 'banner-preview';
                             newDiv.className = 'banner-preview-img';
