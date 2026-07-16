@@ -4243,7 +4243,7 @@ class CommentSystem {
                         holdTimer = setTimeout(() => {
                             holdFired = true;
                             window.stickerPreview?.show(url, isVideo, name, url);
-                        }, 600);
+                        }, 800);
                     };
                     const cancelHold = () => { clearTimeout(holdTimer); isTouchHold = false; };
                     const endHold = () => {
@@ -4255,12 +4255,11 @@ class CommentSystem {
                                 e.stopImmediatePropagation();
                                 e.preventDefault();
                             }, { once: true, capture: true });
-                            if (isTouchHold) {
-                                // Mobile: linger so user can tap the fav ★ button
-                                window.stickerPreview?.scheduleHide(1800);
-                            } else {
+                            if (!isTouchHold) {
+                                // Desktop: hide immediately on mouse release
                                 window.stickerPreview?.hide();
                             }
+                            // Mobile: preview stays open until user taps the overlay
                         } else {
                             window.stickerPreview?.hide();
                         }
@@ -4276,10 +4275,12 @@ class CommentSystem {
                     media.addEventListener('touchmove', cancelHold, { passive: true });
                     media.addEventListener('touchend', endHold);
                     media.addEventListener('touchcancel', cancelHold);
-                    // Right-click (desktop) → favorites; suppressed on mobile when hold gesture is active
+                    // Right-click (desktop only) → favorites context menu
                     media.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        // Never show the custom menu on touch devices
+                        if (navigator.maxTouchPoints > 0) return;
                         if (holdFired || favHoldFired) return;
                         window._favContextMenu?.show(e.clientX, e.clientY, name, url, () => {
                             showTab(activeTabId);
