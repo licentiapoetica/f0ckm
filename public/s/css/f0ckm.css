@@ -9370,9 +9370,9 @@ html[theme="f0ck95d"] .badge-dark {
   position: absolute;
   bottom: 15px;
   cursor: pointer;
-  right: 50%;
   left: 50%;
-  font-size: 1.4em;
+  transform: translateX(-50%);
+  font-size: 0.85em;
   font-weight: bold;
 }
 
