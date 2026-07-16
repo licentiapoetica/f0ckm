@@ -2597,9 +2597,8 @@ body.layout-legacy .comment-input {
 /* ─── Poll Builder ────────────────────────────────────────────────────────── */
 
 .poll-builder {
-  background: var(--comment-bg);
+  background: var(--bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: none;
   padding: 8px;
   display: flex;
   flex-direction: column;

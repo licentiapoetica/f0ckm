@@ -518,9 +518,7 @@ class CommentSystem {
         // 6. Highlight and animate
         setTimeout(() => {
             const el = document.getElementById('c' + comment.id);
-            if (el) {
-                el.classList.add('new-item-fade');
-            }
+            CommentSystem._animateNewComment(el, false);
         }, 100);
 
         // 7. The NOTIFY body is capped at 500 chars to stay under PostgreSQL's 8KB limit.
@@ -593,9 +591,7 @@ class CommentSystem {
             CommentSystem.playEmojiVideos(contentEl);
 
             // Flash effect to draw attention
-            el.classList.remove('new-item-fade');
-            void el.offsetWidth; // Trigger reflow
-            el.classList.add('new-item-fade');
+            CommentSystem._animateNewComment(el, false);
 
             // Update admin edit button data attribute
             const editBtn = el.querySelector('.admin-edit-btn');
@@ -818,6 +814,34 @@ class CommentSystem {
     }
 
     // ...
+
+    /**
+     * Attach animation classes to a comment element and automatically remove them
+     * once the animation finishes, so the element's natural border (including
+     * border-right) is fully restored after the effect completes.
+     *
+     * @param {Element} el       - The .comment element to animate.
+     * @param {boolean} entering - True to also add 'comment-entering' (own post);
+     *                             false for 'new-item-fade' only (live others).
+     */
+    static _animateNewComment(el, entering = false) {
+        if (!el) return;
+
+        const classes = entering
+            ? ['comment-entering', 'new-item-fade']
+            : ['new-item-fade'];
+
+        // Reset in case the element already has a stale animation
+        classes.forEach(c => el.classList.remove(c));
+        void el.offsetWidth; // force reflow so re-adding the class restarts the animation
+
+        classes.forEach(c => el.classList.add(c));
+
+        const cleanup = () => {
+            classes.forEach(c => el.classList.remove(c));
+        };
+        el.addEventListener('animationend', cleanup, { once: true });
+    }
 
 
 
@@ -1463,7 +1487,7 @@ class CommentSystem {
                     if (prevEl) prevEl.insertAdjacentElement('afterend', newEl);
                     else list.appendChild(newEl);
                 }
-                newEl.classList.add('comment-entering', 'new-item-fade');
+                CommentSystem._animateNewComment(newEl, true);
             });
             return;
         }
@@ -1533,8 +1557,7 @@ class CommentSystem {
                         else container.appendChild(newEl);
                     }
                     el = newEl;
-                    el.classList.add('comment-entering');
-                    el.classList.add('new-item-fade');
+                    CommentSystem._animateNewComment(el, true);
                 }
 
                 // Handle replies container
@@ -3408,7 +3431,7 @@ class CommentSystem {
                                 parent.replaceChild(newEl, existingReply);
                                 CommentSystem.playEmojiVideos(newEl);
                                 requestAnimationFrame(() => {
-                                    newEl.classList.add('comment-entering', 'new-item-fade');
+                                    CommentSystem._animateNewComment(newEl, true);
                                     newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 });
                             }
@@ -3430,7 +3453,7 @@ class CommentSystem {
                                     this._ensureTruncationButton(commentEl, newComment.content);
                                     CommentSystem.playEmojiVideos(commentEl);
                                     requestAnimationFrame(() => {
-                                        commentEl.classList.add('comment-entering', 'new-item-fade');
+                                        CommentSystem._animateNewComment(commentEl, true);
                                         commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                     });
                                 }
@@ -3448,7 +3471,7 @@ class CommentSystem {
                                 parent.replaceChild(newEl, existingTop);
                                 CommentSystem.playEmojiVideos(newEl);
                                 requestAnimationFrame(() => {
-                                    newEl.classList.add('comment-entering', 'new-item-fade');
+                                    CommentSystem._animateNewComment(newEl, true);
                                     newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 });
                             }
@@ -3470,7 +3493,7 @@ class CommentSystem {
                                     this._ensureTruncationButton(commentEl, newComment.content);
                                     CommentSystem.playEmojiVideos(commentEl);
                                     requestAnimationFrame(() => {
-                                        commentEl.classList.add('comment-entering', 'new-item-fade');
+                                        CommentSystem._animateNewComment(commentEl, true);
                                         commentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                     });
                                 }
