@@ -1601,7 +1601,7 @@ html[theme='95'] .item-main-content .metadata {
 }
 
 body.sidebar-right-hidden .global-sidebar-right {
-  right: -300px !important;
+  right: -400px !important;
 }
 
 /* Prevent native image drag from hijacking the sidebar mouse-drag gesture */
@@ -1692,7 +1692,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   body.sidebar-right-hidden .global-sidebar-right {
     right: -100% !important;
     /* Fallback for variable width sidebars */
-    right: -300px !important;
+    right: -400px !important;
   }
 }
 
@@ -1711,7 +1711,7 @@ body.sidebar-right-hidden .global-sidebar-right {
      ---------------------------------------------------------- */
   body.layout-modern .item-layout-container {
     display: grid;
-    grid-template-columns: min(400px, 30vw) minmax(0, 1fr) 300px;
+    grid-template-columns: min(400px, 30vw) minmax(0, 1fr) 400px;
     grid-template-rows: auto;
     flex: 1;
     height: calc(100vh - var(--navbar-h, 50px));
@@ -1800,7 +1800,7 @@ body.sidebar-right-hidden .global-sidebar-right {
 
   /* Sidebar toggle: hide left sidebar (e.g. keybind toggle) */
   body.layout-modern .item-layout-container.sidebar-hidden {
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) 400px;
   }
 
   body.layout-modern.sidebar-right-hidden .item-layout-container.sidebar-hidden {
