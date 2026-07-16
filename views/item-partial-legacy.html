@@ -84,7 +84,7 @@
 
             <div class="blahlol">
                 @if(user_alternative_infobox)
-                <div class="user-infobox-block" style="--author-accent: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif; --author-border: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif;">
+                <div class="user-infobox-block" style="--author-accent: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif; --author-border: @if(item.author_color){{ item.author_color }}@else var(--accent) @endif;@if(item.author_banner_file && user_banner_enabled) --author-banner: url('/a/{{ item.author_banner_file }}');@endif">
 
                     <div class="user-infobox-avatar">
                         <a href="/user/{{ (item.username || '').toLowerCase() }}">

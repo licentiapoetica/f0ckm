@@ -23,9 +23,9 @@ export default (router, tpl) => {
         join tags t on t.id = et.id
       `;
 
-      // Get custom avatar file if exists
+      // Get custom avatar file and banner file if exists
       const userOptions = (await db`
-        select avatar_file from user_options where user_id = ${+req.session.id}
+        select avatar_file, banner_file from user_options where user_id = ${+req.session.id}
       `)[0];
 
       // Get full user info
@@ -46,8 +46,10 @@ export default (router, tpl) => {
           sessions,
           excluded_tags: excluded_tags || [],
           avatar_file: userOptions?.avatar_file || null,
+          banner_file: userOptions?.banner_file || null,
           email: user?.email || '',
           joined: user?.created_at || null,
+          user_banner_enabled: cfg.websrv.user_banner_enabled !== false,
           enable_swf: cfg.enable_swf,
           enable_data_export: cfg.websrv.enable_data_export,
           enable_user_api_keys: cfg.websrv.enable_user_api_keys !== false,

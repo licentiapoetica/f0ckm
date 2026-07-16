@@ -136,6 +136,49 @@
       </fieldset>
       @endif
 
+      @if(user_banner_enabled)
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">Profile Banner</legend>
+        <div class="avatar-settings-wrapper">
+          <div class="avatar-preview-container" style="min-width: 0; flex: 1 1 auto;">
+            <div class="avatar-preview-label">Current Banner</div>
+            @if(banner_file)
+            <a href="/user/{!! session.user !!}" target="_blank" style="display:block;">
+              <img id="banner-preview" class="banner-preview-img" src="/a/{{ banner_file }}" style="width:100%;max-width:360px;height:auto;border-radius:4px;border:1px solid var(--nav-border-color);object-fit:cover;">
+            </a>
+            @else
+            <div id="banner-preview" class="banner-preview-img banner-placeholder" style="width:100%;max-width:360px;height:80px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;">No banner set</div>
+            @endif
+          </div>
+
+          <div class="avatar-upload-section">
+            <p class="avatar-hint">Upload a custom banner image for your profile card (max 5 MB — gif, jpg, png, webp). Will be cropped to a landscape ratio.</p>
+
+            <div class="avatar-upload-wrapper">
+              <input type="file" id="banner-file-input" accept="image/gif,image/jpeg,image/png,image/webp" hidden>
+              <button type="button" id="banner-choose-btn" class="button">Choose File</button>
+              <span id="banner-filename" class="avatar-filename">No file selected</span>
+            </div>
+
+            <div class="avatar-progress-wrapper" id="banner-progress-wrapper" style="display: none;">
+              <div class="avatar-progress-bar">
+                <div class="avatar-progress-fill" id="banner-progress-fill"></div>
+              </div>
+              <span class="avatar-progress-text" id="banner-progress-text">0%</span>
+            </div>
+
+            <div class="avatar-upload-actions">
+              <button type="button" id="banner-upload-btn" class="button" disabled>Upload Banner</button>
+              @if(banner_file)
+              <button type="button" id="banner-remove-btn" class="button button-danger">Remove Banner</button>
+              @endif
+            </div>
+            <div id="banner-upload-status" class="avatar-status"></div>
+          </div>
+        </div>
+      </fieldset>
+      @endif
+
       <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
         <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">{{ t('settings.username_color') }}</legend>
         <div class="setting-item">

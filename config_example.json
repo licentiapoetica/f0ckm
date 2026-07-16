@@ -118,6 +118,7 @@
     "enable_swiping": true,
     "enable_profile_description": true,
     "user_alternative_infobox": false,
+    "user_banner_enabled": true,
     "user_alternative_steuerung": false,
     "enable_swf": false,
     "swf_thumb": "/s/img/swf.png",

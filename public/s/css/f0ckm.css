@@ -13725,10 +13725,33 @@ textarea#profile_description {
   margin-bottom: 10px;
 }
 
+/* ── Banner inside alternative infobox ──────────────────────────────── */
+
+.user-infobox-block {
+  position: relative;
+  z-index: 1;
+}
+
+.user-infobox-block::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--author-banner, none);
+  background-size: var(--author-banner-size, cover);
+  background-position: var(--author-banner-position, center);
+  background-repeat: var(--author-banner-repeat, no-repeat);
+  opacity: var(--author-banner-opacity, 0.4);
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ── End banner styles ────────────────────────────────────────────────── */
 
 .user-infobox-avatar {
   flex-shrink: 0;
 }
+
 
 .user-infobox-avatar img {
   width: 64px;
@@ -13758,7 +13781,7 @@ textarea#profile_description {
     align-self: baseline;
     margin: 1px 10px 0px 0px;
     padding: 0;
-    top: 0;
+    top: 2px;
     right: 0;
     color: var(--accent);
 }

@@ -10,6 +10,7 @@ import { getAboutText, setAboutText, getRulesText, setRulesText, getTermsText, s
 import flummpress from "flummpress";
 import { handleUpload } from "./upload_handler.mjs";
 import { handleAvatarUpload, handleAvatarDelete } from "./avatar_handler.mjs";
+import { handleBannerUpload, handleBannerDelete } from "./banner_handler.mjs";
 import { handleRethumbUpload } from "./rethumb_handler.mjs";
 import { handleMemeUpload, handleMemeEdit } from "./meme_upload_handler.mjs";
 import { handleEmojiUpload, handleEmojiEdit } from "./emoji_upload_handler.mjs";
@@ -785,7 +786,7 @@ process.on('uncaughtException', err => {
   // because the session middleware will have completed by the time router callbacks execute.
   app.use(async (req, res) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
-    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta', '/api/v2/comments/upload', '/api/v2/admin/sticker-packs/import'].includes(req.url.pathname)) return;
+    if (['/login', '/register', '/api/v2/upload', '/api/v2/settings/uploadAvatar', '/api/v2/settings/uploadBanner', '/api/v2/admin/memes', '/api/v2/admin/emojis', '/api/v2/meta/extract-file', '/api/v2/meta/strip-gps', '/api/v2/scroller/external/rehost-meta', '/api/v2/comments/upload', '/api/v2/admin/sticker-packs/import'].includes(req.url.pathname)) return;
     // DM attachment upload validates CSRF internally
     if (req.url.pathname.match(/^\/api\/dm\/attachment\/upload\//)) return;
     // Hall manager routes are handled by bypass middleware with their own session auth
@@ -826,6 +827,23 @@ process.on('uncaughtException', err => {
       } else if (req.method === 'DELETE') {
         await handleAvatarDelete(req, res);
         req.url.pathname = '/handled_avatar_delete_bypass';
+      }
+    }
+  });
+
+  // Bypass middleware for banner upload (needs raw body before router consumes it)
+  // CSRF is validated inside handleBannerUpload/handleBannerDelete after their own session lookups
+  app.use(async (req, res) => {
+    if (req.url.pathname === '/api/v2/settings/uploadBanner') {
+      if (cfg.websrv.user_banner_enabled === false) {
+        return res.reply({ success: false, msg: 'Banner feature is currently disabled' }, 403);
+      }
+      if (req.method === 'POST') {
+        await handleBannerUpload(req, res);
+        req.url.pathname = '/handled_banner_upload_bypass';
+      } else if (req.method === 'DELETE') {
+        await handleBannerDelete(req, res);
+        req.url.pathname = '/handled_banner_delete_bypass';
       }
     }
   });
@@ -1343,6 +1361,7 @@ process.on('uncaughtException', err => {
       lang: perRequestLang,
       user_alternative_infobox: useAltInfobox,
       user_alternative_steuerung: useAltSteuerung,
+      user_banner_enabled: cfg.websrv.user_banner_enabled !== false,
       comment_display_mode: (req && req.session && typeof req.session.comment_display_mode === 'number')
         ? req.session.comment_display_mode
         : (data && typeof data.comment_display_mode === 'number'

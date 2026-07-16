@@ -344,6 +344,414 @@
         }
     });
 
+    // ==== Banner File Upload Logic (with crop modal) ====
+    const bannerFileInput = document.getElementById('banner-file-input');
+    const bannerChooseBtn = document.getElementById('banner-choose-btn');
+    const bannerFilenameSpan = document.getElementById('banner-filename');
+    const bannerUploadBtn = document.getElementById('banner-upload-btn');
+    const bannerProgressWrapper = document.getElementById('banner-progress-wrapper');
+    const bannerProgressFill = document.getElementById('banner-progress-fill');
+    const bannerProgressText = document.getElementById('banner-progress-text');
+    const bannerStatusDiv = document.getElementById('banner-upload-status');
+
+    const showBannerStatus = (msg, type) => {
+        if (bannerStatusDiv) {
+            bannerStatusDiv.textContent = msg;
+            bannerStatusDiv.className = 'avatar-status ' + type;
+        }
+    };
+
+    // ── Crop Modal ──────────────────────────────────────────────────────────
+    const showBannerCropModal = (file) => new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position:fixed;inset:0;z-index:99999;
+            background:rgba(0,0,0,0.92);
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            gap:16px;padding:20px;box-sizing:border-box;
+            font-family: inherit;
+            user-select: none;
+            -webkit-user-select: none;
+        `;
+
+
+        const title = document.createElement('div');
+        title.textContent = 'Position Banner';
+        title.style.cssText = 'color:#fff;font-size:1.2em;font-weight:600;letter-spacing:0.5px;';
+
+        const hint = document.createElement('div');
+        hint.textContent = 'Drag to position. Use the slider below to zoom.';
+        hint.style.cssText = 'color:#aaa;font-size:0.85em;text-align:center;margin-bottom:4px;';
+
+        // Responsive cropper container
+        const cropperContainer = document.createElement('div');
+        cropperContainer.style.cssText = `
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 3 / 1;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--nav-border-color);
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            background: #111;
+        `;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200;
+        canvas.height = 400;
+        canvas.style.cssText = 'width:100%;height:100%;display:block;cursor:move;touch-action:none;pointer-events:auto !important;';
+        cropperContainer.appendChild(canvas);
+
+        // Zoom slider container
+        const zoomContainer = document.createElement('div');
+        zoomContainer.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;max-width:320px;color:#fff;margin-top:4px;';
+
+        const zoomOutLabel = document.createElement('span');
+        zoomOutLabel.textContent = 'A';
+        zoomOutLabel.style.cssText = 'font-size:0.8em;opacity:0.6;user-select:none;font-weight:bold;';
+
+        const zoomInput = document.createElement('input');
+        zoomInput.type = 'range';
+        zoomInput.style.cssText = 'flex:1;height:4px;border-radius:2px;outline:none;cursor:pointer;';
+
+        const zoomInLabel = document.createElement('span');
+        zoomInLabel.textContent = 'A';
+        zoomInLabel.style.cssText = 'font-size:1.2em;opacity:0.9;user-select:none;font-weight:bold;';
+
+        zoomContainer.append(zoomOutLabel, zoomInput, zoomInLabel);
+
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:12px;margin-top:8px;';
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.textContent = 'Save & Upload';
+        confirmBtn.className = 'button';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.className = 'button button-danger';
+
+        btnRow.append(confirmBtn, cancelBtn);
+        overlay.append(title, hint, cropperContainer, zoomContainer, btnRow);
+        document.body.appendChild(overlay);
+        overlay.tabIndex = 0;
+        overlay.focus();
+
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+
+        // State variables
+        let zoom = 1.0;
+        let minZoom = 1.0;
+        let maxZoom = 4.0;
+        let panX = 0;
+        let panY = 0;
+
+
+
+        const draw = () => {
+            ctx.clearRect(0, 0, 1200, 400);
+            ctx.drawImage(img, panX, panY, img.naturalWidth * zoom, img.naturalHeight * zoom);
+            
+            // Update hint with live coords/zoom
+            hint.textContent = `Drag to position | Zoom: ${Math.round((zoom/minZoom)*100)}% | Pan: ${Math.round(panX)}, ${Math.round(panY)}`;
+        };
+
+        const getBounds = (z) => {
+            return {
+                minX: 1200 - img.naturalWidth * z,
+                minY: 400 - img.naturalHeight * z
+            };
+        };
+
+        img.onload = () => {
+            if (!img.naturalWidth || !img.naturalHeight) {
+                hint.textContent = 'Error: Image has 0 dimensions';
+                return;
+            }
+
+            // Determine minimum zoom so the image fully covers 1200x400 canvas without black edges
+            minZoom = Math.max(1200 / img.naturalWidth, 400 / img.naturalHeight);
+            maxZoom = minZoom * 4;
+            zoom = minZoom;
+
+            // Center image initially
+            panX = (1200 - img.naturalWidth * zoom) / 2;
+            panY = (400 - img.naturalHeight * zoom) / 2;
+
+            // Configure zoom slider
+            zoomInput.min = 0;
+            zoomInput.max = 100;
+            zoomInput.value = 0;
+
+            draw();
+        };
+
+        const handleZoomChange = (pct) => {
+            const oldZoom = zoom;
+            const t = pct / 100;
+            const newZoom = minZoom + (maxZoom - minZoom) * t;
+
+            const imgCenterX = (600 - panX) / oldZoom;
+            const imgCenterY = (200 - panY) / oldZoom;
+
+            zoom = newZoom;
+            const bounds = getBounds(zoom);
+            panX = Math.max(bounds.minX, Math.min(0, 600 - imgCenterX * zoom));
+            panY = Math.max(bounds.minY, Math.min(0, 200 - imgCenterY * zoom));
+
+            draw();
+        };
+
+        zoomInput.addEventListener('input', (e) => {
+            handleZoomChange(parseFloat(e.target.value));
+        });
+
+        let dragging = false;
+        let dragOffX = 0;
+        let dragOffY = 0;
+
+        const getPos = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const sx = canvas.width / r.width, sy = canvas.height / r.height;
+            const src = e.touches ? e.touches[0] : e;
+            return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
+        };
+
+        const onDown = (e) => {
+            e.preventDefault();
+            dragging = true;
+            const { x, y } = getPos(e);
+            dragOffX = x - panX;
+            dragOffY = y - panY;
+            canvas.style.cursor = 'grabbing';
+        };
+
+        const onMove = (e) => {
+            if (!dragging) return;
+            e.preventDefault();
+            const { x, y } = getPos(e);
+            
+            const dx = x - dragOffX;
+            const dy = y - dragOffY;
+            
+            const bounds = getBounds(zoom);
+            panX = Math.max(bounds.minX, Math.min(0, dx));
+            panY = Math.max(bounds.minY, Math.min(0, dy));
+            
+            draw();
+        };
+
+        const onUp = () => {
+            if (dragging) {
+                dragging = false;
+                canvas.style.cursor = 'move';
+            }
+        };
+
+        // Strict fallback to original robust event binding
+        canvas.addEventListener('mousedown', onDown);
+        window.addEventListener('mousemove', onMove, { passive: false });
+        window.addEventListener('mouseup', onUp);
+
+        canvas.addEventListener('touchstart', onDown, { passive: false });
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+
+        // Prevent native HTML5 drag and drop behavior from hijacking our drag
+        canvas.addEventListener('dragstart', (e) => e.preventDefault());
+
+        const cleanup = () => {
+            URL.revokeObjectURL(objectUrl);
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onUp);
+            overlay.remove();
+        };
+
+
+        confirmBtn.addEventListener('click', () => {
+            canvas.toBlob(blob => {
+                cleanup();
+                resolve(blob);
+            }, 'image/webp', 0.85);
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            cleanup();
+            resolve(null);
+        });
+
+        overlay.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                cleanup();
+                resolve(null);
+            }
+        });
+
+        // Trigger image load AFTER attaching onload listener
+        img.src = objectUrl;
+    });
+
+
+
+    // ── Upload blob to server ───────────────────────────────────────────────
+    const uploadBannerBlob = (blob) => {
+        if (!blob) return;
+
+        if (bannerUploadBtn) bannerUploadBtn.disabled = true;
+        if (bannerChooseBtn) bannerChooseBtn.disabled = true;
+        if (bannerProgressWrapper) { bannerProgressWrapper.style.display = 'flex'; }
+        if (bannerProgressFill) bannerProgressFill.style.width = '0%';
+        if (bannerProgressText) bannerProgressText.textContent = '0%';
+        showBannerStatus('Uploading...', '');
+
+        const formData = new FormData();
+        formData.append('file', blob, 'banner.webp');
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                if (bannerProgressFill) bannerProgressFill.style.width = pct + '%';
+                if (bannerProgressText) bannerProgressText.textContent = pct + '%';
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            try {
+                const res = JSON.parse(xhr.responseText);
+                if (xhr.status === 200 && res.success) {
+                    showBannerStatus(res.msg || 'Banner uploaded!', 'success');
+
+                    const bannerPreview = document.getElementById('banner-preview');
+                    if (bannerPreview) {
+                        if (bannerPreview.tagName === 'IMG') {
+                            bannerPreview.src = '/a/' + res.banner_file + '?t=' + Date.now();
+                        } else {
+                            const img = document.createElement('img');
+                            img.id = 'banner-preview';
+                            img.className = 'banner-preview-img';
+                            img.style.cssText = 'width:100%;max-width:360px;height:auto;border-radius:4px;border:1px solid var(--nav-border-color);object-fit:cover;';
+                            img.src = '/a/' + res.banner_file + '?t=' + Date.now();
+                            bannerPreview.replaceWith(img);
+                        }
+                    }
+
+                    const existingRemoveBtn = document.getElementById('banner-remove-btn');
+                    if (!existingRemoveBtn && bannerUploadBtn) {
+                        const actionsDiv = bannerUploadBtn.closest('.avatar-upload-actions');
+                        if (actionsDiv) {
+                            const btn = document.createElement('button');
+                            btn.type = 'button'; btn.id = 'banner-remove-btn';
+                            btn.className = 'button button-danger';
+                            btn.textContent = 'Remove Banner';
+                            actionsDiv.appendChild(btn);
+                        }
+                    }
+
+                    if (bannerFileInput) bannerFileInput.value = '';
+                    if (bannerFilenameSpan) bannerFilenameSpan.textContent = 'No file selected';
+                } else {
+                    showBannerStatus(res.msg || 'Upload failed', 'error');
+                }
+            } catch (e) {
+                showBannerStatus('Upload failed: Invalid response', 'error');
+            }
+
+            if (bannerProgressWrapper) bannerProgressWrapper.style.display = 'none';
+            if (bannerChooseBtn) bannerChooseBtn.disabled = false;
+        });
+
+        xhr.addEventListener('error', () => {
+            showBannerStatus('Upload failed: Network error', 'error');
+            if (bannerProgressWrapper) bannerProgressWrapper.style.display = 'none';
+            if (bannerChooseBtn) bannerChooseBtn.disabled = false;
+        });
+
+        xhr.open('POST', '/api/v2/settings/uploadBanner');
+        xhr.setRequestHeader('X-CSRF-Token', window.f0ckSession?.csrf_token);
+        xhr.send(formData);
+    };
+
+    // ── Wire up ─────────────────────────────────────────────────────────────
+    if (bannerChooseBtn && bannerFileInput) {
+        bannerChooseBtn.addEventListener('click', () => bannerFileInput.click());
+
+        bannerFileInput.addEventListener('change', async () => {
+            const file = bannerFileInput.files[0];
+            if (!file) return;
+
+            if (!allowedTypes.includes(file.type)) {
+                showBannerStatus('Invalid file type. Allowed: gif, jpg, png, webp', 'error');
+                return;
+            }
+            if (file.size > maxSize) {
+                showBannerStatus(`File too large. Max 5MB.`, 'error');
+                return;
+            }
+
+            showBannerStatus('', '');
+            if (bannerFilenameSpan) bannerFilenameSpan.textContent = file.name;
+
+            try {
+                const blob = await showBannerCropModal(file);
+                if (blob) {
+                    uploadBannerBlob(blob);
+                } else {
+                    // Modal was cancelled
+                    if (bannerFilenameSpan) bannerFilenameSpan.textContent = 'No file selected';
+                }
+            } catch (err) {
+                console.error('[CROPPER] Error:', err);
+                showBannerStatus('Cropper error', 'error');
+            } finally {
+                // ALWAYS clear the file input value so selecting the same file again works
+                bannerFileInput.value = '';
+            }
+        });
+    }
+
+    // ── Remove banner handler ────────────────────────────────────────────────
+    document.addEventListener('click', async (e) => {
+        if (e.target.id === 'banner-remove-btn') {
+            e.target.disabled = true;
+            e.target.textContent = 'Removing...';
+
+            try {
+                const res = await fetch('/api/v2/settings/uploadBanner', {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showBannerStatus('Banner removed', 'success');
+                    e.target.remove();
+                    const bannerPreview = document.getElementById('banner-preview');
+                    if (bannerPreview) {
+                        const ph = document.createElement('div');
+                        ph.id = 'banner-preview'; ph.className = 'banner-preview-img banner-placeholder';
+                        ph.style.cssText = 'width:100%;max-width:360px;height:80px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;';
+                        ph.textContent = 'No banner set';
+                        bannerPreview.replaceWith(ph);
+                    }
+                } else {
+                    showBannerStatus(data.msg || 'Failed to remove', 'error');
+                    e.target.disabled = false; e.target.textContent = 'Remove Banner';
+                }
+            } catch (err) {
+                showBannerStatus('Failed to remove banner', 'error');
+                e.target.disabled = false; e.target.textContent = 'Remove Banner';
+            }
+        }
+    });
+
+
     // Generic Linking Logic
     const genTokenBtn = document.getElementById('btn-gen-link-token');
     const linkedAccountsList = document.getElementById('linked-accounts-list');

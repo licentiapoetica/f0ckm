@@ -534,6 +534,7 @@ export default {
         uo.display_name as author_display_name,
         uo.avatar as author_avatar,
         uo.avatar_file as author_avatar_file,
+        uo.banner_file as author_banner_file,
         uo.description as author_description,
         author_u.id as author_id,
         items.is_pinned,
@@ -794,6 +795,7 @@ export default {
         author_display_name: actitem.author_display_name || null,
         author_avatar: actitem.author_avatar,
         author_avatar_file: actitem.author_avatar_file,
+        author_banner_file: actitem.author_banner_file,
         author_description: actitem.author_description,
         title: actitem.title || null,
 
