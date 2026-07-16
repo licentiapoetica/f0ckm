@@ -16659,3 +16659,95 @@ a.lazy-thumb.filtered-upload-ghost:hover::after {
   line-height: 1.3;
   font-weight: 400;
 }
+
+/* ── Banner Crop Modal ─────────────────────────────────────────────────────── */
+
+.banner-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  box-sizing: border-box;
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.banner-crop-wrapper {
+  width: auto;
+  max-width: 1200px;
+  background: var(--bg);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--nav-border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.banner-crop-title {
+  margin: 0;
+  color: #fff;
+}
+
+.banner-crop-hint {
+  color: #aaa;
+  font-size: 0.85em;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.banner-crop-canvas-wrapper {
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 400 / 120;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--nav-border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  background: #111;
+  margin: 0 auto;
+}
+
+.banner-crop-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: move;
+  touch-action: none;
+  pointer-events: auto !important;
+}
+
+.banner-crop-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.banner-crop-zoom-label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 200px;
+  color: #fff;
+}
+
+.banner-crop-zoom-slider {
+  flex: 1;
+}
+
+.banner-crop-actions {
+  display: flex;
+  gap: 10px;
+}

@@ -370,69 +370,44 @@
     // ── Crop Modal ──────────────────────────────────────────────────────────
     const showBannerCropModal = (file, existingConfig = null) => new Promise((resolve) => {
         const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position:fixed;inset:0;z-index:99999;
-            background:rgba(0,0,0,0.92);
-            display:flex;flex-direction:column;align-items:center;justify-content:center;
-            gap:16px;padding:20px;box-sizing:border-box;
-            font-family: inherit;
-            user-select: none;
-            -webkit-user-select: none;
-        `;
+        overlay.className = 'banner-crop-overlay';
 
 
         const title = document.createElement('h3');
+        title.className = 'banner-crop-title';
         title.textContent = 'Position Banner';
-        title.style.margin = '0';
-        title.style.color = '#fff';
 
         const hint = document.createElement('div');
+        hint.className = 'banner-crop-hint';
         hint.textContent = 'Drag to position. Use the slider below to zoom.';
-        hint.style.cssText = 'color:#aaa;font-size:0.85em;text-align:center;margin-bottom:4px;';
 
         const canvasWrapper = document.createElement('div');
-        canvasWrapper.style.cssText = `
-            width: 100%;
-            max-width: 400px;
-            aspect-ratio: 400 / 140;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid var(--nav-border-color);
-            border-radius: 4px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-            background: #111;
-            margin: 0 auto;
-        `;
+        canvasWrapper.className = 'banner-crop-canvas-wrapper';
 
         const canvas = document.createElement('canvas');
+        canvas.className = 'banner-crop-canvas';
         canvas.width = 400;
         canvas.height = 140;
-        canvas.style.cssText = 'width:100%;height:100%;display:block;cursor:move;touch-action:none;pointer-events:auto !important;';
         canvasWrapper.appendChild(canvas);
 
         const controls = document.createElement('div');
-        controls.style.cssText = 'display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 15px;';
+        controls.className = 'banner-crop-controls';
 
         const zoomLabel = document.createElement('label');
+        zoomLabel.className = 'banner-crop-zoom-label';
         zoomLabel.textContent = 'Zoom:';
-        zoomLabel.style.display = 'flex';
-        zoomLabel.style.gap = '10px';
-        zoomLabel.style.alignItems = 'center';
-        zoomLabel.style.flex = '1';
-        zoomLabel.style.minWidth = '200px';
-        zoomLabel.style.color = '#fff';
 
         const zoomSlider = document.createElement('input');
         zoomSlider.type = 'range';
+        zoomSlider.className = 'banner-crop-zoom-slider';
         zoomSlider.min = '0';
         zoomSlider.max = '100';
         zoomSlider.step = '0.01';
         zoomSlider.value = '0';
-        zoomSlider.style.flex = '1';
         zoomLabel.appendChild(zoomSlider);
 
         const actions = document.createElement('div');
-        actions.style.cssText = 'display: flex; gap: 10px;';
+        actions.className = 'banner-crop-actions';
 
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'button button-danger';
@@ -449,7 +424,7 @@
         controls.appendChild(actions);
 
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'width: 90%; max-width: 1200px; background: var(--bg); padding: 20px; border-radius: 8px; border: 1px solid var(--nav-border-color); display: flex; flex-direction: column; gap: 15px;';
+        wrapper.className = 'banner-crop-wrapper';
 
         wrapper.appendChild(title);
         wrapper.appendChild(hint);
