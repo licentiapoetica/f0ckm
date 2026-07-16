@@ -4016,6 +4016,21 @@ class CommentSystem {
 
             // ── Shared sticker hold-to-preview overlay ────────────────────────
             if (!window.stickerPreview) {
+                // ── Toast notification (singleton) ──
+                const toastEl = document.createElement('div');
+                toastEl.className = 'emoji-fav-toast';
+                document.body.appendChild(toastEl);
+                let _toastTimer = null;
+                const showToast = (msg) => {
+                    clearTimeout(_toastTimer);
+                    toastEl.textContent = msg;
+                    toastEl.classList.remove('toast-out');
+                    toastEl.classList.add('toast-in');
+                    _toastTimer = setTimeout(() => {
+                        toastEl.classList.replace('toast-in', 'toast-out');
+                    }, 2000);
+                };
+
                 const overlay = document.createElement('div');
                 overlay.className = 'sticker-preview-overlay';
                 document.body.appendChild(overlay);
@@ -4041,8 +4056,9 @@ class CommentSystem {
                                 e.stopPropagation();
                                 window._emojiPickerFavUtils.toggle(name, url);
                                 const nowFav = window._emojiPickerFavUtils.has(name);
-                                favBtn.classList.toggle('is-fav', nowFav);
-                                favBtn.innerHTML = '<i class="' + (nowFav ? 'fa-solid' : 'fa-regular') + ' fa-star"></i>';
+                                // Close preview immediately and show toast
+                                window.stickerPreview.hide();
+                                showToast(nowFav ? 'Emoji added to Favorites' : 'Emoji removed from Favorites');
                                 window._emojiPickerRefresh?.();
                             });
                             favBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); favBtn.click(); });
