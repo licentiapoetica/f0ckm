@@ -9439,8 +9439,6 @@ body.layout-legacy .comment-content img.emoji {
   height: auto;
   width: auto;
   max-width: 200px;
-  vertical-align: text-top;
-  
 }
 
 @keyframes flashGreen {
