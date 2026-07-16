@@ -609,14 +609,16 @@
         `;
     };
 
-    const renderFromCache = () => {
+    const renderFromCache = (force = false) => {
         const container = document.getElementById('sidebar-activity-container');
         if (!container || window._sidebarActivityCache.length === 0) return false;
 
         const currentIds = window._sidebarActivityCache.map(c => String(c.id)).join(',');
         // If the same comments are already rendered, leave the DOM completely untouched.
         // This keeps video stickers playing and avoids any overflow state churn.
-        if (currentIds === lastRenderedIds && container.querySelector('.comment')) {
+        // force=true bypasses this guard for cases where content changed without ID changes
+        // (e.g. emojis just loaded and need to replace raw :codes: in existing comments).
+        if (!force && currentIds === lastRenderedIds && container.querySelector('.comment')) {
             return true;
         }
         lastRenderedIds = currentIds;
@@ -845,7 +847,7 @@
         await emojiPromise;
         // If emojis were not yet available when activity first rendered, re-render now.
         if (Object.keys(customEmojis).length > 0 && window._sidebarActivityCache.length > 0) {
-            renderFromCache();
+            renderFromCache(true); // force: emojis are now loaded, content changed
         }
     };
 
@@ -903,7 +905,7 @@
         Object.assign(customEmojis, csCache);
         const hasNew = Object.keys(customEmojis).length > hadBefore;
         if (hasNew && window._sidebarActivityCache.length > 0) {
-            renderFromCache();
+            renderFromCache(true); // force: new emoji images available, re-render
         }
     });
 
