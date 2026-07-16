@@ -5802,6 +5802,16 @@ body[type='login'] {
   cursor: pointer;
   border-radius: 4px;
   box-sizing: border-box;
+  /* Suppress native mobile long-press menu (save image, copy link, etc.) */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ep-sticker-wrap img,
+.ep-sticker-wrap video {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 .ep-sticker-wrap:hover {

@@ -4022,7 +4022,9 @@ class CommentSystem {
                 let _hideTimer = null;
                 window.stickerPreview = {
                     isShowing: false,
+                    _autoHideTimer: null,
                     show(src, isVideo, name, url) {
+                        clearTimeout(this._autoHideTimer);
                         clearTimeout(_hideTimer);
                         overlay.innerHTML = '';
                         const el = isVideo ? document.createElement('video') : document.createElement('img');
@@ -4051,16 +4053,29 @@ class CommentSystem {
                         if (isVideo) el.play().catch(() => {});
                     },
                     hide() {
+                        clearTimeout(this._autoHideTimer);
+                        this._autoHideTimer = null;
                         this.isShowing = false;
                         overlay.classList.remove('visible');
                         _hideTimer = setTimeout(() => { overlay.innerHTML = ''; }, 200);
+                    },
+                    // Auto-close after delay (used on mobile so user has time to tap the fav button)
+                    scheduleHide(delay) {
+                        clearTimeout(this._autoHideTimer);
+                        this._autoHideTimer = setTimeout(() => {
+                            this._autoHideTimer = null;
+                            this.hide();
+                        }, delay);
                     }
                 };
                 // Click/tap overlay background to dismiss
                 overlay.addEventListener('click', () => window.stickerPreview.hide());
-                // Global mouseup: dismiss if released outside
+                // Desktop safety net: if mouse released outside the sticker, hide preview
+                // (skipped if a mobile scheduleHide is already pending)
                 document.addEventListener('mouseup', () => {
-                    if (window.stickerPreview.isShowing) window.stickerPreview.hide();
+                    if (window.stickerPreview?.isShowing && !window.stickerPreview._autoHideTimer) {
+                        window.stickerPreview.hide();
+                    }
                 });
             }
 
@@ -4179,15 +4194,17 @@ class CommentSystem {
                     let holdTimer = null;
                     let holdFired = false;
                     let favHoldFired = false;
-                    const startHold = () => {
+                    let isTouchHold = false;
+                    const startHold = (fromTouch) => {
                         holdFired = false;
                         favHoldFired = false;
+                        isTouchHold = !!fromTouch;
                         holdTimer = setTimeout(() => {
                             holdFired = true;
                             window.stickerPreview?.show(url, isVideo, name, url);
                         }, 400);
                     };
-                    const cancelHold = () => { clearTimeout(holdTimer); };
+                    const cancelHold = () => { clearTimeout(holdTimer); isTouchHold = false; };
                     const endHold = () => {
                         clearTimeout(holdTimer);
                         if (holdFired || favHoldFired) {
@@ -4197,16 +4214,24 @@ class CommentSystem {
                                 e.stopImmediatePropagation();
                                 e.preventDefault();
                             }, { once: true, capture: true });
+                            if (isTouchHold) {
+                                // Mobile: linger so user can tap the fav ★ button
+                                window.stickerPreview?.scheduleHide(1800);
+                            } else {
+                                window.stickerPreview?.hide();
+                            }
+                        } else {
+                            window.stickerPreview?.hide();
                         }
-                        window.stickerPreview?.hide();
+                        isTouchHold = false;
                     };
-                    media.addEventListener('mousedown', startHold);
+                    media.addEventListener('mousedown', () => startHold(false));
                     media.addEventListener('mouseup', endHold);
                     media.addEventListener('mouseleave', cancelHold);
                     media.addEventListener('mouseenter', () => {
-                        if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo);
+                        if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo, name, url);
                     });
-                    media.addEventListener('touchstart', startHold, { passive: true });
+                    media.addEventListener('touchstart', () => startHold(true), { passive: true });
                     media.addEventListener('touchend', endHold);
                     media.addEventListener('touchcancel', endHold);
                     // Right-click (desktop) → favorites; suppressed on mobile when hold gesture is active
