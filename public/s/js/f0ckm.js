@@ -10361,6 +10361,28 @@ document.addEventListener('click', (e) => {
         }
     }, true);
   
+    // YouTube client-side oEmbed: fetch directly from the browser (avoids Tor consent walls),
+    // then push to server cache so sidebar/other users benefit.
+    const _tryYtOembed = async (ytUrl) => {
+        try {
+            const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`);
+            if (!r.ok) return null;
+            const d = await r.json();
+            if (!d.title) return null;
+            const meta = { title: d.title, site_name: 'youtube.com', author: d.author_name || 'Unknown' };
+            // Fire-and-forget push to server cache
+            try {
+                const csrf = window.f0ckSession?.csrf_token;
+                fetch('/api/v2/meta/cache', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+                    body: JSON.stringify({ url: ytUrl, meta })
+                }).catch(() => {});
+            } catch (_) {}
+            return { success: true, fields: [meta.title, meta.author].filter(Boolean) };
+        } catch (_) { return null; }
+    };
+
     // Retroactive Metadata Extraction Logic
     document.addEventListener('click', async (e) => {
         const metaBtn = e.target.closest('#a_metadata');
@@ -10429,12 +10451,15 @@ document.addEventListener('click', (e) => {
                 try {
                     let resp, data;
                     if (newYtSrc) {
-                        resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(newYtSrc)}`);
-                        const raw = await resp.json();
-                        // Normalise oEmbed response into the same {success, fields} shape
-                        data = raw.success
-                            ? { success: true, fields: [raw.meta.title, raw.meta.author].filter(Boolean) }
-                            : raw;
+                        // Try client-side oEmbed first (avoids Tor consent walls)
+                        data = await _tryYtOembed(newYtSrc);
+                        if (!data) {
+                            resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(newYtSrc)}`);
+                            const raw = await resp.json();
+                            data = raw.success
+                                ? { success: true, fields: [raw.meta.title, raw.meta.author].filter(Boolean) }
+                                : raw;
+                        }
                     } else {
                         resp = await fetch(`/api/v2/meta/extract/item/${newItemId}`);
                         data = await resp.json();
@@ -10533,12 +10558,15 @@ document.addEventListener('click', (e) => {
             try {
                 let resp, data;
                 if (ytSrc) {
-                    // YouTube item: use oEmbed via the URL-based fetch endpoint
-                    resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(ytSrc)}`);
-                    const raw = await resp.json();
-                    data = raw.success
-                        ? { success: true, fields: [raw.meta.title, raw.meta.author].filter(Boolean) }
-                        : raw;
+                    // Try client-side oEmbed first (avoids Tor consent walls)
+                    data = await _tryYtOembed(ytSrc);
+                    if (!data) {
+                        resp = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(ytSrc)}`);
+                        const raw = await resp.json();
+                        data = raw.success
+                            ? { success: true, fields: [raw.meta.title, raw.meta.author].filter(Boolean) }
+                            : raw;
+                    }
                 } else {
                     resp = await fetch(`/api/v2/meta/extract/item/${itemid}`);
                     data = await resp.json();
