@@ -6027,6 +6027,26 @@ body[type='login'] {
   background: rgba(245,197,24,0.1);
 }
 
+/* Subtle dot indicator when fav tab is set as default */
+.ep-tab-default::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--emoji-fav-color, #f5c518);
+  opacity: 0.7;
+}
+.ep-tab-default {
+  position: relative;
+}
+.ep-tab-default.active::after {
+  display: none; /* hide dot when the tab is actively selected — border is enough */
+}
+
 .ep-tab img,
 .ep-tab video,
 .ep-tab i {

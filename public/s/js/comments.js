@@ -4144,6 +4144,8 @@ class CommentSystem {
                         }, delay);
                     }
                 };
+                // Expose showToast so fav-tab right-click can use it
+                window._showEmojiToast = showToast;
                 // Click/tap overlay background to dismiss
                 overlay.addEventListener('click', () => window.stickerPreview.hide());
                 // Desktop safety net: if mouse released outside the sticker, hide preview
@@ -4447,6 +4449,27 @@ class CommentSystem {
                 favTab.addEventListener('mousedown', e => e.preventDefault());
                 favTab.addEventListener('click', () => showTab('__favs__'));
                 addTabTouch(favTab, () => showTab('__favs__'));
+                // Right-click on fav tab → set/unset as default
+                favTab.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (navigator.maxTouchPoints > 0) return;
+                    const KEY = 'f0ck_emoji_default_tab';
+                    const isDefault = localStorage.getItem(KEY) === '__favs__';
+                    if (isDefault) {
+                        localStorage.removeItem(KEY);
+                        favTab.classList.remove('ep-tab-default');
+                        window._showEmojiToast?.('Favorites unset as default tab');
+                    } else {
+                        localStorage.setItem(KEY, '__favs__');
+                        favTab.classList.add('ep-tab-default');
+                        window._showEmojiToast?.('Favorites set as default tab');
+                    }
+                });
+                // Mark as default if already set
+                if (localStorage.getItem('f0ck_emoji_default_tab') === '__favs__') {
+                    favTab.classList.add('ep-tab-default');
+                }
                 tabBar.appendChild(favTab);
 
                 packs.forEach((pack, i) => {
@@ -4476,8 +4499,9 @@ class CommentSystem {
                 picker.appendChild(tabBar);
                 picker.appendChild(gridArea);
 
-                // Show first pack by default
-                showTab(packs[0]?.id ?? null);
+                // Show default tab (favorites if set, otherwise first pack)
+                const defaultTab = localStorage.getItem('f0ck_emoji_default_tab');
+                showTab(defaultTab === '__favs__' ? '__favs__' : (packs[0]?.id ?? null));
             };
 
             // Helper: close picker with the out-animation, then hide

@@ -1978,6 +1978,27 @@ if (window.__dmLoaded) {
             favsTab.innerHTML = '<i class="fa-solid fa-star" style="font-size:14px;color:var(--emoji-fav-color,#f5c518);"></i>';
             favsTab.addEventListener('mousedown', e => e.preventDefault());
             favsTab.addEventListener('click', () => showDmTab('__favs__', packs));
+            // Right-click on fav tab → set/unset as default
+            favsTab.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (navigator.maxTouchPoints > 0) return;
+                const KEY = 'f0ck_emoji_default_tab';
+                const isDefault = localStorage.getItem(KEY) === '__favs__';
+                if (isDefault) {
+                    localStorage.removeItem(KEY);
+                    favsTab.classList.remove('ep-tab-default');
+                    window._showEmojiToast?.('Favorites unset as default tab');
+                } else {
+                    localStorage.setItem(KEY, '__favs__');
+                    favsTab.classList.add('ep-tab-default');
+                    window._showEmojiToast?.('Favorites set as default tab');
+                }
+            });
+            // Mark as default if already set
+            if (localStorage.getItem('f0ck_emoji_default_tab') === '__favs__') {
+                favsTab.classList.add('ep-tab-default');
+            }
             dmTabBar.appendChild(favsTab);
 
             // ── Pack tabs ──
@@ -2005,7 +2026,9 @@ if (window.__dmLoaded) {
 
             picker.appendChild(dmTabBar);
             picker.appendChild(dmGridArea);
-            showDmTab(packs[0]?.id ?? null, packs);
+            // Show default tab (favorites if set, otherwise first pack)
+            const defaultTab = localStorage.getItem('f0ck_emoji_default_tab');
+            showDmTab(defaultTab === '__favs__' ? '__favs__' : (packs[0]?.id ?? null), packs);
 
             // Expose refresh hook so syncFromDB can update the open favs tab
             window._emojiPickerRefresh = () => {
