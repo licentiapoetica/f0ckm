@@ -9352,6 +9352,8 @@ body.layout-legacy .comment-content img.emoji {
 
 .motd-content {
   line-height: 1.4;
+  display: inline-block;
+  min-height: 1.4em;
   /* padding: 0 30px 0 10px; */
   /* Space for X button */
 }
@@ -11682,7 +11684,7 @@ body.layout-modern .tag-ac-input {
 }
 
 #upload-drag-modal .modal-content {
-  background: var(--shade1, #111);
+  background: var(--bg);
   border: 1px solid var(--shade3, #333);
   padding: 0;
   width: 900px;
