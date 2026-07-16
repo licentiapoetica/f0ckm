@@ -4836,7 +4836,7 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
   (min-resolution: 1.26dppx) and (max-resolution: 1.38dppx) and (min-width: 700px) {
     
     body.layout-legacy .embed-responsive-16by9::before {
-      padding-top: 46.25%;
+      padding-top: 41.25%;
     }
 
     body.layout-modern .embed-responsive-16by9::before {
@@ -4848,7 +4848,7 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
     }
       
     body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-      padding-top: 46.25%;
+      padding-top: 41.25%;
     }
 
     body.layout-legacy .scroll-nav-wrapper {
@@ -4915,7 +4915,7 @@ html[data-dpr="dpr-120"] body.layout-legacy.sidebar-right-hidden .embed-responsi
 
 /* ~126–138% zoom */
 html[data-dpr="dpr-130"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 46.25%;
 }
 html[data-dpr="dpr-130"] body.layout-modern .embed-responsive-16by9::before {
   padding-top: 41.25%;
@@ -4924,15 +4924,15 @@ html[data-dpr="dpr-130"] body.layout-modern.sidebar-right-hidden .embed-responsi
   padding-top: 41.25%;
 }
 html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 46.25%;
 }
 
 /* ~139–154% zoom (the 150% tier) */
 html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 45.25%;
 }
 html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 45.25%;
 }
 
 /* ≥155% zoom (high DPR — covers fractional scaling + zoom combos) */
