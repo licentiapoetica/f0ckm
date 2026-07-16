@@ -1898,6 +1898,12 @@ body.layout-modern .global-sidebar-right {
     max-width: 100%;
   }
 
+  body.layout-legacy .item-layout-container .item-main-content .item_title {
+    align-self: center;
+    width: 800px;
+    max-width: 100%;
+  }
+
   body.layout-legacy .item-layout-container #comments-container {
     width: 800px;
     max-width: 100%;
@@ -4941,6 +4947,106 @@ html[data-dpr="dpr-high"] body.layout-legacy .embed-responsive-16by9::before {
 }
 html[data-dpr="dpr-high"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
   padding-top: 41.25%;
+}
+
+/* ─── Large / Ultrawide display overrides ─── */
+/* On wider screens the %-based padding creates too much vertical space.    */
+/* These kick in based on effective CSS viewport width (works in all browsers). */
+
+/* ── 1440p-class displays (viewport ≥ 2000px) ── */
+@media (min-width: 2000px) {
+  body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+}
+
+/* 1440p at 110% zoom */
+@media (min-width: 2000px) and (max-width: 2499px) and (min-resolution: 1.05dppx) {
+  body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+}
+html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
+  /* Firefox 110% on 1440p handled below via data-screen */
+}
+
+/* ── QHD ultrawide range (viewport ≥ 2500px) ── */
+@media (min-width: 2500px) {
+  body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+}
+
+/* ── Full ultrawide at 100% zoom (viewport ≥ 3000px) ── */
+@media (min-width: 3000px) {
+  body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+}
+
+/* Ultrawide + zoomed in (still wide enough to need reduction) */
+@media (min-width: 2000px) and (min-resolution: 1.39dppx) {
+  body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+}
+
+/* Firefox DPR fallbacks for large screens — combine data-dpr + min-width */
+@media (min-width: 2000px) {
+  html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-110"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-120"] body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-120"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-130"] body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-high"] body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-high"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+}
+
+@media (min-width: 3000px) {
+  html[data-dpr="dpr-1x"] body.layout-legacy .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
+  html[data-dpr="dpr-1x"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+    padding-top: 52.25%;
+  }
 }
 
 .embed-responsive-4by3::before {
