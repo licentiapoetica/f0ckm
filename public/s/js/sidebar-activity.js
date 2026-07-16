@@ -546,10 +546,12 @@
             const isExpanded = container.classList.contains('expanded');
             const scrollHeight = inner.scrollHeight;
             const clientHeight = inner.clientHeight;
-            // Check for images that haven't finished loading yet — their height is 0,
-            // which makes content appear shorter than it will actually be after load.
-            const hasUnloadedImages = Array.from(inner.querySelectorAll('img:not(.emoji)')).some(
-                img => !img.complete || img.naturalHeight === 0
+            const hasUnloadedImages = Array.from(inner.querySelectorAll('img:not(.emoji), video')).some(
+                media => {
+                    if (media.tagName === 'IMG') return !media.complete;
+                    if (media.tagName === 'VIDEO') return media.readyState < 1; // HAVE_METADATA
+                    return false;
+                }
             );
 
             results.push({
@@ -599,8 +601,16 @@
 
             const inner = media.closest('.comment-content-inner');
             if (inner) {
-                media.addEventListener('load', () => checkOverflow(inner), { once: true });
-                media.addEventListener('loadedmetadata', () => checkOverflow(inner), { once: true });
+                const handler = () => checkOverflow(inner);
+                media.addEventListener('load', handler, { once: true });
+                media.addEventListener('error', handler, { once: true });
+                media.addEventListener('loadedmetadata', handler, { once: true });
+                
+                // Also use ResizeObserver to catch layout changes (e.g. cached image layout deferred)
+                if (window.ResizeObserver) {
+                    const ro = new ResizeObserver(() => checkOverflow(inner));
+                    ro.observe(media);
+                }
             }
         });
     };

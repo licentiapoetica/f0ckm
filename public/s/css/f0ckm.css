@@ -3732,8 +3732,8 @@ html[theme='f0ck95d'] {
 
 html[theme="f0ck95d"] .item_title {
   background: black;
-  border-left: inset 2px silver;
-  border-right: outset 2px silver;
+  border-left: inset 3px silver;
+  border-right: outset 3px silver;
 }
 
 html[theme="f0ck95d"] .err {
@@ -3814,11 +3814,6 @@ html[theme="f0ck95d"] .metadata {
   border-right: outset 1px silver;
   border-top: inset 2px silver;
   color: var(--accent);
-}
-
-html[theme="f0ck95d"] .media-object {
-  border-left: inset 1px silver;
-  border-right: outset 1px silver;
 }
 
 html[theme="f0ck95d"] span.placeholder {
