@@ -104,8 +104,19 @@
                             </div>
                             <span class="user-infobox-timestamp"><a href="/{{ item.id }}" class="timestamp-link"><time class="timeago" tooltip="{{ item.timestamp.timefull }}">{{item.timestamp.timeago }}</time></a></span>
                         </div>
-                        <div class="user-infobox-description">
-                            {!! item.author_description || '' !!}
+                        <div class="user-infobox-body">
+                            <div class="user-infobox-description">
+                                {!! item.author_description || '' !!}
+                            </div>
+                            @if(session)
+                            <div class="user-infobox-actions">
+                                @if(user_has_favorited)
+                                <i class="iconset fa-solid fa-heart" id="a_favo" title="Favorite"></i>
+                                @else
+                                <i class="iconset fa-regular fa-heart" id="a_favo" title="Favorite"></i>
+                                @endif
+                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -127,10 +138,12 @@
 
                 <div class="gapRight">
                     @if(session)
+                    @if(!user_alternative_infobox)
                     @if(user_has_favorited)
                     <i class="iconset fa-solid fa-heart" id="a_favo" title="Favorite"></i>
                     @else
                     <i class="iconset fa-regular fa-heart" id="a_favo" title="Favorite"></i>
+                    @endif
                     @endif
                     <i class="iconset fa-solid fa-circle-info" id="a_info" data-item-id="{{ item.id }}" title="{{ t('info_modal.button_title') || 'Post & File Info' }}"></i>
                     <i class="iconset {{ isSubscribed ? 'fa-solid' : 'fa-regular' }} fa-bell" id="subscribe-btn" data-item-id="{{ item.id }}" title="{{ isSubscribed ? 'Subscribed' : 'Subscribe' }}"></i>

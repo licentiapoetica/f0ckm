@@ -72,10 +72,6 @@ html[theme="f0ck"] .pagination>span {
   border-radius: 3px;
 }
 
-html[theme="f0ck"] span#favs {
-  border: 1px solid var(--black);
-}
-
 html[theme='p1nk'] {
   --accent: #ff00d0;
   --accent-rgb: 255, 0, 208;
@@ -135,10 +131,6 @@ html[theme="p1nk"] .pagination>span {
   border-radius: 3px;
 }
 
-html[theme="p1nk"] span#favs {
-  border: 1px solid var(--black);
-}
-
 html[theme='orange'] {
   --accent: #ff6f00;
   --accent-rgb: 255, 111, 0;
@@ -195,11 +187,6 @@ html[theme="orange"] .pagination>a,
 
 html[theme="orange"] .pagination>span {
   border-radius: 3px;
-}
-
-html[theme="orange"] span#favs {
-  border: 1px solid var(--black);
-  user-select: none;
 }
 
 html[theme='amoled'] {
@@ -268,10 +255,6 @@ html[theme="amoled"] .pagination>a,
 
 html[theme="amoled"] .pagination>span {
   border-radius: 3px;
-}
-
-html[theme="amoled"] span#favs {
-  border: 1px solid var(--black);
 }
 
 html[theme="amoled"] .admin-search button {
@@ -370,10 +353,6 @@ html[theme="paper"] .pagination>span {
   border-radius: 3px;
 }
 
-html[theme="paper"] span#favs {
-  border: 1px solid var(--black);
-}
-
 html[theme="paper"] body {
   color: var(--black);
 }
@@ -453,10 +432,6 @@ html[theme="paper"] .v0ck_player_button svg:hover {
 html[theme="paper"] .badge-dark,
 #themeselector {
   box-shadow: 1px 1px 0px 0px var(--black);
-}
-
-html[theme="paper"] span#favs {
-  border: 1px solid var(--white);
 }
 
 html[theme="paper"] .admin-search button {
@@ -550,10 +525,6 @@ html[theme="atmos"] .pagination>span {
   border-radius: 3px;
 }
 
-html[theme="atmos"] span#favs {
-  border: 1px solid var(--black);
-}
-
 html[theme="term"] {
   --accent: #00DF00;
   --accent-rgb: 0, 223, 0;
@@ -615,7 +586,6 @@ html[theme="term"] .pagination>span {
 html[theme="term"] span#favs {
   box-shadow: var(--pagination-anchor-box-shadow);
   background-image: linear-gradient(to bottom, var(--nav-link-background-linear-gradient));
-  border: 1px solid var(--black);
 }
 
 html[theme="term"] .metadata {
@@ -706,10 +676,6 @@ html[theme="iced"] .pagination>span {
   border-radius: 3px;
 }
 
-html[theme="iced"] span#favs {
-  border: 1px solid var(--black);
-}
-
 html[theme="iced"] .navbar-brand:hover {
   background: #1d2941;
 }
@@ -770,10 +736,6 @@ body {
 
 html[theme="f0ck95"] a {
   color: var(--black);
-}
-
-html[theme="f0ck95"] span#favs {
-  border: inset 1px gray;
 }
 
 html[theme="f0ck95"] .embed-responsive-image {
@@ -1796,6 +1758,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     max-width: 100%;
     margin: 5px 0 0 0;
     z-index: 10;
+    border: none;
   }
 
   /* Sidebar toggle: hide left sidebar (e.g. keybind toggle) */
@@ -2905,6 +2868,8 @@ body.layout-legacy .comments-list {
 
 body.layout-legacy .blahlol {
   background: var(--bg);
+  border-left: 1px solid var(--nav-border-color);
+  border-right: 1px solid var(--nav-border-color);
 }
 
 body.layout-legacy .comments-list:not(:has(.comment)) {
@@ -6906,8 +6871,8 @@ span#favs {
   margin-left: 0;
   grid-column: 1/4;
   padding: 5px;
-  margin: 5px;
   background: var(--badge-bg);
+  border-top: 1px solid var(--nav-border-color);
 }
 
 #favs>a img {
@@ -9425,7 +9390,6 @@ html[theme="f0ck95d"] .badge-dark {
 
 span#favs {
   background: transparent !important;
-  border: none !important;
 }
 
 .badge-dark,
@@ -13715,6 +13679,25 @@ textarea#profile_description {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--nav-border-color);
+}
+
+.user-infobox-actions i {
+    background: none;
+    border: none;
+    font-size: 20px;
+    align-self: baseline;
+    margin: 0px 5px 0px 0px;
+    padding: 0;
+    top: 0;
+    right: 0;
+    color: var(--accent);
+}
+
+.user-infobox-actions > i:hover {
+    background: none !important;
+    transform: scale(1.1);
 }
 
 .user-infobox-username {
@@ -13746,8 +13729,18 @@ textarea#profile_description {
   line-height: 1.5;
   color: #ccc;
   text-align: left;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.user-infobox-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+
+.user-infobox-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* =============================================
