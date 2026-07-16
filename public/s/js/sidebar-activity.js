@@ -634,14 +634,20 @@
             container.appendChild(ioSentinel);
         }
         attachMediaLoadListeners(container);
-        // has-overflow is set by default in the HTML template so all comments start clamped.
-        // Sync checkOverflow immediately cleans up short text-only comments.
-        // The hasUnloadedImages guard prevents flicker by not removing has-overflow from image
-        // comments whose images haven't loaded yet.
-        checkOverflow();
-        // After 1s, re-check everything — by then even slow ctrl+F5 images will have loaded
-        // and been laid out, so scrollHeight is accurate for all image comments.
-        setTimeout(checkOverflow, 1000);
+        // has-overflow is set by default in the HTML template so all comments start
+        // clamped with the "read more" button visible.  We must NOT run checkOverflow
+        // synchronously here — the browser has not yet laid out the freshly injected
+        // innerHTML, so scrollHeight / clientHeight are 0 and checkOverflow would
+        // incorrectly hide every button.  Instead we defer to after the first layout
+        // frame so measurements are accurate and short comments get their buttons
+        // removed while long comments keep them visible from the very first paint.
+        requestAnimationFrame(() => {
+            checkOverflow();
+            // After 1s, re-check everything — by then even slow ctrl+F5 images will
+            // have loaded and been laid out, so scrollHeight is accurate for all
+            // image comments.
+            setTimeout(checkOverflow, 1000);
+        });
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
@@ -761,13 +767,16 @@
 
                     addedNodes.forEach(node => {
                         attachMediaLoadListeners(node);
-                        checkOverflow(node);
                         fetchSidebarYoutubeTitles(node);
                         playSidebarEmojiVideos(node);
                     });
-                    // Deferred re-check for image comments — mirrors renderFromCache behaviour.
-                    // Images in newly appended nodes may not be laid out yet at append time.
-                    setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 1000);
+                    // Defer overflow checks to after layout so measurements are accurate.
+                    requestAnimationFrame(() => {
+                        addedNodes.forEach(node => checkOverflow(node));
+                        // Deferred re-check for image comments — mirrors renderFromCache behaviour.
+                        // Images in newly appended nodes may not be laid out yet at append time.
+                        setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 1000);
+                    });
                     // Auto-play converted GIF videos and webm emoji stickers
                     container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
                 }
@@ -832,7 +841,7 @@
                 node.classList.add('new-item-fade');
                 container.prepend(node);
                 attachMediaLoadListeners(node);
-                checkOverflow(node);
+                requestAnimationFrame(() => checkOverflow(node));
                 fetchSidebarYoutubeTitles(container);
                 playSidebarEmojiVideos(node);
             }
@@ -884,7 +893,7 @@
                     void el.offsetWidth;
                     el.classList.add('new-item-fade');
                     attachMediaLoadListeners(inner);
-                    checkOverflow(inner);
+                    requestAnimationFrame(() => checkOverflow(inner));
                     fetchSidebarYoutubeTitles(el);
                     // Auto-play converted GIF videos
                     inner.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
