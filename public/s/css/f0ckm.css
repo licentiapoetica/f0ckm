@@ -6011,6 +6011,11 @@ video.emoji {
   transition: text-shadow 0.2s;
 }
 
+button.emoji-trigger:hover i {
+    color: var(--accent);
+    transition: .5s ease;
+}
+
 .spoiler-trigger {
   background: black;
   border: none;
