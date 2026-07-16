@@ -533,7 +533,7 @@ class Danmaku {
             const raw = msg.dataset.rawText;
             if (!raw) return;
             // Only re-render if the content is still plain text (no img children)
-            if (!msg.querySelector('img.dpill-emoji')) {
+            if (!msg.querySelector('.dpill-emoji')) {
                 msg.textContent = '';
                 msg.appendChild(this._renderContent(raw));
             }
@@ -600,11 +600,25 @@ class Danmaku {
                 const code = match[3];
                 const url  = emojiCache[code];
                 if (url) {
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = `:${code}:`;
-                    img.className = 'dpill-emoji';
-                    parent.appendChild(img);
+                    if (url.endsWith('.webm')) {
+                        const vid = document.createElement('video');
+                        vid.src = url;
+                        vid.className = 'dpill-emoji';
+                        vid.muted = true;
+                        vid.loop = true;
+                        vid.autoplay = true;
+                        vid.playsInline = true;
+                        vid.play().catch(() => {
+                            vid.addEventListener('canplay', () => vid.play().catch(() => {}), { once: true });
+                        });
+                        parent.appendChild(vid);
+                    } else {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = `:${code}:`;
+                        img.className = 'dpill-emoji';
+                        parent.appendChild(img);
+                    }
                 } else {
                     parent.appendChild(document.createTextNode(match[0]));
                 }

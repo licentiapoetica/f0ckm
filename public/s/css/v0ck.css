@@ -432,8 +432,9 @@
   padding: 0 3px;
   text-shadow: none;
 }
-/* Hide images (emojis, inline imgs) inside unrevealed spoiler */
-.danmaku-pill .dpill-spoiler img {
+/* Hide images/videos (emojis, inline imgs, webm stickers) inside unrevealed spoiler */
+.danmaku-pill .dpill-spoiler img,
+.danmaku-pill .dpill-spoiler video {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -446,7 +447,9 @@
     -1px  1px 0 #000, 1px  1px 0 #000;
 }
 .danmaku-pill .dpill-spoiler:hover img,
-.danmaku-pill .dpill-spoiler.revealed img {
+.danmaku-pill .dpill-spoiler.revealed img,
+.danmaku-pill .dpill-spoiler:hover video,
+.danmaku-pill .dpill-spoiler.revealed video {
   opacity: 1;
 }
 
