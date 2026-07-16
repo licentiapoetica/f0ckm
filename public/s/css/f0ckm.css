@@ -4896,10 +4896,10 @@ html[data-dpr="dpr-110"] body.layout-modern .embed-responsive-16by9::before {
   padding-top: 46.25%;
 }
 html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 46.25%;
+  padding-top: 52.25%;
 }
 html[data-dpr="dpr-110"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 46.25%;
+  padding-top: 52.25%;
 }
 
 /* ~120–125% zoom */
@@ -4907,15 +4907,15 @@ html[data-dpr="dpr-120"] body.layout-modern .embed-responsive-16by9::before {
   padding-top: 41.25%;
 }
 html[data-dpr="dpr-120"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 52.25%;
 }
 html[data-dpr="dpr-120"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 52.25%;
 }
 
 /* ~126–138% zoom */
 html[data-dpr="dpr-130"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 46.25%;
+  padding-top: 52.25%;
 }
 html[data-dpr="dpr-130"] body.layout-modern .embed-responsive-16by9::before {
   padding-top: 41.25%;
@@ -4924,7 +4924,7 @@ html[data-dpr="dpr-130"] body.layout-modern.sidebar-right-hidden .embed-responsi
   padding-top: 41.25%;
 }
 html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 46.25%;
+  padding-top: 52.25%;
 }
 
 /* ~139–154% zoom (the 150% tier) */
