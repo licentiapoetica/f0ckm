@@ -193,6 +193,14 @@ export const handleBannerUpload = async (req, res) => {
                     banner_size = ${parts.banner_size || 'cover'}
                 where user_id = ${+req.session.id}
             `;
+            const payloadStr = JSON.stringify({
+                user_id: +req.session.id,
+                user: req.session.user,
+                banner_file: finalFilename,
+                banner_position: parts.banner_position || 'center',
+                banner_size: parts.banner_size || 'cover'
+            });
+            await db`select pg_notify('profile_update', ${payloadStr})`;
         } catch (dbErr) {
             console.error('[BANNER HANDLER] DB update failed:', dbErr.message);
             await fs.unlink(finalPath).catch(() => {});
@@ -265,6 +273,12 @@ export const handleBannerDelete = async (req, res) => {
             set banner_file = null
             where user_id = ${+req.session.id}
         `;
+        const payloadStr = JSON.stringify({
+            user_id: +req.session.id,
+            user: req.session.user,
+            banner_file: null
+        });
+        await db`select pg_notify('profile_update', ${payloadStr})`;
 
         console.log('[BANNER HANDLER] Delete complete');
         return sendJson(res, { success: true, msg: 'Custom banner removed' }, 200);

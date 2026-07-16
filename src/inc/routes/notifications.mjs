@@ -94,6 +94,17 @@ db.listen('profile_update', (payload) => {
                 if (data.do_not_disturb !== undefined) client.do_not_disturb = data.do_not_disturb;
                 
                 client.send({ type: 'profile_update', data });
+            } else {
+                // For other users, only send public profile fields (so their DOM can live-update)
+                const publicData = {
+                    user_id: data.user_id,
+                    user: data.user,
+                    display_name: data.display_name,
+                    banner_file: data.banner_file,
+                    banner_position: data.banner_position,
+                    banner_size: data.banner_size
+                };
+                client.send({ type: 'profile_update', data: publicData });
             }
         }
     } catch (e) {

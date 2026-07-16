@@ -7306,8 +7306,11 @@ class NotificationSystem {
             }
           }
         } else if (data.type === 'profile_update') {
-          const { display_name, user } = data.data;
-          this.applyDisplayNameUpdate(display_name, user);
+          const { display_name, user, banner_file, banner_position, banner_size } = data.data;
+          if (display_name !== undefined) this.applyDisplayNameUpdate(display_name, user);
+          if (banner_file !== undefined || banner_position !== undefined || banner_size !== undefined) {
+            this.applyBannerUpdate(banner_file, banner_position, banner_size, user);
+          }
           // Sync preferences to global session object for client-side gating (like DND)
           if (window.f0ckSession && data.data.user_id === window.f0ckSession.id) {
             for (const key in data.data) {
@@ -7363,6 +7366,34 @@ class NotificationSystem {
             el.setAttribute('data-user', display_name || userName);
           }
         });
+      }
+    };
+
+    // Helper: apply banner update to relevant DOM nodes
+    this.applyBannerUpdate = (banner_file, banner_position, banner_size, user) => {
+      const userName = user || window.f0ckSession?.user;
+      if (!userName) return;
+
+      const setBannerStyle = (el) => {
+        if (banner_file) {
+          el.style.setProperty('--author-banner', `url('/a/${banner_file}?t=${Date.now()}')`);
+          el.style.setProperty('--author-banner-position', banner_position || 'center');
+          el.style.setProperty('--author-banner-size', banner_size || 'cover');
+        } else {
+          el.style.removeProperty('--author-banner');
+          el.style.removeProperty('--author-banner-position');
+          el.style.removeProperty('--author-banner-size');
+        }
+      };
+
+      document.querySelectorAll(`.profile_head[data-banner-user="${userName}"], .user-infobox-block[data-banner-user="${userName}"]`).forEach(el => {
+        setBannerStyle(el);
+      });
+
+      // Special case for settings page preview block
+      if (window.f0ckSession && userName === window.f0ckSession.user) {
+        const previewBlock = document.getElementById('live-profile-preview-box');
+        if (previewBlock) setBannerStyle(previewBlock);
       }
     };
 
