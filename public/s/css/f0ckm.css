@@ -13926,6 +13926,7 @@ textarea#profile_description {
     padding: 0;
     top: 2px;
     right: 0;
+    left: 5px;
     color: var(--accent);
     text-shadow: 0px 0px 5px black;
 }
