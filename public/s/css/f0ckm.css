@@ -9156,7 +9156,6 @@ span.badge.badge-current {
 .sidebar-comment-img.emoji {
   width: auto;
   max-width: 200px !important;
-  vertical-align: middle;
   object-fit: contain;
 }
 
