@@ -98,6 +98,47 @@ export default async bot => {
                  if (replyLinks) links.push(...replyLinks);
              }
         }
+
+        // Telegram: reply to a media message with !w
+        if (e.type === 'tg' && e.raw?.reply_to_message) {
+          const replied = e.raw.reply_to_message;
+          console.log(`[PARSER DEBUG] TG reply_to_message keys: ${Object.keys(replied).join(', ')}`);
+
+          // Try to resolve a media file from the replied-to message
+          const allowedTgKeys = ['video', 'audio', 'photo', 'document', 'animation', 'voice', 'video_note'];
+          const mediaKey = Object.keys(replied).find(k => allowedTgKeys.includes(k));
+
+          if (mediaKey) {
+            try {
+              // Get the TG client instance to call getFile()
+              const tgWrapper = bot.bot?.clients?.find(c => c.type === 'tg');
+              const tgClient = tgWrapper?.client;
+              if (!tgClient) throw new Error('TG client not available');
+
+              let mediaObj = replied[mediaKey];
+              // photo is an array — pick the largest (last)
+              if (mediaKey === 'photo') mediaObj = mediaObj[mediaObj.length - 1];
+
+              const fileUrl = await tgClient.getFile(mediaObj.file_id);
+              if (fileUrl) {
+                console.log(`[PARSER] TG reply media resolved: ${fileUrl}`);
+                links.push(fileUrl);
+              } else {
+                await e.reply('Could not resolve the replied-to file. It may be too large (>20MB) for the Telegram Bot API.');
+                return false;
+              }
+            } catch (err) {
+              console.error('[PARSER] TG reply getFile error:', err);
+              await e.reply('Failed to fetch the replied-to media file.');
+              return false;
+            }
+          } else if (replied.text || replied.caption) {
+            // No media — extract any URLs from replied-to text
+            const replyText = replied.text || replied.caption || '';
+            const replyLinks = replyText.match(regex.all)?.filter(l => !l.includes(cfg.main.url.domain));
+            if (replyLinks?.length) links.push(...replyLinks);
+          }
+        }
       }
 
       console.log(`[PARSER DEBUG] Final links count: ${links.length}`, links);
