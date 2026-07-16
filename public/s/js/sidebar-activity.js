@@ -154,7 +154,7 @@
             const domainOrRelative = `(?:(?:https?:\\/\\/|\\/\\/)?(?:${hostsRegexPart})|(?:(?<!\\S)|(?<=\\]))(?=\\/[a-zA-Z0-9_\\-]))`;
             const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?))(?![\\)\\]])`, 'gi');
             const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))`, 'gi');
-            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]\(\/user\/([^)]+)\)|\[@([^\]]+)\]/g;
 
             const renderer = new marked.Renderer();
             renderer.blockquote = function (quote) {
@@ -245,9 +245,13 @@
                 let processedLine = line;
 
                 // Handle Mentions
-                processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
-                    const user = g1 || g2;
-                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                const mentionStore = [];
+                processedLine = processedLine.replace(mentionRegex, (match, g1, g2, g3, g4) => {
+                    const user = g1 || g2 || g4;
+                    const html = `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                    const idx = mentionStore.length;
+                    mentionStore.push(html);
+                    return `\x02MNT${idx}\x03`;
                 });
 
                 // Handle Comment Context Links (>>ID)
@@ -293,6 +297,9 @@
                 mdSafe = mdSafe.replace(/\x02MDURL(\d+)\x03/g, (_, i) => mdProtected[+i]);
 
                 let rendered = marked.parseInline ? marked.parseInline(mdSafe, { renderer: renderer }) : marked.parse(mdSafe, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+
+                // Restore Mentions
+                rendered = rendered.replace(/\x02MNT(\d+)\x03/g, (_, i) => mentionStore[+i]);
 
                 // Render emojis ONLY if this is NOT a quote line OR if the user prefers it
                 const quoteEmojis = window.f0ckSession?.quote_emojis === true;

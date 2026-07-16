@@ -221,7 +221,7 @@ if (!window.UserCommentSystem) {
             let escaped = this.escapeHtml(content).replace(/&gt;/g, ">");
 
             // 2. Mentions
-            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]\(\/user\/([^)]+)\)|\[@([^\]]+)\]/g;
 
             const siteOrigin = window.location.origin;
             const renderer = new marked.Renderer();
@@ -301,9 +301,13 @@ if (!window.UserCommentSystem) {
                 let processedLine = line;
 
                 // Handle Mentions
-                processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
-                    const user = g1 || g2;
-                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                const mentionStore = [];
+                processedLine = processedLine.replace(mentionRegex, (match, g1, g2, g3, g4) => {
+                    const user = g1 || g2 || g4;
+                    const html = `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                    const idx = mentionStore.length;
+                    mentionStore.push(html);
+                    return `\x02MNT${idx}\x03`;
                 });
 
                 // Handle Comment Context Links (>>ID)
@@ -336,6 +340,9 @@ if (!window.UserCommentSystem) {
 
                 const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
                 let rendered = marked.parseInline ? marked.parseInline(escapedAsterisks, { renderer: renderer }) : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+                
+                // Restore Mentions
+                rendered = rendered.replace(/\x02MNT(\d+)\x03/g, (_, i) => mentionStore[+i]);
                 
                 // Render emojis ONLY if this is NOT a quote line OR if the user prefers it
                 const quoteEmojis = window.f0ckSession?.quote_emojis === true;

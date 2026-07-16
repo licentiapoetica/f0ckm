@@ -640,7 +640,7 @@ if (window.__dmLoaded) {
             let escaped = escHtml(normalized).replace(/&gt;/g, ">");
 
             // 3. Mentions
-            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]\(\/user\/([^)]+)\)|\[@([^\]]+)\]/g;
 
             const siteOrigin = window.location.origin;
             const renderer = new marked.Renderer();
@@ -719,9 +719,13 @@ if (window.__dmLoaded) {
                 if (line.length > 10000) return line;
                 if (!line.trim()) return '&nbsp;';
 
-                let processedLine = line.replace(mentionRegex, (match, g1, g2) => {
-                    const user = g1 || g2;
-                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                const mentionStore = [];
+                let processedLine = line.replace(mentionRegex, (match, g1, g2, g3, g4) => {
+                    const user = g1 || g2 || g4;
+                    const html = `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                    const idx = mentionStore.length;
+                    mentionStore.push(html);
+                    return `\x02MNT${idx}\x03`;
                 });
                 
                 const escapedSiteHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -734,6 +738,9 @@ if (window.__dmLoaded) {
                 
                 const escapedAsterisks = processedLine.replace(/\*/g, '\\*');
                 let rendered = marked.parseInline ? marked.parseInline(escapedAsterisks, { renderer: renderer }) : marked.parse(escapedAsterisks, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
+                
+                // Restore Mentions
+                rendered = rendered.replace(/\x02MNT(\d+)\x03/g, (_, i) => mentionStore[+i]);
                 
                 return rendered;
             });

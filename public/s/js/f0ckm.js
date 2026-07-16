@@ -8507,9 +8507,18 @@ class NotificationSystem {
         };
 
         // Pre-process mentions before marked (skip greentext lines)
+        const mentionStore = [];
+        const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]\(\/user\/([^)]+)\)|\[@([^\]]+)\]/g;
+
         safe = safe.split('\n').map(line => {
           if (line.trimStart().startsWith('>')) return line;
-          return line.replace(/(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])/g, '[@$1](/user/$1)');
+          return line.replace(mentionRegex, (match, g1, g2, g3, g4) => {
+            const user = g1 || g2 || g4;
+            const html = `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+            const idx = mentionStore.length;
+            mentionStore.push(html);
+            return `\x02MNT${idx}\x03`;
+          });
         }).join('\n');
 
         content = marked.parse(safe, {
@@ -8517,6 +8526,9 @@ class NotificationSystem {
           breaks: true,
           renderer: renderer
         });
+
+        // Restore mention placeholders
+        content = content.replace(/\x02MNT(\d+)\x03/g, (_, i) => mentionStore[+i]);
       } catch (e) {
         console.error('Marked error in w0bm.js', e);
         // Fallback

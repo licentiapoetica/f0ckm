@@ -1750,7 +1750,7 @@ class CommentSystem {
             const imageRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/${safeS}+\\.(?:jpg|jpeg|png|gif|webp)(?:\\?${safeS}+)?(?:#gif)?))(?![\\)\\]])`, 'gi');
             const rawVideoRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp4|webm|ogv|mov)(?:\\?[^\\s\\[\\]\\(\\)]+)?(?:#gif)?))`, 'gi');
             const rawAudioRegex = new RegExp(`(?<![\\(\\[])(${domainOrRelative}(?:\\/[^\\s\\[\\]\\(\\)]*\\.(?:mp3|ogg|wav|flac|aac|opus|m4a)(?:\\?[^\\s\\[\\]\\(\\)]+)?))`, 'gi');
-            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]/g;
+            const mentionRegex = /(?<!\[)@([a-zA-Z0-9_\-\.]+)(?!\])|\[@([^\]]+)\]\(\/user\/([^)]+)\)|\[@([^\]]+)\]/g;
 
             // Line-by-line processing: handles quotes, mentions, images, and basic markdown safely
             const renderedLines = escaped.split('\n').map(line => {
@@ -1779,8 +1779,8 @@ class CommentSystem {
                 // Handle Mentions — use placeholders so the markdown escape pass (step 3)
                 // never corrupts usernames that contain underscores or dots.
                 const mentionStore = [];
-                processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
-                    const user = g1 || g2;
+                processedLine = processedLine.replace(mentionRegex, (match, g1, g2, g3, g4) => {
+                    const user = g1 || g2 || g4;
                     const html = `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
                     const idx = mentionStore.length;
                     mentionStore.push(html);
