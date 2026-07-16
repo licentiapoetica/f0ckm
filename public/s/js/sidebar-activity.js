@@ -520,18 +520,6 @@
                 </div>`;
         }
 
-        // Robust fallback for is_long if server didn't provide it, plus inline media checks
-        let isLong = c.is_long;
-        const rawText = c.content || c.body || '';
-        if (isLong === undefined) {
-            isLong = rawText.length > 120 
-                || rawText.split('\n').length > 2 
-                || (c.files && c.files.length > 0);
-        }
-        // Always force isLong if there are inline media tags that expand vertically
-        if (!isLong && /\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawText)) {
-            isLong = true;
-        }
 
         return `
             <div class="comment" id="sc${c.id}">
