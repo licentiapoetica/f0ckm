@@ -4143,7 +4143,7 @@ class CommentSystem {
                         }
                     };
                     // Seed from DB on first open if logged in
-                    if (window.f0ckSession?.id) {
+                    if (window.f0ckSession?.logged_in) {
                         window._emojiPickerFavUtils.syncFromDB();
                     }
                 }
