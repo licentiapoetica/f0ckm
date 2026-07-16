@@ -5763,6 +5763,8 @@ body[type='login'] {
 .ep-tab img,
 .ep-tab video,
 .ep-tab i {
+  width: 28px;
+  height: auto;
   object-fit: contain;
   pointer-events: none;
 }
