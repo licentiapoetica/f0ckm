@@ -8691,7 +8691,7 @@ video.autoplay-gif {
 }
 
 .comment.reply {
-  background: var(--comment-bg);
+  background: var(--bg);
 }
 
 .reply-mention {
@@ -9269,7 +9269,7 @@ body.layout-legacy .comment-content img.emoji {
 
 .comment-highlighted {
   border-left: 3px solid var(--accent) !important;
-  background: var(--comment-bg) !important;
+  background: var(--bg) !important;
 }
 
 .anchor-target {
