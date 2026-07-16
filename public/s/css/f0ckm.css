@@ -4790,7 +4790,7 @@ body.layout-modern .pagination-container-fluid {
 }
 
 body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 51.25%; /* Specify the exact value you want here when sidebar is hidden */
+  padding-top: 52.25%; /* Specify the exact value you want here when sidebar is hidden */
 }
 
 @media 
