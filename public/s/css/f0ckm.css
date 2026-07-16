@@ -13643,7 +13643,7 @@ i.iconset#a_oc {
   background-size: var(--author-banner-size, cover);
   background-position: var(--author-banner-position, center);
   background-repeat: var(--author-banner-repeat, no-repeat);
-  opacity: var(--author-banner-opacity, 0.4);
+  opacity: var(--author-banner-opacity, 0.3);
   z-index: -1;
   border-radius: inherit;
   pointer-events: none;
@@ -13756,7 +13756,7 @@ textarea#profile_description {
   background-size: var(--author-banner-size, cover);
   background-position: var(--author-banner-position, center);
   background-repeat: var(--author-banner-repeat, no-repeat);
-  opacity: var(--author-banner-opacity, 0.4);
+  opacity: var(--author-banner-opacity, 0.3);
   z-index: -1;
   border-radius: inherit;
   pointer-events: none;
