@@ -2930,4 +2930,18 @@ ALTER TABLE public.sticker_packs
 
 CREATE INDEX IF NOT EXISTS custom_emojis_pack_id_idx ON public.custom_emojis (pack_id);
 
+-- User Emoji Favorites (Migration 011)
+-- Persists per-user sticker/emoji favorites for cross-device sync
+CREATE TABLE IF NOT EXISTS public.user_emoji_favorites (
+    user_id    integer                  NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
+    emoji_name text                     NOT NULL,
+    emoji_url  text                     NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, emoji_name)
+);
+
+ALTER TABLE public.user_emoji_favorites OWNER TO f0ckm;
+
+CREATE INDEX IF NOT EXISTS idx_user_emoji_favorites_user_id ON public.user_emoji_favorites (user_id);
+
 \unrestrict RMNKNzVQLV2ZcwmM3bmhglTot5nRoju9FmRyi3eUMfNy6iJUBfHRIgXnbrpJikG
