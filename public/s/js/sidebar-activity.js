@@ -5,6 +5,7 @@
     let currentPage = 1;
     let hasMore = true;
     let ioSentinel = null; // persistent sentinel element for IntersectionObserver
+    let lastRenderedIds = ''; // track rendered comment IDs to skip needless re-renders
     // Shared cache for activity across AJAX loads
     if (!window._sidebarActivityCache) window._sidebarActivityCache = [];
 
@@ -612,6 +613,14 @@
         const container = document.getElementById('sidebar-activity-container');
         if (!container || window._sidebarActivityCache.length === 0) return false;
 
+        const currentIds = window._sidebarActivityCache.map(c => String(c.id)).join(',');
+        // If the same comments are already rendered, leave the DOM completely untouched.
+        // This keeps video stickers playing and avoids any overflow state churn.
+        if (currentIds === lastRenderedIds && container.querySelector('.comment')) {
+            return true;
+        }
+        lastRenderedIds = currentIds;
+
         let html = '';
         window._sidebarActivityCache.forEach(c => {
             html += renderActivityItem(c);
@@ -623,20 +632,14 @@
             container.appendChild(ioSentinel);
         }
         attachMediaLoadListeners(container);
-        // has-overflow is set by default in the HTML template so long comments are clamped
-        // from the first paint. Sync checkOverflow cleans up short text-only comments immediately.
+        // has-overflow is set by default in the HTML template so all comments start clamped.
+        // Sync checkOverflow immediately cleans up short text-only comments.
+        // The hasUnloadedImages guard prevents flicker by not removing has-overflow from image
+        // comments whose images haven't loaded yet.
         checkOverflow();
-        // For comments with images, the sync pass skips removal (unloaded images guard).
-        // Schedule a deferred re-check so those comments get evaluated once images are painted.
-        // Only re-checks comments that still have unloaded images — no-op for everything else.
-        setTimeout(() => {
-            container.querySelectorAll('.comment-content-inner').forEach(inner => {
-                const hasUnloaded = Array.from(inner.querySelectorAll('img:not(.emoji)')).some(
-                    img => !img.complete || img.naturalHeight === 0
-                );
-                if (hasUnloaded) checkOverflow(inner);
-            });
-        }, 300);
+        // After 1s, re-check everything — by then even slow ctrl+F5 images will have loaded
+        // and been laid out, so scrollHeight is accurate for all image comments.
+        setTimeout(checkOverflow, 1000);
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
@@ -672,22 +675,13 @@
             const data = await res.json();
 
             if (data.success && data.comments && data.comments.length > 0) {
-                const newIds = data.comments.slice(0, SIDEBAR_MAX_COMMENTS).map(c => String(c.id)).join(',');
-                const currentIds = (window._sidebarActivityCache || []).map(c => String(c.id)).join(',');
-                const dataChanged = newIds !== currentIds;
-
                 window._sidebarActivityCache = data.comments.slice(0, SIDEBAR_MAX_COMMENTS).map(c => ({
                     ...c,
                     body: c.content || c.body
                 }));
                 hasMore = (data.hasMore === true || data.comments.length === SIDEBAR_INITIAL_LIMIT)
                     && window._sidebarActivityCache.length < SIDEBAR_MAX_COMMENTS;
-
-                // Only re-render if the set of comments actually changed.
-                // If the data is identical (common on navigation), leave the DOM untouched.
-                if (dataChanged) {
-                    renderFromCache();
-                }
+                renderFromCache(); // no-op if IDs unchanged (renderFromCache self-guards)
             } else if (!hasCache) {
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">' + (window.f0ckI18n?.sidebar_no_activity || 'No recent activity.') + '</div>';
                 hasMore = false;
@@ -925,6 +919,7 @@
 
         if (modeChanged) {
             window._sidebarActivityCache = [];
+            lastRenderedIds = '';
             currentPage = 1;
             hasMore = true;
             loadActivity(false); // Force reload with loading state
@@ -946,6 +941,7 @@
         window.f0ckDebug("Sidebar Activity: Mode change detected", e.detail.mode);
         lastBoundMode = e.detail.mode;
         window._sidebarActivityCache = [];
+        lastRenderedIds = '';
         currentPage = 1;
         hasMore = true;
         loadActivity(false);
