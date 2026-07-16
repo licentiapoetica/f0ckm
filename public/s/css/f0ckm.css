@@ -5749,7 +5749,6 @@ body[type='login'] {
 }
 
 .emoji-picker img:hover {
-  transform: scale(1.1);
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -5847,10 +5846,6 @@ body[type='login'] {
 .ep-sticker-wrap video {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
-}
-
-.ep-sticker-wrap:hover {
-  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Fav star badge — top-right corner of sticker */
