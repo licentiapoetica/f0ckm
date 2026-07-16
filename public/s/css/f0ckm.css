@@ -4820,15 +4820,15 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
     }
 
     body.layout-modern .embed-responsive-16by9::before {
-      padding-top: 50.25%;
+      padding-top: 52.25%;
     }
 
     body.layout-modern.sidebar-right-hidden .embed-responsive-16by9::before {
-      padding-top: 50.25%;
+      padding-top: 51.25%;
     }
       
     body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-      padding-top: 41.25%;
+      padding-top: 51.25%;
     }
 
     body.layout-legacy .scroll-nav-wrapper {
