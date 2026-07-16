@@ -1789,37 +1789,152 @@ if (window.__dmLoaded) {
             // Hold-to-preview (uses shared window.stickerPreview from comments.js)
             let holdTimer = null;
             let holdFired = false;
-            const startHold = () => {
+            let isTouchHold = false;
+            const startHold = (fromTouch) => {
                 holdFired = false;
+                isTouchHold = !!fromTouch;
                 holdTimer = setTimeout(() => {
                     holdFired = true;
-                    window.stickerPreview?.show(url, isVideo);
-                }, 400);
+                    window.stickerPreview?.show(url, isVideo, name, url);
+                }, 800);
             };
-            const cancelHold = () => { clearTimeout(holdTimer); };
+            const cancelHold = () => { clearTimeout(holdTimer); isTouchHold = false; };
             const endHold = () => {
                 clearTimeout(holdTimer);
                 if (holdFired) {
                     holdFired = false;
-                    // Suppress the click that fires on mouseup after a preview gesture
                     el.addEventListener('click', (e) => {
                         e.stopImmediatePropagation();
                         e.preventDefault();
                     }, { once: true, capture: true });
+                    if (!isTouchHold) window.stickerPreview?.hide();
+                    // Mobile: preview stays open until user taps overlay
+                } else {
+                    window.stickerPreview?.hide();
                 }
-                window.stickerPreview?.hide();
+                isTouchHold = false;
             };
-            el.addEventListener('mousedown', startHold);
+            el.addEventListener('mousedown', () => startHold(false));
             el.addEventListener('mouseup', endHold);
             el.addEventListener('mouseleave', cancelHold);
             // Instant switch when already previewing
             el.addEventListener('mouseenter', () => {
-                if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo);
+                if (window.stickerPreview?.isShowing) window.stickerPreview.show(url, isVideo, name, url);
             });
-            el.addEventListener('touchstart', startHold, { passive: true });
+            el.addEventListener('touchstart', () => startHold(true), { passive: true });
+            el.addEventListener('touchmove', cancelHold, { passive: true });
             el.addEventListener('touchend', endHold);
-            el.addEventListener('touchcancel', endHold);
+            el.addEventListener('touchcancel', cancelHold);
+            // Desktop-only right-click → fav context menu
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (navigator.maxTouchPoints > 0) return;
+                if (holdFired) return;
+                window._favContextMenu?.show(e.clientX, e.clientY, name, url, () => {
+                    if (activeTabId === '__favs__') showDmTab('__favs__');
+                });
+            });
             return el;
+        }
+
+        // Ensure fav utils are available even when no comment section exists on this page
+        if (!window._emojiPickerFavUtils) {
+            window._emojiPickerFavUtils = {
+                KEY: 'f0ck_emoji_favs',
+                get()  { try { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); } catch(e) { return []; } },
+                has(name) { return this.get().some(f => f.name === name); },
+                toggle(name, url) {
+                    const favs = this.get();
+                    const idx = favs.findIndex(f => f.name === name);
+                    const action = idx >= 0 ? 'remove' : 'add';
+                    if (idx >= 0) favs.splice(idx, 1); else favs.push({ name, url });
+                    localStorage.setItem(this.KEY, JSON.stringify(favs));
+                    const csrf = window.f0ckSession?.csrf_token;
+                    if (csrf) {
+                        fetch('/api/v2/user/emoji-favorites/toggle', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                            body: JSON.stringify({ name, url, action })
+                        }).catch(() => {});
+                    }
+                },
+                syncFromDB() {
+                    fetch('/api/v2/user/emoji-favorites', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(data => {
+                            if (data?.success && Array.isArray(data.favorites)) {
+                                localStorage.setItem(this.KEY, JSON.stringify(data.favorites));
+                                window._emojiPickerRefresh?.();
+                            }
+                        }).catch(() => {});
+                }
+            };
+            if (window.f0ckSession?.logged_in) window._emojiPickerFavUtils.syncFromDB();
+        }
+
+        let activeTabId = null;
+        let dmTabBar = null;
+        let dmGridArea = null;
+
+        function showDmTab(packId, packs) {
+            activeTabId = packId;
+            if (dmTabBar) dmTabBar.querySelectorAll('.ep-tab').forEach(t =>
+                t.classList.toggle('active', t.dataset.packId === String(packId ?? 'null'))
+            );
+            if (!dmGridArea) return;
+            dmGridArea.innerHTML = '';
+
+            if (packId === '__favs__') {
+                const favs = window._emojiPickerFavUtils?.get() || [];
+                if (!favs.length) {
+                    dmGridArea.innerHTML = '<div style="padding:10px;color:rgba(255,255,255,0.4);font-size:0.8em;text-align:center;">No favorites yet.<br>Hold a sticker to preview, then tap ★</div>';
+                    return;
+                }
+                favs.forEach(({ name, url }) => {
+                    const el = makeDmEmojiEl(url, name);
+                    el.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        const pos = textarea.selectionStart ?? textarea.value.length;
+                        const val = textarea.value;
+                        textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                        textarea.focus();
+                        const newPos = pos + name.length + 2;
+                        textarea.setSelectionRange(newPos, newPos);
+                    });
+                    dmGridArea.appendChild(el);
+                });
+                return;
+            }
+
+            const pack = packs.find(p => String(p.id ?? null) === String(packId ?? null)) || packs[0];
+            if (!pack) return;
+            pack.emojis.forEach(({ name, url }) => {
+                const el = makeDmEmojiEl(url, name);
+                el.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    const pos = textarea.selectionStart ?? textarea.value.length;
+                    const val = textarea.value;
+                    textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
+                    textarea.focus();
+                    const newPos = pos + name.length + 2;
+                    textarea.setSelectionRange(newPos, newPos);
+                });
+                dmGridArea.appendChild(el);
+            });
+            // Autoplay webm stickers
+            dmGridArea.querySelectorAll('video').forEach(v =>
+                v.play().catch(() => v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }))
+            );
+            // Touch slide: switch preview as finger moves
+            dmGridArea.addEventListener('touchmove', (e) => {
+                if (!window.stickerPreview?.isShowing) return;
+                const touch = e.touches[0];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target && target !== dmGridArea && (target.tagName === 'IMG' || target.tagName === 'VIDEO') && target._stickerSrc) {
+                    window.stickerPreview.show(target._stickerSrc, target._stickerIsVideo);
+                }
+            }, { passive: true });
         }
 
         function buildDmPickerContent(emojis, packs) {
@@ -1848,58 +1963,30 @@ if (window.__dmLoaded) {
             // ── Tabbed picker ──
             picker.classList.add('has-tabs');
 
-            const tabBar = document.createElement('div');
-            tabBar.className = 'emoji-picker-tabs';
+            dmTabBar = document.createElement('div');
+            dmTabBar.className = 'emoji-picker-tabs';
 
-            const gridArea = document.createElement('div');
-            gridArea.className = 'emoji-picker-grid';
+            dmGridArea = document.createElement('div');
+            dmGridArea.className = 'emoji-picker-grid';
 
-            let activeTabId = null;
+            // ── Favorites tab ──
+            const favsTab = document.createElement('button');
+            favsTab.className = 'ep-tab ep-tab-favs';
+            favsTab.dataset.packId = '__favs__';
+            favsTab.title = 'Favorites';
+            favsTab.type = 'button';
+            favsTab.innerHTML = '<i class="fa-solid fa-star" style="font-size:14px;color:var(--emoji-fav-color,#f5c518);"></i>';
+            favsTab.addEventListener('mousedown', e => e.preventDefault());
+            favsTab.addEventListener('click', () => showDmTab('__favs__', packs));
+            dmTabBar.appendChild(favsTab);
 
-            const showTab = (packId) => {
-                activeTabId = packId;
-                tabBar.querySelectorAll('.ep-tab').forEach(t =>
-                    t.classList.toggle('active', t.dataset.packId === String(packId ?? 'null'))
-                );
-                gridArea.innerHTML = '';
-                const pack = packs.find(p => String(p.id ?? null) === String(packId ?? null)) || packs[0];
-                if (!pack) return;
-                pack.emojis.forEach(({ name, url }) => {
-                    const el = makeDmEmojiEl(url, name);
-                    el.addEventListener('click', (ev) => {
-                        ev.stopPropagation();
-                        const pos = textarea.selectionStart ?? textarea.value.length;
-                        const val = textarea.value;
-                        textarea.value = val.slice(0, pos) + `:${name}:` + val.slice(pos);
-                        textarea.focus();
-                        const newPos = pos + name.length + 2;
-                        textarea.setSelectionRange(newPos, newPos);
-                    });
-                    gridArea.appendChild(el);
-                });
-                // Autoplay any webm stickers in the grid
-                gridArea.querySelectorAll('video').forEach(v =>
-                    v.play().catch(() => v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }))
-                );
-                // Touch slide: switch preview immediately as finger moves over a new sticker
-                gridArea.onTouchMoveBound = null; // reset before re-adding
-                gridArea.addEventListener('touchmove', (e) => {
-                    if (!window.stickerPreview?.isShowing) return;
-                    const touch = e.touches[0];
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (target && target !== gridArea && (target.tagName === 'IMG' || target.tagName === 'VIDEO') && target._stickerSrc) {
-                        window.stickerPreview.show(target._stickerSrc, target._stickerIsVideo);
-                    }
-                }, { passive: true });
-            };
-
+            // ── Pack tabs ──
             packs.forEach((pack) => {
                 const tab = document.createElement('button');
                 tab.className = 'ep-tab';
                 tab.dataset.packId = String(pack.id ?? null);
                 tab.title = pack.name || 'Emojis';
                 tab.type = 'button';
-                // Always use static img for tab icon (thumb_url or first non-video emoji)
                 if (pack.emojis && pack.emojis.length > 0) {
                     const iconUrl = pack.thumb_url
                         || (pack.emojis.find(e => !e.url.endsWith('.webm')) || pack.emojis[0]).url;
@@ -1912,13 +1999,18 @@ if (window.__dmLoaded) {
                     tab.textContent = '☺';
                 }
                 tab.addEventListener('mousedown', e => e.preventDefault());
-                tab.addEventListener('click', () => showTab(pack.id ?? null));
-                tabBar.appendChild(tab);
+                tab.addEventListener('click', () => showDmTab(pack.id ?? null, packs));
+                dmTabBar.appendChild(tab);
             });
 
-            picker.appendChild(tabBar);
-            picker.appendChild(gridArea);
-            showTab(packs[0]?.id ?? null);
+            picker.appendChild(dmTabBar);
+            picker.appendChild(dmGridArea);
+            showDmTab(packs[0]?.id ?? null, packs);
+
+            // Expose refresh hook so syncFromDB can update the open favs tab
+            window._emojiPickerRefresh = () => {
+                if (activeTabId === '__favs__') showDmTab('__favs__', packs);
+            };
         }
 
         function populatePicker() {
