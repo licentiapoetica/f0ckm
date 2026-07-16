@@ -2292,9 +2292,11 @@ window.cancelAnimFrame = (function () {
       const _sb = document.querySelector('.global-sidebar-right');
       if (_sb) _sb.style.removeProperty('display');
 
-      // Restore sidebar drag zone (desktop edge hint)
+      // Restore sidebar drag zones (desktop edge hints)
       const _dz = document.getElementById('sidebar-drag-zone');
       if (_dz) _dz.style.removeProperty('display');
+      const _ldz = document.getElementById('sidebar-left-drag-zone');
+      if (_ldz) _ldz.style.removeProperty('display');
 
       // Restore pagewrapper
       const _pw = document.querySelector('.pagewrapper');
@@ -3211,6 +3213,8 @@ window.cancelAnimFrame = (function () {
       if (_sb) _sb.style.removeProperty('display');
       const _dz = document.getElementById('sidebar-drag-zone');
       if (_dz) _dz.style.removeProperty('display');
+      const _ldz = document.getElementById('sidebar-left-drag-zone');
+      if (_ldz) _ldz.style.removeProperty('display');
       const _pw = document.querySelector('.pagewrapper');
       if (_pw) ['height', 'padding', 'margin', 'overflow'].forEach(p => _pw.style.removeProperty(p));
       const _m = document.getElementById('main');
@@ -6562,6 +6566,304 @@ window.cancelAnimFrame = (function () {
     window.toggleSidebarRight();
   });
   // </mouse-sidebar-drag>
+
+  // <left-sidebar-drag-zone>
+  // Full drag-to-open/close for the modern layout's item-sidebar-left.
+  // During drag the sidebar is promoted to position:fixed so translateX works cleanly
+  // independent of the CSS grid. On settle the class toggle collapses/expands the grid.
+  (() => {
+    const leftEdgeZone = document.createElement('div');
+    leftEdgeZone.id = 'sidebar-left-drag-zone';
+    leftEdgeZone.style.cssText = 'position:fixed;top:0;bottom:0;width:25px;z-index:899;cursor:pointer;pointer-events:none';
+    document.body.appendChild(leftEdgeZone);
+
+    const getLS = () => ({
+      sb: document.querySelector('.item-sidebar-left'),
+      layout: document.querySelector('.item-layout-container'),
+    });
+
+    const isLSActive = () =>
+      document.body.classList.contains('layout-modern') && !!document.querySelector('.item-sidebar-left');
+
+    // Prepare sidebar for drag — keeps it in the CSS grid so overflow:hidden clips translateX.
+    // OPEN: removes sidebar-hidden/display:none, places sidebar at translateX(-sw), reflows twice.
+    // CLOSE: sidebar is already visible; sets translateX(0), reflows so transition has a start state.
+    const prepareDrag = (sb, layout, isHidden, sw) => {
+      sb.style.setProperty('transition', 'none', 'important');
+      if (isHidden) {
+        layout.classList.remove('sidebar-hidden');
+        sb.style.display = '';
+        sb.querySelectorAll('.faded-out').forEach(el => el.classList.remove('faded-out'));
+        const c = sb.querySelector('#comments-container');
+        if (c) { c.classList.remove('faded-out'); c.style.display = ''; }
+        void sb.offsetWidth; // commit display + class change before setting transform
+        sb.style.transform = `translateX(${-sw}px)`;
+      } else {
+        sb.style.transform = 'translateX(0px)';
+      }
+      void sb.offsetWidth; // paint initial transform so transition has a clear start
+    };
+
+    // Animate to final position then commit persistent state.
+    const settleLeft = (sb, layout, shouldOpen, sw) => {
+      sb.style.setProperty('transition', 'transform 0.3s ease-in-out', 'important');
+      void sb.offsetWidth;
+      sb.style.transform = `translateX(${shouldOpen ? 0 : -sw}px)`;
+
+      let done = false;
+      const finish = () => {
+        if (done) return; done = true;
+        sb.style.removeProperty('transition');
+        if (shouldOpen) {
+          sb.style.removeProperty('transform');
+          localStorage.setItem('comments_hidden', 'false');
+        } else {
+          // Hide BEFORE removing transform to prevent snap-back flash
+          sb.style.display = 'none';
+          layout.classList.add('sidebar-hidden');
+          localStorage.setItem('comments_hidden', 'true');
+          sb.style.removeProperty('transform');
+        }
+        requestAnimationFrame(() => syncLeftEdgeZone());
+      };
+      const onEnd = ev => {
+        if (ev.propertyName !== 'transform') return;
+        sb.removeEventListener('transitionend', onEnd);
+        finish();
+      };
+      sb.addEventListener('transitionend', onEnd);
+      setTimeout(finish, 350);
+    };
+
+    // ── Mouse drag ──────────────────────────────────────────────────────────
+    const mL = {
+      active: false, isDragging: false, isCandidate: false,
+      xDown: 0, yDown: 0, xDiff: 0, yDiff: 0, timeDown: 0,
+      sb: null, layout: null, sw: 0, wasHidden: false,
+    };
+
+    document.addEventListener('mousedown', e => {
+      if (!isMouseDevice() || !isLSActive()) return;
+      if (document.body.classList.contains('modal-open')) return;
+      if (e.button !== 0) return;
+
+      const { sb, layout } = getLS();
+      if (!sb || !layout) return;
+
+      const isHidden = layout.classList.contains('sidebar-hidden');
+      let candidate = false;
+
+      if (isHidden) {
+        if (e.clientX < 30) candidate = true;
+      } else {
+        const rect = sb.getBoundingClientRect();
+        const inStrip = e.clientX >= rect.right - 16 && e.clientX <= rect.right + 13;
+        if (inStrip || e.target === leftEdgeZone) candidate = true;
+      }
+
+      if (!candidate) return;
+      mL.active = true; mL.isDragging = false; mL.isCandidate = true;
+      mL.xDown = e.clientX; mL.yDown = e.clientY; mL.xDiff = 0; mL.yDiff = 0;
+      mL.timeDown = Date.now(); mL.sb = sb; mL.layout = layout;
+      mL.sw = isHidden ? Math.round(Math.min(400, window.innerWidth * 0.30)) : sb.offsetWidth;
+      mL.wasHidden = isHidden;
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!mL.active) return;
+      mL.xDiff = mL.xDown - e.clientX;
+      mL.yDiff = mL.yDown - e.clientY;
+
+      if (mL.isCandidate && !mL.isDragging) {
+        const ax = Math.abs(mL.xDiff), ay = Math.abs(mL.yDiff);
+        if (ax >= 8 && ax > ay * 2) {
+          mL.isDragging = true; mL.isCandidate = false;
+          document.body.style.userSelect = 'none';
+          window.getSelection()?.removeAllRanges();
+          prepareDrag(mL.sb, mL.layout, mL.wasHidden, mL.sw);
+        } else if (ay > ax) {
+          mL.isCandidate = false; mL.active = false; return;
+        }
+      }
+
+      if (!mL.isDragging || !mL.sb) return;
+
+      // xDiff < 0 = dragged right (opening); xDiff > 0 = dragged left (closing)
+      const delta = -mL.xDiff; // positive = rightward
+      let tx;
+      if (mL.wasHidden) {
+        tx = -mL.sw + Math.max(0, Math.min(mL.sw, delta));
+      } else {
+        tx = Math.max(-mL.sw, Math.min(0, delta));
+      }
+      mL.sb.style.setProperty('transition', 'none', 'important');
+      mL.sb.style.transform = `translateX(${tx}px)`;
+      document.body.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!mL.active) return;
+      mL.active = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      const wasDragging = mL.isDragging;
+      mL.isDragging = false;
+      if (!wasDragging || !mL.sb) return;
+
+      const dist = Math.abs(mL.xDiff), timeDiff = Date.now() - mL.timeDown;
+      const threshold = mL.sw / 4, quickSwipe = dist > 30 && timeDiff < 300;
+      let shouldOpen = !mL.wasHidden;
+      if (mL.wasHidden) {
+        if (mL.xDiff < -threshold || (mL.xDiff < -30 && quickSwipe)) shouldOpen = true;
+      } else {
+        if (mL.xDiff > threshold || (mL.xDiff > 30 && quickSwipe)) shouldOpen = false;
+      }
+
+      settleLeft(mL.sb, mL.layout, shouldOpen, mL.sw);
+      if (wasDragging) {
+        document.addEventListener('click', ev => ev.stopPropagation() || ev.preventDefault(), { capture: true, once: true });
+      }
+    });
+
+    // ── Touch drag ──────────────────────────────────────────────────────────
+    // Piggyback on swipeRT: add left-sidebar fields and new listeners.
+    swipeRT.isDraggingLeftSidebar = false;
+    swipeRT.isLeftSidebarCandidate = false;
+    swipeRT.leftSB = null; swipeRT.leftLayout = null;
+    swipeRT.leftSW = 0; swipeRT.leftWasHidden = false;
+
+    document.addEventListener('touchstart', e => {
+      if (window.f0ckSession?.disable_swiping) return;
+      if (document.body.classList.contains('modal-open')) return;
+      if (!isLSActive()) return;
+
+      const { sb, layout } = getLS();
+      if (!sb || !layout) return;
+
+      const touch = e.touches[0];
+      const isHidden = layout.classList.contains('sidebar-hidden');
+      swipeRT.isDraggingLeftSidebar = false;
+      swipeRT.isLeftSidebarCandidate = false;
+
+      if (isHidden) {
+        if (touch.clientX < 60) {
+          swipeRT.isLeftSidebarCandidate = true;
+          swipeRT.leftSB = sb; swipeRT.leftLayout = layout;
+          swipeRT.leftSW = Math.round(Math.min(400, window.innerWidth * 0.30));
+          swipeRT.leftWasHidden = true;
+        }
+      } else {
+        const rect = sb.getBoundingClientRect();
+        if (touch.clientX >= rect.right - 30 && touch.clientX <= rect.right + 13) {
+          swipeRT.isLeftSidebarCandidate = true;
+          swipeRT.leftSB = sb; swipeRT.leftLayout = layout;
+          swipeRT.leftSW = sb.offsetWidth; swipeRT.leftWasHidden = false;
+        }
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+      if (window.f0ckSession?.disable_swiping) return;
+      if (document.body.classList.contains('modal-open')) return;
+      if (!swipeRT.xDown) return;
+
+      if (swipeRT.isLeftSidebarCandidate && !swipeRT.isDraggingLeftSidebar && swipeRT.leftSB) {
+        const ax = Math.abs(swipeRT.xDiff), ay = Math.abs(swipeRT.yDiff);
+        if (ax >= ay && ax > 2 && e.cancelable) e.preventDefault();
+        if (ax >= 12 && ax > ay * 2.5) {
+          swipeRT.isDraggingLeftSidebar = true;
+          swipeRT.isLeftSidebarCandidate = false;
+          prepareDrag(swipeRT.leftSB, swipeRT.leftLayout, swipeRT.leftWasHidden, swipeRT.leftSW);
+        } else if (ay > ax * 1.5) {
+          swipeRT.isLeftSidebarCandidate = false;
+        }
+      }
+
+      if (swipeRT.isDraggingLeftSidebar && swipeRT.leftSB) {
+        if (e.cancelable) e.preventDefault();
+        const sw = swipeRT.leftSW;
+        const delta = -swipeRT.xDiff;
+        let tx;
+        if (swipeRT.leftWasHidden) {
+          tx = -sw + Math.max(0, Math.min(sw, delta));
+        } else {
+          tx = Math.max(-sw, Math.min(0, delta));
+        }
+        swipeRT.leftSB.style.setProperty('transition', 'none', 'important');
+        swipeRT.leftSB.style.transform = `translateX(${tx}px)`;
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', e => {
+      if (!swipeRT.isDraggingLeftSidebar || !swipeRT.leftSB) return;
+
+      const sw = swipeRT.leftSW, dist = Math.abs(swipeRT.xDiff);
+      const timeDiff = Date.now() - (swipeRT.timeDown || Date.now());
+      const threshold = sw / 4, quickSwipe = dist > 30 && timeDiff < 250;
+      const isHidden = swipeRT.leftWasHidden;
+      let shouldOpen = !isHidden;
+      if (isHidden) {
+        if (swipeRT.xDiff < -threshold || (swipeRT.xDiff < -30 && quickSwipe)) shouldOpen = true;
+      } else {
+        if (swipeRT.xDiff > threshold || (swipeRT.xDiff > 30 && quickSwipe)) shouldOpen = false;
+      }
+
+      settleLeft(swipeRT.leftSB, swipeRT.leftLayout, shouldOpen, sw);
+      swipeRT.isDraggingLeftSidebar = false;
+      swipeRT.leftSB = null; swipeRT.leftLayout = null;
+    }, { passive: true });
+
+    // ── Edge zone & sync ────────────────────────────────────────────────────
+    const syncLeftEdgeZone = () => {
+      const { sb, layout } = getLS();
+      if (!sb || !layout || !document.body.classList.contains('layout-modern')) {
+        leftEdgeZone.style.pointerEvents = 'none';
+        return;
+      }
+      const isHidden = layout.classList.contains('sidebar-hidden');
+      if (isHidden) {
+        leftEdgeZone.style.left = '0';
+        leftEdgeZone.style.pointerEvents = 'all';
+      } else {
+        const rect = sb.getBoundingClientRect();
+        leftEdgeZone.style.left = (rect.right - 12) + 'px';
+        leftEdgeZone.style.pointerEvents = 'all';
+      }
+    };
+
+    window.toggleSidebarLeft = () => {
+      const { sb, layout } = getLS();
+      if (!sb || !layout) return;
+      const isHidden = layout.classList.contains('sidebar-hidden');
+      const sw = isHidden ? Math.round(Math.min(400, window.innerWidth * 0.30)) : sb.offsetWidth;
+      prepareDrag(sb, layout, isHidden, sw);
+      // rAF ensures the initial transform state is painted before the transition starts
+      requestAnimationFrame(() => settleLeft(sb, layout, isHidden, sw));
+    };
+
+    syncLeftEdgeZone();
+
+    new MutationObserver(syncLeftEdgeZone).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    const lc0 = document.querySelector('.item-layout-container');
+    if (lc0) new MutationObserver(syncLeftEdgeZone).observe(lc0, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', syncLeftEdgeZone, { passive: true });
+
+    leftEdgeZone.addEventListener('touchend', e => {
+      if (Math.abs(swipeRT.xDiff || 0) < 15 && Math.abs(swipeRT.yDiff || 0) < 15) {
+        e.preventDefault();
+        window.toggleSidebarLeft();
+      }
+    }, { passive: false });
+
+    leftEdgeZone.addEventListener('click', () => window.toggleSidebarLeft());
+
+    window.addEventListener('f0ck:contentLoaded', () => {
+      syncLeftEdgeZone();
+      const lc = document.querySelector('.item-layout-container');
+      if (lc) new MutationObserver(syncLeftEdgeZone).observe(lc, { attributes: true, attributeFilter: ['class'] });
+    });
+  })();
+  // </left-sidebar-drag-zone>
 
 
   // Export loaders for external systems (like NotificationSystem)

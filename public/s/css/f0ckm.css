@@ -1648,6 +1648,42 @@ body.sidebar-right-hidden .global-sidebar-right {
   height: 56px;
 }
 
+/* Left sidebar edge zone drag handle */
+#sidebar-left-drag-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#sidebar-left-drag-zone::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--accent, #888);
+  transition: height 0.2s ease, opacity 0.2s ease;
+}
+
+#sidebar-left-drag-zone:hover {
+  opacity: 1;
+}
+
+#sidebar-left-drag-zone:hover::after {
+  height: 56px;
+}
+
+/* Always show the left handle on touch devices */
+@media (pointer: coarse) {
+  #sidebar-left-drag-zone {
+    opacity: 0.7;
+    justify-content: flex-start;
+    padding-left: 6px;
+  }
+}
+
 /* Ensure intermediate tablet screens also hide correctly */
 @media (max-width: 1199px) {
 
