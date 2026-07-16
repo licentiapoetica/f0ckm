@@ -148,6 +148,20 @@ export const handleBannerUpload = async (req, res) => {
         }
         console.log('[BANNER HANDLER] Magick done, output:', finalPath);
 
+        const file_orig = parts.file_orig;
+        if (file_orig && file_orig.data) {
+            console.log('[BANNER HANDLER] Processing original file...');
+            const origTmpPath = path.join(cfg.paths.tmp, `banner_${uuid}_orig_tmp`);
+            const finalOrigPath = path.join(cfg.paths.a, `banner_${uuid}_orig.webp`);
+            await fs.writeFile(origTmpPath, file_orig.data);
+            try {
+                await execFile('magick', [`${origTmpPath}[0]`, '-resize', '3840x3840>', '-quality', '85', finalOrigPath]);
+            } catch (err) {
+                console.error('[BANNER HANDLER] Magick error on original:', err.message);
+            }
+            await fs.unlink(origTmpPath).catch(() => { });
+        }
+
         // Get current banner_file to delete old one (after magick succeeds)
         let currentBanner = null;
         try {
@@ -165,6 +179,8 @@ export const handleBannerUpload = async (req, res) => {
         if (currentBanner) {
             const oldPath = path.join(cfg.paths.a, currentBanner);
             await fs.unlink(oldPath).catch(() => { });
+            const oldOrigPath = path.join(cfg.paths.a, currentBanner.replace('.webp', '_orig.webp'));
+            await fs.unlink(oldOrigPath).catch(() => { });
         }
 
         // Update database
@@ -240,6 +256,8 @@ export const handleBannerDelete = async (req, res) => {
         if (currentBanner) {
             const oldPath = path.join(cfg.paths.a, currentBanner);
             await fs.unlink(oldPath).catch(() => { });
+            const oldOrigPath = path.join(cfg.paths.a, currentBanner.replace('.webp', '_orig.webp'));
+            await fs.unlink(oldOrigPath).catch(() => { });
         }
 
         await db`

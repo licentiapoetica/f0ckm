@@ -647,7 +647,7 @@
                 }
                 const croppedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", { type: 'image/webp' });
                 cleanup();
-                resolve({ file: croppedFile, banner_position: 'center', banner_size: 'cover' });
+                resolve({ file: croppedFile, file_orig: file, banner_position: 'center', banner_size: 'cover' });
             }, 'image/webp', 0.9);
         });
 
@@ -682,6 +682,7 @@
 
         const formData = new FormData();
         formData.append('file', payload.file);
+        if (payload.file_orig) formData.append('file_orig', payload.file_orig);
         formData.append('banner_position', payload.banner_position);
         formData.append('banner_size', payload.banner_size);
 
@@ -824,12 +825,14 @@
             const urlMatch = bgImg.match(/url\(['"]?(.*?)['"]?\)/);
             if (!urlMatch) return;
             const url = urlMatch[1].split('?')[0]; // Strip cache buster if present
+            const origUrl = url.replace('.webp', '_orig.webp');
             
             try {
                 e.target.disabled = true;
                 e.target.textContent = 'Loading...';
                 
-                const res = await fetch(url);
+                let res = await fetch(origUrl);
+                if (!res.ok) { res = await fetch(url); }
                 const blob = await res.blob();
                 const file = new File([blob], 'banner.webp', { type: blob.type });
                 
