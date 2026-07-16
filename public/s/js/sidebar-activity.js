@@ -542,17 +542,21 @@
             });
         });
 
-        // Write phase: perform DOM updates after all reads are completed
+        // Write phase: perform DOM updates after all reads are completed.
+        // Visibility of the button is controlled entirely by the CSS rule on
+        // .comment-content.has-overflow > .read-more-btn — no btn.style.display here.
         results.forEach(({ container, btn, isExpanded, scrollHeight, clientHeight, hasUnloadedImages }) => {
+            // Clear any leftover inline display style (e.g. from the HTML template's
+            // style="display:block") so the CSS class-based rule is the single source of truth.
+            btn.style.display = '';
+
             if (isExpanded) {
-                btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_see_less || 'see less';
                 return;
             }
 
             if (scrollHeight > clientHeight + 2) { // 2px buffer for rounding
                 // Content overflows — ensure clamped state (may already be set from HTML default)
-                btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_read_more || 'read more';
                 container.classList.add('has-overflow');
             } else if (hasUnloadedImages) {
@@ -561,7 +565,6 @@
                 // re-run checkOverflow once images finish loading.
             } else {
                 // Content fits and all images are loaded — safe to remove clamped state
-                btn.style.display = 'none';
                 container.classList.remove('has-overflow');
             }
         });

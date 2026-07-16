@@ -1996,7 +1996,14 @@ body.layout-modern .global-sidebar-right {
   margin-top: 5px;
   font-size: 0.85em;
   display: none;
-  /* Hidden by default, shown via JS if overflow detected */
+  /* Hidden by default; CSS below shows it when has-overflow is present */
+}
+
+/* Show the button via CSS when the parent has has-overflow (set in the HTML template).
+   This avoids depending on JS timing — the button is visible from the very first paint.
+   JS checkOverflow() will later REMOVE has-overflow from short comments to hide it. */
+.sidebar-activity .comment-content.has-overflow > .read-more-btn {
+  display: block;
 }
 
 
