@@ -4443,6 +4443,17 @@ class CommentSystem {
                 showTab(packs[0]?.id ?? null);
             };
 
+            // Helper: close picker with the out-animation, then hide
+            const closePicker = () => {
+                if (!picker || picker.style.display === 'none') return;
+                trigger.classList.remove('is-active');
+                picker.classList.add('picker-closing');
+                picker.addEventListener('animationend', () => {
+                    picker.style.display = 'none';
+                    picker.classList.remove('picker-closing');
+                }, { once: true });
+            };
+
             trigger.addEventListener('click', (e) => {
                 e.preventDefault();
 
@@ -4456,10 +4467,16 @@ class CommentSystem {
                 if (picker) {
                     const isVisible = picker.style.display !== 'none';
                     if (isVisible) {
-                        picker.style.display = 'none';
+                        closePicker();
                     } else {
                         buildPickerContent();
                         picker.style.display = '';
+                        // Re-trigger enter animation
+                        picker.classList.remove('picker-closing');
+                        picker.style.animation = 'none';
+                        picker.offsetHeight; // reflow
+                        picker.style.animation = '';
+                        trigger.classList.add('is-active');
                         requestAnimationFrame(() => requestAnimationFrame(() =>
                             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
                         ));
@@ -4470,6 +4487,7 @@ class CommentSystem {
                 // Create picker only once
                 picker = document.createElement('div');
                 picker.className = 'emoji-picker';
+                trigger.classList.add('is-active');
 
                 // Prevent picker interactions from blurring the textarea, keeping the keyboard open
                 picker.addEventListener('mousedown', (e) => {

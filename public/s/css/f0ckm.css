@@ -5603,6 +5603,21 @@ body[type='login'] {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   border-radius: 0px;
   margin-top: 5px;
+  transform-origin: top center;
+  animation: emojiPickerIn 0.2s ease forwards;
+}
+.emoji-picker.picker-closing {
+  animation: emojiPickerOut 0.18s ease forwards;
+  pointer-events: none;
+  overflow: hidden;
+}
+@keyframes emojiPickerIn {
+  from { opacity: 0; transform: translateY(-8px) scaleY(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scaleY(1); }
+}
+@keyframes emojiPickerOut {
+  from { opacity: 1; transform: translateY(0)    scaleY(1); }
+  to   { opacity: 0; transform: translateY(-8px) scaleY(0.96); }
 }
 
 /* Tabbed mode — switched to column layout by JS when packs are present */
@@ -5976,9 +5991,10 @@ video.emoji {
   transition: text-shadow 0.2s;
 }
 
-button.emoji-trigger:hover i {
+button.emoji-trigger:hover i,
+button.emoji-trigger.is-active i {
     color: var(--accent);
-    transition: .5s ease;
+    transition: color .2s ease;
 }
 
 .spoiler-trigger {
