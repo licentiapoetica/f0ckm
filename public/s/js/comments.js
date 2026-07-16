@@ -1020,6 +1020,7 @@ class CommentSystem {
         let top = rect.top;
 
         document.body.appendChild(preview);
+        CommentSystem.playEmojiVideos(preview);
 
         const previewRect = preview.getBoundingClientRect();
 
@@ -1749,10 +1750,15 @@ class CommentSystem {
                 // 3. Perform replacements on the single line (prevents regex stack overflow on huge strings)
                 let processedLine = line;
 
-                // Handle Mentions
+                // Handle Mentions — use placeholders so the markdown escape pass (step 3)
+                // never corrupts usernames that contain underscores or dots.
+                const mentionStore = [];
                 processedLine = processedLine.replace(mentionRegex, (match, g1, g2) => {
                     const user = g1 || g2;
-                    return `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                    const html = `<a href="/user/${encodeURIComponent(user)}" class="mention">@${user}</a>`;
+                    const idx = mentionStore.length;
+                    mentionStore.push(html);
+                    return `\x02MNT${idx}\x03`;
                 });
 
                 // Handle Comment Context Links (>>ID)
@@ -1793,32 +1799,35 @@ class CommentSystem {
                 });
 
                 // 3. Render Markdown for the line.
-                // Protect URLs and already-formed Markdown link/image tokens from the
-                // italic-prevention escaping pass so that underscores in query params
-                // (e.g. ?v=_FcvmypiHg4) are never turned into ?v=\_FcvmypiHg4.
+                // Protect URLs, already-formed Markdown link/image tokens, AND emoji shortcodes
+                // from the italic-prevention escaping pass so that underscores in query params
+                // (e.g. ?v=_FcvmypiHg4) and emoji names (e.g. :my_emoji:) are never corrupted.
                 const mdProtected = [];
-                // Match [text](url) / ![alt](url) tokens AND bare http(s) URLs
+                // Match [text](url) / ![alt](url) tokens, bare http(s) URLs, AND :emoji: shortcodes
                 let mdSafe = processedLine.replace(
-                    /(!?\[[^\]]*\]\([^)]*\))|https?:\/\/\S+/g,
+                    /(!?\[[^\]]*\]\([^)]*\))|https?:\/\/\S+|:[a-z0-9_]+:/g,
                     (match) => {
                         const idx = mdProtected.length;
                         mdProtected.push(match);
                         return `\x02MDURL${idx}\x03`;
                     }
                 );
-                // Escape * and _ only in the non-URL portions
+                // Escape * and _ only in the non-URL/non-emoji portions
                 mdSafe = mdSafe
                     .replace(/\\/g, '\\\\')
                     .replace(/\*/g, '\\*')
                     .replace(/_/g, '\\_');
-                // Restore protected URLs/tokens
+                // Restore protected tokens
                 mdSafe = mdSafe.replace(/\x02MDURL(\d+)\x03/g, (_, i) => mdProtected[+i]);
 
                 let rendered = marked.parseInline
                     ? marked.parseInline(mdSafe, { renderer: renderer })
                     : marked.parse(mdSafe, { renderer: renderer }).replace(/<p>|<\/p>/g, '');
 
-                // 4. Emojis
+                // 4. Restore mention placeholders (after markdown so usernames are never escaped)
+                rendered = rendered.replace(/\x02MNT(\d+)\x03/g, (_, i) => mentionStore[+i]);
+
+                // 5. Emojis
                 rendered = rendered.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n));
 
                 return rendered;
