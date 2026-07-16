@@ -623,20 +623,29 @@
 
 
         confirmBtn.addEventListener('click', () => {
-            const iw = img.naturalWidth * zoom;
-            const ih = img.naturalHeight * zoom;
+            // Target output dimensions (3x the preview for high-res)
+            const outW = 1200;
+            const outH = 420;
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = outW;
+            outCanvas.height = outH;
+            const outCtx = outCanvas.getContext('2d');
             
-            const maxPanX = 400 - iw;
-            const posXPercent = maxPanX === 0 ? 50 : (panX / maxPanX) * 100;
+            // The preview canvas is 400x140, so the scale factor is outW / 400 = 3
+            const scale = outW / 400;
             
-            const maxPanY = 140 - ih;
-            const posYPercent = maxPanY === 0 ? 50 : (panY / maxPanY) * 100;
+            outCtx.drawImage(img, panX * scale, panY * scale, img.naturalWidth * zoom * scale, img.naturalHeight * zoom * scale);
             
-            const bgSize = `${(iw / 400) * 100}% auto`;
-            const bgPos = `${posXPercent.toFixed(2)}% ${posYPercent.toFixed(2)}%`;
-
-            cleanup();
-            resolve({ file, banner_position: bgPos, banner_size: bgSize });
+            outCanvas.toBlob((blob) => {
+                if (!blob) {
+                    cleanup();
+                    resolve(null);
+                    return;
+                }
+                const croppedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", { type: 'image/webp' });
+                cleanup();
+                resolve({ file: croppedFile, banner_position: 'center', banner_size: 'cover' });
+            }, 'image/webp', 0.9);
         });
 
         cancelBtn.addEventListener('click', () => {
