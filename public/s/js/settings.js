@@ -387,7 +387,7 @@
         const canvas = document.createElement('canvas');
         canvas.className = 'banner-crop-canvas';
         canvas.width = 400;
-        canvas.height = 140;
+        canvas.height = 120;
         canvasWrapper.appendChild(canvas);
 
         const controls = document.createElement('div');
@@ -450,7 +450,7 @@
         const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
 
         const draw = () => {
-            ctx.clearRect(0, 0, 400, 140);
+            ctx.clearRect(0, 0, 400, 120);
             ctx.drawImage(img, panX, panY, img.naturalWidth * zoom, img.naturalHeight * zoom);
             
             // Update hint with live coords/zoom
@@ -460,7 +460,7 @@
         const getBounds = (z) => {
             return {
                 minX: 400 - img.naturalWidth * z,
-                minY: 140 - img.naturalHeight * z
+                minY: 120 - img.naturalHeight * z
             };
         };
 
@@ -603,7 +603,7 @@
         confirmBtn.addEventListener('click', () => {
             // Target output dimensions (3x the preview for high-res)
             const outW = 1200;
-            const outH = 420;
+            const outH = 360;
             const outCanvas = document.createElement('canvas');
             outCanvas.width = outW;
             outCanvas.height = outH;
@@ -688,7 +688,7 @@
                             const newDiv = document.createElement('div');
                             newDiv.id = 'banner-preview';
                             newDiv.className = 'banner-preview-img';
-                            newDiv.style.cssText = `width:100%;aspect-ratio:400/140;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/${res.banner_file}?t=${Date.now()}');background-size:${payload.banner_size};background-position:${payload.banner_position};background-repeat:no-repeat;`;
+                            newDiv.style.cssText = `width:100%;aspect-ratio:400/120;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/${res.banner_file}?t=${Date.now()}');background-size:${payload.banner_size};background-position:${payload.banner_position};background-repeat:no-repeat;`;
                             a.appendChild(newDiv);
                             bannerPreview.replaceWith(a);
                         } else {

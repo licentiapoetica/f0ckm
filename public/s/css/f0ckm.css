@@ -13903,8 +13903,8 @@ i.iconset#a_oc {
   position: absolute;
   inset: 0;
   background-image: var(--author-banner, none);
-  background-size: cover;
-  background-position: center;
+  background-size: var(--author-banner-size, cover);
+  background-position: var(--author-banner-position, center);
   opacity: 0.3;
   z-index: -1;
   border-radius: inherit;
