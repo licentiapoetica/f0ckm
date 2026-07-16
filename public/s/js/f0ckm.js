@@ -3147,7 +3147,8 @@ window.cancelAnimFrame = (function () {
     if (visualizerRafId) window.cancelAnimFrame(visualizerRafId);
 
 
-    const media = document.querySelectorAll('video:not(#gchat-messages video), audio:not(#gchat-messages audio)');
+    const media = [...document.querySelectorAll('video:not(#gchat-messages video), audio:not(#gchat-messages audio)')]
+        .filter(m => !m.classList.contains('emoji') || !m.closest('.sidebar-activity'));
 
     media.forEach(m => {
       try {

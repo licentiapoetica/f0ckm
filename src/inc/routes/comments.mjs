@@ -610,6 +610,11 @@ export default (router, tpl) => {
             db.notify('comments', JSON.stringify(livePayload));
             
             // 2. Sidebar activity update
+            // Compute is_long using the full content (not the truncated notifyBody) so the
+            // sidebar renders the correct clamped state immediately on first paint.
+            const activityIsLong = content.length > 120
+                || content.split('\n').length > 2
+                || activityFiles.length > 0;
             db.notify('activity', JSON.stringify({
                 user_id: req.session.id,
                 item_id: item_id,
@@ -623,7 +628,8 @@ export default (router, tpl) => {
                 username: req.session.user,
                 username_color: req.session.username_color,
                 display_name: req.session.display_name || null,
-                files: activityFiles
+                files: activityFiles,
+                is_long: activityIsLong
             }));
 
             // Automatically subscribe user to the thread
@@ -1090,14 +1096,24 @@ export default (router, tpl) => {
                 else if (c.rating_tag_id == 2) { ratingLabel = 'NSFW'; ratingClass = 'nsfw'; }
                 else if (c.rating_tag_id == (cfg.nsfl_tag_id || 3)) { ratingLabel = 'NSFL'; ratingClass = 'nsfl'; }
 
+                const commentContent = (c.content || '').trim();
+                const commentFiles = filesMap.get(c.id) || [];
+                // Compute overflow hint: true if content is likely taller than the 80px clamp.
+                // ~120 chars ≈ 2-3 wrapped lines in the sidebar; any newlines > 2 or file
+                // attachments (images/video) will also push height above the limit.
+                const isLong = commentContent.length > 120
+                    || commentContent.split('\n').length > 2
+                    || commentFiles.length > 0;
+
                 return {
                     ...c,
-                    content: (c.content || '').trim(),
+                    content: commentContent,
                     username_color: c.username_color,
                     item_rating_class: ratingClass,
                     item_rating_label: ratingLabel,
-                    files: filesMap.get(c.id) || [],
-                    poll: pollMap.get(c.id) || null
+                    files: commentFiles,
+                    poll: pollMap.get(c.id) || null,
+                    is_long: isLong
                     // created_at stays as the raw ISO timestamp so the frontend f0ckTimeAgo can localize it
                 };
             });

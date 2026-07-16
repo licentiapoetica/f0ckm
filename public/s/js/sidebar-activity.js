@@ -511,7 +511,7 @@
                         </div>
                         <span class="comment-time timeago" tooltip="${fullDate}" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content has-overflow"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn" style="display:block">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content${c.is_long ? ' has-overflow' : ''}"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn"${c.is_long ? ' style="display:block"' : ''}>${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;
@@ -644,13 +644,14 @@
             container.appendChild(ioSentinel);
         }
         attachMediaLoadListeners(container);
-        // has-overflow is set by default in the HTML template so all comments start
-        // clamped with the "read more" button visible.  We must NOT run checkOverflow
-        // synchronously here — the browser has not yet laid out the freshly injected
-        // innerHTML, so scrollHeight / clientHeight are 0 and checkOverflow would
-        // incorrectly hide every button.  Instead we defer to after the first layout
-        // frame so measurements are accurate and short comments get their buttons
-        // removed while long comments keep them visible from the very first paint.
+        // has-overflow is now set per-comment by the server (via is_long) so the
+        // correct clamped/unclamped state is baked into the HTML on first paint.
+        // checkOverflow still runs deferred to handle two edge cases:
+        //   1. Comments with images whose heights are 0 at inject time — the server
+        //      correctly marks them is_long:true, but images that load extra-tall
+        //      still need a re-check after load (handled by attachMediaLoadListeners).
+        //   2. Any mis-estimates: content that the heuristic got wrong is corrected
+        //      after layout so measurements are accurate.
         requestAnimationFrame(() => {
             checkOverflow();
             // After 1s, re-check everything — by then even slow ctrl+F5 images will
@@ -843,7 +844,11 @@
 
         // Update DOM if visible
         if (container) {
-            const html = renderActivityItem(newItem);
+            // is_long may be provided by the server (SSE payload) or absent for legacy events.
+            // Default to true so the button is always visible; checkOverflow will hide it
+            // if the rendered content is actually short.
+            const itemWithLong = { ...newItem, is_long: newItem.is_long !== false };
+            const html = renderActivityItem(itemWithLong);
             const temp = document.createElement('div');
             temp.innerHTML = html;
             const node = temp.firstElementChild;
