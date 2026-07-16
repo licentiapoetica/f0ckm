@@ -46,6 +46,16 @@ services:
       f0ckm-db:
         condition: service_healthy
 
+  tor:
+    image: dockurr/tor
+    container_name: tor
+    ports:
+      - "9050:9050"
+      - "8118:8118"
+    networks:
+      - f0ckm-net
+    restart: always
+
   f0ckm-db:
     container_name: f0ckm-db
     image: postgres:17
