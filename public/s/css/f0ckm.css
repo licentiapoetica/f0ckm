@@ -9368,8 +9368,11 @@ html[theme="f0ck95d"] .badge-dark {
   border: none;
   color: var(--white);
   position: absolute;
-  bottom: 20px;
+  bottom: 15px;
   cursor: pointer;
+  right: 50%;
+  font-size: 1.4em;
+  font-weight: bold;
 }
 
 @media (max-width: 999px) {
