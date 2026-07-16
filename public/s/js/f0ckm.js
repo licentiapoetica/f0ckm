@@ -6826,7 +6826,7 @@ window.cancelAnimFrame = (function () {
         leftEdgeZone.style.pointerEvents = 'all';
       } else {
         const rect = sb.getBoundingClientRect();
-        leftEdgeZone.style.left = (rect.right - 12) + 'px';
+        leftEdgeZone.style.left = (rect.right - 5) + 'px';
         leftEdgeZone.style.pointerEvents = 'all';
       }
     };

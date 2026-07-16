@@ -1736,6 +1736,7 @@ body.sidebar-right-hidden .global-sidebar-right {
     overflow-x: hidden;
     border-right: 1px solid var(--nav-border-color);
     z-index: 1;
+    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5) !important;
   }
 
   body.layout-modern .item-layout-container .item-main-content {
