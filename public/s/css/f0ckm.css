@@ -6131,7 +6131,7 @@ body[type='login'] {
 .comment-content video.emoji,
 video.emoji {
   height: 200px;
-  vertical-align: middle;
+  /* vertical-align: middle; */
   display: inline-block;
 }
 
@@ -9389,7 +9389,7 @@ span.badge.badge-current {
 
 video.sidebar-comment-img.emoji {
   max-width: 200px !important;
-  vertical-align: middle;
+  /* vertical-align: middle; */
   object-fit: contain;
   display: inline-block;
 }
