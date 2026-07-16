@@ -1268,10 +1268,7 @@ html[theme='95'] .item-main-content .metadata {
   width: 320px;
   background: var(--dropdown-bg);
   border: 1px solid var(--nav-border-color);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   z-index: 1000;
-  margin-top: 6px;
-  border-radius: 6px;
 }
 
 /* Arrow caret pointing up toward the icon */
