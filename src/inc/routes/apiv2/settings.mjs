@@ -438,7 +438,7 @@ export default router => {
         return res.json({ success: false, msg: 'Invalid description format' }, 400);
       }
 
-      const cleanDescription = description ? description.trim().substring(0, 255) : null;
+      const cleanDescription = description ? description.trim().substring(0, 2000) : null;
 
       try {
         await db`

@@ -390,8 +390,8 @@
         const canvasWrapper = document.createElement('div');
         canvasWrapper.style.cssText = `
             width: 100%;
-            max-width: 600px;
-            aspect-ratio: 4 / 1;
+            max-width: 400px;
+            aspect-ratio: 400 / 140;
             position: relative;
             overflow: hidden;
             border: 1px solid var(--nav-border-color);
@@ -402,8 +402,8 @@
         `;
 
         const canvas = document.createElement('canvas');
-        canvas.width = 1200;
-        canvas.height = 300;
+        canvas.width = 400;
+        canvas.height = 140;
         canvas.style.cssText = 'width:100%;height:100%;display:block;cursor:move;touch-action:none;pointer-events:auto !important;';
         canvasWrapper.appendChild(canvas);
 
@@ -472,7 +472,7 @@
         const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
 
         const draw = () => {
-            ctx.clearRect(0, 0, 1200, 300);
+            ctx.clearRect(0, 0, 400, 140);
             ctx.drawImage(img, panX, panY, img.naturalWidth * zoom, img.naturalHeight * zoom);
             
             // Update hint with live coords/zoom
@@ -481,8 +481,8 @@
 
         const getBounds = (z) => {
             return {
-                minX: 1200 - img.naturalWidth * z,
-                minY: 300 - img.naturalHeight * z
+                minX: 400 - img.naturalWidth * z,
+                minY: 140 - img.naturalHeight * z
             };
         };
 
@@ -492,15 +492,15 @@
                 return;
             }
 
-            // Determine minimum zoom so the image fully covers 1200x400 canvas without black edges
-            minZoom = Math.max(1200 / img.naturalWidth, 300 / img.naturalHeight);
+            // Determine minimum zoom so the image fully covers 400x140 canvas without black edges
+            minZoom = Math.max(400 / img.naturalWidth, 140 / img.naturalHeight);
             maxZoom = minZoom * 4;
 
             if (existingConfig && existingConfig.bgSize && existingConfig.bgSize !== 'cover') {
                 const match = existingConfig.bgSize.match(/([\d.]+)%/);
                 if (match) {
                     const pct = parseFloat(match[1]);
-                    const iw = (pct / 100) * 1200;
+                    const iw = (pct / 100) * 400;
                     zoom = Math.max(minZoom, Math.min(maxZoom, iw / img.naturalWidth));
                 } else {
                     zoom = minZoom;
@@ -511,8 +511,8 @@
 
             const iw = img.naturalWidth * zoom;
             const ih = img.naturalHeight * zoom;
-            const maxPanX = 1200 - iw;
-            const maxPanY = 300 - ih;
+            const maxPanX = 400 - iw;
+            const maxPanY = 140 - ih;
 
             if (existingConfig && existingConfig.bgPos && existingConfig.bgPos !== 'center') {
                 const parts = existingConfig.bgPos.split(' ');
@@ -543,13 +543,13 @@
             const t = pct / 100;
             const newZoom = minZoom + (maxZoom - minZoom) * t;
 
-            const imgCenterX = (600 - panX) / oldZoom;
-            const imgCenterY = (150 - panY) / oldZoom;
+            const imgCenterX = (200 - panX) / oldZoom;
+            const imgCenterY = (70 - panY) / oldZoom;
 
             zoom = newZoom;
             const bounds = getBounds(zoom);
-            panX = Math.max(bounds.minX, Math.min(0, 600 - imgCenterX * zoom));
-            panY = Math.max(bounds.minY, Math.min(0, 150 - imgCenterY * zoom));
+            panX = Math.max(bounds.minX, Math.min(0, 200 - imgCenterX * zoom));
+            panY = Math.max(bounds.minY, Math.min(0, 70 - imgCenterY * zoom));
 
             draw();
         };
@@ -626,13 +626,13 @@
             const iw = img.naturalWidth * zoom;
             const ih = img.naturalHeight * zoom;
             
-            const maxPanX = 1200 - iw;
+            const maxPanX = 400 - iw;
             const posXPercent = maxPanX === 0 ? 50 : (panX / maxPanX) * 100;
             
-            const maxPanY = 300 - ih;
+            const maxPanY = 140 - ih;
             const posYPercent = maxPanY === 0 ? 50 : (panY / maxPanY) * 100;
             
-            const bgSize = `${(iw / 1200) * 100}% auto`;
+            const bgSize = `${(iw / 400) * 100}% auto`;
             const bgPos = `${posXPercent.toFixed(2)}% ${posYPercent.toFixed(2)}%`;
 
             cleanup();
@@ -700,7 +700,7 @@
                             const newDiv = document.createElement('div');
                             newDiv.id = 'banner-preview';
                             newDiv.className = 'banner-preview-img';
-                            newDiv.style.cssText = `width:100%;aspect-ratio:4/1;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/${res.banner_file}?t=${Date.now()}');background-size:${payload.banner_size};background-position:${payload.banner_position};background-repeat:no-repeat;`;
+                            newDiv.style.cssText = `width:100%;aspect-ratio:400/140;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/${res.banner_file}?t=${Date.now()}');background-size:${payload.banner_size};background-position:${payload.banner_position};background-repeat:no-repeat;`;
                             a.appendChild(newDiv);
                             bannerPreview.replaceWith(a);
                         } else {
@@ -857,8 +857,8 @@
                     if (bannerPreview) {
                         const ph = document.createElement('div');
                         ph.id = 'banner-preview'; ph.className = 'banner-preview-img banner-placeholder';
-                        ph.style.cssText = 'width:100%;aspect-ratio:4/1;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;';
-                        ph.textContent = 'No banner set';
+                        ph.style.cssText = 'width:100%;aspect-ratio:400/140;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;';
+                        ph.textContent = window.f0ckI18n?.settings_no_banner_set || 'No banner set';
                         
                         // Replace the <a> wrapper if it exists, otherwise just the preview element
                         const parentA = bannerPreview.closest('a');
@@ -1753,6 +1753,10 @@
                 const data = await res.json();
                 if (data.success) {
                     showAccountStatus(descriptionStatus, 'Description updated successfully!', 'success');
+                    const liveDesc = document.querySelector('.user-infobox-description');
+                    if (liveDesc) {
+                        liveDesc.textContent = description || 'Welcome to my profile! This is a live preview.';
+                    }
                 } else {
                     alert(data.msg || 'Error saving description');
                 }
@@ -1786,6 +1790,10 @@
                 const data = await res.json();
                 if (data.success) {
                     showAccountStatus(descriptionStatus, 'Description cleared!', 'success');
+                    const liveDesc = document.querySelector('.user-infobox-description');
+                    if (liveDesc) {
+                        liveDesc.textContent = 'Welcome to my profile! This is a live preview.';
+                    }
                 } else {
                     alert(data.msg || 'Error clearing description');
                 }
