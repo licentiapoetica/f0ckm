@@ -260,7 +260,7 @@
 
                 let displayStr = layer.text.toUpperCase();
                 const lines = wrapText(ctx, displayStr, canvas.width * 0.9);
-                const h = lines.length * fontSize * 1.1;
+                const h = lines.length * fontSize * 1.25;
                 const w = canvas.width * 0.9;
 
                 // Box for the dragged/hovered layer (top-most layer gets preference)
@@ -274,7 +274,7 @@
                 }
 
                 lines.forEach((line, i) => {
-                    const yOffset = i * (fontSize * 1.1);
+                    const yOffset = i * (fontSize * 1.25);
                     const renderX = Math.round(layer.x);
                     const renderY = Math.round(layer.y + yOffset);
                     
@@ -312,7 +312,7 @@
             const lines = wrapText(ctx, layer.text.toUpperCase(), canvas.width * 0.9);
             ctx.restore();
             const w = canvas.width * 0.95;
-            const h = lines.length * fontSize * 1.2;
+            const h = lines.length * fontSize * 1.25;
             
             return pt.x >= layer.x - w / 2 && pt.x <= layer.x + w / 2 && 
                    pt.y >= layer.y - 20 && pt.y <= layer.y + h + 20;
@@ -506,7 +506,7 @@
                             }
 
                             const idFontSize = Math.max(18, Math.round(nameFontSize * 0.45));
-                            const lineGap = Math.round(nameFontSize * 0.65);
+                            const lineGap = Math.round(nameFontSize * 1.25);
                             const nameY = Math.round(yPos - lineGap / 2);
                             const idY = Math.round(yPos + lineGap / 2) + 2;
 

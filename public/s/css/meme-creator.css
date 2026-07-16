@@ -1,6 +1,13 @@
 @font-face {
     font-family: 'Impact';
     src: url('/s/fonts/impact.woff') format('woff');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'Impact';
+    src: url('/s/fonts/impact.woff') format('woff');
+    font-weight: bold;
 }
 
 /* Meme Creator Styles */
