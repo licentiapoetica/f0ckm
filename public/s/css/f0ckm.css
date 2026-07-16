@@ -9374,6 +9374,7 @@ html[theme="f0ck95d"] .badge-dark {
   transform: translateX(-50%);
   font-size: 0.85em;
   font-weight: bold;
+  width: 100%;
 }
 
 @media (max-width: 999px) {
