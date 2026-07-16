@@ -453,7 +453,22 @@
 
     const renderActivityItem = (c) => {
         const rawContent = c.content || c.body || '';
-        const displayContent = renderCommentContent(rawContent, c.id, c.item_id);
+        let displayContent = renderCommentContent(rawContent, c.id, c.item_id);
+        
+        displayContent = window.f0cklib?.processMentions ? window.f0cklib.processMentions(displayContent) : displayContent;
+        
+        // Robust fallback for is_long if server didn't provide it, plus inline media checks
+        let isLong = c.is_long;
+        if (isLong === undefined) {
+            isLong = rawContent.length > 120 
+                || rawContent.split('\n').length > 2 
+                || (c.files && c.files.length > 0);
+        }
+        // Always force isLong if there are inline media tags that expand vertically
+        if (!isLong && (/\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawContent) || displayContent.includes('<video'))) {
+            isLong = true;
+        }
+
         const attachmentsHtml = renderCommentAttachments(c.files, rawContent);
         const pollHtml = renderSidebarPoll(c.poll, c.id, c.item_id);
 
