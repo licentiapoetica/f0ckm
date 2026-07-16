@@ -1585,7 +1585,7 @@ html[theme='95'] .item-main-content .metadata {
   top: var(--navbar-h, 50px) !important;
   bottom: 0 !important;
   right: 0;
-  width: 400px;
+  width: 300px;
   max-width: 85%;
   height: auto !important;
   max-height: none !important;
@@ -1601,7 +1601,18 @@ html[theme='95'] .item-main-content .metadata {
 }
 
 body.sidebar-right-hidden .global-sidebar-right {
+  right: -300px !important;
+}
+
+body.layout-modern.sidebar-right-hidden .global-sidebar-right {
   right: -400px !important;
+}
+
+/* Modern layout: wider 400px sidebar */
+body.layout-modern .item-sidebar-right,
+body.layout-modern .index-sidebar-right,
+body.layout-modern .global-sidebar-right {
+  width: 400px;
 }
 
 /* Prevent native image drag from hijacking the sidebar mouse-drag gesture */
@@ -1693,7 +1704,7 @@ body.sidebar-right-hidden .global-sidebar-right {
   body.sidebar-right-hidden .global-sidebar-right {
     right: -100% !important;
     /* Fallback for variable width sidebars */
-    right: -400px !important;
+    right: -300px !important;
   }
 }
 
@@ -4442,7 +4453,7 @@ span.placeholder {
   bottom: 0;
   left: 0;
   /* Match sidebar width so centering is relative to the content area */
-  right: 400px;
+  right: 300px;
   pointer-events: none;
   z-index: 10;
   /* Mirror the sidebar slide transition */
@@ -4452,6 +4463,11 @@ span.placeholder {
 /* Sidebar hidden — reclaim the full width */
 body.sidebar-right-hidden .pagination-container-fluid {
   right: 0;
+}
+
+/* Modern layout: wider sidebar needs wider offset */
+body.layout-modern .pagination-container-fluid {
+  right: 400px;
 }
 
 .bottom-pagination.fixed-pagination {
@@ -4679,6 +4695,11 @@ body.sidebar-right-hidden .pagination-container-fluid {
 
   /* Reserve space for the fixed sidebar so content doesn't flow behind it */
   .index-layout-wrapper {
+    padding-right: 300px;
+  }
+
+  /* Modern layout: wider sidebar */
+  body.layout-modern .index-layout-wrapper {
     padding-right: 400px;
   }
 
@@ -9623,6 +9644,10 @@ html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
 
 @media (min-width: 1200px) {
   .pagewrapper {
+    padding-right: 300px;
+  }
+
+  body.layout-modern .pagewrapper {
     padding-right: 400px;
   }
 
@@ -12675,6 +12700,9 @@ body.layout-modern .tag-ac-input {
 
   @media (min-width: 1200px) {
     body:not(.sidebar-right-hidden) .messages-convo-page {
+      right: 300px !important;
+    }
+    body.layout-modern:not(.sidebar-right-hidden) .messages-convo-page {
       right: 400px !important;
     }
   }
