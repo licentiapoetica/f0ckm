@@ -557,8 +557,15 @@ window.cancelAnimFrame = (function () {
   // For guests: fall back to cookie (no session = cookie is the only persistence).
   if (window.f0ckSession && window.f0ckSession.logged_in && window.f0ckSession.mode !== undefined) {
     window.activeMode = +window.f0ckSession.mode;
-    // Reconcile the local cookie so future reads are consistent on this device
+    // Reconcile the local mode cookie so future reads are consistent on this device
     document.cookie = `mode=${window.activeMode}; Path=/; Max-Age=31536000`;
+    // If the authoritative mode is ALL (3), also clear any stale ratings cookie.
+    // Otherwise a ratings=sfw cookie left from a previous device's filter would make
+    // the badge and button UI show the wrong state (even though the server ignores
+    // the ratings cookie when mode=3).
+    if (window.activeMode === 3) {
+      document.cookie = 'ratings=; Path=/; Max-Age=0';
+    }
   } else {
     const _modeCookieRaw = document.cookie.split('; ').find(r => r.startsWith('mode='));
     if (_modeCookieRaw) {
