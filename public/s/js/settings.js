@@ -273,7 +273,9 @@
     }
 
     // Remove custom avatar handler (uses event delegation for dynamically added button)
-    document.addEventListener('click', async (e) => {
+    if (!window._f0ckAvatarRemoveBound) {
+        window._f0ckAvatarRemoveBound = true;
+        document.addEventListener('click', async (e) => {
         if (e.target.id === 'avatar-remove-btn') {
             e.target.disabled = true;
             e.target.textContent = i18n.hall_removing || 'Removing...';
@@ -346,6 +348,7 @@
             }
         }
     });
+    }
 
     // ==== Banner File Upload Logic (with crop modal) ====
     const bannerFileInput = document.getElementById('banner-file-input');
@@ -807,7 +810,9 @@
     }
 
     // ── Edit banner position handler ─────────────────────────────────────────
-    document.addEventListener('click', async (e) => {
+    if (!window._f0ckBannerEditBound) {
+        window._f0ckBannerEditBound = true;
+        document.addEventListener('click', async (e) => {
         if (e.target.id === 'banner-edit-btn') {
             const preview = document.getElementById('banner-preview');
             if (!preview) return;
@@ -842,9 +847,12 @@
             }
         }
     });
+    }
 
     // ── Remove banner handler ────────────────────────────────────────────────
-    document.addEventListener('click', async (e) => {
+    if (!window._f0ckBannerRemoveBound) {
+        window._f0ckBannerRemoveBound = true;
+        document.addEventListener('click', async (e) => {
         if (e.target.id === 'banner-remove-btn') {
             e.target.disabled = true;
             e.target.textContent = 'Removing...';
@@ -892,6 +900,7 @@
             }
         }
     });
+    }
 
 
     // Generic Linking Logic
@@ -964,7 +973,9 @@
     }
 
     // Unlink handler
-    document.addEventListener('click', async (e) => {
+    if (!window._f0ckUnlinkAccountBound) {
+        window._f0ckUnlinkAccountBound = true;
+        document.addEventListener('click', async (e) => {
         if (e.target.classList.contains('unlink-account-btn')) {
             const alias = e.target.getAttribute('data-alias');
             const type = e.target.getAttribute('data-type');
@@ -995,6 +1006,7 @@
             }
         }
     });
+    }
 
     if (genTokenBtn) {
         genTokenBtn.addEventListener('click', async () => {
