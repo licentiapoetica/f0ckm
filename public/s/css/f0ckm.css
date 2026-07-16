@@ -13824,6 +13824,8 @@ textarea#profile_description {
 .timestamp-link {
   color: inherit;
   text-decoration: none;
+  text-shadow: 1px 1px 1px black;
+  font-size: 14px;
 }
 
 .timestamp-link:hover {
