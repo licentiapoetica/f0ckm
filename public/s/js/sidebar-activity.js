@@ -665,11 +665,15 @@
         //      still need a re-check after load (handled by attachMediaLoadListeners).
         //   2. Any mis-estimates: content that the heuristic got wrong is corrected
         //      after layout so measurements are accurate.
+        // Run checkOverflow synchronously immediately after setting innerHTML.
+        // This forces a synchronous layout (reflow) but guarantees the browser
+        // will not paint the intermediate state, completely eliminating any "flash"
+        // of the button popping in or out.
+        checkOverflow();
+
+        // checkOverflow still runs deferred to handle image loads (attachMediaLoadListeners)
+        // and a fallback 1s timeout for any incredibly slow layout edge cases.
         requestAnimationFrame(() => {
-            checkOverflow();
-            // After 1s, re-check everything — by then even slow ctrl+F5 images will
-            // have loaded and been laid out, so scrollHeight is accurate for all
-            // image comments.
             setTimeout(checkOverflow, 1000);
         });
         fetchSidebarYoutubeTitles(container);
@@ -795,8 +799,8 @@
                         playSidebarEmojiVideos(node);
                     });
                     // Defer overflow checks to after layout so measurements are accurate.
+                    addedNodes.forEach(node => checkOverflow(node));
                     requestAnimationFrame(() => {
-                        addedNodes.forEach(node => checkOverflow(node));
                         // Deferred re-check for image comments — mirrors renderFromCache behaviour.
                         // Images in newly appended nodes may not be laid out yet at append time.
                         setTimeout(() => addedNodes.forEach(node => checkOverflow(node)), 1000);
@@ -869,7 +873,7 @@
                 node.classList.add('new-item-fade');
                 container.prepend(node);
                 attachMediaLoadListeners(node);
-                requestAnimationFrame(() => checkOverflow(node));
+                checkOverflow(node);
                 fetchSidebarYoutubeTitles(container);
                 playSidebarEmojiVideos(node);
             }
