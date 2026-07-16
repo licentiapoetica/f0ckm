@@ -4136,8 +4136,10 @@ class CommentSystem {
                                 .then(data => {
                                     if (data?.success && Array.isArray(data.favorites)) {
                                         localStorage.setItem(this.KEY, JSON.stringify(data.favorites));
+                                        // Re-render the open picker so DB favorites appear immediately
+                                        window._emojiPickerRefresh?.();
                                     }
-                                }).catch(() => {});
+                                }).catch(e => console.warn('[EmojiFavs] syncFromDB failed:', e));
                         }
                     };
                     // Seed from DB on first open if logged in
