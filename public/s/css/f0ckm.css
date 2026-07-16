@@ -1585,7 +1585,7 @@ html[theme='95'] .item-main-content .metadata {
   top: var(--navbar-h, 50px) !important;
   bottom: 0 !important;
   right: 0;
-  width: 300px;
+  width: 400px;
   max-width: 85%;
   height: auto !important;
   max-height: none !important;
