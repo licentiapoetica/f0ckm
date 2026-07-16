@@ -54,6 +54,32 @@ window.cancelAnimFrame = (function () {
   if (ua.includes('Chrome')) htmlEl.classList.add('is-chrome');
   if (ua.includes('Safari') && !ua.includes('Chrome')) htmlEl.classList.add('is-safari');
 
+  // DPR / zoom-level detection — works in Firefox (which ignores zoom in CSS dppx queries)
+  const _updateDprTier = () => {
+    const dpr = window.devicePixelRatio || 1;
+    // Tiers mirror the CSS resolution media-query breakpoints
+    let tier = 'dpr-1x';                         // 1.0 – 1.04
+    if      (dpr >= 1.55) tier = 'dpr-high';      // ≥ 155% zoom
+    else if (dpr >= 1.39) tier = 'dpr-150';       // ~140–154% zoom
+    else if (dpr >= 1.26) tier = 'dpr-130';       // ~126–138%
+    else if (dpr >= 1.20) tier = 'dpr-120';       // ~120–125%
+    else if (dpr >= 1.05) tier = 'dpr-110';       // ~105–115%
+    htmlEl.setAttribute('data-dpr', tier);
+  };
+  _updateDprTier();
+  // Re-evaluate when the user changes zoom (fires on every DPR change)
+  if (window.matchMedia) {
+    let _dprMql = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    const _onDprChange = () => {
+      _updateDprTier();
+      // Re-bind to the NEW dpr value so we catch the next change too
+      _dprMql.removeEventListener('change', _onDprChange);
+      _dprMql = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      _dprMql.addEventListener('change', _onDprChange);
+    };
+    _dprMql.addEventListener('change', _onDprChange);
+  }
+
   if (localStorage.getItem('blurNsfw') === 'true') htmlEl.classList.add('blur-nsfw-active');
   if (localStorage.getItem('blurNsfl') === 'true') htmlEl.classList.add('blur-nsfl-active');
   if (localStorage.getItem('blurSfw') === 'true') htmlEl.classList.add('blur-sfw-active');

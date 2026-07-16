@@ -4855,6 +4855,41 @@ body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
     }
 }
 
+/* ─── JS-driven DPR fallbacks (Firefox ignores zoom in CSS dppx queries) ─── */
+/* These mirror the @media resolution rules above using [data-dpr] set by JS  */
+
+/* ~105–115% zoom */
+html[data-dpr="dpr-110"] body.layout-modern .embed-responsive-16by9::before {
+  padding-top: 46.25%;
+}
+
+/* ~120–125% zoom */
+html[data-dpr="dpr-120"] body.layout-modern .embed-responsive-16by9::before {
+  padding-top: 41.25%;
+}
+
+/* ~126–138% zoom */
+html[data-dpr="dpr-130"] body.layout-legacy .embed-responsive-16by9::before {
+  padding-top: 41.25%;
+}
+html[data-dpr="dpr-130"] body.layout-modern .embed-responsive-16by9::before {
+  padding-top: 41.25%;
+}
+html[data-dpr="dpr-130"] body.layout-modern.sidebar-right-hidden .embed-responsive-16by9::before {
+  padding-top: 41.25%;
+}
+html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+  padding-top: 41.25%;
+}
+
+/* ~139–154% zoom (the 150% tier) */
+html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
+  padding-top: 36.25%;
+}
+html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
+  padding-top: 36.25%;
+}
+
 .embed-responsive-4by3::before {
   padding-top: 75%;
 }
