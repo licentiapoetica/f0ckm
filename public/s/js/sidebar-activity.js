@@ -503,7 +503,7 @@
                         </div>
                         <span class="comment-time timeago" tooltip="${fullDate}" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content has-overflow"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn" style="display:block">${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;
@@ -544,10 +544,12 @@
             }
 
             if (scrollHeight > clientHeight + 2) { // 2px buffer for rounding
+                // Content overflows — ensure clamped state (may already be set from HTML default)
                 btn.style.display = 'block';
                 btn.textContent = window.f0ckI18n?.sidebar_read_more || 'read more';
                 container.classList.add('has-overflow');
             } else {
+                // Content fits — remove the default-on clamped state
                 btn.style.display = 'none';
                 container.classList.remove('has-overflow');
             }
@@ -611,12 +613,11 @@
             container.appendChild(ioSentinel);
         }
         attachMediaLoadListeners(container);
-        // Defer overflow check until after the browser has performed layout on the
-        // newly-injected innerHTML — a synchronous call here fires before paint so
-        // scrollHeight === clientHeight, causing has-overflow to be stripped and the
-        // "read more" button to flash away. Double-rAF guarantees we measure after
-        // the first layout/paint cycle.
-        requestAnimationFrame(() => requestAnimationFrame(() => checkOverflow()));
+        // has-overflow is set by default in the HTML template so long comments are clamped
+        // from the first paint. Reading scrollHeight inside checkOverflow forces a synchronous
+        // reflow, so this call immediately removes has-overflow from short comments before
+        // anything is painted — no rAF deferral needed.
+        checkOverflow();
         fetchSidebarYoutubeTitles(container);
         // Auto-play converted GIF videos and webm emoji stickers
         container.querySelectorAll('video.autoplay-gif').forEach(v => { v.autoplay = true; v.muted = true; v.play().catch(() => { v.addEventListener('canplay', () => v.play().catch(() => { }), { once: true }); }); });
