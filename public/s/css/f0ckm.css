@@ -1882,12 +1882,14 @@ body.layout-modern .global-sidebar-right {
 
   body.layout-legacy .item-layout-container .item-main-content ._204863 {
     align-self: center;
-    width: 100%;
+    width: 800px;
+    max-width: 100%;
   }
 
   body.layout-legacy .item-layout-container .item-main-content .content {
     align-self: center;
-    width: 100%;
+    width: 800px;
+    max-width: 100%;
   }
 
   body.layout-legacy .item-layout-container .item-main-content .metadata {
