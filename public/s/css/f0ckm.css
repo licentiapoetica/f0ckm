@@ -5666,6 +5666,7 @@ body[type='login'] {
 }
 .sticker-preview-overlay.visible {
   opacity: 1;
+  pointer-events: auto;
 }
 .sticker-preview-overlay img,
 .sticker-preview-overlay video {
@@ -5674,6 +5675,32 @@ body[type='login'] {
   width: auto;
   height: auto;
   object-fit: contain;
+}
+
+/* Fav button inside sticker preview overlay */
+.sticker-preview-fav-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.55);
+  font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  backdrop-filter: blur(4px);
+}
+.sticker-preview-fav-btn:hover,
+.sticker-preview-fav-btn.is-fav {
+  color: var(--emoji-fav-color, #f5c518);
+  border-color: var(--emoji-fav-color, #f5c518);
+  background: rgba(0,0,0,0.75);
 }
 
 .emoji-picker img {
@@ -5734,9 +5761,8 @@ body[type='login'] {
 }
 
 .ep-tab img,
-.ep-tab video {
-  width: 28px;
-  height: 28px;
+.ep-tab video,
+.ep-tab i {
   object-fit: contain;
   pointer-events: none;
 }

@@ -4022,13 +4022,30 @@ class CommentSystem {
                 let _hideTimer = null;
                 window.stickerPreview = {
                     isShowing: false,
-                    show(src, isVideo) {
+                    show(src, isVideo, name, url) {
                         clearTimeout(_hideTimer);
                         overlay.innerHTML = '';
                         const el = isVideo ? document.createElement('video') : document.createElement('img');
                         el.src = src;
                         if (isVideo) { el.autoplay = true; el.loop = true; el.muted = true; el.playsInline = true; }
                         overlay.appendChild(el);
+                        // Fav button — always shown in overlay for easy mobile access
+                        if (name && url && window._emojiPickerFavUtils) {
+                            const isFav = window._emojiPickerFavUtils.has(name);
+                            const favBtn = document.createElement('button');
+                            favBtn.className = 'sticker-preview-fav-btn' + (isFav ? ' is-fav' : '');
+                            favBtn.innerHTML = '<i class="' + (isFav ? 'fa-solid' : 'fa-regular') + ' fa-star"></i>';
+                            favBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                window._emojiPickerFavUtils.toggle(name, url);
+                                const nowFav = window._emojiPickerFavUtils.has(name);
+                                favBtn.classList.toggle('is-fav', nowFav);
+                                favBtn.innerHTML = '<i class="' + (nowFav ? 'fa-solid' : 'fa-regular') + ' fa-star"></i>';
+                                window._emojiPickerRefresh?.();
+                            });
+                            favBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); favBtn.click(); });
+                            overlay.appendChild(favBtn);
+                        }
                         overlay.classList.add('visible');
                         this.isShowing = true;
                         if (isVideo) el.play().catch(() => {});
@@ -4039,9 +4056,9 @@ class CommentSystem {
                         _hideTimer = setTimeout(() => { overlay.innerHTML = ''; }, 200);
                     }
                 };
-                // Click anywhere on the overlay to dismiss
+                // Click/tap overlay background to dismiss
                 overlay.addEventListener('click', () => window.stickerPreview.hide());
-                // Global mouseup: dismiss if the mouse is released anywhere outside the picker
+                // Global mouseup: dismiss if released outside
                 document.addEventListener('mouseup', () => {
                     if (window.stickerPreview.isShowing) window.stickerPreview.hide();
                 });
@@ -4158,9 +4175,8 @@ class CommentSystem {
                         badge.className = 'fa-solid fa-star ep-fav-badge';
                         el.appendChild(badge);
                     }
-                    // Hold-to-preview (400ms) + Long-hold-to-favorite (700ms, mobile-friendly)
+                    // Hold-to-preview (400ms) — on mobile, tap the ★ in the overlay to favorite
                     let holdTimer = null;
-                    let favHoldTimer = null;
                     let holdFired = false;
                     let favHoldFired = false;
                     const startHold = () => {
@@ -4168,27 +4184,12 @@ class CommentSystem {
                         favHoldFired = false;
                         holdTimer = setTimeout(() => {
                             holdFired = true;
-                            window.stickerPreview?.show(url, isVideo);
+                            window.stickerPreview?.show(url, isVideo, name, url);
                         }, 400);
-                        // 700ms: transition from preview to favorites menu (mobile long-press)
-                        favHoldTimer = setTimeout(() => {
-                            if (holdFired) {
-                                window.stickerPreview?.hide();
-                                holdFired = false;
-                                favHoldFired = true;
-                                const rect = el.getBoundingClientRect();
-                                window._favContextMenu?.show(
-                                    rect.left + rect.width / 2, rect.top,
-                                    name, url,
-                                    () => showTab(activeTabId)
-                                );
-                            }
-                        }, 700);
                     };
-                    const cancelHold = () => { clearTimeout(holdTimer); clearTimeout(favHoldTimer); };
+                    const cancelHold = () => { clearTimeout(holdTimer); };
                     const endHold = () => {
                         clearTimeout(holdTimer);
-                        clearTimeout(favHoldTimer);
                         if (holdFired || favHoldFired) {
                             holdFired = false;
                             favHoldFired = false;
@@ -4255,6 +4256,7 @@ class CommentSystem {
 
                 const showTab = (packId) => {
                     activeTabId = packId;
+                    window._emojiPickerRefresh = () => showTab(activeTabId);
                     tabBar.querySelectorAll('.ep-tab').forEach(t => t.classList.toggle('active', t.dataset.packId === String(packId ?? 'null')));
 
                     gridArea.innerHTML = '';
@@ -4314,6 +4316,22 @@ class CommentSystem {
                     }, { passive: true });
                 };
 
+                // Helper: reliable touch handling for tab buttons on mobile
+                const addTabTouch = (btn, cb) => {
+                    let ts = null;
+                    btn.addEventListener('touchstart', (e) => {
+                        ts = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                        e.stopPropagation();
+                    }, { passive: true });
+                    btn.addEventListener('touchend', (e) => {
+                        if (!ts) return;
+                        const dx = Math.abs(e.changedTouches[0].clientX - ts.x);
+                        const dy = Math.abs(e.changedTouches[0].clientY - ts.y);
+                        ts = null;
+                        if (dx < 10 && dy < 10) { e.preventDefault(); cb(); }
+                    });
+                };
+
                 // Build tab buttons — Favorites first
                 const favTab = document.createElement('button');
                 favTab.className = 'ep-tab ep-tab-favs';
@@ -4323,6 +4341,7 @@ class CommentSystem {
                 favTab.innerHTML = '<i class="fa-solid fa-star" style="color:var(--emoji-fav-color,#f5c518);font-size:1.1em;"></i>';
                 favTab.addEventListener('mousedown', e => e.preventDefault());
                 favTab.addEventListener('click', () => showTab('__favs__'));
+                addTabTouch(favTab, () => showTab('__favs__'));
                 tabBar.appendChild(favTab);
 
                 packs.forEach((pack, i) => {
@@ -4341,10 +4360,11 @@ class CommentSystem {
                         icon.loading = 'lazy';
                         tab.appendChild(icon);
                     } else {
-                        tab.textContent = '☺';
+                        tab.textContent = '\u263A';
                     }
                     tab.addEventListener('mousedown', e => e.preventDefault());
                     tab.addEventListener('click', () => showTab(pack.id ?? null));
+                    addTabTouch(tab, () => showTab(pack.id ?? null));
                     tabBar.appendChild(tab);
                 });
 
