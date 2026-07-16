@@ -8928,6 +8928,13 @@ span.badge.badge-current {
   margin-bottom: 20px;
 }
 
+@media (max-width: 768px) {
+  .avatar-settings-wrapper {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
+
 .avatar-preview-container {
   display: flex;
   flex-direction: column;

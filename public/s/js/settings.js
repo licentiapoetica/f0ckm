@@ -849,13 +849,28 @@
                 if (data.success) {
                     showBannerStatus('Banner removed', 'success');
                     e.target.remove();
+                    const editBtn = document.getElementById('banner-edit-btn');
+                    if (editBtn) editBtn.remove();
+
                     const bannerPreview = document.getElementById('banner-preview');
                     if (bannerPreview) {
                         const ph = document.createElement('div');
                         ph.id = 'banner-preview'; ph.className = 'banner-preview-img banner-placeholder';
-                        ph.style.cssText = 'width:100%;max-width:360px;height:80px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;';
+                        ph.style.cssText = 'width:100%;aspect-ratio:4/1;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;';
                         ph.textContent = 'No banner set';
-                        bannerPreview.replaceWith(ph);
+                        
+                        // Replace the <a> wrapper if it exists, otherwise just the preview element
+                        const parentA = bannerPreview.closest('a');
+                        if (parentA && parentA.parentElement.classList.contains('avatar-preview-container')) {
+                            parentA.replaceWith(ph);
+                        } else {
+                            bannerPreview.replaceWith(ph);
+                        }
+                    }
+
+                    const livePreviewBox = document.getElementById('live-profile-preview-box');
+                    if (livePreviewBox) {
+                        livePreviewBox.style.setProperty('--author-banner', 'none');
                     }
                 } else {
                     showBannerStatus(data.msg || 'Failed to remove', 'error');
