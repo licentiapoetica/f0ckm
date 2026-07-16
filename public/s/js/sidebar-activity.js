@@ -499,6 +499,19 @@
                 </div>`;
         }
 
+        // Robust fallback for is_long if server didn't provide it, plus inline media checks
+        let isLong = c.is_long;
+        const rawText = c.content || c.body || '';
+        if (isLong === undefined) {
+            isLong = rawText.length > 120 
+                || rawText.split('\n').length > 2 
+                || (c.files && c.files.length > 0);
+        }
+        // Always force isLong if there are inline media tags that expand vertically
+        if (!isLong && /\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawText)) {
+            isLong = true;
+        }
+
         return `
             <div class="comment" id="sc${c.id}">
                 <div class="comment-body">
@@ -511,7 +524,7 @@
                         </div>
                         <span class="comment-time timeago" tooltip="${fullDate}" style="font-size: 0.75em;"${tsAttr}>${timeStr}</span>
                     </div>
-                    <div class="comment-content${c.is_long ? ' has-overflow' : ''}"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn"${c.is_long ? ' style="display:block"' : ''}>${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
+                    <div class="comment-content${isLong ? ' has-overflow' : ''}"><div class="comment-content-inner">${displayContent}${attachmentsHtml}${pollHtml}</div><button class="read-more-btn"${isLong ? ' style="display:block"' : ''}>${window.f0ckI18n?.sidebar_read_more || 'read more'}</button></div>
                     ${itemPreview}
                 </div>
             </div>`;

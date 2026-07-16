@@ -614,7 +614,8 @@ export default (router, tpl) => {
             // sidebar renders the correct clamped state immediately on first paint.
             const activityIsLong = content.length > 120
                 || content.split('\n').length > 2
-                || activityFiles.length > 0;
+                || activityFiles.length > 0
+                || /\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(content);
             db.notify('activity', JSON.stringify({
                 user_id: req.session.id,
                 item_id: item_id,
@@ -1103,7 +1104,8 @@ export default (router, tpl) => {
                 // attachments (images/video) will also push height above the limit.
                 const isLong = commentContent.length > 120
                     || commentContent.split('\n').length > 2
-                    || commentFiles.length > 0;
+                    || commentFiles.length > 0
+                    || /\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(commentContent);
 
                 return {
                     ...c,
