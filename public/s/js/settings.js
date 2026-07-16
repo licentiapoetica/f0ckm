@@ -224,8 +224,11 @@
                             }
                         }
 
-                        // Update navbar avatar
-                        updateNavAvatar('/a/' + res.avatar_file + '?t=' + Date.now());
+                        // Update navbar avatar and live preview avatar
+                        const avatarUrl = '/a/' + res.avatar_file + '?t=' + Date.now();
+                        updateNavAvatar(avatarUrl);
+                        const livePreviewAvatar = document.getElementById('live-preview-avatar');
+                        if (livePreviewAvatar) livePreviewAvatar.src = avatarUrl;
 
                         // Show remove button if not present
                         const existingRemoveBtn = document.getElementById('avatar-remove-btn');
@@ -362,7 +365,7 @@
     };
 
     // ── Crop Modal ──────────────────────────────────────────────────────────
-    const showBannerCropModal = (file) => new Promise((resolve) => {
+    const showBannerCropModal = (file, existingConfig = null) => new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.style.cssText = `
             position:fixed;inset:0;z-index:99999;
@@ -375,84 +378,101 @@
         `;
 
 
-        const title = document.createElement('div');
+        const title = document.createElement('h3');
         title.textContent = 'Position Banner';
-        title.style.cssText = 'color:#fff;font-size:1.2em;font-weight:600;letter-spacing:0.5px;';
+        title.style.margin = '0';
+        title.style.color = '#fff';
 
         const hint = document.createElement('div');
         hint.textContent = 'Drag to position. Use the slider below to zoom.';
         hint.style.cssText = 'color:#aaa;font-size:0.85em;text-align:center;margin-bottom:4px;';
 
-        // Responsive cropper container
-        const cropperContainer = document.createElement('div');
-        cropperContainer.style.cssText = `
+        const canvasWrapper = document.createElement('div');
+        canvasWrapper.style.cssText = `
             width: 100%;
             max-width: 600px;
-            aspect-ratio: 3 / 1;
+            aspect-ratio: 4 / 1;
             position: relative;
             overflow: hidden;
             border: 1px solid var(--nav-border-color);
             border-radius: 4px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
             background: #111;
+            margin: 0 auto;
         `;
 
         const canvas = document.createElement('canvas');
         canvas.width = 1200;
-        canvas.height = 400;
+        canvas.height = 300;
         canvas.style.cssText = 'width:100%;height:100%;display:block;cursor:move;touch-action:none;pointer-events:auto !important;';
-        cropperContainer.appendChild(canvas);
+        canvasWrapper.appendChild(canvas);
 
-        // Zoom slider container
-        const zoomContainer = document.createElement('div');
-        zoomContainer.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;max-width:320px;color:#fff;margin-top:4px;';
+        const controls = document.createElement('div');
+        controls.style.cssText = 'display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 15px;';
 
-        const zoomOutLabel = document.createElement('span');
-        zoomOutLabel.textContent = 'A';
-        zoomOutLabel.style.cssText = 'font-size:0.8em;opacity:0.6;user-select:none;font-weight:bold;';
+        const zoomLabel = document.createElement('label');
+        zoomLabel.textContent = 'Zoom:';
+        zoomLabel.style.display = 'flex';
+        zoomLabel.style.gap = '10px';
+        zoomLabel.style.alignItems = 'center';
+        zoomLabel.style.flex = '1';
+        zoomLabel.style.minWidth = '200px';
+        zoomLabel.style.color = '#fff';
 
-        const zoomInput = document.createElement('input');
-        zoomInput.type = 'range';
-        zoomInput.style.cssText = 'flex:1;height:4px;border-radius:2px;outline:none;cursor:pointer;';
+        const zoomSlider = document.createElement('input');
+        zoomSlider.type = 'range';
+        zoomSlider.min = '0';
+        zoomSlider.max = '100';
+        zoomSlider.step = '0.01';
+        zoomSlider.value = '0';
+        zoomSlider.style.flex = '1';
+        zoomLabel.appendChild(zoomSlider);
 
-        const zoomInLabel = document.createElement('span');
-        zoomInLabel.textContent = 'A';
-        zoomInLabel.style.cssText = 'font-size:1.2em;opacity:0.9;user-select:none;font-weight:bold;';
-
-        zoomContainer.append(zoomOutLabel, zoomInput, zoomInLabel);
-
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:12px;margin-top:8px;';
-
-        const confirmBtn = document.createElement('button');
-        confirmBtn.textContent = 'Save & Upload';
-        confirmBtn.className = 'button';
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display: flex; gap: 10px;';
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = 'Cancel';
         cancelBtn.className = 'button button-danger';
+        cancelBtn.textContent = 'Cancel';
 
-        btnRow.append(confirmBtn, cancelBtn);
-        overlay.append(title, hint, cropperContainer, zoomContainer, btnRow);
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'button';
+        confirmBtn.textContent = 'Confirm Crop';
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        
+        controls.appendChild(zoomLabel);
+        controls.appendChild(actions);
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'width: 90%; max-width: 1200px; background: var(--bg); padding: 20px; border-radius: 8px; border: 1px solid var(--nav-border-color); display: flex; flex-direction: column; gap: 15px;';
+
+        wrapper.appendChild(title);
+        wrapper.appendChild(hint);
+        wrapper.appendChild(canvasWrapper);
+        wrapper.appendChild(controls);
+        
+        overlay.appendChild(wrapper);
         document.body.appendChild(overlay);
-        overlay.tabIndex = 0;
-        overlay.focus();
 
         const ctx = canvas.getContext('2d');
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
 
-        // State variables
-        let zoom = 1.0;
-        let minZoom = 1.0;
-        let maxZoom = 4.0;
+        let zoom = 1;
+        let minZoom = 1;
+        let maxZoom = 4;
         let panX = 0;
         let panY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
 
-
+        const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
 
         const draw = () => {
-            ctx.clearRect(0, 0, 1200, 400);
+            ctx.clearRect(0, 0, 1200, 300);
             ctx.drawImage(img, panX, panY, img.naturalWidth * zoom, img.naturalHeight * zoom);
             
             // Update hint with live coords/zoom
@@ -462,7 +482,7 @@
         const getBounds = (z) => {
             return {
                 minX: 1200 - img.naturalWidth * z,
-                minY: 400 - img.naturalHeight * z
+                minY: 300 - img.naturalHeight * z
             };
         };
 
@@ -473,18 +493,47 @@
             }
 
             // Determine minimum zoom so the image fully covers 1200x400 canvas without black edges
-            minZoom = Math.max(1200 / img.naturalWidth, 400 / img.naturalHeight);
+            minZoom = Math.max(1200 / img.naturalWidth, 300 / img.naturalHeight);
             maxZoom = minZoom * 4;
-            zoom = minZoom;
 
-            // Center image initially
-            panX = (1200 - img.naturalWidth * zoom) / 2;
-            panY = (400 - img.naturalHeight * zoom) / 2;
+            if (existingConfig && existingConfig.bgSize && existingConfig.bgSize !== 'cover') {
+                const match = existingConfig.bgSize.match(/([\d.]+)%/);
+                if (match) {
+                    const pct = parseFloat(match[1]);
+                    const iw = (pct / 100) * 1200;
+                    zoom = Math.max(minZoom, Math.min(maxZoom, iw / img.naturalWidth));
+                } else {
+                    zoom = minZoom;
+                }
+            } else {
+                zoom = minZoom;
+            }
 
-            // Configure zoom slider
-            zoomInput.min = 0;
-            zoomInput.max = 100;
-            zoomInput.value = 0;
+            const iw = img.naturalWidth * zoom;
+            const ih = img.naturalHeight * zoom;
+            const maxPanX = 1200 - iw;
+            const maxPanY = 300 - ih;
+
+            if (existingConfig && existingConfig.bgPos && existingConfig.bgPos !== 'center') {
+                const parts = existingConfig.bgPos.split(' ');
+                const posXPercent = parseFloat(parts[0]) || 50;
+                const posYPercent = parseFloat(parts[1] !== undefined ? parts[1] : parts[0]) || 50;
+                panX = (posXPercent / 100) * maxPanX;
+                panY = (posYPercent / 100) * maxPanY;
+                
+                // Clamp bounds immediately in case image size changed
+                const bounds = getBounds(zoom);
+                panX = clamp(panX, bounds.minX, 0);
+                panY = clamp(panY, bounds.minY, 0);
+            } else {
+                // Center image initially
+                panX = maxPanX / 2;
+                panY = maxPanY / 2;
+            }
+
+            // Update zoom slider visually
+            const sliderPct = ((zoom - minZoom) / (maxZoom - minZoom)) * 100;
+            zoomSlider.value = sliderPct || 0;
 
             draw();
         };
@@ -495,17 +544,17 @@
             const newZoom = minZoom + (maxZoom - minZoom) * t;
 
             const imgCenterX = (600 - panX) / oldZoom;
-            const imgCenterY = (200 - panY) / oldZoom;
+            const imgCenterY = (150 - panY) / oldZoom;
 
             zoom = newZoom;
             const bounds = getBounds(zoom);
             panX = Math.max(bounds.minX, Math.min(0, 600 - imgCenterX * zoom));
-            panY = Math.max(bounds.minY, Math.min(0, 200 - imgCenterY * zoom));
+            panY = Math.max(bounds.minY, Math.min(0, 150 - imgCenterY * zoom));
 
             draw();
         };
 
-        zoomInput.addEventListener('input', (e) => {
+        zoomSlider.addEventListener('input', (e) => {
             handleZoomChange(parseFloat(e.target.value));
         });
 
@@ -574,10 +623,20 @@
 
 
         confirmBtn.addEventListener('click', () => {
-            canvas.toBlob(blob => {
-                cleanup();
-                resolve(blob);
-            }, 'image/webp', 0.85);
+            const iw = img.naturalWidth * zoom;
+            const ih = img.naturalHeight * zoom;
+            
+            const maxPanX = 1200 - iw;
+            const posXPercent = maxPanX === 0 ? 50 : (panX / maxPanX) * 100;
+            
+            const maxPanY = 300 - ih;
+            const posYPercent = maxPanY === 0 ? 50 : (panY / maxPanY) * 100;
+            
+            const bgSize = `${(iw / 1200) * 100}% auto`;
+            const bgPos = `${posXPercent.toFixed(2)}% ${posYPercent.toFixed(2)}%`;
+
+            cleanup();
+            resolve({ file, banner_position: bgPos, banner_size: bgSize });
         });
 
         cancelBtn.addEventListener('click', () => {
@@ -598,9 +657,9 @@
 
 
 
-    // ── Upload blob to server ───────────────────────────────────────────────
-    const uploadBannerBlob = (blob) => {
-        if (!blob) return;
+    // ── Upload raw file to server ───────────────────────────────────────────────
+    const uploadBannerPayload = (payload) => {
+        if (!payload || !payload.file) return;
 
         if (bannerUploadBtn) bannerUploadBtn.disabled = true;
         if (bannerChooseBtn) bannerChooseBtn.disabled = true;
@@ -610,7 +669,9 @@
         showBannerStatus('Uploading...', '');
 
         const formData = new FormData();
-        formData.append('file', blob, 'banner.webp');
+        formData.append('file', payload.file);
+        formData.append('banner_position', payload.banner_position);
+        formData.append('banner_size', payload.banner_size);
 
         const xhr = new XMLHttpRequest();
 
@@ -630,22 +691,41 @@
 
                     const bannerPreview = document.getElementById('banner-preview');
                     if (bannerPreview) {
-                        if (bannerPreview.tagName === 'IMG') {
-                            bannerPreview.src = '/a/' + res.banner_file + '?t=' + Date.now();
+                        if (bannerPreview.tagName === 'DIV' && bannerPreview.classList.contains('banner-placeholder')) {
+                            const a = document.createElement('a');
+                            a.href = `/user/${window.f0ckSession?.user}`;
+                            a.target = '_blank';
+                            a.style.display = 'block';
+                            const newDiv = document.createElement('div');
+                            newDiv.id = 'banner-preview';
+                            newDiv.className = 'banner-preview-img';
+                            newDiv.style.cssText = `width:100%;aspect-ratio:4/1;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/${res.banner_file}?t=${Date.now()}');background-size:${payload.banner_size};background-position:${payload.banner_position};background-repeat:no-repeat;`;
+                            a.appendChild(newDiv);
+                            bannerPreview.replaceWith(a);
                         } else {
-                            const img = document.createElement('img');
-                            img.id = 'banner-preview';
-                            img.className = 'banner-preview-img';
-                            img.style.cssText = 'width:100%;max-width:360px;height:auto;border-radius:4px;border:1px solid var(--nav-border-color);object-fit:cover;';
-                            img.src = '/a/' + res.banner_file + '?t=' + Date.now();
-                            bannerPreview.replaceWith(img);
+                            bannerPreview.style.backgroundImage = `url('/a/${res.banner_file}?t=${Date.now()}')`;
+                            bannerPreview.style.backgroundSize = payload.banner_size;
+                            bannerPreview.style.backgroundPosition = payload.banner_position;
                         }
+                    }
+                    
+                    const livePreviewBox = document.getElementById('live-profile-preview-box');
+                    if (livePreviewBox) {
+                        livePreviewBox.style.setProperty('--author-banner', `url('/a/${res.banner_file}?t=${Date.now()}')`);
+                        livePreviewBox.style.setProperty('--author-banner-size', payload.banner_size);
+                        livePreviewBox.style.setProperty('--author-banner-position', payload.banner_position);
                     }
 
                     const existingRemoveBtn = document.getElementById('banner-remove-btn');
                     if (!existingRemoveBtn && bannerUploadBtn) {
                         const actionsDiv = bannerUploadBtn.closest('.avatar-upload-actions');
                         if (actionsDiv) {
+                            const editBtn = document.createElement('button');
+                            editBtn.type = 'button'; editBtn.id = 'banner-edit-btn';
+                            editBtn.className = 'button';
+                            editBtn.textContent = 'Edit Position';
+                            actionsDiv.appendChild(editBtn);
+
                             const btn = document.createElement('button');
                             btn.type = 'button'; btn.id = 'banner-remove-btn';
                             btn.className = 'button button-danger';
@@ -699,9 +779,9 @@
             if (bannerFilenameSpan) bannerFilenameSpan.textContent = file.name;
 
             try {
-                const blob = await showBannerCropModal(file);
-                if (blob) {
-                    uploadBannerBlob(blob);
+                const payload = await showBannerCropModal(file);
+                if (payload) {
+                    uploadBannerPayload(payload);
                 } else {
                     // Modal was cancelled
                     if (bannerFilenameSpan) bannerFilenameSpan.textContent = 'No file selected';
@@ -715,6 +795,43 @@
             }
         });
     }
+
+    // ── Edit banner position handler ─────────────────────────────────────────
+    document.addEventListener('click', async (e) => {
+        if (e.target.id === 'banner-edit-btn') {
+            const preview = document.getElementById('banner-preview');
+            if (!preview) return;
+            
+            const bgImg = preview.style.backgroundImage;
+            const bgPos = preview.style.backgroundPosition;
+            const bgSize = preview.style.backgroundSize;
+
+            const urlMatch = bgImg.match(/url\(['"]?(.*?)['"]?\)/);
+            if (!urlMatch) return;
+            const url = urlMatch[1].split('?')[0]; // Strip cache buster if present
+            
+            try {
+                e.target.disabled = true;
+                e.target.textContent = 'Loading...';
+                
+                const res = await fetch(url);
+                const blob = await res.blob();
+                const file = new File([blob], 'banner.webp', { type: blob.type });
+                
+                showBannerStatus('', '');
+                const payload = await showBannerCropModal(file, { bgPos, bgSize });
+                if (payload) {
+                    uploadBannerPayload(payload);
+                }
+            } catch (err) {
+                console.error('[EDIT BANNER] Error:', err);
+                showBannerStatus('Failed to load current banner for editing', 'error');
+            } finally {
+                e.target.disabled = false;
+                e.target.textContent = 'Edit Position';
+            }
+        }
+    });
 
     // ── Remove banner handler ────────────────────────────────────────────────
     document.addEventListener('click', async (e) => {
@@ -1410,6 +1527,11 @@
     if (colorPicker && colorHex) {
         colorPicker.addEventListener('input', () => {
             colorHex.value = colorPicker.value;
+            const liveBox = document.getElementById('live-profile-preview-box');
+            if (liveBox) {
+                liveBox.style.setProperty('--author-accent', colorPicker.value);
+                liveBox.style.setProperty('--author-border', colorPicker.value);
+            }
         });
 
         // Text input → swatch (validate on each keystroke)
@@ -1418,6 +1540,11 @@
             if (/^#[0-9a-fA-F]{6}$/.test(val)) {
                 colorPicker.value = val;
                 colorHex.style.borderColor = '';
+                const liveBox = document.getElementById('live-profile-preview-box');
+                if (liveBox) {
+                    liveBox.style.setProperty('--author-accent', val);
+                    liveBox.style.setProperty('--author-border', val);
+                }
             } else {
                 colorHex.style.borderColor = '#e74c3c';
             }
@@ -1474,6 +1601,11 @@
             const defaultColor = '#ffffff';
             colorPicker.value = defaultColor;
             if (colorHex) { colorHex.value = defaultColor; colorHex.style.borderColor = ''; }
+            const liveBox = document.getElementById('live-profile-preview-box');
+            if (liveBox) {
+                liveBox.style.setProperty('--author-accent', defaultColor);
+                liveBox.style.setProperty('--author-border', defaultColor);
+            }
             
             resetColorBtn.disabled = true;
             resetColorBtn.textContent = 'Resetting...';
@@ -1749,6 +1881,13 @@
     const displayNameInput = document.getElementById('display_name_input');
     const displayNameStatus = document.getElementById('display-name-status');
     if (displayNameBtn && displayNameInput) {
+        displayNameInput.addEventListener('input', () => {
+            const liveName = document.getElementById('live-preview-username');
+            if (liveName) {
+                liveName.textContent = displayNameInput.value.trim() || window.f0ckSession?.user || 'Username';
+            }
+        });
+        
         displayNameBtn.addEventListener('click', async () => {
             const display_name = displayNameInput.value;
             displayNameBtn.disabled = true;

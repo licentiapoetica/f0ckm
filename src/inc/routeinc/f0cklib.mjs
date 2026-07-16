@@ -535,6 +535,8 @@ export default {
         uo.avatar as author_avatar,
         uo.avatar_file as author_avatar_file,
         uo.banner_file as author_banner_file,
+        uo.banner_position as author_banner_position,
+        uo.banner_size as author_banner_size,
         uo.description as author_description,
         author_u.id as author_id,
         items.is_pinned,
@@ -796,6 +798,8 @@ export default {
         author_avatar: actitem.author_avatar,
         author_avatar_file: actitem.author_avatar_file,
         author_banner_file: actitem.author_banner_file,
+        author_banner_position: actitem.author_banner_position,
+        author_banner_size: actitem.author_banner_size,
         author_description: actitem.author_description,
         title: actitem.title || null,
 

@@ -140,7 +140,7 @@ export const handleBannerUpload = async (req, res) => {
         // NOTE: [0] frame selector must be appended to the input path, not a separate arg
         console.log('[BANNER HANDLER] Running magick...');
         try {
-            await execFile('magick', [`${tmpPath}[0]`, '-resize', '1200x400^', '-gravity', 'center', '-background', 'none', '-extent', '1200x400', '-quality', '75', finalPath]);
+            await execFile('magick', [`${tmpPath}[0]`, '-resize', '3840x3840>', '-quality', '85', finalPath]);
         } catch (err) {
             console.error('[BANNER HANDLER] Magick error:', err.message, err.stderr);
             await fs.unlink(tmpPath).catch(() => { });
@@ -172,7 +172,9 @@ export const handleBannerUpload = async (req, res) => {
         try {
             await db`
                 update user_options 
-                set banner_file = ${finalFilename}
+                set banner_file = ${finalFilename},
+                    banner_position = ${parts.banner_position || 'center'},
+                    banner_size = ${parts.banner_size || 'cover'}
                 where user_id = ${+req.session.id}
             `;
         } catch (dbErr) {

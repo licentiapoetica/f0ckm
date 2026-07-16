@@ -1,4 +1,4 @@
-<div class="profile_head">
+<div class="profile_head" style="@if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position || 'center' }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
     @if(user.is_ghost)
     <div class="profile_head_avatar">
         <div class="avatar-placeholder" style="background: #444; color: #888; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 4px;">?</div>

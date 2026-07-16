@@ -47,6 +47,8 @@ export default (router, tpl) => {
           excluded_tags: excluded_tags || [],
           avatar_file: userOptions?.avatar_file || null,
           banner_file: userOptions?.banner_file || null,
+          banner_position: userOptions?.banner_position || 'center',
+          banner_size: userOptions?.banner_size || 'cover',
           email: user?.email || '',
           joined: user?.created_at || null,
           user_banner_enabled: cfg.websrv.user_banner_enabled !== false,

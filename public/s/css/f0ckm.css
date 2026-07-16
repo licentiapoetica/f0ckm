@@ -13631,6 +13631,22 @@ i.iconset#a_oc {
   display: grid;
   grid-template-columns: auto 1fr;
   background: var(--nav-bg);
+  position: relative;
+  z-index: 1;
+}
+
+.profile_head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--author-banner, none);
+  background-size: var(--author-banner-size, cover);
+  background-position: var(--author-banner-position, center);
+  background-repeat: var(--author-banner-repeat, no-repeat);
+  opacity: var(--author-banner-opacity, 0.4);
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .profile_head_avatar {

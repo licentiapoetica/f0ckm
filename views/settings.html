@@ -140,14 +140,14 @@
       <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
         <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">Profile Banner</legend>
         <div class="avatar-settings-wrapper">
-          <div class="avatar-preview-container" style="min-width: 0; flex: 1 1 auto;">
+          <div class="avatar-preview-container" style="width: 360px; max-width: 100%;">
             <div class="avatar-preview-label">Current Banner</div>
             @if(banner_file)
-            <a href="/user/{!! session.user !!}" target="_blank" style="display:block;">
-              <img id="banner-preview" class="banner-preview-img" src="/a/{{ banner_file }}" style="width:100%;max-width:360px;height:auto;border-radius:4px;border:1px solid var(--nav-border-color);object-fit:cover;">
+            <a href="/user/{!! session.user !!}" target="_blank" style="display:block; width: 100%;">
+              <div id="banner-preview" class="banner-preview-img" style="width:100%;aspect-ratio:4/1;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/{{ banner_file }}');background-size:{{ banner_size || 'cover' }};background-position:{{ banner_position || 'center' }};background-repeat:no-repeat;"></div>
             </a>
             @else
-            <div id="banner-preview" class="banner-preview-img banner-placeholder" style="width:100%;max-width:360px;height:80px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;">No banner set</div>
+            <div id="banner-preview" class="banner-preview-img banner-placeholder" style="width:100%;aspect-ratio:4/1;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;">No banner set</div>
             @endif
           </div>
 
@@ -170,6 +170,7 @@
             <div class="avatar-upload-actions">
               <button type="button" id="banner-upload-btn" class="button" disabled>Upload Banner</button>
               @if(banner_file)
+              <button type="button" id="banner-edit-btn" class="button">Edit Position</button>
               <button type="button" id="banner-remove-btn" class="button button-danger">Remove Banner</button>
               @endif
             </div>
@@ -208,6 +209,39 @@
               style="padding: 5px 10px; font-size: 0.85em;">{{ t('settings.save') }}</button>
           </div>
           <div id="display-name-status" class="avatar-status"></div>
+        </div>
+      </fieldset>
+
+      <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+        <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">Live Profile Preview</legend>
+        <div class="setting-item" style="max-width: 750px;">
+           <div class="user-infobox-block" id="live-profile-preview-box" style="--author-accent: {{ session.username_color || 'var(--accent)' }}; --author-border: {{ session.username_color || 'var(--accent)' }}; @if(banner_file && user_banner_enabled) --author-banner: url('/a/{{ banner_file }}?t={{ Date.now() }}'); --author-banner-position: {{ banner_position || 'center' }}; --author-banner-size: {{ banner_size || 'cover' }}; @endif">
+              <div class="user-infobox-avatar">
+                  <a href="#">
+                      @if(avatar_file)
+                          <img id="live-preview-avatar" src="/a/{{ avatar_file }}" />
+                      @else
+                          <img id="live-preview-avatar" src="/a/default.png" style="border-color: #444;" />
+                      @endif
+                  </a>
+              </div>
+              <div class="user-infobox-info">
+                  <div class="user-infobox-header">
+                      <div class="user-infobox-username-container">
+                          <a id="live-preview-username" href="#" class="user-infobox-username">{!! session.display_name || session.user !!}</a>
+                      </div>
+                      <span class="user-infobox-timestamp"><a href="#" class="timestamp-link"><time>just now</time></a></span>
+                  </div>
+                  <div class="user-infobox-body">
+                      <div class="user-infobox-description">
+                          {!! session.description || 'Welcome to my profile! This is a live preview.' !!}
+                      </div>
+                      <div class="user-infobox-actions">
+                          <i class="iconset fa-solid fa-heart" title="Favorite"></i>
+                      </div>
+                  </div>
+              </div>
+           </div>
         </div>
       </fieldset>
 
