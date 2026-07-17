@@ -8020,7 +8020,6 @@ input#s_avatar {
   padding: 30px;
   border-radius: 0;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   min-width: 300px;
 }
 
@@ -11928,7 +11927,6 @@ body.layout-modern .tag-ac-input {
   width: 900px;
   max-width: 95vw;
   position: relative;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
   max-height: 90vh;
   overflow-y: auto;
 }
