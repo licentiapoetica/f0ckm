@@ -8322,7 +8322,6 @@ input#s_avatar {
   background: var(--dropdown-bg);
   border: 1px solid var(--nav-border-color);
   border-radius: 0;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   z-index: 10000;
   overflow: hidden;
 }
@@ -8345,9 +8344,16 @@ input#s_avatar {
 }
 
 .nav-user-divider {
+  display: none;
   height: 1px;
   background: var(--nav-border-color);
   margin: 5px 0;
+}
+
+@media (max-width: 768px) {
+  .nav-user-divider {
+    display: block;
+  }
 }
 
 /* nav-links base: horizontal flex row on desktop */
