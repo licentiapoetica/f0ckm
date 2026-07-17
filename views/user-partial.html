@@ -1,28 +1,55 @@
 <div class="profile-page-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 10px; box-sizing: border-box;">
-<div class="profile_head" data-banner-user="{{ user.user || '' }}" style="@if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position || 'center' }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
-    @if(user.is_ghost)
-    <div class="profile_head_avatar">
-        <div class="avatar-placeholder" style="background: #444; color: #888; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 4px;">?</div>
-    </div>
-    @elseif(user.avatar_file)
-    <div class="profile_head_avatar">
-        <img src="/a/{{ user.avatar_file }}" style="display: grid;width: 55px" />
-    </div>
-    @elseif(user.avatar && user.avatar > 0)
-    <div class="profile_head_avatar">
-        <img src="/t/{{ user.avatar }}.webp" style="display: grid;width: 55px" />
-    </div>
-    @else
-    <div class="profile_head_avatar">
-        <img src="/a/default.png" style="display: grid;width: 55px" />
+<div class="profile_head" id="live-profile-preview-box" data-banner-user="{{ user.user || '' }}" style="position: relative; @if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position || 'center' }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
+    @if(session && session.id === user.user_id && user_banner_enabled)
+    <button id="inline-banner-edit-btn" style="position:absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: #fff; cursor: pointer; z-index: 10; font-size: 0.8em;" title="{{ t('profile.edit_banner', 'Edit Banner') }}">
+        <i class="fa-solid fa-pen"></i> Edit Banner
+    </button>
+    <div style="display:none;">
+        <button id="banner-choose-btn"></button>
+        <input type="file" id="banner-file-input" accept="image/gif,image/jpeg,image/png,image/webp">
+        <span id="banner-filename"></span>
+        <div id="banner-upload-status"></div>
+        <div id="banner-progress-wrapper"><div id="banner-progress-fill"></div><span id="banner-progress-text"></span></div>
     </div>
     @endif
+    <div class="profile_head_avatar">
+        <div class="avatar-image-wrapper" style="position: relative; width: 55px; height: 55px; display: block;">
+            @if(user.is_ghost)
+            <div class="profile-avatar-img avatar-placeholder" style="background: #444; color: #888; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 4px;">?</div>
+            @elseif(user.avatar_file)
+            <img src="/a/{{ user.avatar_file }}" class="profile-avatar-img" />
+            @elseif(user.avatar && user.avatar > 0)
+            <img src="/t/{{ user.avatar }}.webp" class="profile-avatar-img" />
+            @else
+            <img src="/a/default.png" class="profile-avatar-img" />
+            @endif
+            @if(session && session.id === user.user_id)
+            <button id="inline-avatar-btn" class="avatar-edit-btn" title="{{ t('profile.edit_avatar', 'Edit Avatar') }}">
+                <i class="fa-solid fa-pen" style="font-size: 0.8em;"></i>
+            </button>
+            <input type="file" id="inline-avatar-file" accept="image/gif,image/jpeg,image/png,image/webp" style="display: none;">
+            @endif
+        </div>
+    </div>
     <div class="layersoffear">
         <div class="profile_head_username">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                <div style="flex: 1; min-width: 0; word-break: break-word; line-height: 1.2; align-self: flex-start; margin-top: 0;">
-                    <span @if(user.username_color) style="color: {{ user.username_color }}" @endif>@if(user.admin)&#9889;&nbsp;@elseif(user.is_moderator)&#128737;&nbsp;@endif{!! user.display_name || user.user !!}@if(user.is_ghost) <span class="badge badge-secondary" style="font-size: 0.5em; vertical-align: middle; background-color: #5bc0de; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">LEGACY</span>@endif @if(user.banned) <span class="badge badge-danger" tooltip="{{ user.ban_duration }}" style="font-size: 0.5em; vertical-align: middle; background-color: #d9534f; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">BANNED</span>@endif</span>@if(user.display_name) <span style="font-size: 0.65em; color: #666; font-weight: 400; margin-left: 5px; letter-spacing: 0.5px;">({!! user.user !!})</span>@endif
+                <div style="flex: 1; min-width: 0; word-break: break-word; line-height: 1.2; align-self: flex-start; margin-top: 0; display: flex; align-items: center; gap: 5px;" id="profile-name-container">
+                    <span id="nav-display-name" @if(user.username_color) style="color: {{ user.username_color }}" @endif>@if(user.admin)&#9889;&nbsp;@elseif(user.is_moderator)&#128737;&nbsp;@endif{!! user.display_name || user.user !!}@if(user.is_ghost) <span class="badge badge-secondary" style="font-size: 0.5em; vertical-align: middle; background-color: #5bc0de; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">LEGACY</span>@endif @if(user.banned) <span class="badge badge-danger" tooltip="{{ user.ban_duration }}" style="font-size: 0.5em; vertical-align: middle; background-color: #d9534f; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">BANNED</span>@endif</span>@if(user.display_name) <span style="font-size: 0.65em; color: #666; font-weight: 400; margin-left: 5px; letter-spacing: 0.5px;" id="username-bracket">({!! user.user !!})</span>@endif
+                    @if(session && session.id === user.user_id)
+                    <button id="inline-name-edit-btn" style="background: transparent; border:none; color: var(--text-muted); cursor: pointer; font-size: 0.7em; padding: 0;" title="Edit Name & Color">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    @endif
                 </div>
+                @if(session && session.id === user.user_id)
+                <div id="profile-name-edit-container" style="display: none; flex: 1; align-items: center; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px;">
+                    <input type="text" id="inline-display-name" value="@if(user.display_name){!! user.display_name !!}@endif" maxlength="32" style="background: #222; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 3px; width: 120px; font-size: 0.9em;">
+                    <input type="color" id="inline-username-color" value="{{ user.username_color || '#ffffff' }}" style="width: 25px; height: 25px; padding: 0; border: 1px solid #444; cursor: pointer; background: none;">
+                    <button id="inline-name-save-btn" class="btn btn-sm btn-outline-success" style="padding: 2px 5px; font-size: 0.8em;"><i class="fa-solid fa-check"></i></button>
+                    <button id="inline-name-cancel-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 5px; font-size: 0.8em;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                @endif
                 @if(session && session.id !== user.user_id)
                 <div class="profile-actions" style="margin: 0; flex-shrink: 0;">
                     @if(private_messages)
@@ -41,8 +68,26 @@
                 </div>
                 @endif
             </div>
-            @if(enable_profile_description && user.description)
-            <div class="profile_description">{!! user.description !!}</div>
+            @if(enable_profile_description && (!user.is_ghost))
+            <div class="profile_description" style="position: relative;">
+                <div id="profile-desc-display" style="display: flex; align-items: flex-start; gap: 5px;">
+                    <div style="flex: 1;">@if(user.description){!! user.description !!}@else<em style="color:var(--text-muted);">No description</em>@endif</div>
+                    @if(session && session.id === user.user_id)
+                    <button id="inline-desc-edit-btn" style="background: transparent; border:none; color: var(--text-muted); cursor: pointer; font-size: 0.7em; padding: 0;" title="Edit Description">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    @endif
+                </div>
+                @if(session && session.id === user.user_id)
+                <div id="profile-desc-edit-container" style="display: none; margin-top: 5px;">
+                    <textarea id="inline-desc-input" style="width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; box-sizing: border-box; min-height: 60px;">@if(user.description){!! user.description !!}@endif</textarea>
+                    <div style="display: flex; justify-content: flex-end; gap: 5px; margin-top: 5px;">
+                        <button id="inline-desc-cancel-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size: 0.8em;">Cancel</button>
+                        <button id="inline-desc-save-btn" class="btn btn-sm btn-outline-success" style="padding: 2px 8px; font-size: 0.8em;">Save</button>
+                    </div>
+                </div>
+                @endif
+            </div>
             @endif
         </div>
         <div class="profile_head_user_stats">
@@ -313,12 +358,145 @@
                 }
             };
         }
-
-
     })();
 </script>
 @endif
 @endif
+@endif
+
+@if(session && session.id === user.user_id)
+<script src="/s/js/settings.js"></script>
+<script>
+    (function() {
+        const bannerEditBtn = document.getElementById('inline-banner-edit-btn');
+        const bannerChooseBtn = document.getElementById('banner-choose-btn');
+        if (bannerEditBtn && bannerChooseBtn) {
+            bannerEditBtn.addEventListener('click', () => {
+                bannerChooseBtn.click();
+            });
+        }
+
+        const avatarEditBtn = document.getElementById('inline-avatar-btn');
+        const avatarFileInput = document.getElementById('inline-avatar-file');
+        if (avatarEditBtn && avatarFileInput) {
+            avatarEditBtn.addEventListener('click', () => {
+                avatarFileInput.click();
+            });
+            avatarFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                avatarEditBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="font-size: 0.7em;"></i>';
+                avatarEditBtn.disabled = true;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const res = await fetch('/api/v2/settings/uploadAvatar', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.msg || 'Failed to upload avatar');
+                        avatarEditBtn.innerHTML = '<i class="fa-solid fa-pen" style="font-size: 0.7em;"></i>';
+                        avatarEditBtn.disabled = false;
+                    }
+                } catch (err) {
+                    alert('Network error');
+                    avatarEditBtn.innerHTML = '<i class="fa-solid fa-pen" style="font-size: 0.7em;"></i>';
+                    avatarEditBtn.disabled = false;
+                }
+            });
+        }
+
+        const nameEditBtn = document.getElementById('inline-name-edit-btn');
+        const nameContainer = document.getElementById('profile-name-container');
+        const nameEditContainer = document.getElementById('profile-name-edit-container');
+        const nameCancelBtn = document.getElementById('inline-name-cancel-btn');
+        const nameSaveBtn = document.getElementById('inline-name-save-btn');
+        const inlineDisplayName = document.getElementById('inline-display-name');
+        const inlineUsernameColor = document.getElementById('inline-username-color');
+        
+        if (nameEditBtn && nameEditContainer) {
+            nameEditBtn.addEventListener('click', () => {
+                nameContainer.style.display = 'none';
+                nameEditContainer.style.display = 'flex';
+            });
+            nameCancelBtn.addEventListener('click', () => {
+                nameContainer.style.display = 'flex';
+                nameEditContainer.style.display = 'none';
+            });
+            nameSaveBtn.addEventListener('click', async () => {
+                nameSaveBtn.disabled = true;
+                const displayName = inlineDisplayName.value;
+                const color = inlineUsernameColor.value;
+
+                try {
+                    let dPayload = {}; dPayload["display_name"] = displayName;
+                    await fetch('/api/v2/settings/display_name', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                        body: JSON.stringify(dPayload)
+                    });
+                    let cPayload = {}; cPayload["color"] = color;
+                    await fetch('/api/v2/settings/username_color', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                        body: JSON.stringify(cPayload)
+                    });
+                    location.reload();
+                } catch (err) {
+                    alert('Error saving name/color');
+                    nameSaveBtn.disabled = false;
+                }
+            });
+        }
+
+        const descEditBtn = document.getElementById('inline-desc-edit-btn');
+        const descDisplay = document.getElementById('profile-desc-display');
+        const descEditContainer = document.getElementById('profile-desc-edit-container');
+        const descCancelBtn = document.getElementById('inline-desc-cancel-btn');
+        const descSaveBtn = document.getElementById('inline-desc-save-btn');
+        const inlineDescInput = document.getElementById('inline-desc-input');
+
+        if (descEditBtn && descEditContainer) {
+            descEditBtn.addEventListener('click', () => {
+                descDisplay.style.display = 'none';
+                descEditContainer.style.display = 'block';
+            });
+            descCancelBtn.addEventListener('click', () => {
+                descDisplay.style.display = 'flex';
+                descEditContainer.style.display = 'none';
+            });
+            descSaveBtn.addEventListener('click', async () => {
+                descSaveBtn.disabled = true;
+                const description = inlineDescInput.value;
+                try {
+                    let p = {}; p["description"] = description;
+                    const res = await fetch('/api/v2/settings/description', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                        body: JSON.stringify(p)
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.msg || 'Failed to update description');
+                        descSaveBtn.disabled = false;
+                    }
+                } catch (err) {
+                    alert('Error saving description');
+                    descSaveBtn.disabled = false;
+                }
+            });
+        }
+    })();
+</script>
 @endif
 @endif
 </div>
