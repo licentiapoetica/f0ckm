@@ -1,4 +1,5 @@
 import { getLevel } from "../admin.mjs";
+import cfg from "../config.mjs";
 
 export default async self => {
     return [{
@@ -45,10 +46,11 @@ export default async self => {
             // Deduplicate and sort
             const uniqueCommands = [...new Set(availableCommands)].sort();
 
+            const trigger = cfg.main.trigger || "!w";
             if (uniqueCommands.length === 0) {
-                availableCommands.push(e.type === 'matrix' ? "!w -sfw/nsfw -t tag1,tag2,tag3" : "!w <url> or attachment");
+                availableCommands.push(e.type === 'matrix' ? `${trigger} -sfw/nsfw -t tag1,tag2,tag3` : `${trigger} <url> or attachment`);
             } else {
-                availableCommands.push(e.type === 'matrix' ? "!w -sfw/nsfw -t tag1,tag2,tag3" : "!w <url> or attachment");
+                availableCommands.push(e.type === 'matrix' ? `${trigger} -sfw/nsfw -t tag1,tag2,tag3` : `${trigger} <url> or attachment`);
             }
 
             // Re-sort to include manually added command
