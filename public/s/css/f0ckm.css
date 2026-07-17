@@ -242,6 +242,10 @@ html[theme="amoled"] .comment-input textarea {
   border: 1px solid var(--nav-border-color);
 }
 
+html[theme="amoled"] .profile_head_user_stats > * {
+    box-shadow: 1px 1px 1px rgb(121, 120, 120);
+}
+
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
   color: var(--black) !important;
 }
@@ -13953,6 +13957,7 @@ i.iconset#a_oc {
     background: var(--bg);
     padding: 0px 5px 0px 5px;
     border-radius: 5px;
+    box-shadow: 1px 1px 1px black;
 }
 .uploads-header,
 .favs-header {
