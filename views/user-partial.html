@@ -1,9 +1,19 @@
 <div class="profile-page-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 10px; box-sizing: border-box;">
 <div class="profile_head" id="live-profile-preview-box" data-banner-user="{{ user.user || '' }}" style="position: relative; @if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position === 'center' ? 'center top' : (user.banner_position || 'center top') }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
     @if(session && session.id === user.user_id && user_banner_enabled)
-    <button id="inline-banner-edit-btn" style="position:absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: #fff; cursor: pointer; z-index: 10; font-size: 0.8em;" title="{{ t('profile.edit_banner', 'Edit Banner') }}">
-        <i class="fa-solid fa-pen"></i> Edit Banner
-    </button>
+    <div id="inline-banner-edit-wrapper" style="position:absolute; top: 10px; right: 10px; z-index: 10;">
+        <button id="inline-banner-edit-btn" onclick="const menu = document.getElementById('banner-edit-menu'); menu.style.display = menu.style.display === 'none' ? 'block' : 'none';" style="background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: #fff; cursor: pointer; font-size: 0.8em;" title="{{ t('profile.edit_banner', 'Edit Banner') }}">
+            <i class="fa-solid fa-pen"></i> Edit Banner
+        </button>
+        <div id="banner-edit-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: #222; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 120px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+            @if(user.banner_file)
+            <button id="banner-edit-btn" onclick="document.getElementById('banner-edit-menu').style.display='none';" style="display: block; width: 100%; text-align: left; padding: 5px 8px; background: none; border: none; color: #fff; cursor: pointer; font-size: 0.8em;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='none'">Edit Position</button>
+            <button id="banner-remove-btn" onclick="document.getElementById('banner-edit-menu').style.display='none';" style="display: block; width: 100%; text-align: left; padding: 5px 8px; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.8em;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='none'">Remove Banner</button>
+            <hr id="banner-menu-hr" style="border: none; border-top: 1px solid #444; margin: 5px 0;">
+            @endif
+            <button onclick="document.getElementById('banner-choose-btn').click(); document.getElementById('banner-edit-menu').style.display='none';" style="display: block; width: 100%; text-align: left; padding: 5px 8px; background: none; border: none; color: #fff; cursor: pointer; font-size: 0.8em;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='none'">Upload New</button>
+        </div>
+    </div>
     <div style="display:none;">
         <button id="banner-choose-btn"></button>
         <input type="file" id="banner-file-input" accept="image/gif,image/jpeg,image/png,image/webp">
@@ -386,13 +396,7 @@
 <script src="/s/js/settings.js"></script>
 <script>
     (function() {
-        const bannerEditBtn = document.getElementById('inline-banner-edit-btn');
-        const bannerChooseBtn = document.getElementById('banner-choose-btn');
-        if (bannerEditBtn && bannerChooseBtn) {
-            bannerEditBtn.addEventListener('click', () => {
-                bannerChooseBtn.click();
-            });
-        }
+
 
         const avatarEditBtn = document.getElementById('inline-avatar-btn');
         const avatarFileInput = document.getElementById('inline-avatar-file');

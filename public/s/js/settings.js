@@ -706,8 +706,8 @@
                     }
 
                     const existingRemoveBtn = document.getElementById('banner-remove-btn');
-                    if (!existingRemoveBtn && bannerUploadBtn) {
-                        const actionsDiv = bannerUploadBtn.closest('.avatar-upload-actions');
+                    if (!existingRemoveBtn) {
+                        const actionsDiv = bannerUploadBtn ? bannerUploadBtn.closest('.avatar-upload-actions') : null;
                         if (actionsDiv) {
                             const editBtn = document.createElement('button');
                             editBtn.type = 'button'; editBtn.id = 'banner-edit-btn';
@@ -720,6 +720,32 @@
                             btn.className = 'button button-danger';
                             btn.textContent = 'Remove Banner';
                             actionsDiv.appendChild(btn);
+                        } else {
+                            const menu = document.getElementById('banner-edit-menu');
+                            if (menu) {
+                                const editBtn = document.createElement('button');
+                                editBtn.type = 'button'; editBtn.id = 'banner-edit-btn';
+                                editBtn.style.cssText = 'display: block; width: 100%; text-align: left; padding: 5px 8px; background: none; border: none; color: #fff; cursor: pointer; font-size: 0.8em;';
+                                editBtn.textContent = 'Edit Position';
+                                editBtn.onmouseover = () => editBtn.style.background='#333';
+                                editBtn.onmouseout = () => editBtn.style.background='none';
+                                editBtn.onclick = () => menu.style.display='none';
+                                menu.insertBefore(editBtn, menu.firstChild);
+
+                                const remBtn = document.createElement('button');
+                                remBtn.type = 'button'; remBtn.id = 'banner-remove-btn';
+                                remBtn.style.cssText = 'display: block; width: 100%; text-align: left; padding: 5px 8px; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.8em;';
+                                remBtn.textContent = 'Remove Banner';
+                                remBtn.onmouseover = () => remBtn.style.background='#333';
+                                remBtn.onmouseout = () => remBtn.style.background='none';
+                                remBtn.onclick = () => menu.style.display='none';
+                                menu.insertBefore(remBtn, menu.children[1]);
+
+                                const hr = document.createElement('hr');
+                                hr.style.cssText = 'border: none; border-top: 1px solid #444; margin: 5px 0;';
+                                hr.id = 'banner-menu-hr';
+                                menu.insertBefore(hr, menu.children[2]);
+                            }
                         }
                     }
 
@@ -790,12 +816,12 @@
         window._f0ckBannerEditBound = true;
         document.addEventListener('click', async (e) => {
         if (e.target.id === 'banner-edit-btn') {
-            const preview = document.getElementById('banner-preview');
+            const preview = document.getElementById('banner-preview') || document.getElementById('live-profile-preview-box');
             if (!preview) return;
             
-            const bgImg = preview.style.backgroundImage;
-            const bgPos = preview.style.backgroundPosition;
-            const bgSize = preview.style.backgroundSize;
+            let bgImg = preview.style.backgroundImage || preview.style.getPropertyValue('--author-banner');
+            let bgPos = preview.style.backgroundPosition || preview.style.getPropertyValue('--author-banner-position');
+            let bgSize = preview.style.backgroundSize || preview.style.getPropertyValue('--author-banner-size');
 
             const urlMatch = bgImg.match(/url\(['"]?(.*?)['"]?\)/);
             if (!urlMatch) return;
@@ -847,6 +873,8 @@
                     e.target.remove();
                     const editBtn = document.getElementById('banner-edit-btn');
                     if (editBtn) editBtn.remove();
+                    const menuHr = document.getElementById('banner-menu-hr');
+                    if (menuHr) menuHr.remove();
 
                     const bannerPreview = document.getElementById('banner-preview');
                     if (bannerPreview) {
