@@ -903,7 +903,7 @@ html[theme="xd"] {
 
 html[theme="xd"] .motd-container {
   border-top: 2px solid var(--nav-border-color);
-  border-bottom: 1px solid var(--nav-border-color);
+  border-bottom: 2px solid var(--nav-border-color);
 }
 
 html[theme="xd"] .item-sidebar-right,
