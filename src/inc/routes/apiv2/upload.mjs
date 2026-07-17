@@ -229,8 +229,6 @@ export default router => {
                     domain = parts.slice(-2).join('.');
                 }
 
-                if (domain) tags.push(domain);
-
                 // YouTube-specific tag
                 if (/(?:youtube\.com|youtu\.be)$/i.test(domain) || /(?:youtube\.com|youtu\.be)$/i.test(host)) {
                     tags.push('youtube');
