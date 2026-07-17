@@ -1,9 +1,9 @@
 <div class="profile-page-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 10px; box-sizing: border-box;">
 <div class="profile_head" id="live-profile-preview-box" data-banner-user="{{ user.user || '' }}" style="position: relative; @if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position === 'center' ? 'center top' : (user.banner_position || 'center top') }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
     @if(session && session.id === user.user_id && user_banner_enabled)
-    <div id="inline-banner-edit-wrapper" style="position:absolute; top: 10px; right: 10px; z-index: 10;">
+    <div id="inline-banner-edit-wrapper" style="position:absolute; top: 0; right: 5px; z-index: 10;">
         <button id="inline-banner-edit-btn" onclick="const menu = document.getElementById('banner-edit-menu'); menu.style.display = menu.style.display === 'none' ? 'block' : 'none';" style="background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: #fff; cursor: pointer; font-size: 0.8em;" title="{{ t('profile.edit_banner', 'Edit Banner') }}">
-            <i class="fa-solid fa-pen"></i> Edit Banner
+            <i class="fa-solid fa-panorama"></i>
         </button>
         <div id="banner-edit-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: #222; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 120px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);">
             @if(user.banner_file)
@@ -56,7 +56,7 @@
                     @endif
                 </div>
                 @if(session && session.id === user.user_id)
-                <div id="profile-name-edit-container" style="display: none; flex: 1; align-items: center; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px;">
+                <div id="profile-name-edit-container" style="display: none; align-items: center; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px; width: max-content;">
                     <input type="text" id="inline-display-name" value="@if(user.display_name){!! user.display_name !!}@endif" maxlength="32" style="background: #222; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 3px; width: 120px; font-size: 0.9em;">
                     <input type="color" id="inline-username-color" value="{{ user.username_color || '#ffffff' }}" style="width: 25px; height: 25px; padding: 0; border: 1px solid #444; cursor: pointer; background: none;">
                     <button id="inline-name-save-btn" class="btn btn-sm btn-outline-success" style="padding: 2px 5px; font-size: 0.8em;"><i class="fa-solid fa-check"></i></button>
@@ -85,8 +85,8 @@
             </div>
             @if(enable_profile_description && (!user.is_ghost))
             <div class="profile_description" style="position: relative;">
-                <div id="profile-desc-display" style="display: flex; align-items: flex-start; gap: 5px;">
-                    <div style="flex: 1;">@if(user.description){!! user.description !!}@else<em style="color:var(--text-muted);">No description</em>@endif</div>
+                <div id="profile-desc-display" style="display: block;">
+                    <div style="margin-bottom: 5px;">@if(user.description){!! user.description !!}@else<em style="color:var(--text-muted);">No description</em>@endif</div>
                     @if(session && session.id === user.user_id)
                     <button id="inline-desc-edit-btn" style="background: transparent; border:none; color: var(--text-muted); cursor: pointer; font-size: 0.7em; padding: 0;" title="Edit Description">
                         <i class="fa-solid fa-pen"></i>
@@ -382,16 +382,16 @@
 @if(session && session.id === user.user_id)
 <style>
 #live-profile-preview-box:not(.edit-mode-active) .avatar-edit-btn,
-#live-profile-preview-box:not(.edit-mode-active) #inline-banner-edit-btn,
+#live-profile-preview-box:not(.edit-mode-active) #inline-banner-edit-wrapper,
 #live-profile-preview-box:not(.edit-mode-active) #inline-name-edit-btn,
 #live-profile-preview-box:not(.edit-mode-active) #inline-desc-edit-btn {
     display: none !important;
 }
 #live-profile-preview-box.edit-mode-active .avatar-edit-btn {
-    opacity: 1;
+    opacity: 0;
 }
-#live-profile-preview-box.edit-mode-active .avatar-image-wrapper .profile-avatar-img {
-    filter: brightness(0.6);
+#live-profile-preview-box.edit-mode-active .avatar-image-wrapper:hover .avatar-edit-btn {
+    opacity: 1;
 }
 </style>
 <script src="/s/js/settings.js"></script>
@@ -492,7 +492,7 @@
                 descEditContainer.style.display = 'block';
             });
             descCancelBtn.addEventListener('click', () => {
-                descDisplay.style.display = 'flex';
+                descDisplay.style.display = 'block';
                 descEditContainer.style.display = 'none';
             });
             descSaveBtn.addEventListener('click', async () => {

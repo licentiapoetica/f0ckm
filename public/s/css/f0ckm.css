@@ -16787,11 +16787,8 @@ a.lazy-thumb.filtered-upload-ghost:hover::after {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.6);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    background: none;
+    border: none;
     padding: 0;
     margin: 0;
     line-height: 1;
@@ -16800,9 +16797,10 @@ a.lazy-thumb.filtered-upload-ghost:hover::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 5px rgba(0,0,0,0.5);
     opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    font-size: 1.5em;
+    text-shadow: 0 0 5px rgba(0,0,0,0.8);
     z-index: 10;
 }
 .profile-avatar-img {
@@ -16817,11 +16815,9 @@ a.lazy-thumb.filtered-upload-ghost:hover::after {
     opacity: 1;
 }
 .avatar-edit-btn:hover {
-    background: rgba(0,0,0,0.85);
-    border-color: var(--accent);
     color: var(--accent);
 }
-.avatar-image-wrapper:has(.avatar-edit-btn:hover) .profile-avatar-img,
-.avatar-image-wrapper .profile-avatar-img:hover {
+.edit-mode-active .avatar-image-wrapper:has(.avatar-edit-btn:hover) .profile-avatar-img,
+.edit-mode-active .avatar-image-wrapper .profile-avatar-img:hover {
     filter: brightness(0.6);
 }
