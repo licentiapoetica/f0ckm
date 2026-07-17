@@ -8592,14 +8592,47 @@ class NotificationSystem {
     if (typeof itemCacheMap !== 'undefined') itemCacheMap.clear();
     if (typeof gridCacheMap !== 'undefined') gridCacheMap.clear();
 
+    const isFilteredView = window.location.pathname.includes('/tag/') || 
+                           window.location.pathname.includes('/h/') || 
+                           window.location.pathname.includes('/user/');
+
+    // UPDATE ITEM VIEW NAVIGATION DYNAMICALLY
+    const nextBtn = document.getElementById('next');
+    const isItemView = !!document.getElementById('prev') || !!nextBtn;
+
+    if (isItemView && !isFilteredView && nextBtn && (nextBtn.getAttribute('href') === '#' || nextBtn.getAttribute('href') === '')) {
+        let filtered = false;
+        if (typeof window.activeMode !== 'undefined' && window.activeMode !== 3) {
+            const nsflId = window.f0ckSession?.nsfl_tag_id || 3;
+            if (window.activeMode === 0 && data.tag_id !== 1) filtered = true;
+            else if (window.activeMode === 1 && data.tag_id !== 2) filtered = true;
+            else if (window.activeMode === 4 && data.tag_id != nsflId) filtered = true;
+            else if (window.activeMode === 2) filtered = true;
+        }
+        
+        if (!filtered) {
+            let nextUrl = `/${data.id}`;
+            nextBtn.setAttribute('href', nextUrl);
+            nextBtn.style.color = ''; // Remove #ccc
+
+            document.querySelectorAll('.nav-next').forEach(btn => {
+                btn.setAttribute('href', nextUrl);
+                btn.style.visibility = 'visible';
+            });
+
+            if (typeof prefetchNextPrevItems === 'function') {
+                if (typeof requestIdleCallback === 'function') requestIdleCallback(() => prefetchNextPrevItems());
+                else setTimeout(prefetchNextPrevItems, 200);
+            }
+        }
+    }
+
     // Only prepend to the grid on the main/index page
     const grid = document.querySelector('.posts');
     if (!grid) return;
 
     // Don't live-update on filtered views (tags, halls, users)
-    if (window.location.pathname.includes('/tag/') || 
-        window.location.pathname.includes('/h/') || 
-        window.location.pathname.includes('/user/')) return;
+    if (isFilteredView) return;
 
     // Respect mode filter — but if this is the current user's own upload,
     // show a blurred "ghost" thumbnail so they know it was uploaded successfully
