@@ -4946,7 +4946,7 @@ html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsi
 
 /* ~139–154% zoom (the 150% tier) */
 html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 45.25%;
+  padding-top: 52.25%;
 }
 html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
   padding-top: 52.25%;
