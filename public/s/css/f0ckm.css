@@ -10027,7 +10027,6 @@ ol {
   font-family: var(--font);
   border-bottom: 1px solid var(--nav-border-color);
   background: var(--nav-bg);
-  box-shadow: 5px 0px 10px black;
 }
 
 /* Brand: always visible, flush left */
