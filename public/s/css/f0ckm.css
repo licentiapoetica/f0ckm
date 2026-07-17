@@ -9,6 +9,9 @@
 /* use whatever you like */
 /* once upon a time this was a stiefelstrapse! but no more! */
 
+html, body {
+  touch-action: pan-x pan-y;
+}
 html[theme='f0ck'] {
   --accent: #9f0;
   --accent-rgb: 153, 255, 0;
