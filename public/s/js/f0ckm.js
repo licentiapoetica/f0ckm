@@ -7575,7 +7575,7 @@ class NotificationSystem {
       console.log('[SSE] applyDescriptionUpdate profileHead found?', !!profileHead);
       
       if (profileHead) {
-        const descDisplay = profileHead.querySelector('#profile-desc-display div');
+        const descDisplay = profileHead.querySelector('#profile-desc-display .desc-text');
         console.log('[SSE] applyDescriptionUpdate descDisplay found?', !!descDisplay);
         
         if (descDisplay) {

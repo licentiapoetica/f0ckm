@@ -85,10 +85,10 @@
             </div>
             @if(enable_profile_description && (!user.is_ghost))
             <div class="profile_description" style="position: relative;">
-                <div id="profile-desc-display" style="display: block;">
-                    <div style="margin-bottom: 5px;">@if(user.description){!! user.description !!}@else<em style="color:var(--text-muted);">No description</em>@endif</div>
+                <div id="profile-desc-display" style="display: block; margin-bottom: 5px;">
+                    <span class="desc-text" style="word-break: break-word;">@if(user.description){!! user.description !!}@else<em style="color:var(--text-muted);">No description</em>@endif</span>
                     @if(session && session.id === user.user_id)
-                    <button id="inline-desc-edit-btn" style="background: transparent; border:none; color: var(--text-muted); cursor: pointer; font-size: 0.7em; padding: 0;" title="Edit Description">
+                    <button id="inline-desc-edit-btn" style="background: transparent; border:none; color: var(--text-muted); cursor: pointer; font-size: 0.7em; padding: 0; margin-left: 5px; display: inline-block; vertical-align: baseline;" title="Edit Description">
                         <i class="fa-solid fa-pen"></i>
                     </button>
                     @endif
@@ -560,7 +560,7 @@
                         descSaveBtn.disabled = false;
                         descDisplay.style.display = 'block';
                         descEditContainer.style.display = 'none';
-                        const descTextDiv = descDisplay.querySelector('div');
+                        const descTextDiv = descDisplay.querySelector('.desc-text');
                         if (description.trim() === '') {
                             descTextDiv.innerHTML = '<em style="color:var(--text-muted);">No description</em>';
                         } else {
