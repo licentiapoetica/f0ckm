@@ -8588,6 +8588,10 @@ class NotificationSystem {
   }
 
   handleNewItem(data) {
+    // Invalidate client-side caches so next/prev navigation knows about the new item
+    if (typeof itemCacheMap !== 'undefined') itemCacheMap.clear();
+    if (typeof gridCacheMap !== 'undefined') gridCacheMap.clear();
+
     // Only prepend to the grid on the main/index page
     const grid = document.querySelector('.posts');
     if (!grid) return;
