@@ -94,7 +94,7 @@
                     @endif
                 </div>
                 @if(session && session.id === user.user_id)
-                <div id="profile-desc-edit-container" style="display: none; margin-top: 5px;">
+                <div id="profile-desc-edit-container" style="display: none; margin-top: 10px;">
                     <textarea id="inline-desc-input" style="width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; box-sizing: border-box; min-height: 60px;">@if(user.description){!! user.description !!}@endif</textarea>
                     <div style="display: flex; justify-content: flex-end; gap: 5px; margin-top: 5px;">
                         <button id="inline-desc-cancel-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size: 0.8em;">Cancel</button>
