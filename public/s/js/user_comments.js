@@ -35,6 +35,7 @@ if (!window.UserCommentSystem) {
             const contentEl = el.querySelector('.comment-content');
             if (contentEl) {
                 contentEl.innerHTML = this.renderCommentContent(data.content, data.item_id);
+                this.playEmojiVideos(contentEl);
                 el.classList.remove('new-item-fade');
                 void el.offsetWidth;
                 el.classList.add('new-item-fade');
@@ -118,6 +119,7 @@ if (!window.UserCommentSystem) {
                     const html = this.renderComment(c);
                     this.container.insertAdjacentHTML('beforeend', html);
                 });
+                this.playEmojiVideos(this.container);
                 this.page++;
             } else {
                 this.finished = true;
@@ -133,9 +135,22 @@ if (!window.UserCommentSystem) {
         }
     }
 
+    playEmojiVideos(container) {
+        if (!container) return;
+        container.querySelectorAll('video.emoji').forEach(v => {
+            v.play().catch(() => {
+                v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true });
+            });
+        });
+    }
+
     renderEmoji(match, name) {
         if (this.customEmojis && this.customEmojis[name]) {
-            return `<img src="${this.customEmojis[name]}" class="emoji" alt="${match}" title="${match}">`;
+            const url = this.customEmojis[name];
+            if (url.endsWith('.webm')) {
+                return `<video src="${url}" class="emoji" autoplay loop muted playsinline title=":${name}:"></video>`;
+            }
+            return `<img src="${url}" class="emoji" alt="${match}" title="${match}">`;
         }
         return match;
     }
