@@ -105,7 +105,7 @@
                 <div class="stat-joined" tooltip="{{ user.timestamp.timefull }}" data-iso="{{ user.timestamp.timefull }}">{{ t('profile.age_days', { n: user.age_days }) }}</div>
                     @if(!user.is_ghost)
                         <div class="stat-comments">{{ t('profile.stat_comments') }} <a href="/user/{!! user.user !!}/comments">{{ count.comments }}</a></div>
-                        <div class="stat-tags">{{ t('profile.stat_tags') }} {{ count.tags }}</div>
+                        <div class="stat-tags">{{ t('profile.stat_tags') }} <a href="/user/{!! user.user !!}/tags">{{ count.tags }}</a></div>
                         @if(!user.is_ghost)
                         <div class="stat-halls">{{ t('profile.stat_halls') }} <a href="/user/{!! user.user !!}/halls">{{ count.halls }}</a></div>
                         @endif

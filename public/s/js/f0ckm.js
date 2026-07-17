@@ -4697,6 +4697,7 @@ window.cancelAnimFrame = (function () {
         ctx.user = decodeURIComponent(userMatch[1]);
         if (window.location.pathname.includes('/favs')) ctx.fav = true;
         if (window.location.pathname.includes('/f0cks')) ctx.f0cks = true;
+        if (window.location.pathname.includes('/tags')) ctx.userTags = true;
       }
 
       const mimeMatch = window.location.pathname.match(/\/(image|audio|video)(?:\/|$)/);
@@ -4726,6 +4727,7 @@ window.cancelAnimFrame = (function () {
         path += `user/${ctx.user}/`;
         if (ctx.fav) path += `favs/`;
         else if (ctx.f0cks) path += `f0cks/`;
+        else if (ctx.userTags) path += `tags/`;
       }
       if (ctx.mime) path += `${ctx.mime}/`;
       if (page > 1) path += `p/${page}`;
@@ -4897,8 +4899,9 @@ window.cancelAnimFrame = (function () {
 
       const fetchUrl = ctx.notif ? `/ajax/notifications?${params.toString()}` :
         ctx.tags ? `/api/tags?ajax=true&${params.toString()}` :
-          ctx.subs ? `/ajax/subscriptions?${params.toString()}` :
-            `/ajax/items?${params.toString()}`;
+          ctx.userTags ? `/api/user/${encodeURIComponent(ctx.user)}/tags?ajax=true&${params.toString()}` :
+            ctx.subs ? `/ajax/subscriptions?${params.toString()}` :
+              `/ajax/items?${params.toString()}`;
 
       try {
         const response = await fetch(fetchUrl);
@@ -4997,8 +5000,9 @@ window.cancelAnimFrame = (function () {
 
       const fetchUrl = ctx.notif ? `/ajax/notifications?${params.toString()}` :
         ctx.tags ? `/api/tags?ajax=true&${params.toString()}` :
-          ctx.subs ? `/ajax/subscriptions?${params.toString()}` :
-            `/ajax/items?${params.toString()}`;
+          ctx.userTags ? `/api/user/${encodeURIComponent(ctx.user)}/tags?ajax=true&${params.toString()}` :
+            ctx.subs ? `/ajax/subscriptions?${params.toString()}` :
+              `/ajax/items?${params.toString()}`;
 
       try {
         const response = await fetch(fetchUrl);
