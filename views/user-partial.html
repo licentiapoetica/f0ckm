@@ -40,6 +40,9 @@
             <input type="file" id="inline-avatar-file" accept="image/gif,image/jpeg,image/png,image/webp" style="display: none;">
             @endif
         </div>
+        @if(session && session.id === user.user_id)
+        <button id="edit-profile-btn" class="btn btn-sm btn-outline-primary" onclick="const box = document.getElementById('live-profile-preview-box'); box.classList.toggle('edit-mode-active'); if(box.classList.contains('edit-mode-active')){ this.innerHTML='<i class=&quot;fa-solid fa-check&quot;></i>'; this.style.color='#51cf66'; this.style.borderColor='#51cf66'; } else { this.innerHTML='<i class=&quot;fa-solid fa-pen&quot;></i>'; this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'; }" style="position: absolute; bottom: 5px; left: 5px; padding: 3px 8px; font-size: 0.85em; border: 1px solid var(--accent); color: var(--accent); background: rgba(0,0,0,0.8); cursor: pointer; border-radius: 4px; z-index: 20; box-shadow: 0 0 5px rgba(0,0,0,0.5);" title="{{ t('profile.edit_btn', 'Edit Profile') }}"><i class="fa-solid fa-pen"></i></button>
+        @endif
     </div>
     <div class="layersoffear">
         <div class="profile_head_username">
@@ -76,8 +79,6 @@
                                 <button id="warn-user-btn" class="btn btn-sm btn-outline-warning" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;" title="{{ t('profile.warn_btn') }}"><i class="fa-solid fa-triangle-exclamation"></i></button>
                             @endif
                         @endif
-                    @else
-                        <button id="edit-profile-btn" class="btn btn-sm btn-outline-primary" onclick="const box = document.getElementById('live-profile-preview-box'); box.classList.toggle('edit-mode-active'); if(box.classList.contains('edit-mode-active')){ this.innerHTML='<i class=&quot;fa-solid fa-check&quot;></i>'; this.style.color='#51cf66'; this.style.borderColor='#51cf66'; } else { this.innerHTML='<i class=&quot;fa-solid fa-pen&quot;></i>'; this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'; }" style="position: absolute; bottom: 10px; right: 10px; padding: 4px 10px; font-size: 0.9em; border: 1px solid var(--accent); color: var(--accent); background: rgba(0,0,0,0.8); cursor: pointer; border-radius: 4px; z-index: 20; box-shadow: 0 0 5px rgba(0,0,0,0.5);" title="{{ t('profile.edit_btn', 'Edit Profile') }}"><i class="fa-solid fa-pen"></i></button>
                     @endif
                 </div>
                 @endif

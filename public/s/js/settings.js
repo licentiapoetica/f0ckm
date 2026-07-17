@@ -622,7 +622,7 @@
                 }
                 const croppedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", { type: 'image/webp' });
                 cleanup();
-                resolve({ file: croppedFile, file_orig: file, banner_position: 'center', banner_size: 'cover' });
+                resolve({ file: croppedFile, file_orig: file, banner_position: 'center top', banner_size: 'cover' });
             }, 'image/webp', 0.9);
         });
 
