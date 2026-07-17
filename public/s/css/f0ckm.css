@@ -7666,6 +7666,7 @@ div.posts>a.thumb > p {
     grid-template-columns: 1fr 1fr;
     bottom: 5px;
     left: 5px;
+    gap: 2px;
 }
 
 /* Make individual item entry subtler and faster for infinite scroll */
@@ -11033,13 +11034,18 @@ div.posts>a::after {
 }
 
 .oc-indicator {
-  fill: #ffd700;
-  pointer-events: none;
-  bottom: 1px;
-  line-height: normal;
-  font-size: 13px;
-  font-family: 'VCR' !important;
-  z-index: 11;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.65em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 10;
 }
 
 /* For sub-cards which have a simpler structure */
