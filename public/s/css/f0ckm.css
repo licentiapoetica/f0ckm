@@ -8823,6 +8823,10 @@ video.autoplay-gif {
   max-width: 480px;
 }
 
+.comment-content .image-embed-wrap {
+  max-width: 200px;
+}
+
 .admin-delete-attachment-btn {
   position: absolute;
   top: 5px;
@@ -9456,7 +9460,7 @@ video.sidebar-comment-img.emoji {
 .comment-content img:not(.emoji) {
   display: block;
   cursor: pointer;
-  max-width: 480px;
+  max-width: 200px;
   width: auto;
 }
 
