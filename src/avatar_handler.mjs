@@ -162,6 +162,14 @@ export const handleAvatarUpload = async (req, res) => {
             where user_id = ${+req.session.id}
         `;
 
+        const payloadStr = JSON.stringify({
+            user_id: req.session.id,
+            user: req.session.user,
+            avatar_file: finalFilename,
+            avatar: null
+        });
+        await db`select pg_notify('profile_update', ${payloadStr})`;
+
         console.log('[AVATAR HANDLER] Upload complete:', finalFilename);
         return sendJson(res, {
             success: true,
@@ -224,6 +232,13 @@ export const handleAvatarDelete = async (req, res) => {
             set avatar_file = null
             where user_id = ${+req.session.id}
         `;
+
+        const payloadStr = JSON.stringify({
+            user_id: req.session.id,
+            user: req.session.user,
+            avatar_file: null
+        });
+        await db`select pg_notify('profile_update', ${payloadStr})`;
 
         console.log('[AVATAR HANDLER] Delete complete');
         return sendJson(res, { success: true, msg: 'Custom avatar removed' }, 200);

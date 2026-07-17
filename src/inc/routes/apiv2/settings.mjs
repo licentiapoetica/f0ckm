@@ -331,6 +331,14 @@ export default router => {
         `;
         // Sync session immediately
         if (req.session) req.session.username_color = color;
+        
+        const payloadStr = JSON.stringify({
+            user_id: req.session.id,
+            user: req.session.user,
+            username_color: color
+        });
+        await db`select pg_notify('profile_update', ${payloadStr})`;
+        
         return res.json({ success: true, color }, 200);
       } catch (e) {
         console.error('Update Username Color error:', e);
@@ -420,6 +428,14 @@ export default router => {
         `;
         // Sync session immediately
         if (req.session) req.session.display_name = cleanDisplayName;
+        
+        const payloadStr = JSON.stringify({
+            user_id: req.session.id,
+            user: req.session.user,
+            display_name: cleanDisplayName
+        });
+        await db`select pg_notify('profile_update', ${payloadStr})`;
+        
         return res.json({ success: true, display_name: cleanDisplayName, msg: 'Display name updated successfully' }, 200);
       } catch (e) {
         console.error('Update Display Name error:', e);
@@ -448,6 +464,14 @@ export default router => {
         `;
         // Sync session immediately
         if (req.session) req.session.description = cleanDescription;
+
+        const payloadStr = JSON.stringify({
+            user_id: req.session.id,
+            user: req.session.user,
+            description: cleanDescription
+        });
+        await db`select pg_notify('profile_update', ${payloadStr})`;
+
         return res.json({ success: true, description: cleanDescription }, 200);
       } catch (e) {
         console.error('Update Description error:', e);

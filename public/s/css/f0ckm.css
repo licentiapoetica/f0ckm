@@ -6140,6 +6140,7 @@ video.emoji {
   height: auto;
   /* vertical-align: middle; */
   display: inline-block;
+  max-width: 200px;
 }
 
 /* video in emoji autocomplete dropdown */

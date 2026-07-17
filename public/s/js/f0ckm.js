@@ -7343,10 +7343,19 @@ class NotificationSystem {
             }
           }
         } else if (data.type === 'profile_update') {
-          const { display_name, user, banner_file, banner_position, banner_size } = data.data;
+          const { display_name, user, banner_file, banner_position, banner_size, avatar_file, username_color, description } = data.data;
           if (display_name !== undefined) this.applyDisplayNameUpdate(display_name, user);
           if (banner_file !== undefined || banner_position !== undefined || banner_size !== undefined) {
             this.applyBannerUpdate(banner_file, banner_position, banner_size, user);
+          }
+          if (avatar_file !== undefined) {
+            this.applyAvatarUpdate(avatar_file, user);
+          }
+          if (username_color !== undefined) {
+            this.applyUsernameColorUpdate(username_color, user);
+          }
+          if (description !== undefined) {
+            this.applyDescriptionUpdate(description, user);
           }
           // Sync preferences to global session object for client-side gating (like DND)
           if (window.f0ckSession && data.data.user_id === window.f0ckSession.id) {
@@ -7377,14 +7386,28 @@ class NotificationSystem {
       // Capture old value before overwriting — needed for thumb matching below
       const oldDisplayName = window.f0ckSession?.display_name || null;
       if (window.f0ckSession) window.f0ckSession.display_name = display_name || null;
-      const navBtn = document.getElementById('nav-user-toggle');
-      if (navBtn) {
-        const nameSpan = document.getElementById('nav-display-name');
-        if (nameSpan) {
-          nameSpan.textContent = display_name || window.f0ckSession?.user || '';
-        }
-      }
+      
       const userName = user || window.f0ckSession?.user;
+
+      // Update ALL nav-display-name instances (handles the profile page having a duplicate ID)
+      document.querySelectorAll('#nav-display-name').forEach(nameSpan => {
+        // preserve the badges (Admin, Mod)
+        for (let i = nameSpan.childNodes.length - 1; i >= 0; i--) {
+          let node = nameSpan.childNodes[i];
+          if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
+            // Match and preserve any non-breaking spaces at the start (from admin/mod badges)
+            const match = node.nodeValue.match(new RegExp('^(\\s*)(.*)'));
+            node.nodeValue = (match ? match[1] : '') + (display_name || userName || '');
+            break;
+          }
+        }
+      });
+      
+      const bracket = document.getElementById('username-bracket');
+      if (bracket) {
+          bracket.style.display = display_name ? 'inline' : 'none';
+      }
+
       if (userName) {
         const userHref = `/user/${userName}`;
         // Sidebar / thread comment author links
@@ -7404,6 +7427,105 @@ class NotificationSystem {
           }
         });
       }
+    };
+
+    // Helper: apply a username color change to relevant DOM nodes
+    this.applyUsernameColorUpdate = (username_color, user) => {
+      const userName = user || window.f0ckSession?.user;
+      if (!userName) return;
+
+      const userHref = `/user/${userName}`;
+      document.querySelectorAll(`a.comment-author[href="${userHref}"]`).forEach(el => {
+        if (username_color) {
+          el.style.color = username_color;
+        } else {
+          el.style.removeProperty('color');
+        }
+      });
+      
+      // Handle the item view username link
+      const aUsername = document.getElementById('a_username');
+      if (aUsername && aUsername.getAttribute('href') === userHref) {
+        if (username_color) {
+          aUsername.style.color = username_color;
+        } else {
+          aUsername.style.removeProperty('color');
+        }
+      }
+
+      // Handle favs avatar border color
+      document.querySelectorAll('#favs img').forEach(img => {
+        const link = img.closest('a');
+        if (link && (link.href.includes(`/user/${userName.toLowerCase()}`) || link.href.includes(`/user/${userName}`))) {
+          if (username_color) {
+            img.style.borderColor = username_color;
+          } else {
+            img.style.removeProperty('border-color');
+          }
+        }
+      });
+
+      // Update the infobox block variables for color accents
+      const safeUserName = userName.replace(/"/g, '\\"');
+      document.querySelectorAll(`.user-infobox-block[data-banner-user="${safeUserName}"]`).forEach(block => {
+        if (username_color) {
+          block.style.setProperty('--author-accent', username_color);
+          block.style.setProperty('--author-border', username_color);
+        } else {
+          block.style.setProperty('--author-accent', 'var(--accent)');
+          block.style.setProperty('--author-border', 'var(--accent)');
+        }
+      });
+
+      // Special case for settings page preview block
+      if (window.f0ckSession && userName === window.f0ckSession.user) {
+        const previewBlock = document.getElementById('live-profile-preview-box');
+        if (previewBlock) {
+          if (username_color) {
+            previewBlock.style.setProperty('--author-accent', username_color);
+            previewBlock.style.setProperty('--author-border', username_color);
+          } else {
+            previewBlock.style.setProperty('--author-accent', 'var(--accent)');
+            previewBlock.style.setProperty('--author-border', 'var(--accent)');
+          }
+        }
+      }
+
+      // Handle the nav-display-name span elements (profile header and top navbar)
+      if (window.f0ckSession && userName === window.f0ckSession.user) {
+        document.querySelectorAll('#nav-display-name').forEach(el => {
+          if (username_color) {
+            el.style.color = username_color;
+          } else {
+            el.style.removeProperty('color');
+          }
+        });
+      }
+    };
+
+    // Helper: apply an avatar update to relevant DOM nodes
+    this.applyAvatarUpdate = (avatar_file, user) => {
+      const userName = user || window.f0ckSession?.user;
+      if (!userName) return;
+
+      const newSrc = avatar_file ? `/a/${avatar_file}?t=${Date.now()}` : '/a/default.png';
+
+      // Update Nav Avatar & profile header Avatar (only for current user)
+      if (window.f0ckSession && userName === window.f0ckSession.user) {
+        document.querySelectorAll('.nav-avatar-img, .profile_head_avatar img').forEach(img => img.src = newSrc);
+      }
+
+      // Update globally (comments, sidebar, polls, rank, infoboxes, favs)
+      // We broadly target a[href^="/user/"] img to catch basically any avatar linked to the profile
+      const lowerHref = `/user/${userName.toLowerCase()}`;
+      const exactHref = `/user/${userName}`;
+
+      document.querySelectorAll('.comment-avatar img, .sidebar-avatar, .poll-voter-avatar, .rank-avatar, .user-infobox-avatar img, #favs img, a[href^="/user/"] img').forEach(img => {
+        const link = img.closest('a');
+        if (link && (link.href.includes(lowerHref) || link.href.includes(exactHref))) {
+          img.src = newSrc;
+        }
+      });
     };
 
     // Helper: apply banner update to relevant DOM nodes
@@ -7436,6 +7558,73 @@ class NotificationSystem {
       if (window.f0ckSession && userName === window.f0ckSession.user) {
         const previewBlock = document.getElementById('live-profile-preview-box');
         if (previewBlock) setBannerStyle(previewBlock);
+      }
+    };
+
+    // Helper: apply description update to relevant DOM nodes
+    this.applyDescriptionUpdate = (description, user) => {
+      const userName = user || window.f0ckSession?.user;
+      console.log('[SSE] applyDescriptionUpdate called for user:', userName, 'description:', description);
+      if (!userName) return;
+
+      // Escape quotes for selector
+      const safeUserName = userName.replace(/"/g, '\\"');
+      // Find the profile header for this user
+      const profileHead = document.querySelector(`.profile_head[data-banner-user="${safeUserName}"]`);
+      console.log('[SSE] applyDescriptionUpdate profileHead found?', !!profileHead);
+      
+      if (profileHead) {
+        const descDisplay = profileHead.querySelector('#profile-desc-display div');
+        console.log('[SSE] applyDescriptionUpdate descDisplay found?', !!descDisplay);
+        
+        if (descDisplay) {
+          if (!description || description.trim() === '') {
+            descDisplay.innerHTML = '<em style="color:var(--text-muted);">No description</em>';
+          } else {
+            const tempDiv = document.createElement('div');
+            tempDiv.textContent = description;
+            descDisplay.innerHTML = tempDiv.innerHTML.replace(/\n/g, '<br>');
+          }
+        }
+        // Also update the edit input if it exists (for the logged in user)
+        if (window.f0ckSession && userName === window.f0ckSession.user) {
+           const input = profileHead.querySelector('#inline-desc-input');
+           if (input) {
+               input.value = description || '';
+               console.log('[SSE] applyDescriptionUpdate input updated');
+           }
+        }
+      }
+
+      // Update any item page infoboxes
+      document.querySelectorAll(`.user-infobox-block[data-banner-user="${safeUserName}"]`).forEach(block => {
+        const infoboxDesc = block.querySelector('.user-infobox-description');
+        if (infoboxDesc) {
+            if (!description || description.trim() === '') {
+              infoboxDesc.innerHTML = '';
+            } else {
+              const tempDiv = document.createElement('div');
+              tempDiv.textContent = description;
+              infoboxDesc.innerHTML = tempDiv.innerHTML.replace(/\n/g, '<br>');
+            }
+        }
+      });
+
+      // Special case for settings page preview block
+      if (window.f0ckSession && userName === window.f0ckSession.user) {
+        const previewBlock = document.getElementById('live-profile-preview-box');
+        if (previewBlock) {
+          const previewDesc = previewBlock.querySelector('.user-infobox-description');
+          if (previewDesc) {
+            if (!description || description.trim() === '') {
+              previewDesc.innerHTML = 'Welcome to my profile! This is a live preview.';
+            } else {
+              const tempDiv = document.createElement('div');
+              tempDiv.textContent = description;
+              previewDesc.innerHTML = tempDiv.innerHTML.replace(/\n/g, '<br>');
+            }
+          }
+        }
       }
     };
 

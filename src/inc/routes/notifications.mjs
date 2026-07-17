@@ -102,7 +102,10 @@ db.listen('profile_update', (payload) => {
                     display_name: data.display_name,
                     banner_file: data.banner_file,
                     banner_position: data.banner_position,
-                    banner_size: data.banner_size
+                    banner_size: data.banner_size,
+                    avatar_file: data.avatar_file,
+                    username_color: data.username_color,
+                    description: data.description
                 };
                 client.send({ type: 'profile_update', data: publicData });
             }

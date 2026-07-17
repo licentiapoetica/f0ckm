@@ -422,7 +422,37 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        location.reload();
+                        let objectUrl = '/a/' + (data.avatar_file || data.file) + '?t=' + Date.now();
+                        let wrapper = document.querySelector('.avatar-image-wrapper');
+                        if (wrapper) {
+                            let placeholder = wrapper.querySelector('.avatar-placeholder');
+                            if (placeholder) {
+                                let img = document.createElement('img');
+                                img.className = 'profile-avatar-img';
+                                img.src = objectUrl;
+                                wrapper.insertBefore(img, placeholder);
+                                placeholder.remove();
+                            } else {
+                                let img = wrapper.querySelector('.profile-avatar-img');
+                                if (img) img.src = objectUrl;
+                            }
+                        }
+                        
+                        document.querySelectorAll('.nav-avatar-img').forEach(img => img.src = objectUrl);
+                        document.querySelectorAll('.comment-avatar img, .sidebar-avatar, .poll-voter-avatar, .rank-avatar').forEach(img => {
+                            // Only replace if it matches the user's old avatar file, or if they didn't have one, just match if it links to their profile
+                            const oldFile = '{{ user.avatar_file }}';
+                            const oldId = '{{ user.avatar }}';
+                            const isOldImage = (oldFile && img.src.includes('/a/' + oldFile)) || (oldId && img.src.includes('/t/' + oldId + '.webp'));
+                            const link = img.closest('a');
+                            const isUserLink = link && link.href.includes('/user/{{ user.user }}');
+                            
+                            if (isOldImage || isUserLink) {
+                                img.src = objectUrl;
+                            }
+                        });
+                        avatarEditBtn.innerHTML = '<i class="fa-solid fa-pen" style="font-size: 0.7em;"></i>';
+                        avatarEditBtn.disabled = false;
                     } else {
                         alert(data.msg || 'Failed to upload avatar');
                         avatarEditBtn.innerHTML = '<i class="fa-solid fa-pen" style="font-size: 0.7em;"></i>';
@@ -471,7 +501,27 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                         body: JSON.stringify(cPayload)
                     });
-                    location.reload();
+                    nameSaveBtn.disabled = false;
+                    nameContainer.style.display = 'flex';
+                    nameEditContainer.style.display = 'none';
+                    
+                    const nameSpan = document.getElementById('nav-display-name');
+                    if (nameSpan) {
+                        nameSpan.style.color = color;
+                        for (let i = nameSpan.childNodes.length - 1; i >= 0; i--) {
+                            let node = nameSpan.childNodes[i];
+                            if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
+                                // Match and preserve any non-breaking spaces at the start (from admin/mod badges)
+                                const match = node.nodeValue.match(new RegExp('^(\\\\s*)(.*)'));
+                                node.nodeValue = (match ? match[1] : '') + (displayName ? displayName : '{{ user.user }}');
+                                break;
+                            }
+                        }
+                    }
+                    const bracket = document.getElementById('username-bracket');
+                    if (bracket) {
+                        bracket.style.display = displayName ? 'inline' : 'none';
+                    }
                 } catch (err) {
                     alert('Error saving name/color');
                     nameSaveBtn.disabled = false;
@@ -507,7 +557,17 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        location.reload();
+                        descSaveBtn.disabled = false;
+                        descDisplay.style.display = 'block';
+                        descEditContainer.style.display = 'none';
+                        const descTextDiv = descDisplay.querySelector('div');
+                        if (description.trim() === '') {
+                            descTextDiv.innerHTML = '<em style="color:var(--text-muted);">No description</em>';
+                        } else {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.textContent = description;
+                            descTextDiv.innerHTML = tempDiv.innerHTML.replace(new RegExp('\\\\n', 'g'), '<br>');
+                        }
                     } else {
                         alert(data.msg || 'Failed to update description');
                         descSaveBtn.disabled = false;
