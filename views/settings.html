@@ -144,7 +144,7 @@
             <div class="avatar-preview-label">{{ t('settings.current_banner') }}</div>
             @if(banner_file)
             <a href="/user/{!! session.user !!}" target="_blank" style="display:block; width: 100%;">
-              <div id="banner-preview" class="banner-preview-img" style="width:100%;aspect-ratio:400/140;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/{{ banner_file }}');background-size:{{ banner_size || 'cover' }};background-position:{{ banner_position || 'center' }};background-repeat:no-repeat;"></div>
+              <div id="banner-preview" class="banner-preview-img" style="width:100%;aspect-ratio:400/140;border-radius:4px;border:1px solid var(--nav-border-color);background-image:url('/a/{{ banner_file }}');background-size:{{ banner_size || 'cover' }};background-position:{{ banner_position === 'center' ? 'center top' : (banner_position || 'center top') }};background-repeat:no-repeat;"></div>
             </a>
             @else
             <div id="banner-preview" class="banner-preview-img banner-placeholder" style="width:100%;aspect-ratio:400/140;display:flex;align-items:center;justify-content:center;border:1px dashed var(--nav-border-color);border-radius:4px;color:var(--text-muted);font-size:0.85em;">{{ t('settings.no_banner_set') }}</div>
@@ -214,7 +214,7 @@
       <fieldset style="border: 1px solid var(--nav-border-color); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
         <legend style="width: auto; padding: 0 5px; font-size: 1.1em; font-weight: bold;">Live Profile Preview</legend>
         <div class="setting-item" style="max-width: 750px;">
-           <div class="user-infobox-block" id="live-profile-preview-box" style="--author-accent: {{ session.username_color || 'var(--accent)' }}; --author-border: {{ session.username_color || 'var(--accent)' }}; @if(banner_file && user_banner_enabled) --author-banner: url('/a/{{ banner_file }}?t={{ Date.now() }}'); --author-banner-position: {{ banner_position || 'center' }}; --author-banner-size: {{ banner_size || 'cover' }}; @endif">
+           <div class="user-infobox-block" id="live-profile-preview-box" style="--author-accent: {{ session.username_color || 'var(--accent)' }}; --author-border: {{ session.username_color || 'var(--accent)' }}; @if(banner_file && user_banner_enabled) --author-banner: url('/a/{{ banner_file }}?t={{ Date.now() }}'); --author-banner-position: {{ banner_position === 'center' ? 'center top' : (banner_position || 'center top') }}; --author-banner-size: {{ banner_size || 'cover' }}; @endif">
               <div class="user-infobox-avatar">
                   <a href="#">
                       @if(avatar_file)

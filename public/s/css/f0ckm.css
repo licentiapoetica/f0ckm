@@ -13926,7 +13926,7 @@ i.iconset#a_oc {
   inset: 0;
   background-image: var(--author-banner, none);
   background-size: var(--author-banner-size, cover);
-  background-position: var(--author-banner-position, center);
+  background-position: var(--author-banner-position, center top);
   opacity: 0.3;
   z-index: -1;
   border-radius: inherit;
@@ -14044,7 +14044,7 @@ textarea#profile_description {
   inset: 0;
   background-image: var(--author-banner, none);
   background-size: var(--author-banner-size, cover);
-  background-position: var(--author-banner-position, center);
+  background-position: var(--author-banner-position, center top);
   background-repeat: var(--author-banner-repeat, no-repeat);
   opacity: var(--author-banner-opacity, 0.3);
   z-index: -1;

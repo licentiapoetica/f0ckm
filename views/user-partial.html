@@ -1,5 +1,5 @@
 <div class="profile-page-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 10px; box-sizing: border-box;">
-<div class="profile_head" id="live-profile-preview-box" data-banner-user="{{ user.user || '' }}" style="position: relative; @if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position || 'center' }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
+<div class="profile_head" id="live-profile-preview-box" data-banner-user="{{ user.user || '' }}" style="position: relative; @if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position === 'center' ? 'center top' : (user.banner_position || 'center top') }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
     @if(session && session.id === user.user_id && user_banner_enabled)
     <button id="inline-banner-edit-btn" style="position:absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: #fff; cursor: pointer; z-index: 10; font-size: 0.8em;" title="{{ t('profile.edit_banner', 'Edit Banner') }}">
         <i class="fa-solid fa-pen"></i> Edit Banner
@@ -50,20 +50,24 @@
                     <button id="inline-name-cancel-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 5px; font-size: 0.8em;"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 @endif
-                @if(session && session.id !== user.user_id)
+                @if(session)
                 <div class="profile-actions" style="margin: 0; flex-shrink: 0;">
-                    @if(private_messages)
-                        <button id="send-dm-btn" class="btn btn-sm btn-outline-info" data-username="{!! user.user !!}" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;" title="{{ t('profile.message_btn') }}"><i class="fa-solid fa-envelope"></i></button>
-                    @endif
-                    @if(session.admin || session.is_moderator)
-                        @if(session.admin || !user.admin)
-                            @if(user.banned)
-                            <button id="unban-user-btn" class="btn btn-sm btn-outline-success" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #5cb85c; color: #5cb85c; background: transparent; cursor: pointer;" title="{{ t('profile.unban_btn') }}"><i class="fa-solid fa-unlock"></i></button>
-                            @else
-                            <button id="ban-user-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;" title="{{ t('profile.ban_btn') }}"><i class="fa-solid fa-ban"></i></button>
-                            @endif
-                            <button id="warn-user-btn" class="btn btn-sm btn-outline-warning" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;" title="{{ t('profile.warn_btn') }}"><i class="fa-solid fa-triangle-exclamation"></i></button>
+                    @if(session.id !== user.user_id)
+                        @if(private_messages)
+                            <button id="send-dm-btn" class="btn btn-sm btn-outline-info" data-username="{!! user.user !!}" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;" title="{{ t('profile.message_btn') }}"><i class="fa-solid fa-envelope"></i></button>
                         @endif
+                        @if(session.admin || session.is_moderator)
+                            @if(session.admin || !user.admin)
+                                @if(user.banned)
+                                <button id="unban-user-btn" class="btn btn-sm btn-outline-success" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #5cb85c; color: #5cb85c; background: transparent; cursor: pointer;" title="{{ t('profile.unban_btn') }}"><i class="fa-solid fa-unlock"></i></button>
+                                @else
+                                <button id="ban-user-btn" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;" title="{{ t('profile.ban_btn') }}"><i class="fa-solid fa-ban"></i></button>
+                                @endif
+                                <button id="warn-user-btn" class="btn btn-sm btn-outline-warning" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid #f0ad4e; color: #f0ad4e; background: transparent; cursor: pointer;" title="{{ t('profile.warn_btn') }}"><i class="fa-solid fa-triangle-exclamation"></i></button>
+                            @endif
+                        @endif
+                    @else
+                        <button id="edit-profile-btn" class="btn btn-sm btn-outline-primary" onclick="const box = document.getElementById('live-profile-preview-box'); box.classList.toggle('edit-mode-active'); if(box.classList.contains('edit-mode-active')){ this.innerHTML='<i class=&quot;fa-solid fa-check&quot;></i>'; this.style.color='#51cf66'; this.style.borderColor='#51cf66'; } else { this.innerHTML='<i class=&quot;fa-solid fa-pen&quot;></i>'; this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'; }" style="position: absolute; bottom: 10px; right: 10px; padding: 4px 10px; font-size: 0.9em; border: 1px solid var(--accent); color: var(--accent); background: rgba(0,0,0,0.8); cursor: pointer; border-radius: 4px; z-index: 20; box-shadow: 0 0 5px rgba(0,0,0,0.5);" title="{{ t('profile.edit_btn', 'Edit Profile') }}"><i class="fa-solid fa-pen"></i></button>
                     @endif
                 </div>
                 @endif
@@ -365,6 +369,20 @@
 @endif
 
 @if(session && session.id === user.user_id)
+<style>
+#live-profile-preview-box:not(.edit-mode-active) .avatar-edit-btn,
+#live-profile-preview-box:not(.edit-mode-active) #inline-banner-edit-btn,
+#live-profile-preview-box:not(.edit-mode-active) #inline-name-edit-btn,
+#live-profile-preview-box:not(.edit-mode-active) #inline-desc-edit-btn {
+    display: none !important;
+}
+#live-profile-preview-box.edit-mode-active .avatar-edit-btn {
+    opacity: 1;
+}
+#live-profile-preview-box.edit-mode-active .avatar-image-wrapper .profile-avatar-img {
+    filter: brightness(0.6);
+}
+</style>
 <script src="/s/js/settings.js"></script>
 <script>
     (function() {
