@@ -2951,7 +2951,7 @@ body.layout-legacy .scroll-nav-wrapper {
   position: absolute;
   top: -75px;
   bottom: 0;
-  right: -50px;
+  right: -45px;
   width: 40px;
   pointer-events: none;
   z-index: 1000;
