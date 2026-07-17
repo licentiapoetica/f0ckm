@@ -13964,9 +13964,12 @@ i.iconset#a_oc {
 
 @media (max-width: 700px) {
   .profile_head_user_stats {
-    grid-auto-flow: row;
-    grid-auto-columns: 1fr !important;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .profile_head_user_stats > * {
+    flex-grow: 1;
+    text-align: center;
   }
 
   .user_content_wrapper {
