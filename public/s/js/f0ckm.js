@@ -4076,6 +4076,24 @@ window.cancelAnimFrame = (function () {
               ocBtn.classList.toggle('fa-solid', newOc);
               ocBtn.classList.toggle('fa-regular', !newOc);
 
+              const container = document.getElementById('oc-badge-container');
+              if (container) {
+                  if (newOc) {
+                      container.innerHTML = ' — <span class="oc-badge" tooltip="Original Content">OC</span>';
+                  } else {
+                      container.innerHTML = '';
+                  }
+              }
+
+              const containerInfobox = document.getElementById('oc-badge-container-infobox');
+              if (containerInfobox) {
+                  if (newOc) {
+                      containerInfobox.innerHTML = '<span class="oc-badge" tooltip="Original Content">OC</span>';
+                  } else {
+                      containerInfobox.innerHTML = '';
+                  }
+              }
+
               window.flashMessage((window.f0ckI18n && (newOc ? window.f0ckI18n.oc_marked : window.f0ckI18n.oc_removed)) || (newOc ? 'MARKED AS ORIGINAL CONTENT' : 'OC STATUS REMOVED'));
           } else {
               window.flashError(data.msg || 'Error toggling OC status');

@@ -14117,8 +14117,9 @@ textarea#profile_description {
 .user-infobox-actions {
   flex-shrink: 0;
   display: flex;
+  flex-flow:column;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
 }
 
 /* =============================================

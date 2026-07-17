@@ -120,7 +120,7 @@
             </div>
             <div class="blahlol">
                 <span class="badge badge-dark">
-                    <a href="/{{ item.id }}" class="id-link">{{ item.id }}</a> — [<a id="a_username" data-username="{{ item.username || '' }}" @if(session) data-author-id="{{ item.author_id || '' }}" @endif href="/user/{{ item_username_lower }}" @if(session && item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] @if(item.is_oc) — <span class="oc-badge" tooltip="Original Content">OC</span>@endif
+                    <a href="/{{ item.id }}" class="id-link">{{ item.id }}</a> — [<a id="a_username" data-username="{{ item.username || '' }}" @if(session) data-author-id="{{ item.author_id || '' }}" @endif href="/user/{{ item_username_lower }}" @if(session && item.author_id) tooltip="ID: {{ item.author_id }}" @endif @if(item.author_color) style="color: {{ item.author_color }}" @endif>{!! item.author_display_name || item.username || 'unknown' !!}</a>] <span id="oc-badge-container">@if(item.is_oc) — <span class="oc-badge" tooltip="Original Content">OC</span>@endif</span>
                 </span>@if(halls_enabled && item.primaryHall) — @endif
                 @if(halls_enabled && item.primaryHall)
                 <span class="badge hall-badge-wrap">
