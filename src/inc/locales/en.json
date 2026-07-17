@@ -161,6 +161,8 @@
     "f_for_fullscreen_hint": "Pressing F will toggle fullscreen in the video player instead of favoriting the post.",
     "disable_autoplay": "Disable Autoplay",
     "disable_autoplay_hint": "Prevent videos and audio from playing automatically",
+    "hide_item_ratings": "Hide Item Ratings",
+    "hide_item_ratings_hint": "Don't show SFW/NSFW rating indicators on main page items",
     "disable_swiping": "Disable Swiping",
     "disable_swiping_hint": "Disable swipe-to-navigate on mobile devices",
     "image_expand_on_click": "Expand images inline on click",

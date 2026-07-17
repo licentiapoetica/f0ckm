@@ -86,6 +86,7 @@ window.cancelAnimFrame = (function () {
   if (localStorage.getItem('blurUntagged') === 'true') htmlEl.classList.add('blur-untagged-active');
   if (localStorage.getItem('blurDetail') !== 'false') htmlEl.classList.add('blur-detail-active');
   if (localStorage.getItem('imageExpandOnClick') !== 'false') htmlEl.classList.add('image-expand-active');
+  if (localStorage.getItem('hideItemRatings') === 'true') htmlEl.classList.add('hide-item-ratings-active');
 
   window.updateVisitIndicators = () => {
       try {

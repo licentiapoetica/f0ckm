@@ -1331,6 +1331,21 @@
         });
     }
 
+    const hideItemRatingsToggle = document.getElementById('hide_item_ratings_toggle');
+    if (hideItemRatingsToggle) {
+        hideItemRatingsToggle.checked = localStorage.getItem('hideItemRatings') === 'true';
+        hideItemRatingsToggle.addEventListener('change', () => {
+            const enabled = hideItemRatingsToggle.checked;
+            localStorage.setItem('hideItemRatings', enabled ? 'true' : 'false');
+            if (enabled) {
+                document.documentElement.classList.add('hide-item-ratings-active');
+            } else {
+                document.documentElement.classList.remove('hide-item-ratings-active');
+            }
+            showStatus(enabled ? 'Item ratings hidden!' : 'Item ratings shown!', 'success');
+        });
+    }
+
     // Granular Thumbnail Blur Toggles
     const blurNsfwToggle = document.getElementById('blur_nsfw_toggle');
     if (blurNsfwToggle) {

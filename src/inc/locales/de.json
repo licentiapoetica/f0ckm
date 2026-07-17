@@ -161,6 +161,8 @@
     "f_for_fullscreen_hint": "Das Drücken von F schaltet das Vollbild im Videoplayer statt den Beitrag zu favorisieren.",
     "disable_autoplay": "Automatische Wiedergabe deaktivieren",
     "disable_autoplay_hint": "Verhindert die automatische Wiedergabe von Videos und Audio",
+    "hide_item_ratings": "Item-Bewertungen ausblenden",
+    "hide_item_ratings_hint": "Zeige keine SFW/NSFW-Bewertungsindikatoren bei Elementen auf der Hauptseite",
     "disable_swiping": "Wischen deaktivieren",
     "disable_swiping_hint": "Navigation per Wischen auf Mobilgeräten deaktivieren",
     "image_expand_on_click": "Bilder beim Klicken inline erweitern",

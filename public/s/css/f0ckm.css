@@ -6552,6 +6552,10 @@ div.posts>a[data-mode="null"]>p::before {
   background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(63, 196, 61, 0) 85%, rgb(244, 222, 0) 100%);
 }
 
+.hide-item-ratings-active div.posts>a>p::before {
+  display: none !important;
+}
+
 div#footbar {
   width: 100%;
   text-align: center;

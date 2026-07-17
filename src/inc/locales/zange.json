@@ -161,6 +161,8 @@
     "f_for_fullscreen_hint": "Das Drücken der F-Taste leitet die Vollbildlichkeit des Abspielers ein, statt den Pfosten zu favorisieren.",
     "disable_autoplay": "Automatische Wiedergabe deaktivieren",
     "disable_autoplay_hint": "Vermeiden Sie das automatische Abspielen von Videos und Tondateien",
+    "hide_item_ratings": "Item-Bewertungen ausblenden",
+    "hide_item_ratings_hint": "Zeige keine SFW/NSFW-Bewertungsindikatoren bei Elementen auf der Hauptseite",
     "disable_swiping": "Wischen deaktivieren",
     "disable_swiping_hint": "Deaktivieren der Wisch-Navigation auf Mobilgeräten",
     "image_expand_on_click": "Bildli beim Klickle inline uffblähe",

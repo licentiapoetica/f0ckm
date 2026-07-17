@@ -161,6 +161,8 @@
     "f_for_fullscreen_hint": "Drukken op F schakelt het volledige scherm in de videospeler in plaats van de post te favorieten.",
     "disable_autoplay": "Automatisch afspelen uitschakelen",
     "disable_autoplay_hint": "Voorkomen dat video's en audio automatisch worden afgespeeld",
+    "hide_item_ratings": "Itembeoordelingen verbergen",
+    "hide_item_ratings_hint": "Toon geen SFW/NSFW beoordelingsindicatoren op hoofdpagina items",
     "disable_swiping": "Swipen uitschakelen",
     "disable_swiping_hint": "Swipe-to-navigate uitschakelen op mobiele apparaten",
     "image_expand_on_click": "Afbeeldingen inline vergroten bij klikken",
