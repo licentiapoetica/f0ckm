@@ -7661,6 +7661,12 @@ div.posts>a.thumb > p {
   z-index: 1;
 }
 
+.thumb-indicators {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    bottom: 5px;
+    left: 5px;
+}
 
 /* Make individual item entry subtler and faster for infinite scroll */
 @keyframes fadeInFX {
@@ -11027,8 +11033,6 @@ div.posts>a::after {
 }
 
 .oc-indicator {
-  position: absolute;
-  left: 1px;
   fill: #ffd700;
   pointer-events: none;
   bottom: 1px;
@@ -14294,9 +14298,6 @@ body.layout-modern .xd-score-wrapper {
 
 /* ─── xD score thumbnail indicator (position fix) ─────────────────── */
 .thumb-xd-indicator {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.65em;
