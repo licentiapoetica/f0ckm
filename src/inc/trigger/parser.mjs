@@ -37,11 +37,14 @@ const extractJSON = (stdout) => {
   }
 };
 
+const trigger = cfg.main.trigger || "!w";
+const escapedTrigger = trigger.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+
 export default async bot => {
 
   return [{
     name: "parser",
-    call: new RegExp(`${regex.all.source}|^!w(0bm)?\\b`, 'i'),
+    call: new RegExp(`${regex.all.source}|^${escapedTrigger}(0bm)?\\b`, 'i'),
     active: true,
     clients: ["irc", "tg", "slack", "discord", "matrix"],
     f: async e => {
@@ -121,7 +124,7 @@ export default async bot => {
 
               const fileUrl = await tgClient.getFile(mediaObj.file_id);
               if (fileUrl) {
-                console.log(`[PARSER] TG reply media resolved: ${fileUrl}`);
+                console.log(`[PARSER] TG reply media resolved: ${fileUrl.replace(/\/bot[0-9a-zA-Z_-]+/i, '/bot<token>')}`);
                 links.push(fileUrl);
               } else {
                 await e.reply('Could not resolve the replied-to file. It may be too large (>20MB) for the Telegram Bot API.');
@@ -155,7 +158,7 @@ export default async bot => {
       }
 
       // Check for !w command
-      const isWCommand = e.message.match(/\!w(0bm)?\b/i);
+      const isWCommand = e.message.match(new RegExp(`${escapedTrigger}(0bm)?\\b`, 'i'));
 
       // Matrix / Telegram: enforce strict !w format with rating + tags
       let botRating = null; // 'sfw' or 'nsfw'
@@ -172,7 +175,7 @@ export default async bot => {
 
         // Bare !w with no arguments → show help
         if (!hasRating && !hasTags) {
-          await e.reply(`!w -sfw/-nsfw -t tag1,tag2,tag3 (at least ${getMinTags()} tags required)`);
+          await e.reply(`${trigger} -sfw/-nsfw -t tag1,tag2,tag3 (at least ${getMinTags()} tags required)`);
           return false;
         }
 
@@ -184,7 +187,7 @@ export default async bot => {
 
         // Missing rating
         if (!hasRating) {
-          await e.reply('missing rating: !w -sfw/-nsfw -t tag1,tag2,tag3');
+          await e.reply(`missing rating: ${trigger} -sfw/-nsfw -t tag1,tag2,tag3`);
           return false;
         }
 
@@ -201,7 +204,7 @@ export default async bot => {
         } else {
           // Remove links, !w and -sfw/nsfw to get tags
           tagsInput = e.message.replace(regex.all, "")
-                               .replace(/\!w(0bm)?\b/i, "")
+                               .replace(new RegExp(`${escapedTrigger}(0bm)?\\b`, 'i'), "")
                                .replace(/\s*-(nsfw|sfw)\b/gi, "")
                                .replace(/\s*-t\b/gi, "")
                                .trim();
@@ -211,7 +214,7 @@ export default async bot => {
         botTags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
         
         if (botTags.length < minTags) {
-          await e.reply(`at least ${minTags} tags required (got ${botTags.length}): !w -sfw/-nsfw -t tag1, tag2, tag3`);
+          await e.reply(`at least ${minTags} tags required (got ${botTags.length}): ${trigger} -sfw/-nsfw -t tag1, tag2, tag3`);
           return false;
         }
       }
@@ -220,7 +223,8 @@ export default async bot => {
       const isForwarded = e.raw?.forward_from !== undefined;
       const mediaGroupId = e.raw?.media_group_id;
 
-      if ((e.type === 'matrix' || !e.channel.includes("w0bm")) && (!isWCommand && !isForwarded)) {
+      const channelKeyword = (cfg.main.upload_channel_keyword || "w0bm").toLowerCase();
+      if ((e.type === 'matrix' || !e.channel.toLowerCase().includes(channelKeyword)) && (!isWCommand && !isForwarded)) {
          console.log(`[PARSER DEBUG] Channel/Client check failed. Channel: ${e.channel}, Type: ${e.type}, IsW: ${!!isWCommand}`);
          return false; 
       }
@@ -296,10 +300,11 @@ export default async bot => {
       
       // Use for..of to handle async await properly and serialize debugging
       for (const link of links) {
-        console.log(`[PARSER LOOP] Processing link: ${link}`);
+         const sanitizedLink = link.replace(/\/bot[0-9a-zA-Z_-]+/i, '/bot<token>');
+         console.log(`[PARSER LOOP] Processing link: ${sanitizedLink}`);
         // check repost (link)
         try {
-            repost = await queue.checkrepostlink(link);
+            repost = await queue.checkrepostlink(sanitizedLink);
         } catch (e) {
             console.error(`[PARSER LOOP] Checkrepost failed:`, e);
         }
@@ -739,7 +744,7 @@ export default async bot => {
 
           await db`
             insert into items ${db({
-            src: e.media ? "" : link,
+            src: (e.media || link.includes('api.telegram.org') || link.startsWith('mxc://')) ? "" : link,
             dest: filename,
             mime: mime,
             size: size,
@@ -845,7 +850,7 @@ export default async bot => {
 
             await db`
               insert into items ${db({
-              src: e.media ? "" : link,
+              src: (e.media || link.includes('api.telegram.org') || link.startsWith('mxc://')) ? "" : link,
               dest: filename,
               mime: mime,
               size: size,
