@@ -8597,10 +8597,12 @@ class NotificationSystem {
                            window.location.pathname.includes('/user/');
 
     // UPDATE ITEM VIEW NAVIGATION DYNAMICALLY
+    const prevBtn = document.getElementById('prev');
     const nextBtn = document.getElementById('next');
-    const isItemView = !!document.getElementById('prev') || !!nextBtn;
+    const isItemView = !!prevBtn || !!nextBtn;
 
-    if (isItemView && !isFilteredView && nextBtn && (nextBtn.getAttribute('href') === '#' || nextBtn.getAttribute('href') === '')) {
+    // #prev points to newer items (pagination.next). If it's disabled, we are at the newest item.
+    if (isItemView && !isFilteredView && prevBtn && (prevBtn.getAttribute('href') === '#' || prevBtn.getAttribute('href') === '')) {
         let filtered = false;
         if (typeof window.activeMode !== 'undefined' && window.activeMode !== 3) {
             const nsflId = window.f0ckSession?.nsfl_tag_id || 3;
@@ -8612,10 +8614,18 @@ class NotificationSystem {
         
         if (!filtered) {
             let nextUrl = `/${data.id}`;
-            nextBtn.setAttribute('href', nextUrl);
-            nextBtn.style.color = ''; // Remove #ccc
+            const path = window.location.pathname;
+            const contextMatch = path.match(/^(.*\/)\d+\/?$/);
+            if (contextMatch && contextMatch[1] !== '/') {
+                nextUrl = `${contextMatch[1]}${data.id}`;
+            }
 
-            document.querySelectorAll('.nav-next').forEach(btn => {
+            // Update main #prev arrow
+            prevBtn.setAttribute('href', nextUrl);
+            prevBtn.style.color = ''; // Remove #ccc
+
+            // Update .nav-prev text links and icons
+            document.querySelectorAll('.nav-prev').forEach(btn => {
                 btn.setAttribute('href', nextUrl);
                 btn.style.visibility = 'visible';
             });
