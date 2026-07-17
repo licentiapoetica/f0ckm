@@ -1898,7 +1898,7 @@ body.layout-modern .global-sidebar-right {
 
   body.layout-legacy .item-layout-container .item-main-content .metadata {
     align-self: center;
-    width: 700px;
+    width: 600px;
     max-width: 100%;
   }
 
@@ -1909,7 +1909,7 @@ body.layout-modern .global-sidebar-right {
   }
 
   body.layout-legacy .item-layout-container #comments-container {
-    width: 700px;
+    width: 600px;
     max-width: 100%;
     align-self: center;
     flex: 0 0 auto !important;
