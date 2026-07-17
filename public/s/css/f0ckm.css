@@ -4694,9 +4694,9 @@ body.layout-modern .pagination-container-fluid {
   content: '\00a0';
 }
 
-.location {
+/* .location {
   padding-left: 5px;
-}
+} */
 
 /* Index page layout with sidebar */
 .index-layout-wrapper {
