@@ -2745,7 +2745,7 @@ window.initUploadForm = (selector) => {
                     // handleNewItem call — this covers the item-page drag-and-upload scenario
                     // where no grid exists until after navigation completes.
                     if (typeof window.loadPageAjax === 'function') {
-                        await window.loadPageAjax('/');
+                        await window.loadPageAjax('/', true, { bypassCache: true });
                         injectNewItem();
                     } else {
                         window.location.href = '/';
