@@ -80,8 +80,40 @@
                     meta = await ytOembedPending.get(videoId);
                 } else {
                     const promise = (async () => {
+                        const ytUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+                        // 1. Try client-side oEmbed first (avoids Tor/proxy consent walls)
                         try {
-                            const ytUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+                            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(ytUrl)}&format=json`;
+                            const clientResp = await fetch(oembedUrl);
+                            if (clientResp.ok) {
+                                const clientData = await clientResp.json();
+                                if (clientData.title) {
+                                    const metaObj = {
+                                        title: clientData.title,
+                                        site_name: 'youtube.com',
+                                        author: clientData.author_name || 'Unknown'
+                                    };
+                                    // Cache client-side
+                                    ytOembedCache.set(videoId, metaObj);
+                                    // Push to server cache so other clients/server benefit
+                                    try {
+                                        const csrf = window.f0ckSession?.csrf_token;
+                                        fetch('/api/v2/meta/cache', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                ...(csrf ? { 'X-CSRF-Token': csrf } : {})
+                                            },
+                                            body: JSON.stringify({ url: ytUrl, meta: metaObj })
+                                        }).catch(() => {});
+                                    } catch (_) {}
+                                    return metaObj;
+                                }
+                            }
+                        } catch (e) { }
+
+                        // 2. Fall back to backend meta fetch
+                        try {
                             const r = await fetch(`/api/v2/meta/fetch?url=${encodeURIComponent(ytUrl)}`);
                             if (r.ok) {
                                 const data = await r.json();
