@@ -82,7 +82,7 @@ export default (router, tpl) => {
     const userParam = decodeURIComponent(req.params.user);
     
     const u = await db`
-        SELECT "user".id
+        SELECT "user".id, "user".user
         FROM "user" 
         WHERE "user".user ILIKE ${userParam}
     `;
@@ -90,6 +90,7 @@ export default (router, tpl) => {
         return res.reply({ code: 404, body: JSON.stringify({ success: false, msg: "User not found" }) });
     }
     const userId = u[0].id;
+    const userName = u[0].user;
 
     let query = {};
     if (typeof req.url === 'string') {
@@ -107,10 +108,21 @@ export default (router, tpl) => {
     const tags = processTags(await getTagsQuery(userId, mode, offset, TAGS_PER_PAGE, req.session, isStrict));
 
     if (req.headers['x-requested-with'] === 'XMLHttpRequest' || query.ajax) {
+      const paginationHtml = tpl.render('snippets/pagination', {
+        pagination: {
+          page: page,
+          prev: page > 1 ? page - 1 : null,
+          next: tags.length === TAGS_PER_PAGE ? page + 1 : null,
+          cheat: [1]
+        },
+        link: `/user/${encodeURIComponent(userName)}/tags`
+      }, req);
+
       return res.json({
         success: true,
         html: tpl.render('tag-cards', { toptags: tags, session: (req.session && req.session.user) ? { ...req.session } : false }, req),
         currentPage: page,
+        pagination: paginationHtml,
         hasMore: tags.length === TAGS_PER_PAGE
       });
     }
@@ -161,6 +173,7 @@ export default (router, tpl) => {
         next: toptags.length === TAGS_PER_PAGE ? 2 : null,
         cheat: [1]
       },
+      link: `/user/${encodeURIComponent(userRow.user)}/tags`,
       session: (req.session && req.session.user) ? { ...req.session } : false,
       page_meta: {
         title: `${userRow.user}'s Tags`,
