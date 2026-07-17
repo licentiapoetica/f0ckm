@@ -9390,12 +9390,12 @@ span.badge.badge-current {
 
 .sidebar-comment-img.emoji {
   width: auto;
-  max-width: 200px !important;
+  max-width: 120px !important;
   object-fit: contain;
 }
 
 video.sidebar-comment-img.emoji {
-  max-width: 200px !important;
+  max-width: 120px !important;
   /* vertical-align: middle; */
   object-fit: contain;
   display: inline-block;
