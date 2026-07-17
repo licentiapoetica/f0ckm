@@ -43,7 +43,7 @@
             @endif
         </div>
         @if(session && session.id !== user.user_id)
-        <div class="profile-actions" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+        <div class="profile-actions">
             @if(private_messages)
                 <button id="send-dm-btn" class="btn btn-sm btn-outline-info" data-username="{!! user.user !!}" style="padding: 2px 8px; font-size: 0.8em; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;">{{ t('profile.message_btn') }}</button>
             @endif

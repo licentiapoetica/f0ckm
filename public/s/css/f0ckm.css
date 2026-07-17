@@ -7511,6 +7511,14 @@ ul.navbar-nav-guests li.nav-item {
   padding: 5px;
 }
 
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
 .layersoffear {
   display: grid;
 }
