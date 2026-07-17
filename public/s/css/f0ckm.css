@@ -16822,3 +16822,4 @@ a.lazy-thumb.filtered-upload-ghost:hover::after {
 .edit-mode-active .avatar-image-wrapper .profile-avatar-img:hover {
     filter: brightness(0.6);
 }
+.edit-mode-active #inline-banner-edit-wrapper { display: block !important; }

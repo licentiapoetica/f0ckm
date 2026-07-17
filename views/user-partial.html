@@ -1,7 +1,7 @@
 <div class="profile-page-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 10px; box-sizing: border-box;">
 <div class="profile_head" id="live-profile-preview-box" data-banner-user="{{ user.user || '' }}" style="position: relative; @if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position === 'center' ? 'center top' : (user.banner_position || 'center top') }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
     @if(session && session.id === user.user_id && user_banner_enabled)
-    <div id="inline-banner-edit-wrapper" style="position:absolute; top: 0; right: 5px; z-index: 10;">
+    <div id="inline-banner-edit-wrapper" style="display: none; position:absolute; top: 0; right: 5px; z-index: 10;">
         <button id="inline-banner-edit-btn" onclick="const menu = document.getElementById('banner-edit-menu'); menu.style.display = menu.style.display === 'none' ? 'block' : 'none';" style="background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px 8px; color: #fff; cursor: pointer; font-size: 0.8em;" title="{{ t('profile.edit_banner', 'Edit Banner') }}">
             <i class="fa-solid fa-panorama"></i>
         </button>

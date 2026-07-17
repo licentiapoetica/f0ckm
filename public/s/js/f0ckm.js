@@ -7409,14 +7409,15 @@ class NotificationSystem {
       }
 
       if (userName) {
-        const userHref = `/user/${userName}`;
+        const lowerHref = `/user/${userName.toLowerCase()}`;
+        const exactHref = `/user/${userName}`;
         // Sidebar / thread comment author links
-        document.querySelectorAll(`.comment-author[href="${userHref}"]`).forEach(el => {
+        document.querySelectorAll(`.comment-author[href="${lowerHref}"], .comment-author[href="${exactHref}"]`).forEach(el => {
           el.textContent = display_name || userName;
         });
         // Item view: the [username] link next to the item ID
         const aUsername = document.getElementById('a_username');
-        if (aUsername && aUsername.getAttribute('href') === userHref) {
+        if (aUsername && (aUsername.getAttribute('href') === lowerHref || aUsername.getAttribute('href') === exactHref)) {
           aUsername.textContent = display_name || userName;
         }
         // Grid thumbnails: update data-user attribute (shown as CSS content on hover)
