@@ -13482,7 +13482,6 @@ span.gchat-post-card--loading {
   z-index: -1;
   max-height: 200px;
   opacity: 0;
-  transition: opacity 0.3s ease;
   user-select: none;
   -webkit-user-drag: none;
   will-change: opacity;

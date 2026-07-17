@@ -1626,5 +1626,45 @@ export default (router, tpl) => {
     });
   });
 
+  // Koepfe Manager
+  router.get(/^\/admin\/koepfe\/?$/, lib.auth, async (req, res) => {
+    res.reply({
+      body: tpl.render('admin/koepfe', { session: req.session, tmp: null }, req)
+    });
+  });
+
+  router.get(/^\/api\/v2\/admin\/koepfe\/?$/, lib.auth, async (req, res) => {
+    try {
+      const fs = (await import('fs')).promises;
+      const path = await import('path');
+      const kDir = cfg.paths.koepfe;
+      const files = await fs.readdir(kDir).catch(() => []);
+      const koepfeFiles = files.filter(f => /\.(png|jpe?g|gif|webp|avif)$/i.test(f)).map(f => ({
+          filename: f,
+          url: '/s/koepfe/' + f
+      }));
+      if (res.json) return res.json({ koepfe: koepfeFiles });
+      return res.writeHead(200, {'Content-Type': 'application/json'}).end(JSON.stringify({ koepfe: koepfeFiles }));
+    } catch (e) {
+      if (res.json) return res.json({ success: false, msg: e.message });
+      return res.writeHead(500, {'Content-Type': 'application/json'}).end(JSON.stringify({ success: false, msg: e.message }));
+    }
+  });
+
+  router.post(/^\/api\/v2\/admin\/koepfe\/delete\/?$/, lib.auth, async (req, res) => {
+    try {
+      const { filename } = req.post || req.body || {};
+      if (!filename || filename.includes('..') || filename.includes('/')) throw new Error('Invalid filename');
+      const fs = (await import('fs')).promises;
+      const path = await import('path');
+      await fs.unlink(path.join(cfg.paths.koepfe, filename));
+      if (res.json) return res.json({ success: true });
+      return res.writeHead(200, {'Content-Type': 'application/json'}).end(JSON.stringify({ success: true }));
+    } catch (e) {
+      if (res.json) return res.json({ success: false, msg: e.message });
+      return res.writeHead(500, {'Content-Type': 'application/json'}).end(JSON.stringify({ success: false, msg: e.message }));
+    }
+  });
+
   return router;
 }

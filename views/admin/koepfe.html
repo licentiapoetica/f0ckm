@@ -1,0 +1,110 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+    <div class="container">
+        <h2>Köpfe Manager</h2>
+
+        <div class="admin-form-container" style="margin-bottom: 20px; text-align: left; background: var(--dropdown-bg); padding: 15px; border: 1px solid var(--nav-border-color); border-radius: 8px;">
+            <h4 style="margin: 0 0 12px;">Upload Neuer Kopf</h4>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                <div>
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 5px; opacity: 0.7;">Bild (PNG, JPG, GIF, WebP, AVIF)</label>
+                    <input type="file" id="koepfe-file" style="background: var(--bg); border: 1px solid var(--black); padding: 4px; color: var(--white);">
+                </div>
+                <button id="add-koepfe" class="btn-upload" style="width: auto; padding: 7px 20px; border: 1px solid var(--nav-border-color); background: var(--bg); color: var(--white); cursor: pointer;">Upload</button>
+            </div>
+        </div>
+
+        <div id="koepfe-list" class="emoji-grid"></div>
+    </div>
+
+    <script>
+        (() => {
+            var csrf = '{{ csrf_token }}';
+
+            function esc(s) {
+                return (s || '').toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function loadAll() {
+                fetch('/api/v2/admin/koepfe', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        renderKoepfe(data.koepfe || []);
+                    })
+                    .catch(function(err) {
+                        console.error('[KOEPFE] Load Error:', err);
+                    });
+            }
+
+            function renderKoepfe(koepfe) {
+                var grid = document.getElementById('koepfe-list');
+                if (!grid) return;
+                if (koepfe.length === 0) {
+                    grid.innerHTML = '<p style="opacity:0.5;font-size:0.85em;">Keine Köpfe vorhanden.</p>';
+                    return;
+                }
+                grid.innerHTML = koepfe.map(function(k) {
+                    return '<div class="emoji-card">' +
+                        '<button class="emoji-delete" onclick="deleteKoepfe(&quot;' + esc(k.filename) + '&quot;)" title="Delete">x</button>' +
+                        '<img class="emoji-preview" src="' + esc(k.url) + '" alt="">' +
+                        '<span class="emoji-label" style="font-size: 0.6em;">' + esc(k.filename) + '</span>' +
+                        '</div>';
+                }).join('');
+            }
+
+            function addKoepfe(e) {
+                if (e) e.preventDefault();
+                var fileInput = document.getElementById('koepfe-file');
+                if (!fileInput.files[0]) return alert('Bitte eine Datei auswählen.');
+
+                var btn = document.getElementById('add-koepfe');
+                var oldText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = 'Lädt...';
+
+                var formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('csrf_token', csrf);
+
+                var headers = { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrf };
+
+                fetch('/api/v2/admin/koepfe/upload', { method: 'POST', headers: headers, body: formData })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            document.getElementById('koepfe-file').value = '';
+                            loadAll();
+                        } else {
+                            alert('Fehler: ' + (data.message || data.msg || 'Unbekannter Fehler'));
+                        }
+                    })
+                    .catch(function(err) { alert('Error: ' + err.message); })
+                    .finally(function() { btn.disabled = false; btn.textContent = oldText; });
+            }
+
+            window.deleteKoepfe = function(filename) {
+                if (!confirm('Diesen Kopf wirklich löschen?')) return;
+                fetch('/api/v2/admin/koepfe/delete', { 
+                    method: 'POST', 
+                    headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) { if (data.success) loadAll(); else alert('Löschen fehlgeschlagen: ' + (data.msg || '')); })
+                .catch(function(err) { console.error(err); });
+            };
+
+            document.getElementById('add-koepfe').addEventListener('click', addKoepfe);
+
+            loadAll();
+        })();
+    </script>
+</div>
+</div>
+@include(snippets/footer)

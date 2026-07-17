@@ -901,6 +901,15 @@ process.on('uncaughtException', err => {
     }
   });
 
+  // Bypass middleware for koepfe uploads
+  app.use(async (req, res) => {
+    if (req.method === 'POST' && req.url.pathname === '/api/v2/admin/koepfe/upload') {
+      const { handleKoepfeUpload } = await import('./koepfe_handler.mjs');
+      await handleKoepfeUpload(req, res);
+      req.url.pathname = '/handled_koepfe_upload_bypass';
+    }
+  });
+
   // Bypass middleware for hall image uploads (multipart — needs raw body)
   app.use(async (req, res) => {
     if (cfg.websrv.halls_enabled === false) return;
@@ -1268,7 +1277,16 @@ process.on('uncaughtException', err => {
     enable_item_title: cfg.websrv.enable_item_title !== false,
     enable_global_chat: !!cfg.websrv.enable_global_chat,
     embed_youtube_in_comments: cfg.websrv.embed_youtube_in_comments !== false,
-    koepfe_json: JSON.stringify(cfg.websrv.koepfe || []),
+    get koepfe_json() {
+      try {
+        const kDir = cfg.paths.koepfe;
+        if (!fs.existsSync(kDir)) return JSON.stringify(cfg.websrv.koepfe || []);
+        const files = fs.readdirSync(kDir).filter(f => /\.(png|jpe?g|gif|webp|avif)$/i.test(f)).map(f => '/s/koepfe/' + f);
+        return JSON.stringify(files.length ? files : (cfg.websrv.koepfe || []));
+      } catch (e) {
+        return JSON.stringify(cfg.websrv.koepfe || []);
+      }
+    },
     custom_brand_images_json: JSON.stringify(cfg.websrv.custom_brand_image || []),
     allowed_comment_images: cfg.websrv.allowed_comment_images || [],
     allowed_comment_images_json: JSON.stringify(cfg.websrv.allowed_comment_images || []),
