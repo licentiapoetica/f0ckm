@@ -15879,7 +15879,7 @@ body.scroller-active #gchat-reopen-bubble {
 }
 
 .filter-badge-all {
-  background: #555;
+  background: var(--nav-border-color);
   /* Slate grey */
 }
 
