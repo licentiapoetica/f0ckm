@@ -37,6 +37,48 @@ const extractJSON = (stdout) => {
   }
 };
 
+const sanitizeLogUrl = url => typeof url === 'string' ? url.replace(/\/bot[0-9a-zA-Z_-]+/i, '/bot<token>') : url;
+
+const getMimeViaCurl = async (link) => {
+  try {
+    let referer = link;
+    try {
+        const parsedUrl = new URL(link);
+        let host = parsedUrl.hostname;
+        const parts = host.split('.');
+        if (parts.length >= 2) {
+          host = parts.slice(-2).join('.');
+        }
+        referer = `${parsedUrl.protocol}//${host}/`;
+    } catch(e) {}
+
+    const curlArgs = ['-I', '-s', '-f', '-L', '--user-agent', pcUA, '--referer', referer, link];
+    if (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '') {
+        const proxyHost = cfg.main.socks.includes('://') ? cfg.main.socks.split('://')[1] : cfg.main.socks;
+        curlArgs.push('--socks5-hostname', proxyHost);
+    }
+    const headOut = await queue.spawn('curl', curlArgs);
+    const contentTypeMatch = headOut.stdout.match(/content-type:\s*([^\r\n]+)/i);
+    if (contentTypeMatch) {
+        let tmphead = contentTypeMatch[1].trim();
+        if (tmphead.includes(';')) {
+          tmphead = tmphead.split(';')[0].trim();
+        }
+        tmphead = tmphead.toLowerCase();
+        const ext = cfg.mimes[tmphead];
+        if (ext) {
+            console.log(`[PARSER DEBUG] Generic Metadata Fallback (curl) success: ${tmphead} -> ${ext}`);
+            return ext;
+        } else {
+            console.warn(`[PARSER DEBUG] Generic Metadata Fallback (curl) unsupported MIME: "${tmphead}"`);
+        }
+    }
+  } catch(fErr) {
+      console.error(`[METADATA ERROR] Generic Fallback curl failed for ${sanitizeLogUrl(link)}:`, fErr.message);
+  }
+  return null;
+};
+
 const trigger = cfg.main.trigger || "!w";
 const escapedTrigger = trigger.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
 
@@ -353,18 +395,7 @@ export default async bot => {
             console.error(`[METADATA ERROR] Pornhub yt-dlp failed for ${link}:`, err.message);
             if (err.stderr) console.error(`[METADATA ERROR] stderr:`, err.stderr);
             lastErr = err;
-            try {
-                const headFetch = await fetch(link, { 
-                  method: "HEAD",
-                  headers: { 'User-Agent': pcUA }
-                });
-                const tmphead = headFetch.headers["content-type"];
-                const status = headFetch.status || headFetch.statusCode || (headFetch.res ? headFetch.res.statusCode : 'unknown');
-                console.log(`[PARSER DEBUG] Fallback fetch for ${link} (Status: ${status}): ${tmphead}`);
-                ext = cfg.mimes[tmphead];
-            } catch(fErr) {
-                console.error(`[METADATA ERROR] Fallback fetch failed for ${link}:`, fErr.message);
-            }
+            ext = await getMimeViaCurl(link);
           }
         }
         else if (link.match(regex.instagram)) {
@@ -376,8 +407,7 @@ export default async bot => {
           } catch (err) {
             console.error(`[METADATA ERROR] Instagram yt-dlp failed for ${link}:`, err.message);
             lastErr = err;
-            const tmphead = (await fetch(link, { method: "HEAD" })).headers["content-type"];
-            ext = cfg.mimes[tmphead];
+            ext = await getMimeViaCurl(link);
           }
         }
         else if (link.match(regex.imgur)) {
@@ -389,36 +419,7 @@ export default async bot => {
           } catch (err) {
             console.error(`[METADATA ERROR] Imgur yt-dlp failed for ${link}:`, err.message);
             lastErr = err;
-            
-            // Fallback: Check MIME via curl (more robust than fetch for blocked direct links)
-            try {
-                let referer = link;
-                try {
-                    const parsedUrl = new URL(link);
-                    let host = parsedUrl.hostname;
-                    if (host.includes('imgur.com')) host = 'imgur.com';
-                    referer = `${parsedUrl.protocol}//${host}/`;
-                } catch(e) {}
-
-                const curlArgs = ['-I', '-s', '-f', '-L', '--user-agent', pcUA, '--referer', referer, link];
-                if (cfg.main.socks && cfg.main.socks !== 'undefined' && cfg.main.socks !== '') {
-                    const proxyHost = cfg.main.socks.includes('://') ? cfg.main.socks.split('://')[1] : cfg.main.socks;
-                    curlArgs.push('--socks5-hostname', proxyHost);
-                }
-                const headOut = await queue.spawn('curl', curlArgs);
-                const contentTypeMatch = headOut.stdout.match(/content-type:\s*([^\r\n]+)/i);
-                if (contentTypeMatch) {
-                    const tmphead = contentTypeMatch[1].trim();
-                    ext = cfg.mimes[tmphead];
-                    if (ext) {
-                        console.log(`[PARSER DEBUG] Imgur Metadata Fallback (curl) success: ${tmphead} -> ${ext}`);
-                    } else {
-                        console.warn(`[PARSER DEBUG] Imgur Metadata Fallback (curl) unsupported MIME: "${tmphead}"`);
-                    }
-                }
-            } catch(fErr) {
-                console.error(`[METADATA ERROR] Imgur Fallback curl failed for ${link}:`, fErr.message);
-            }
+            ext = await getMimeViaCurl(link);
           }
         }
         else if (link.match(regex.yt)) {
@@ -429,8 +430,7 @@ export default async bot => {
           } catch (err) {
             console.error(`[METADATA ERROR] YouTube yt-dlp failed for ${link}:`, err.message);
             lastErr = err;
-            const tmphead = (await fetch(link, { method: "HEAD" })).headers["content-type"];
-            ext = cfg.mimes[tmphead];
+            ext = await getMimeViaCurl(link);
           }
         }
         else if (link.match(regex.fourchan)) {
@@ -441,8 +441,7 @@ export default async bot => {
           } catch (err) {
             console.error(`[METADATA ERROR] 4chan yt-dlp failed for ${link}:`, err.message);
             lastErr = err;
-            const tmphead = (await fetch(link, { method: "HEAD" })).headers["content-type"];
-            ext = cfg.mimes[tmphead];
+            ext = await getMimeViaCurl(link);
           }
         }
         else {
@@ -453,8 +452,7 @@ export default async bot => {
           } catch (err) {
             console.error(`[METADATA ERROR] General yt-dlp failed for ${link}:`, err.message);
             if (err.stderr) console.error(`[METADATA ERROR] stderr:`, err.stderr);
-            const errorMsg = `something went wrong lol`.slice(0, 1024);
-            return await e.reply(errorMsg);
+            ext = await getMimeViaCurl(link);
           }
         }
 
