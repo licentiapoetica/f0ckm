@@ -43,7 +43,7 @@ export default router => {
         });
       }
 
-      if (tagname.length > 70) {
+      if (tagname.length > 85) {
         return res.json({
           success: false,
           msg: 'tag is too long!'
