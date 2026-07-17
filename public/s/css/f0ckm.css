@@ -243,7 +243,7 @@ html[theme="amoled"] .comment-input textarea {
 }
 
 html[theme="amoled"] .profile_head_user_stats > * {
-    box-shadow: 1px 1px 1px rgb(121, 120, 120);
+    box-shadow: 1px 1px 1px #6a6a6a70;
 }
 
 html[theme="amoled"] #settings-quicknav a:hover, #settings-quicknav a.active {
@@ -13917,6 +13917,7 @@ i.iconset#a_oc {
   position: relative;
   z-index: 1;
   min-height: 140px;
+  border: 1px solid var(--nav-border-color);
 }
 
 .profile_head::before {
