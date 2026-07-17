@@ -7509,14 +7509,14 @@ ul.navbar-nav-guests li.nav-item {
 .profile_head_username {
   font-weight: bold;
   padding: 5px;
+  position: relative;
+  word-break: break-word;
 }
 
 .profile-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 5px;
-  margin-bottom: 5px;
 }
 
 .layersoffear {
@@ -13935,24 +13935,25 @@ i.iconset#a_oc {
 }
 
 .layersoffear {
-  display: grid;
-  grid-template-columns: auto;
+    display: grid;
+    grid-template-columns: auto;
+    grid-template-rows: 1fr auto;
 }
 
 .profile_head_user_stats {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: max-content;
-}
-
-.stat-id,
-.stat-joined,
-.stat-comments,
-.stat-tags,
-.stat-halls {
+  align-items: center;
+  gap: 5px;
   padding: 5px;
 }
 
+.profile_head_user_stats > * {
+    background: var(--bg);
+    padding: 0px 5px 0px 5px;
+    border-radius: 5px;
+}
 .uploads-header,
 .favs-header {
   background: var(--black);
