@@ -7936,6 +7936,8 @@ input#s_avatar {
   font-weight: bold;
   font-size: 1.1em;
   font-family: var(--font, monospace);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tag-count {
