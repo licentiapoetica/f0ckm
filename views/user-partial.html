@@ -1,3 +1,4 @@
+<div class="profile-page-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 10px; box-sizing: border-box;">
 <div class="profile_head" data-banner-user="{{ user.user || '' }}" style="@if(user.banner_file && user_banner_enabled) --author-banner: url('/a/{{ user.banner_file }}'); --author-banner-position: {{ user.banner_position || 'center' }}; --author-banner-size: {{ user.banner_size || 'cover' }}; @endif">
     @if(user.is_ghost)
     <div class="profile_head_avatar">
@@ -317,8 +318,7 @@
 @endif
 @endif
 @endif
-
-
+</div>
 
 <div class="pagination-container-fluid" @if(typeof hidePagination !=='undefined' && hidePagination) style="display: none;" @endif>
   <div class="pagination-wrapper bottom-pagination fixed-pagination">
