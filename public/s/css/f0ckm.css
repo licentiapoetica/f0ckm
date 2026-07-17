@@ -6133,7 +6133,7 @@ body[type='login'] {
 /* video emojis in comment content */
 .comment-content video.emoji,
 video.emoji {
-  height: 200px;
+  height: auto;
   /* vertical-align: middle; */
   display: inline-block;
 }
