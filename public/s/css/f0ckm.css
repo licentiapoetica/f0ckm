@@ -4942,15 +4942,15 @@ html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
   padding-top: 45.25%;
 }
 html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 45.25%;
+  padding-top: 52.25%;
 }
 
 /* ≥155% zoom (high DPR — covers fractional scaling + zoom combos) */
 html[data-dpr="dpr-high"] body.layout-legacy .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 52.25%;
 }
 html[data-dpr="dpr-high"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-  padding-top: 41.25%;
+  padding-top: 52.25%;
 }
 
 /* ─── Large / Ultrawide display overrides ─── */
