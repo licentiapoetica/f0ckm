@@ -3144,6 +3144,9 @@ window.cancelAnimFrame = (function () {
       window.location.href = url; // Fallback
     } finally {
       isNavigating = false;
+      if (replace && document.activeElement && document.activeElement !== document.body) {
+          document.activeElement.blur();
+      }
       if (navbar) navbar.classList.remove("pbwork");
       if (window.updateStrictLinks && window.f0ckSession) window.updateStrictLinks(window.f0ckSession.strict_mode);
     }
