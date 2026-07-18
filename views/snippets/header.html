@@ -78,7 +78,7 @@
 </head>
 
 <body class="@if(session)@if(session.use_new_layout)layout-modern@else layout-legacy @endif@else @if(default_layout === 'legacy')layout-legacy@else layout-modern@endif @endif @if(private_society && !session)private-gate-active@endif">
-  <script>if(localStorage.getItem('sidebarRightHidden')==='true')document.body.classList.add('sidebar-right-hidden');if(localStorage.getItem('comments_hidden')==='true')document.body.classList.add('sidebar-left-hidden');(function(){var d=window.devicePixelRatio||1;console.log('[DPR] devicePixelRatio='+d);var t='dpr-1x';if(d>=1.55)t='dpr-high';else if(d>=1.39)t='dpr-150';else if(d>=1.26)t='dpr-130';else if(d>=1.20)t='dpr-120';else if(d>=1.05)t='dpr-110';document.documentElement.setAttribute('data-dpr',t);})();</script>
+  <script>var sRH = localStorage.getItem('sidebarRightHidden'); if(sRH==='true' || (sRH===null && @if(hide_sidebar_default) true @else false @endif)) document.body.classList.add('sidebar-right-hidden'); if(localStorage.getItem('comments_hidden')==='true')document.body.classList.add('sidebar-left-hidden');(function(){var d=window.devicePixelRatio||1;console.log('[DPR] devicePixelRatio='+d);var t='dpr-1x';if(d>=1.55)t='dpr-high';else if(d>=1.39)t='dpr-150';else if(d>=1.26)t='dpr-130';else if(d>=1.20)t='dpr-120';else if(d>=1.05)t='dpr-110';document.documentElement.setAttribute('data-dpr',t);})();</script>
   @if(!private_society || session)
   <canvas class="hidden-xs" id="bg"></canvas>
   @endif
