@@ -1688,7 +1688,7 @@
               avatar: '/a/default.png',
               stamp: p.time,
               timeago: timeAgo(p.time * 1000),
-              tags: `4chan, /${data.board}/`,
+              tags: ``,
               is_video: isVideo,
               is_image: isImage,
               is_audio: false,
@@ -1859,7 +1859,7 @@
         body: new URLSearchParams({
           url: item.external_media_url || item.dest,
           rating: rating,
-          tags: '4chan',
+          tags: '',
           comment: `Rehosted from 4chan thread: ${applied.externalUrl || 'unknown'}`,
           ...(item.original_filename ? { original_filename: item.original_filename } : {})
         })
