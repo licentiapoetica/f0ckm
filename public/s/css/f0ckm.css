@@ -5293,7 +5293,6 @@ html.image-expand-active .image-modal-btn {
 .embed-responsive.is-expanded img#f0ck-image {
   position: static !important;
   height: auto !important;
-  width: 100% !important;
   max-width: 100% !important;
   max-height: none !important;
 }
