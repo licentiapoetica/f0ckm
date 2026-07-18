@@ -244,7 +244,8 @@ export default (router, tpl) => {
       explicitStrict: !!(req.query?.strict || req.url.qs?.strict),
       random: req.cookies.random_mode === '1',
       minXdScore: req.params.itemid ? 0 : (req.url.qs?.min_xd !== undefined ? +req.url.qs.min_xd : (req.session?.min_xd_score || 0)),
-      lang: req.lang
+      lang: req.lang,
+      tagger: req.url.qs?.tagger || null
     });
     console.log(`[DEBUG] Checking strict mode: query=${req.query?.strict}, session=${req.session?.strict_mode}, effective=${!!(req.query?.strict || req.url.qs?.strict || req.session?.strict_mode)}`);
     console.log(`[${new Date().toISOString()}] [ROUTE] Data fetch complete in ${Date.now() - tRouteStart}ms`);

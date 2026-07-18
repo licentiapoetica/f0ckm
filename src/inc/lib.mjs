@@ -132,6 +132,7 @@ export default new class {
 
     // Build suffix with query params
     let suffix = env.strict ? '?strict=1' : '';
+    if (env.tagger) suffix += (suffix ? '&' : '?') + `tagger=${encodeURIComponent(env.tagger)}`;
 
     // mainDisplay: decoded for human-readable display (e.g. div.location)
     // main: keeps percent-encoding for use in href attributes

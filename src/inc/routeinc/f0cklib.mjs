@@ -18,7 +18,7 @@ const flashMimes = Object.entries(cfg.mimes || {}).filter(([, ext]) => ext === '
 const COUNT_CACHE_TTL_MS = 90_000;
 const countCache = new Map(); // key → { total, expiresAt }
 
-function buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, excludedTags, newerThan, minXd, userHallObj }) {
+function buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, excludedTags, newerThan, minXd, userHallObj, tagger }) {
   return JSON.stringify([
     modequery,
     tag ?? '',
@@ -30,7 +30,8 @@ function buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, ex
     excludedTags.slice().sort().join(','),
     newerThan ?? '',
     minXd,
-    userHallObj?.id ?? ''
+    userHallObj?.id ?? '',
+    tagger ?? ''
   ]);
 }
 
@@ -136,7 +137,7 @@ const xdScoreMeta = (score) => {
 };
 
 export default {
-  getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, ratings, fav, session, limit, strict, newer, exclude, user_id, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore } = {}) => {
+  getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, ratings, fav, session, limit, strict, newer, exclude, user_id, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore, tagger: rawTagger } = {}) => {
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
 
     // --- title: prefix — search items.title instead of the tags table ---
@@ -189,7 +190,8 @@ export default {
     const strictParams = ((strict || (tag && tag.includes(','))) && tag) ? tag.split(',').map(t => lib.slugify(t)).filter(t => t) : [];
     const isStrict = strictParams.length > 0;
 
-    const tmp = { user, tag: isTitleSearch ? _decodedTag : tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner };
+    const tagger = rawTagger ? lib.escapeLike(rawTagger) : null;
+    const tmp = { user, tag: isTitleSearch ? _decodedTag : tag, hall: hallObj || hall, mime, page: actPage, mode: mode, view_mode: fav ? 'favs' : 'uploads', strict: strict, userHall: userHallObj || userHallSlug, userHallOwner, tagger };
     // Multi-rating support: if `ratings` array provided, build an OR-based SQL fragment
     const multiRatingSQL = (Array.isArray(ratings) && ratings.length > 0) ? lib.getMultiRatingMode(ratings) : null;
     const baseMode = multiRatingSQL ?? lib.getMode(mode ?? 0);
@@ -200,6 +202,21 @@ export default {
     if (isTitleSearch && titleQuery) {
       // Title search: match items.title ILIKE '%query%'
       titleFilter = db`and items.title ILIKE ${'%' + titleQuery + '%'} and items.title IS NOT NULL`;
+    } else if (tagger && tag) {
+      // Tagger+tag filter: items where the specific user applied this specific tag
+      const terms = tag.split(',').map(t => t.trim()).filter(Boolean);
+      if (terms.length > 0) {
+        const conditions = terms.map(term => {
+          return db`and items.id in (
+            select ta.item_id from tags_assign ta
+            join tags t on t.id = ta.tag_id
+            join "user" u on u.id = ta.user_id
+            where t.normalized like '%' || slugify(${term}) || '%'
+            and u.user ilike ${tagger}
+          )`;
+        });
+        tagFilter = db`${conditions}`;
+      }
     } else if (tag) {
       const terms = tag.split(',').map(t => t.trim()).filter(Boolean);
       if (terms.length > 0) {
@@ -233,7 +250,7 @@ export default {
       userHallFilter = db`and items.id in (select uha.item_id from user_halls_assign uha where uha.hall_id = ${userHallObj.id})`;
     }
 
-    const cacheKey = buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, excludedTags, newerThan, minXd, userHallObj });
+    const cacheKey = buildCountCacheKey({ modequery, tag, user, hall, mime, fav, session, excludedTags, newerThan, minXd, userHallObj, tagger });
     let total = getCachedCount(cacheKey);
 
     if (total === null) {
@@ -372,7 +389,7 @@ export default {
     for (let i = Math.max(1, act_page - range); i <= Math.min(act_page + range, pages); i++)
       cheat.push(i);
 
-    const link = lib.genLink({ user, tag, hall: hallObj ? hallObj.slug : hall, mime, type: fav ? 'favs' : 'uploads', path: 'p/', strict: strict });
+    const link = lib.genLink({ user, tag, hall: hallObj ? hallObj.slug : hall, mime, type: fav ? 'favs' : 'uploads', path: 'p/', strict: strict, tagger });
 
     // Override link for title searches — pagination must use the /tag/title:... prefix
     if (isTitleSearch && titleQuery) {

@@ -1,5 +1,5 @@
 @each(toptags as toptag)
-<a href="/tag/{{ toptag.safe_tag }}" class="tag-card">
+<a href="/tag/{{ toptag.safe_tag }}@if(user && user.user)?tagger={!! encodeURIComponent(user.user) !!}@endif" class="tag-card">
     <div class="tag-card-image">
         <img src="/tag_image/{{ toptag.encoded_tag }}?m={{ session.mode }}" loading="lazy" alt="{!! toptag.tag !!}">
     </div>

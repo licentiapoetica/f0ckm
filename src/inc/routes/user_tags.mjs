@@ -120,7 +120,7 @@ export default (router, tpl) => {
 
       return res.json({
         success: true,
-        html: tpl.render('tag-cards', { toptags: tags, session: (req.session && req.session.user) ? { ...req.session } : false }, req),
+        html: tpl.render('tag-cards', { toptags: tags, user: { user: userName }, session: (req.session && req.session.user) ? { ...req.session } : false }, req),
         currentPage: page,
         pagination: paginationHtml,
         hasMore: tags.length === TAGS_PER_PAGE

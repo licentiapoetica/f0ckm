@@ -2603,6 +2603,10 @@ window.cancelAnimFrame = (function () {
       if (isFav) ajaxUrl += `&fav=true`;
       if (mime) ajaxUrl += `&mime=${encodeURIComponent(mime)}`;
 
+      // Preserve tagger filter from URL query string
+      const taggerMatch = urlObj.searchParams.get('tagger');
+      if (taggerMatch) ajaxUrl += `&tagger=${encodeURIComponent(taggerMatch)}`;
+
       const isRandom = document.cookie.includes('random_mode=1') || url.includes('random=1') || window.location.search.includes('random=1');
       if (isRandom) ajaxUrl += `&random=1`;
       const isStrict = window.f0ckSession?.strict_mode || (localStorage.getItem('search_strict') === 'true');
@@ -3327,9 +3331,14 @@ window.cancelAnimFrame = (function () {
     const itemid = numericSegments.pop();
 
     // Extract context from Target URL first
-    let tag = null, user = null, isFavs = false, mime = null, hall = null, userHall = null, userHallOwner = null;
+    let tag = null, user = null, isFavs = false, mime = null, hall = null, userHall = null, userHallOwner = null, tagger = null;
     const tagMatch = url.match(/\/tag\/([^/?]+)/);
     if (tagMatch) tag = decodeURIComponent(tagMatch[1]);
+
+    // Tagger filter from query string
+    const taggerUrlObj = new URL(url, window.location.origin);
+    const taggerParam = taggerUrlObj.searchParams.get('tagger');
+    if (taggerParam) tagger = decodeURIComponent(taggerParam);
 
     // User hall: /user/:owner/hall/:slug/:id
     const userHallMatch = url.match(/\/user\/([^/]+)\/hall\/([^/]+)/);
@@ -3368,6 +3377,10 @@ window.cancelAnimFrame = (function () {
         const wTagMatch = window.location.href.match(/\/tag\/([^/?]+)/);
         if (wTagMatch) tag = decodeURIComponent(wTagMatch[1]);
       }
+      if (!tagger) {
+        const wTaggerParam = new URL(window.location.href).searchParams.get('tagger');
+        if (wTaggerParam) tagger = decodeURIComponent(wTaggerParam);
+      }
       if (!user && !userHall) {
         const wUserMatch = window.location.href.match(/\/user\/([^/?]+)/);
         if (wUserMatch && !window.location.href.match(/\/user\/[^/]+\/hall\//) ) {
@@ -3403,6 +3416,7 @@ window.cancelAnimFrame = (function () {
       } else if (user) {
         params.append('user', user);
       }
+      if (tagger) params.append('tagger', tagger);
       if (isFavs) params.append('fav', 'true');
 
       const isStrict = window.f0ckSession?.strict_mode || (localStorage.getItem('search_strict') === 'true');
@@ -3502,6 +3516,7 @@ window.cancelAnimFrame = (function () {
         else if (user)  { _pushUrl = `/user/${encodeURIComponent(user)}/${itemid}`; if (isFavs) _pushUrl = `/user/${encodeURIComponent(user)}/favs/${itemid}`; }
         else if (tag)   _pushUrl = `/tag/${encodeURIComponent(tag).replace(/%2C/g,',').replace(/%20/g,' ')}/${itemid}`;
         else if (hall)  _pushUrl = `/h/${encodeURIComponent(hall).replace(/%20/g,' ')}/${itemid}`;
+        if (tagger && tag) _pushUrl += `?tagger=${encodeURIComponent(tagger)}`;
         if (mime) _pushUrl = _pushUrl.replace(new RegExp(`/${itemid}$`), `/${mime}/${itemid}`);
         if (_hash) _pushUrl += _hash;
 
@@ -3704,6 +3719,8 @@ window.cancelAnimFrame = (function () {
       }
       else if (tag) pushUrl = `/tag/${encodeURIComponent(tag).replace(/%2C/g, ',').replace(/%20/g, ' ')}/${itemid}`;
       else if (hall) pushUrl = `/h/${encodeURIComponent(hall).replace(/%20/g, ' ')}/${itemid}`;
+      // Append tagger filter so item nav stays in tagger context
+      if (tagger && tag) pushUrl += `?tagger=${encodeURIComponent(tagger)}`;
       
       if (mime) {
           // If it already has itemid at the end, insert mime before it

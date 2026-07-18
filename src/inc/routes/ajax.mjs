@@ -226,7 +226,8 @@ export default (router, tpl) => {
             strict: query.strict === '1' || query.strict === 'true' || req.session?.strict_mode,
             explicitStrict: query.strict === '1' || query.strict === 'true',
             newer: query.newer || null,
-            minXdScore: req.session?.min_xd_score || 0
+            minXdScore: req.session?.min_xd_score || 0,
+            tagger: query.tagger || null
         });
 
         if (!data.success) {
