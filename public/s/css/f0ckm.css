@@ -9438,6 +9438,7 @@ span.badge.badge-current {
   width: auto;
   max-width: 120px !important;
   object-fit: contain;
+  vertical-align: top;
 }
 
 video.sidebar-comment-img.emoji {
