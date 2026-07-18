@@ -11321,31 +11321,41 @@ document.addEventListener('keydown', (e) => {
         y: rect.top + rect.height / 2
       };
 
+      const dxCenter = center.x - activeCenter.x;
+      const dyCenter = center.y - activeCenter.y;
+      const absDx = Math.abs(dxCenter);
+      const absDy = Math.abs(dyCenter);
+
       let isCandidate = false;
       let primaryDist = 0;
-      let secondaryDist = 0;
+      let secondaryGap = 0;
 
       if (e.key === 'ArrowRight') {
-        isCandidate = center.x > activeCenter.x;
-        primaryDist = center.x - activeCenter.x;
-        secondaryDist = Math.abs(center.y - activeCenter.y);
+        // Must be to the right, and within a 60 degree cone
+        isCandidate = dxCenter > 0 && absDx >= absDy * 0.5;
+        primaryDist = absDx;
+        // Gap on the Y axis. If they overlap, gap is 0
+        secondaryGap = Math.max(0, Math.max(activeRect.top, rect.top) - Math.min(activeRect.bottom, rect.bottom));
       } else if (e.key === 'ArrowLeft') {
-        isCandidate = center.x < activeCenter.x;
-        primaryDist = activeCenter.x - center.x;
-        secondaryDist = Math.abs(center.y - activeCenter.y);
+        isCandidate = dxCenter < 0 && absDx >= absDy * 0.5;
+        primaryDist = absDx;
+        secondaryGap = Math.max(0, Math.max(activeRect.top, rect.top) - Math.min(activeRect.bottom, rect.bottom));
       } else if (e.key === 'ArrowDown') {
-        isCandidate = center.y > activeCenter.y;
-        primaryDist = center.y - activeCenter.y;
-        secondaryDist = Math.abs(center.x - activeCenter.x);
+        isCandidate = dyCenter > 0 && absDy >= absDx * 0.5;
+        primaryDist = absDy;
+        secondaryGap = Math.max(0, Math.max(activeRect.left, rect.left) - Math.min(activeRect.right, rect.right));
       } else if (e.key === 'ArrowUp') {
-        isCandidate = center.y < activeCenter.y;
-        primaryDist = activeCenter.y - center.y;
-        secondaryDist = Math.abs(center.x - activeCenter.x);
+        isCandidate = dyCenter < 0 && absDy >= absDx * 0.5;
+        primaryDist = absDy;
+        secondaryGap = Math.max(0, Math.max(activeRect.left, rect.left) - Math.min(activeRect.right, rect.right));
       }
 
       if (isCandidate) {
-        // Weight secondary distance heavily to prioritize items directly in the travel path
-        const distance = primaryDist + (secondaryDist * 5);
+        // Massive penalty for gap to force it to pick overlapping items (same row/col)
+        // Tiny penalty for center misalignment so ties are broken cleanly
+        const centerMisalignment = (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ? absDy : absDx;
+        const distance = primaryDist + (secondaryGap * 15) + (centerMisalignment * 0.1);
+        
         if (distance < minDistance) {
           minDistance = distance;
           bestMatch = thumb;
