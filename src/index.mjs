@@ -505,6 +505,45 @@ process.on('uncaughtException', err => {
     }
   });
 
+  // ─── Session cache ────────────────────────────────────────────────────────
+  // The session middleware runs in parallel with all other app.use() handlers
+  // (flummpress uses Promise.all). With many concurrent requests each doing a
+  // DB SELECT, the pool (max:50) drains and nginx sees 502s. Caching the
+  // session row for 5s and the upload-count for 30s eliminates the hot path.
+  const SESSION_CACHE_TTL    = 5_000;  // ms — short enough to pick up bans quickly
+  const UPLOAD_COUNT_CACHE_TTL = 30_000; // ms — upload window is 12h, stale for 30s is fine
+  const _sessionCache     = new Map(); // sha256(cookie) -> { data: row, exp: number }
+  const _uploadCountCache = new Map(); // username -> { count: number, exp: number }
+
+  const _scGet = (hash) => {
+    const e = _sessionCache.get(hash);
+    if (e && e.exp > Date.now()) return e.data;
+    _sessionCache.delete(hash);
+    return null;
+  };
+  const _scSet = (hash, data) => {
+    _sessionCache.set(hash, { data, exp: Date.now() + SESSION_CACHE_TTL });
+    if (_sessionCache.size > 2000) {
+      const now = Date.now();
+      for (const [k, v] of _sessionCache) if (v.exp <= now) _sessionCache.delete(k);
+    }
+  };
+  // Exposed so logout/ban routes can force-evict immediately
+  global._invalidateSessionCache = (hash) => _sessionCache.delete(hash);
+
+  const _ucGet = (username) => {
+    const e = _uploadCountCache.get(username);
+    if (e && e.exp > Date.now()) return e.count;
+    _uploadCountCache.delete(username);
+    return null;
+  };
+  const _ucSet = (username, count) => {
+    _uploadCountCache.set(username, { count, exp: Date.now() + UPLOAD_COUNT_CACHE_TTL });
+  };
+  // Allow upload handler to bust the cache after a successful upload
+  global._invalidateUploadCountCache = (username) => _uploadCountCache.delete(username);
+  // ──────────────────────────────────────────────────────────────────────────
+
   app.use(async (req, res) => {
     // This can be used to annoy people on discord sending links to your site lmao, shouldnt be used though since it sucks ass
 //     if (cfg.main.development && req.method === 'POST') console.error(`[BOOT] [DEBUG_POST] ${req.method} ${req.url.pathname}`);
@@ -571,14 +610,22 @@ process.on('uncaughtException', err => {
     req.fullscreen = req.cookies.fullscreen || 0;
 
     if (req.cookies.session) {
-      const user = await db`
-        select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox, "user_options".use_alternative_steuerung, "user_options".receive_system_notifications, "user_options".receive_user_notifications, "user_options".do_not_disturb, "user_options".comment_display_mode, "user_options".force_comment_display_mode
-        from "user_sessions"
-        left join "user" on "user".id = "user_sessions".user_id
-        left join "user_options" on "user_options".user_id = "user_sessions".user_id
-        where "user_sessions".session = ${lib.sha256(req.cookies.session)}
-        limit 1
-      `;
+      const _sessionHash = lib.sha256(req.cookies.session);
+      let _cachedRow = _scGet(_sessionHash);
+      let user;
+      if (_cachedRow) {
+        user = [_cachedRow];
+      } else {
+        user = await db`
+          select "user".id, "user".login, "user".user, "user".admin, "user".is_moderator, "user".banned, "user".ban_reason, "user".ban_expires, "user".force_password_change, "user_sessions".id as sess_id, "user_sessions".csrf_token, "user_options".mode, "user_options".theme, "user_options".fullscreen, "user_options".excluded_tags, "user_options".avatar, "user_options".avatar_file, "user_options".show_motd, "user_options".strict_mode, "user_options".show_background, "user_options".use_new_layout, "user_options".username_color, "user_options".font, "user_options".disable_autoplay, "user_options".disable_swiping, "user_options".description, "user_options".display_name, COALESCE("user_options".min_xd_score, 0) as min_xd_score, "user_options".ruffle_volume, "user_options".ruffle_background, "user_options".quote_emojis, "user_options".embed_youtube_in_comments, "user_options".hide_koepfe, "user_options".language, "user_options".use_alternative_infobox, "user_options".use_alternative_steuerung, "user_options".receive_system_notifications, "user_options".receive_user_notifications, "user_options".do_not_disturb, "user_options".comment_display_mode, "user_options".force_comment_display_mode
+          from "user_sessions"
+          left join "user" on "user".id = "user_sessions".user_id
+          left join "user_options" on "user_options".user_id = "user_sessions".user_id
+          where "user_sessions".session = ${_sessionHash}
+          limit 1
+        `;
+        if (user.length > 0) _scSet(_sessionHash, user[0]);
+      }
 
       if (user.length === 0) {
         res.writeHead(307, { // delete session
@@ -651,17 +698,22 @@ process.on('uncaughtException', err => {
         req.session.pending_count = pending[0].c;
       }
 
-      // Calculate uploads remaining globally for the modal
+      // Calculate uploads remaining globally for the modal (cached 30s per user)
       if (!req.session.admin && !req.session.is_moderator) {
-          const twelveHoursAgo = ~~(Date.now() / 1000) - (12 * 3600);
-          const uploadCount = await db`
-              SELECT count(*) as count
-              FROM items
-              WHERE username = ${req.session.user}
-              AND stamp > ${twelveHoursAgo}
-              AND is_deleted = false
-          `;
-          req.session.uploads_remaining = Math.max(0, cfg.main.upload_limit - parseInt(uploadCount[0].count));
+          let cachedUploadCount = _ucGet(req.session.user);
+          if (cachedUploadCount === null) {
+            const twelveHoursAgo = ~~(Date.now() / 1000) - (12 * 3600);
+            const uploadCount = await db`
+                SELECT count(*) as count
+                FROM items
+                WHERE username = ${req.session.user}
+                AND stamp > ${twelveHoursAgo}
+                AND is_deleted = false
+            `;
+            cachedUploadCount = parseInt(uploadCount[0].count);
+            _ucSet(req.session.user, cachedUploadCount);
+          }
+          req.session.uploads_remaining = Math.max(0, cfg.main.upload_limit - cachedUploadCount);
       } else {
           req.session.uploads_remaining = undefined; // Unlimited for admins/mods
       }
