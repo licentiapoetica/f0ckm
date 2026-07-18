@@ -9388,22 +9388,24 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.startHoverPreview = startPreview;
 
-    document.addEventListener('mouseover', (e) => {
+    const handleEnter = (e) => {
         const thumb = e.target.closest('.thumb');
-        
-        // If we are hovering a thumb, and it's NOT the active one
         if (thumb && thumb !== activeThumb) {
              startPreview(thumb, 150);
         }
-    });
+    };
+    document.addEventListener('mouseover', handleEnter);
+    document.addEventListener('focusin', handleEnter);
 
-    document.addEventListener('mouseout', (e) => {
+    const handleLeave = (e) => {
         const thumb = e.target.closest('.thumb');
         if (thumb) {
-            if (e.relatedTarget && thumb.contains(e.relatedTarget)) return;
+            if (e.type === 'mouseout' && e.relatedTarget && thumb.contains(e.relatedTarget)) return;
             clearPreview();
         }
-    });
+    };
+    document.addEventListener('mouseout', handleLeave);
+    document.addEventListener('focusout', handleLeave);
 
     // Touch handling to support "tap to activate" behavior
     // 1. First tap: Activate (visuals + preview) AND prevent navigation
@@ -11281,3 +11283,61 @@ document.addEventListener('click', (e) => {
     }
   }, true);
 })();
+
+// --- Grid Keyboard Accessibility ---
+document.addEventListener('keydown', (e) => {
+  const isTab = e.key === 'Tab';
+  const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+  if (!isTab && !isArrow) return;
+
+  const thumbs = Array.from(document.querySelectorAll('.posts .thumb'));
+  if (thumbs.length === 0) return;
+
+  if (isTab && document.activeElement === document.body) {
+    e.preventDefault();
+    thumbs[0].focus();
+    return;
+  }
+
+  const active = document.activeElement;
+  if (isArrow && active && active.classList.contains('thumb')) {
+    const currentIndex = thumbs.indexOf(active);
+    if (currentIndex === -1) return;
+
+    let nextIndex = currentIndex;
+    
+    if (e.key === 'ArrowRight') {
+      nextIndex = currentIndex + 1;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = currentIndex - 1;
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const currentRow = thumbs.filter(t => t.offsetTop === active.offsetTop);
+      const columns = currentRow.length;
+      
+      let maxCols = columns;
+      const firstRowTop = thumbs[0].offsetTop;
+      const firstRow = thumbs.filter(t => t.offsetTop === firstRowTop);
+      if (firstRow.length > columns) maxCols = firstRow.length;
+
+      if (e.key === 'ArrowDown') {
+         nextIndex = currentIndex + maxCols;
+         if (nextIndex >= thumbs.length) {
+            const lastRowTop = thumbs[thumbs.length - 1].offsetTop;
+            if (active.offsetTop < lastRowTop) {
+               nextIndex = thumbs.length - 1;
+            } else {
+               nextIndex = currentIndex;
+            }
+         }
+      } else {
+         nextIndex = currentIndex - maxCols;
+      }
+    }
+
+    if (nextIndex >= 0 && nextIndex < thumbs.length && nextIndex !== currentIndex) {
+      e.preventDefault();
+      thumbs[nextIndex].focus();
+      thumbs[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+});
