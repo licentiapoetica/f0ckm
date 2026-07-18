@@ -5183,6 +5183,9 @@ html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
   scrollbar-color: var(--scrollbar-color) transparent;
   scrollbar-width: thin;
   border-top: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .previous-post,
@@ -5241,9 +5244,10 @@ html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
 
 /* image */
 #f0ck-image {
-  height: 100%;
-  width: 100%;
+  max-height: 100%;
   max-width: 100%;
+  height: auto;
+  width: auto;
   object-fit: contain;
 }
 
@@ -5301,10 +5305,7 @@ body.layout-modern .embed-responsive.is-expanded img#f0ck-image {
 
 
 a#elfe {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  justify-content: center;
+  display: contents;
 }
 
 /* metadata */
