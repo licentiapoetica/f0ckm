@@ -3808,6 +3808,11 @@ class CommentSystem {
     toggleComments() {
         if (!this.container) return;
 
+        if (document.body.classList.contains('layout-modern') && typeof window.toggleSidebarLeft === 'function') {
+            window.toggleSidebarLeft();
+            return;
+        }
+
         const layout = this.container.closest('.item-layout-container');
         const sidebar = this.container.closest('.item-sidebar-left');
         const siblings = sidebar ? [
