@@ -4726,7 +4726,7 @@ body.layout-modern .pagination-container-fluid {
 
   /* Modern layout: wider sidebar */
   body.layout-modern .index-layout-wrapper {
-    padding-right: 400px;
+    padding-right: 300px;
   }
 
   /* Collapse reserved space when sidebar is hidden */
