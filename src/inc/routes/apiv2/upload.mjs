@@ -336,7 +336,16 @@ export default router => {
                     }
                 }
 
-                const url = inputUrl.trim();
+                let url = inputUrl.trim();
+                try {
+                    const parsed = new URL(url);
+                    if (parsed.searchParams.has('igsh')) {
+                        parsed.searchParams.delete('igsh');
+                        url = parsed.toString();
+                    }
+                } catch (e) {
+                    // Ignore malformed URL, keep original string
+                }
                 const ytRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
                 const ytMatch = url.match(ytRegex);
 
