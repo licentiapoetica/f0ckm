@@ -2301,7 +2301,7 @@ window.cancelAnimFrame = (function () {
     let hiddenValue = localStorage.getItem('sidebarRightHidden');
     let hidden;
     if (hiddenValue === null) {
-      hidden = false; // Default to visible on all devices
+      hidden = (window.f0ckSession && window.f0ckSession.hide_sidebar_default) ? true : false; // Default based on config
       localStorage.setItem('sidebarRightHidden', hidden);
     } else {
       hidden = hiddenValue === 'true';

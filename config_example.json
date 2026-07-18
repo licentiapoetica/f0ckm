@@ -58,6 +58,7 @@
     "custom_brand_image": [],
     "custom_navbar_brand_text": "",
     "show_koepfe": false,
+    "hide_sidebar_default": true,
     "koepfe": [],
     "enable_global_chat": true,
     "enable_danmaku": true,

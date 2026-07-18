@@ -127,7 +127,7 @@
 @endif
 @if(private_society && !session)
 <script>
-  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }}, development: @if(development) true @else false @endif, allow_comment_deletion: @if(allow_comment_deletion) true @else false @endif };
+  window.f0ckSession = { logged_in: false, enable_xd_score: @if(enable_xd_score) true @else false @endif, default_theme: "{{ default_theme }}", show_content_warning: @if(show_content_warning) true @else false @endif, use_new_layout: @if(default_layout === 'legacy')false @else true @endif, comment_display_mode: {{ comment_display_mode }}, comment_max_length: {{ comment_max_length !== null && comment_max_length !== undefined ? comment_max_length : 'null' }}, development: @if(development) true @else false @endif, allow_comment_deletion: @if(allow_comment_deletion) true @else false @endif, hide_sidebar_default: @if(hide_sidebar_default) true @else false @endif };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};
   (() => {
     const loginModal = document.getElementById('login-modal');
@@ -406,6 +406,7 @@
     dm_unencrypted: @if(dm_unencrypted) true @else false @endif,
     allow_comment_deletion: @if(allow_comment_deletion) true @else false @endif,
     enable_comment_polls: @if(enable_comment_polls) true @else false @endif,
+    hide_sidebar_default: @if(hide_sidebar_default) true @else false @endif,
     mode: {{ mode !== undefined ? mode : 0 }}
   };
   window.f0ckDebug = window.f0ckSession.development ? console.log.bind(console) : () => {};

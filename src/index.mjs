@@ -1267,6 +1267,7 @@ process.on('uncaughtException', err => {
     ts: Date.now(),
     get default_layout() { return getDefaultLayout(); },
     show_koepfe: !!cfg.websrv.show_koepfe,
+    hide_sidebar_default: !!cfg.websrv.hide_sidebar_default,
     allow_language_change: cfg.websrv.allow_language_change !== false,
     enable_xd_score: !!cfg.websrv.enable_xd_score,
     enable_dynamic_thumbs: !!cfg.websrv.enable_dynamic_thumbs,
