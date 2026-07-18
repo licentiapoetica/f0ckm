@@ -4967,20 +4967,20 @@ html[data-dpr="dpr-high"] body.layout-legacy.sidebar-right-hidden .embed-respons
 /* ── 1440p-class displays (viewport ≥ 2000px) ── */
 @media (min-width: 2000px) {
   body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 
 /* 1440p at 110% zoom */
 @media (min-width: 2000px) and (max-width: 2499px) and (min-resolution: 1.05dppx) {
   body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
@@ -4990,73 +4990,73 @@ html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
 /* ── QHD ultrawide range (viewport ≥ 2500px) ── */
 @media (min-width: 2500px) {
   body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 
 /* ── Full ultrawide at 100% zoom (viewport ≥ 3000px) ── */
 @media (min-width: 3000px) {
   body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 
 /* Ultrawide + zoomed in (still wide enough to need reduction) */
 @media (min-width: 2000px) and (min-resolution: 1.39dppx) {
   body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 
 /* Firefox DPR fallbacks for large screens — combine data-dpr + min-width */
 @media (min-width: 2000px) {
   html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-110"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-120"] body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-120"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-130"] body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-130"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-150"] body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-150"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-high"] body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-high"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 
 @media (min-width: 3000px) {
   html[data-dpr="dpr-1x"] body.layout-legacy .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
   html[data-dpr="dpr-1x"] body.layout-legacy.sidebar-right-hidden .embed-responsive-16by9::before {
-    padding-top: 52.25%;
+    padding-top: 62.25%;
   }
 }
 
