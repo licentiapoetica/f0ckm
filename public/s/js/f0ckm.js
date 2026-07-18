@@ -10188,14 +10188,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 // Only expand if the image is actually being clipped (not fully visible).
-                // Compare the image's rendered height to its natural height —
-                // if rendered >= natural, the image already fits fully in the box.
                 const img = wrapper.querySelector('img#f0ck-image');
-                if (img && img.complete && img.naturalHeight > 0) {
+                if (img && img.complete && img.naturalHeight > 0 && img.naturalWidth > 0) {
                     const rendered = img.getBoundingClientRect();
-                    // Allow a 2px tolerance for subpixel rounding
+                    
+                    // Calculate the max height the image can take given the container width
+                    const expandedHeight = rendered.width * (img.naturalHeight / img.naturalWidth);
+                    
                     if (rendered.height + 2 >= img.naturalHeight) {
-                        // Fully visible — do nothing (no expand needed, no modal)
+                        // Image is unscaled or upscaled. No detail to gain by expanding.
+                        return;
+                    }
+                    
+                    if (rendered.height + 2 >= expandedHeight) {
+                        // Expanding inline will not increase display size because it is width-constrained.
+                        openImageModal(elfe.href);
                         return;
                     }
                 }
