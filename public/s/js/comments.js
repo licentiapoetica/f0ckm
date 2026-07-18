@@ -126,14 +126,43 @@ class CommentSystem {
             const container = document.getElementById('comments-container');
             if (!container) return;
 
-            const rect = container.getBoundingClientRect();
-            // Detect if we are at the bottom of the comments section
-            const isAtBottom = rect.bottom < window.innerHeight + 100;
+            const currentlyAtBottom = btn.classList.contains('is-at-bottom');
+            let isAtBottom = currentlyAtBottom;
 
-            if (isAtBottom) {
+            // Base the bottom state primarily on whether the input box / end-of-thread marker is visible
+            const bottomElement = container.querySelector('.main-input') || container.querySelector('.lock-notice') || container.querySelector('.login-placeholder');
+            
+            if (bottomElement) {
+                const bottomRect = bottomElement.getBoundingClientRect();
+                if (currentlyAtBottom) {
+                    // We are pointing UP. Switch to DOWN if we scroll significantly UP away from bottomElement
+                    if (bottomRect.top > window.innerHeight + 250) {
+                        isAtBottom = false;
+                    }
+                } else {
+                    // We are pointing DOWN. Switch to UP if bottomElement enters viewport or we scroll past it
+                    if (bottomRect.top <= window.innerHeight + 50) {
+                        isAtBottom = true;
+                    }
+                }
+            } else {
+                // Fallback to container rect if no bottom element
+                const rect = container.getBoundingClientRect();
+                if (currentlyAtBottom) {
+                    if (rect.bottom > window.innerHeight + 250) {
+                        isAtBottom = false;
+                    }
+                } else {
+                    if (rect.bottom <= window.innerHeight + 50) {
+                        isAtBottom = true;
+                    }
+                }
+            }
+
+            if (isAtBottom && !currentlyAtBottom) {
                 btn.classList.add('is-at-bottom');
                 btn.setAttribute('title', 'Scroll to top');
-            } else {
+            } else if (!isAtBottom && currentlyAtBottom) {
                 btn.classList.remove('is-at-bottom');
                 btn.setAttribute('title', 'Scroll to bottom');
             }
