@@ -1593,7 +1593,7 @@ html[theme='95'] .item-main-content .metadata {
   max-width: 85%;
   height: auto !important;
   max-height: none !important;
-  background: var(--bg);
+  background: var(--nav-bg);
   border-left: 1px solid var(--nav-border-color);
   z-index: 900 !important;
   /* below navbar dropdowns (1000+) but above page content */
@@ -14035,7 +14035,7 @@ textarea#profile_description {
   align-items: flex-start;
   width: 100%;
   max-width: 100%;
-  min-height: 120px;
+  min-height: 90px;
   box-sizing: border-box;
   margin-bottom: 10px;
 }
@@ -14140,6 +14140,7 @@ textarea#profile_description {
   color: #ccc;
   text-align: left;
   text-shadow: 0px 0px 5px black;
+  word-break: break-word;
 }
 
 .user-infobox-body {
