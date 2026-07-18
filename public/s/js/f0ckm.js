@@ -6402,22 +6402,13 @@ window.cancelAnimFrame = (function () {
     const sidebar = document.querySelector('.global-sidebar-right, .item-sidebar-right, .index-sidebar-right');
     if (!sidebar) return;
 
-    mouseRT.active = true;
-    mouseRT.isDragging = false;
-    mouseRT.isCandidate = false;
-    mouseRT.xDown = e.clientX;
-    mouseRT.yDown = e.clientY;
-    mouseRT.xDiff = 0;
-    mouseRT.yDiff = 0;
-    mouseRT.timeDown = Date.now();
-    mouseRT.sidebarEl = sidebar;
-    mouseRT.sidebarWidth = sidebar.offsetWidth;
-
     const isHidden = document.body.classList.contains('sidebar-right-hidden');
+    let candidate = false;
+
     if (isHidden) {
       // Open zone: 80px from right edge
       if (e.clientX > window.innerWidth - 30) {
-        mouseRT.isCandidate = true;
+        candidate = true;
       }
     } else {
       // Close: only from the left-edge grab strip (first 16px of sidebar) OR the edgeZone overhang
@@ -6425,9 +6416,22 @@ window.cancelAnimFrame = (function () {
       const sidebarLeft = sidebar.getBoundingClientRect().left;
       const inGrabStrip = e.clientX >= sidebarLeft && e.clientX <= sidebarLeft + 16;
       if (inGrabStrip || e.target === dragZone) {
-        mouseRT.isCandidate = true;
+        candidate = true;
       }
     }
+
+    if (!candidate) return;
+
+    mouseRT.active = true;
+    mouseRT.isDragging = false;
+    mouseRT.isCandidate = true;
+    mouseRT.xDown = e.clientX;
+    mouseRT.yDown = e.clientY;
+    mouseRT.xDiff = 0;
+    mouseRT.yDiff = 0;
+    mouseRT.timeDown = Date.now();
+    mouseRT.sidebarEl = sidebar;
+    mouseRT.sidebarWidth = sidebar.offsetWidth;
   });
 
   document.addEventListener('mousemove', e => {
@@ -6447,6 +6451,8 @@ window.cancelAnimFrame = (function () {
         window.getSelection()?.removeAllRanges(); // clear any selection that formed before threshold
       } else if (absY > absX) {
         mouseRT.isCandidate = false; // Scrolling — bail
+        mouseRT.active = false;
+        return;
       }
     }
 
