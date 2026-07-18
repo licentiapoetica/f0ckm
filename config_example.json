@@ -53,6 +53,7 @@
       "amoled"
     ],
     "theme": "amoled",
+    "default_font": "",
     "default_layout": "legacy",
     "custom_favicon": "/s/img/favicon.gif",
     "custom_brand_image": [],

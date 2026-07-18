@@ -1248,6 +1248,7 @@ process.on('uncaughtException', err => {
     custom_favicon: cfg.websrv.custom_favicon || "",
     custom_brand_image: Array.isArray(cfg.websrv.custom_brand_image) ? cfg.websrv.custom_brand_image[0] : (cfg.websrv.custom_brand_image || ""),
     custom_navbar_brand_text: cfg.websrv.custom_navbar_brand_text || "",
+    default_font: cfg.websrv.default_font || "",
     site_description: cfg.websrv.description || "The webs dumpster",
     enable_nsfl: !!cfg.enable_nsfl,
     nsfl_tag_id: cfg.nsfl_tag_id || 3,
@@ -1303,7 +1304,7 @@ process.on('uncaughtException', err => {
 
     get fonts() {
       try {
-        const fontsDir = path.join(path.resolve(), 'public/s/fonts');
+        const fontsDir = cfg.paths.fonts;
         if (!fs.existsSync(fontsDir)) return [];
         return fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff2?)$/i.test(f)).map(f => ({
           name: f.split('.').shift(),

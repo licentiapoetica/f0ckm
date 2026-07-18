@@ -30,7 +30,7 @@ const resolvePath = (defaultRel) => {
         const absStorage = path.resolve(storage);
         if (defaultRel.startsWith('public/')) {
             const sub = defaultRel.replace('public/', '');
-            if (sub === 's/emojis' || sub === 's/koepfe') {
+            if (sub === 's/emojis' || sub === 's/koepfe' || sub === 's/fonts') {
                 const storagePath = path.join(absStorage, sub.split('/').pop());
                 if (fs.existsSync(storagePath)) return path.resolve(storagePath);
                 return local;
@@ -51,6 +51,7 @@ config.paths = {
     s: path.join(base, 'public/s'),
     emojis: resolvePath('public/s/emojis'),
     koepfe: resolvePath('public/s/koepfe'),
+    fonts: resolvePath('public/s/fonts'),
     memes: resolvePath('public/memes'),
     e: resolvePath('e'),
     pending: resolvePath('pending'),

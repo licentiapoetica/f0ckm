@@ -19,11 +19,22 @@
     :root {
       @if(session && session.font)
       --font: 'CustomUserFont', monospace !important;
+      @elseif(typeof default_font !== 'undefined' && default_font && default_font.length > 0)
+      --font: {{ default_font }} !important;
       @endif
     }
     @if(session && session.font)
     *:not(canvas):not(.meme-title):not(.force-impact):not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.fa-light):not(.fa-thin):not(.fa-duotone):not([class*=" fa-"]):not([class^="fa-"]) {
       font-family: 'CustomUserFont', monospace !important;
+    }
+    /* Explicitly protect FA pseudo-elements */
+    .fa-solid::before, .fa-regular::before, .fa-brands::before,
+    .fas::before, .far::before, .fab::before, .fa::before {
+      font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
+    }
+    @elseif(typeof default_font !== 'undefined' && default_font && default_font.length > 0)
+    *:not(canvas):not(.meme-title):not(.force-impact):not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.fa-light):not(.fa-thin):not(.fa-duotone):not([class*=" fa-"]):not([class^="fa-"]) {
+      font-family: {{ default_font }} !important;
     }
     /* Explicitly protect FA pseudo-elements */
     .fa-solid::before, .fa-regular::before, .fa-brands::before,

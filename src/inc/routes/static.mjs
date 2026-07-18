@@ -24,6 +24,11 @@ export default (router, tpl) => {
   });
 
   router.static({
+    dir: cfg.paths.fonts,
+    route: /^\/s\/fonts\//
+  });
+
+  router.static({
     dir: path.join(path.resolve(), 'node_modules/@ruffle-rs/ruffle'),
     route: /^\/s\/ruffle\//
   });

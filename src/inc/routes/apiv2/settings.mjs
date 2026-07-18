@@ -486,7 +486,7 @@ export default router => {
       // F-023 Security: Validate font against actual files on disk
       // The font value is rendered into CSS url() in header.html, so it must be a real filename
       if (font) {
-        const fontsDir = path.join(path.resolve(), 'public/s/fonts');
+        const fontsDir = cfg.paths.fonts;
         try {
           const available = (await fs.readdir(fontsDir)).filter(f => /\.(ttf|otf|woff2?)$/i.test(f));
           if (!available.includes(font)) {
