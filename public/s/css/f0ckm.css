@@ -1609,14 +1609,15 @@ body.sidebar-right-hidden .global-sidebar-right {
 }
 
 body.layout-modern.sidebar-right-hidden .global-sidebar-right {
-  right: -400px !important;
+  right: -300px !important;
 }
 
 /* Modern layout: wider 400px sidebar */
+/* no more lol xd */
 body.layout-modern .item-sidebar-right,
 body.layout-modern .index-sidebar-right,
 body.layout-modern .global-sidebar-right {
-  width: 400px;
+  width: 300px;
 }
 
 /* Prevent native image drag from hijacking the sidebar mouse-drag gesture */
