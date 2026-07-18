@@ -11301,43 +11301,62 @@ document.addEventListener('keydown', (e) => {
 
   const active = document.activeElement;
   if (isArrow && active && active.classList.contains('thumb')) {
-    const currentIndex = thumbs.indexOf(active);
-    if (currentIndex === -1) return;
+    const activeRect = active.getBoundingClientRect();
+    const activeCenter = {
+      x: activeRect.left + activeRect.width / 2,
+      y: activeRect.top + activeRect.height / 2
+    };
 
-    let nextIndex = currentIndex;
-    
-    if (e.key === 'ArrowRight') {
-      nextIndex = currentIndex + 1;
-    } else if (e.key === 'ArrowLeft') {
-      nextIndex = currentIndex - 1;
-    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      const currentRow = thumbs.filter(t => t.offsetTop === active.offsetTop);
-      const columns = currentRow.length;
+    let bestMatch = null;
+    let minDistance = Infinity;
+
+    thumbs.forEach(thumb => {
+      if (thumb === active) return;
       
-      let maxCols = columns;
-      const firstRowTop = thumbs[0].offsetTop;
-      const firstRow = thumbs.filter(t => t.offsetTop === firstRowTop);
-      if (firstRow.length > columns) maxCols = firstRow.length;
+      const rect = thumb.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
 
-      if (e.key === 'ArrowDown') {
-         nextIndex = currentIndex + maxCols;
-         if (nextIndex >= thumbs.length) {
-            const lastRowTop = thumbs[thumbs.length - 1].offsetTop;
-            if (active.offsetTop < lastRowTop) {
-               nextIndex = thumbs.length - 1;
-            } else {
-               nextIndex = currentIndex;
-            }
-         }
-      } else {
-         nextIndex = currentIndex - maxCols;
+      const center = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+
+      let isCandidate = false;
+      let primaryDist = 0;
+      let secondaryDist = 0;
+
+      if (e.key === 'ArrowRight') {
+        isCandidate = center.x > activeCenter.x;
+        primaryDist = center.x - activeCenter.x;
+        secondaryDist = Math.abs(center.y - activeCenter.y);
+      } else if (e.key === 'ArrowLeft') {
+        isCandidate = center.x < activeCenter.x;
+        primaryDist = activeCenter.x - center.x;
+        secondaryDist = Math.abs(center.y - activeCenter.y);
+      } else if (e.key === 'ArrowDown') {
+        isCandidate = center.y > activeCenter.y;
+        primaryDist = center.y - activeCenter.y;
+        secondaryDist = Math.abs(center.x - activeCenter.x);
+      } else if (e.key === 'ArrowUp') {
+        isCandidate = center.y < activeCenter.y;
+        primaryDist = activeCenter.y - center.y;
+        secondaryDist = Math.abs(center.x - activeCenter.x);
       }
-    }
 
-    if (nextIndex >= 0 && nextIndex < thumbs.length && nextIndex !== currentIndex) {
+      if (isCandidate) {
+        // Weight secondary distance heavily to prioritize items directly in the travel path
+        const distance = primaryDist + (secondaryDist * 5);
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatch = thumb;
+        }
+      }
+    });
+
+    if (bestMatch) {
       e.preventDefault();
-      thumbs[nextIndex].focus();
-      thumbs[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      bestMatch.focus();
+      bestMatch.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }
 });
