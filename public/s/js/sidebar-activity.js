@@ -587,7 +587,7 @@
             const isExpanded = container.classList.contains('expanded');
             const scrollHeight = inner.scrollHeight;
             const clientHeight = inner.clientHeight;
-            const hasUnloadedImages = Array.from(inner.querySelectorAll('img:not(.emoji), video')).some(
+            const hasUnloadedImages = Array.from(inner.querySelectorAll('img, video')).some(
                 media => {
                     if (media.tagName === 'IMG') {
                         return (!media.complete || media.naturalHeight === 0) && media.dataset.error !== 'true';
@@ -639,8 +639,8 @@
 
     const attachMediaLoadListeners = (element) => {
         // Only target images and videos inside comment-content-inner.
-        // Avatars, emojis, and item preview thumbnails have fixed sizes and do not affect text overflow.
-        element.querySelectorAll('.comment-content-inner img:not(.emoji), .comment-content-inner video').forEach(media => {
+        // Avatars and item preview thumbnails have fixed sizes and do not affect text overflow.
+        element.querySelectorAll('.comment-content-inner img, .comment-content-inner video').forEach(media => {
             if (media.dataset.loadListenerBound) return;
             media.dataset.loadListenerBound = 'true';
 
