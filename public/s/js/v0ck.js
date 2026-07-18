@@ -5,33 +5,33 @@ const tpl_player = (svg, size) => `<div class="v0ck_player_controls">
     <div class="v0ck_progress_filled"></div>
     <div class="v0ck_seek_marker"></div>
   </div>
-  <button class="v0ck_player_button v0ck_tplay v0ck_toggle" title="Play">
+  <button class="v0ck_player_button v0ck_tplay v0ck_toggle" title="Play" tabindex="-1">
     <svg style="width: 20px; height: 20px;">
       <use id="v0ck_svg_play" href="${svg}#play"></use>
       <use id="v0ck_svg_pause" class="v0ck_hidden" href="${svg}#pause"></use>
     </svg>
   </button>
   <div class="v0ck_volume_group">
-  <button class="v0ck_player_button v0ck_volume">
+  <button class="v0ck_player_button v0ck_volume" tabindex="-1">
     <svg style="width: 20px; height: 20px;">
       <use id="v0ck_svg_volume_full" href="${svg}#volume_full"></use>
       <use id="v0ck_svg_volume_mid" class="v0ck_hidden" href="${svg}#volume_mid"></use>
       <use id="v0ck_svg_volume_mute" class="v0ck_hidden" href="${svg}#volume_mute"></use>
     </svg>
   </button>
-  <input type="range" name="volume" min="0" max="1" step="0.01" value="1" />
+  <input type="range" name="volume" min="0" max="1" step="0.01" value="1" tabindex="-1" />
   </div>
-  <button class="v0ck_player_button v0ck_playtime">00:00 / 00:00</button>
+  <button class="v0ck_player_button v0ck_playtime" tabindex="-1">00:00 / 00:00</button>
   <span style="flex: 30"></span>
   
   <div class="v0ck_settings_container">
-      <button class="v0ck_player_button v0ck_settings_btn" title="Settings">
+      <button class="v0ck_player_button v0ck_settings_btn" title="Settings" tabindex="-1">
         <svg viewBox="0 0 24 24" style="width: 20px; height: 20px;">
             <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
         </svg>
       </button>
       <div class="v0ck_settings_menu v0ck_hidden">
-          <button id="toggleswf" class="v0ck_menu_item" title="Flash Yank">SWF</button>
+          <button id="toggleswf" class="v0ck_menu_item" title="Flash Yank" tabindex="-1">SWF</button>
           <div class="v0ck_menu_item v0ck_bg_row">
               <span class="v0ck_switch_label">Background</span>
               <div id="togglebg" class="v0ck_cool_switch" title="Toggle Background"></div>
@@ -44,11 +44,11 @@ const tpl_player = (svg, size) => `<div class="v0ck_player_controls">
               <span class="v0ck_switch_label">Danmaku</span>
               <div id="toggledanmaku" class="v0ck_cool_switch" title="Toggle Danmaku comments"></div>
           </div>
-          <button id="v0ck_download" class="v0ck_menu_item" title="Download File">Download${size ? ` (${size})` : ''}</button>
+          <button id="v0ck_download" class="v0ck_menu_item" title="Download File" tabindex="-1">Download${size ? ` (${size})` : ''}</button>
       </div>
   </div>
 
-  <button class="v0ck_player_button v0ck_toggle v0ck_fs_btn" title="Full Screen">
+  <button class="v0ck_player_button v0ck_toggle v0ck_fs_btn" title="Full Screen" tabindex="-1">
     <svg style="width: 20px; height: 20px;"><use id="v0ck_svg_fullscreen" href="${svg}#fullscreen"></use></svg>
   </button>
 </div>
