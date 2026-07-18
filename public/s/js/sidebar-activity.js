@@ -496,8 +496,8 @@
                 || rawContent.split('\n').length > 2 
                 || (c.files && c.files.length > 0);
         }
-        // Always force isLong if there are inline media tags that expand vertically
-        if (!isLong && (/\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawContent) || displayContent.includes('<video') || displayContent.includes('<img'))) {
+        // Always force isLong if there are inline media tags that expand vertically or files are attached
+        if (!isLong && ((c.files && c.files.length > 0) || /\[(video|audio|youtube|img)\]|!\[|https?:\/\//i.test(rawContent) || displayContent.includes('<video') || displayContent.includes('<img'))) {
             isLong = true;
         }
 
