@@ -1623,8 +1623,7 @@ body.layout-modern .global-sidebar-right {
 .global-sidebar-right img,
 .item-sidebar-right img,
 .index-sidebar-right img {
-  -webkit-user-drag: none;
-  user-select: none;
+
 }
 
 /* Edge zone drag handle — simple centered vertical pill */

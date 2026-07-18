@@ -46,11 +46,19 @@
         return;
     }
 
+    // Mark internal drags to prevent them from triggering the dropzone
+    window.addEventListener('dragstart', (e) => {
+        if (e.dataTransfer) {
+            e.dataTransfer.setData('application/x-f0ck-internal', 'true');
+        }
+    });
+
     // Global Drag Events
     window.addEventListener('dragenter', (e) => {
         e.preventDefault();
         if (window.location.pathname === '/upload') return;
-        if (e.dataTransfer.types.includes('Files')) {
+        if (e.dataTransfer && e.dataTransfer.types.includes('application/x-f0ck-internal')) return;
+        if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
             dragCounter++;
             dropOverlay.classList.add('active');
         }
@@ -59,10 +67,17 @@
     window.addEventListener('dragover', (e) => {
         e.preventDefault();
         if (window.location.pathname === '/upload') return;
+        if (e.dataTransfer && e.dataTransfer.types.includes('application/x-f0ck-internal')) {
+            // Change dropEffect to none to indicate this dropzone doesn't accept internal elements
+            e.dataTransfer.dropEffect = 'none';
+        }
     });
 
     window.addEventListener('dragleave', (e) => {
         if (window.location.pathname === '/upload') return;
+        // dragleave doesn't always have reliable dataTransfer.types, but if it does, check it
+        if (e.dataTransfer && e.dataTransfer.types.includes('application/x-f0ck-internal')) return;
+        
         dragCounter--;
         if (dragCounter <= 0) {
             dragCounter = 0;
@@ -72,6 +87,8 @@
 
     window.addEventListener('drop', (e) => {
         if (window.location.pathname === '/upload') return;
+        if (e.dataTransfer && e.dataTransfer.types.includes('application/x-f0ck-internal')) return;
+        
         e.preventDefault();
         dragCounter = 0;
         dropOverlay.classList.remove('active');
