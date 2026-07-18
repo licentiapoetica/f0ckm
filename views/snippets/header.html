@@ -15,12 +15,17 @@
       font-family: 'CustomUserFont';
       src: url('/s/fonts/{{ session.font }}');
     }
+    @elseif(typeof default_font !== 'undefined' && default_font && default_font.length > 0)
+    {{ "@" }}font-face {
+      font-family: 'SiteDefaultFont';
+      src: url('/s/fonts/{{ default_font }}');
+    }
     @endif
     :root {
       @if(session && session.font)
       --font: 'CustomUserFont', monospace !important;
       @elseif(typeof default_font !== 'undefined' && default_font && default_font.length > 0)
-      --font: {{ default_font }} !important;
+      --font: 'SiteDefaultFont', monospace !important;
       @endif
     }
     @if(session && session.font)
@@ -34,7 +39,7 @@
     }
     @elseif(typeof default_font !== 'undefined' && default_font && default_font.length > 0)
     *:not(canvas):not(.meme-title):not(.force-impact):not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.fa-light):not(.fa-thin):not(.fa-duotone):not([class*=" fa-"]):not([class^="fa-"]) {
-      font-family: {{ default_font }} !important;
+      font-family: 'SiteDefaultFont', monospace !important;
     }
     /* Explicitly protect FA pseudo-elements */
     .fa-solid::before, .fa-regular::before, .fa-brands::before,
