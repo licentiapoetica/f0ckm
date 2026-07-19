@@ -2119,8 +2119,100 @@ body.layout-modern .global-sidebar-right {
   font-size: 1.5em;
 }
 
-/* Mobile Stacking for Legacy Mode (max-width: 999px) */
+/* Mobile sidebar (max-width: 999px): sidebar fixed, capped to viewport width */
 @media (max-width: 999px) {
+  /* Sidebar itself: cap width to viewport, always right-anchored */
+  .item-sidebar-right,
+  .index-sidebar-right,
+  .global-sidebar-right {
+    width: min(280px, 80vw) !important;
+    right: 0 !important;
+  }
+
+  body.sidebar-right-hidden .item-sidebar-right,
+  body.sidebar-right-hidden .index-sidebar-right,
+  body.sidebar-right-hidden .global-sidebar-right {
+    right: calc(-1 * min(280px, 80vw)) !important;
+  }
+
+  /* Mobile: pagination centered in available space (left of sidebar) */
+  .pagination-container-fluid {
+    right: min(280px, 80vw) !important;
+    transition: right 0.3s ease-in-out !important;
+  }
+
+  /* Sidebar hidden: pagination expands to full viewport width */
+  body.sidebar-right-hidden .pagination-container-fluid {
+    right: 0 !important;
+  }
+
+  #sidebar-right-toggle {
+    top: 80% !important;
+    transform: none !important;
+  }
+}
+
+/* 600–999px: sidebar is attached to the grid, same as desktop but with mobile width.
+   Grid reserves space for the sidebar so content is never hidden behind it. */
+@media (min-width: 600px) and (max-width: 999px) {
+  .index-layout-wrapper {
+    padding-right: min(280px, 80vw);
+  }
+
+  body.sidebar-right-hidden .index-layout-wrapper {
+    padding-right: 0;
+  }
+
+  /* Generic pagewrapper (non-index, non-item pages) also reserves space */
+  .pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)) {
+    padding-right: min(280px, 80vw);
+  }
+
+  body.sidebar-right-hidden
+  .pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)) {
+    padding-right: 0;
+  }
+
+  /* Item page: extend the desktop grid layout to 600px so the fixed sidebar
+     aligns naturally — col3 width = sidebar width, so content never overlaps. */
+  body.layout-modern .item-layout-container {
+    display: grid;
+    grid-template-columns: min(260px, 26vw) minmax(0, 1fr) min(280px, 80vw);
+    height: calc(100vh - var(--navbar-h, 50px));
+    width: 100%;
+    overflow: hidden;
+  }
+
+  body.layout-modern.sidebar-right-hidden .item-layout-container {
+    grid-template-columns: min(260px, 26vw) minmax(0, 1fr) 0px;
+  }
+
+  body.layout-modern .item-layout-container .item-main-content {
+    grid-column: 2;
+  }
+
+  body.layout-modern .item-sidebar-left {
+    grid-column: 1;
+  }
+
+  /* Legacy layout: 2-column grid at this range */
+  body.layout-legacy .item-layout-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) min(280px, 80vw);
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.layout-legacy.sidebar-right-hidden .item-layout-container {
+    grid-template-columns: minmax(0, 1fr) 0px;
+  }
+}
+
+/* Very small screens (≤599px): sidebar is always a pure overlay — never reserve space for it.
+   Wrappers stay at full width regardless of sidebar state; no transitions needed here.
+   Item view also switches to stacked layout here (not at 999px). */
+@media (max-width: 599px) {
+  /* Item view: stack content above comments/sidebar-left */
   .item-layout-container {
     display: flex;
     flex-direction: column;
@@ -2130,39 +2222,34 @@ body.layout-modern .global-sidebar-right {
 
   .item-layout-container .item-main-content {
     order: 1;
-    /* Main content (video) on top */
-    /* padding: 10px; */
   }
 
   .item-sidebar-left {
     order: 2;
-    /* Comments/Tags on bottom */
-    /* padding: 10px; */
     z-index: 1;
   }
 
-  /* Mobile Overrides if necessary — most styles now universal */
-  .item-sidebar-right,
-  .index-sidebar-right,
-  .global-sidebar-right {
-    width: 280px !important;
+  .index-layout-wrapper,
+  .item-layout-container,
+  .pagewrapper,
+  body.sidebar-right-hidden .index-layout-wrapper,
+  body.sidebar-right-hidden .item-layout-container,
+  body.sidebar-right-hidden .pagewrapper {
+    padding-right: 5px !important;
+    transition: none !important;
   }
 
-  body.sidebar-right-hidden .item-sidebar-right,
-  body.sidebar-right-hidden .index-sidebar-right,
-  body.sidebar-right-hidden .global-sidebar-right {
-    right: -280px !important;
-  }
-
-  /* Mobile: sidebar is an overlay, so pagination always spans full viewport */
   .pagination-container-fluid,
   body.sidebar-right-hidden .pagination-container-fluid {
     right: 0 !important;
+    transition: none !important;
   }
 
-  #sidebar-right-toggle {
-    top: 80% !important;
-    transform: none !important;
+  /* All sidebars hide/show instantly at this breakpoint — no slide animation */
+  .item-sidebar-right,
+  .index-sidebar-right,
+  .global-sidebar-right {
+    transition: none !important;
   }
 }
 
@@ -2958,7 +3045,8 @@ body.layout-legacy .scroll-nav-wrapper {
   right: -45px;
   width: 40px;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 0;
+  display: none;
 }
 
 body.layout-legacy .scroll-to-bottom {
@@ -4720,11 +4808,12 @@ body.layout-modern .pagination-container-fluid {
   min-width: 0;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1000px) {
 
   /* Reserve space for the fixed sidebar so content doesn't flow behind it */
   .index-layout-wrapper {
     padding-right: 300px;
+    transition: padding-right 0.3s ease-in-out;
   }
 
   /* Modern layout: wider sidebar */
@@ -7703,6 +7792,7 @@ div.posts>a.thumb > p {
     bottom: 5px;
     left: 5px;
     gap: 2px;
+    align-items: center;
 }
 
 /* Make individual item entry subtler and faster for infinite scroll */
@@ -9748,6 +9838,20 @@ html[theme="f0ck95d"] .badge-dark {
   }
 }
 
+/* At 600–999px: center the button in the free space left of the sidebar.
+   Shift left by half the sidebar width so transform:translateX(-50%) lands
+   at the center of the available area rather than the full viewport. */
+@media (min-width: 600px) and (max-width: 999px) {
+  .mobile-scroll-to-top {
+    left: calc(50% - min(140px, 40vw));
+    transition: left 0.3s ease-in-out;
+  }
+
+  body.sidebar-right-hidden .mobile-scroll-to-top {
+    left: 50%;
+  }
+}
+
 .steuerung.steuerung-icon .fa-solid {
   font-size: 0.85em;
 }
@@ -9924,9 +10028,10 @@ html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
   position: relative;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1000px) {
   .pagewrapper {
     padding-right: 300px;
+    transition: padding-right 0.3s ease-in-out;
   }
 
   body.layout-modern .pagewrapper {
@@ -9942,7 +10047,7 @@ html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
    Since Index and Item pages have their own layout wrappers that handle space reservation,
    we disable the generic pagewrapper padding on those pages to avoid "double padding" or broken expansion.
 */
-@media (min-width: 1200px) {
+@media (min-width: 1000px) {
 
   .pagewrapper:has(.index-layout-wrapper),
   .pagewrapper:has(.item-layout-container),
@@ -11071,8 +11176,7 @@ div.posts>a::after {
 
 
 .pin-indicator {
-  position: absolute;
-  top: 5px;
+  position: relative;
   left: 5px;
   font-size: 13px;
   fill: var(--accent);

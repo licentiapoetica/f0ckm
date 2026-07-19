@@ -2307,8 +2307,48 @@ window.cancelAnimFrame = (function () {
       hidden = hiddenValue === 'true';
     }
     document.body.classList.toggle('sidebar-right-hidden', hidden);
+
+    // Always force-hide on very small screens regardless of saved preference
+    if (window.innerWidth <= 599) {
+      document.body.classList.add('sidebar-right-hidden');
+    }
   };
   window.initSidebarRightToggle();
+
+  // Auto-hide sidebar on very small screens (≤599px), restore on wider
+  (() => {
+    const mq = window.matchMedia('(max-width: 599px)');
+    const applyBreakpoint = (e) => {
+      // Freeze transitions so the class change is instant (no sliding during resize)
+      const sidebar = document.querySelector('.global-sidebar-right, .item-sidebar-right, .index-sidebar-right');
+      const wrappers = document.querySelectorAll('.index-layout-wrapper, .item-layout-container, .pagination-container-fluid, .pagewrapper');
+      if (sidebar) sidebar.style.setProperty('transition', 'none', 'important');
+      wrappers.forEach(w => w.style.setProperty('transition', 'none', 'important'));
+
+      if (e.matches) {
+        // Entering narrow: force-hide without touching localStorage
+        document.body.classList.add('sidebar-right-hidden');
+      } else {
+        // Leaving narrow: restore from saved preference
+        const saved = localStorage.getItem('sidebarRightHidden');
+        const hidden = saved === 'true';
+        document.body.classList.toggle('sidebar-right-hidden', hidden);
+      }
+
+      // Force reflow then restore transitions
+      if (sidebar) void sidebar.offsetWidth;
+      requestAnimationFrame(() => {
+        if (sidebar) sidebar.style.removeProperty('transition');
+        wrappers.forEach(w => {
+          w.style.removeProperty('transition');
+          w.style.removeProperty('padding-right');
+          w.style.removeProperty('right');
+        });
+      });
+    };
+    mq.addEventListener('change', applyBreakpoint);
+    applyBreakpoint(mq); // run once on init
+  })();
 
   const loadPageAjax = async (url, replace = true, options = {}) => {
     if (isNavigating) return;
@@ -6281,8 +6321,10 @@ window.cancelAnimFrame = (function () {
         if (settled) return;
         settled = true;
 
-        // Freeze all transitions (override CSS !important) so the class toggle
-        // doesn't trigger an additional right-property animation.
+        // Freeze sidebar AND wrapper transitions so the class toggle
+        // doesn't trigger a second padding-right animation.
+        const wrappers = getSidebarWrappers();
+        wrappers.forEach(w => w.style.setProperty('transition', 'none', 'important'));
         sidebar.style.setProperty('transition', 'none', 'important');
 
         if (stateChanging) {
@@ -6300,6 +6342,11 @@ window.cancelAnimFrame = (function () {
         // Restore CSS-controlled transitions on the next frame
         requestAnimationFrame(() => {
           sidebar.style.removeProperty('transition');
+          wrappers.forEach(w => {
+            w.style.removeProperty('transition');
+            w.style.removeProperty('padding-right');
+            w.style.removeProperty('right');
+          });
           swipeRT.isDraggingSidebar = false;
         });
       };
@@ -6537,6 +6584,10 @@ window.cancelAnimFrame = (function () {
     const settle = () => {
       if (settled) return;
       settled = true;
+      // Freeze sidebar AND wrapper transitions so the class toggle
+      // doesn't trigger a second padding-right animation.
+      const wrappers = getSidebarWrappers();
+      wrappers.forEach(w => w.style.setProperty('transition', 'none', 'important'));
       sidebar.style.setProperty('transition', 'none', 'important');
 
       if (stateChanging) {
@@ -6549,6 +6600,11 @@ window.cancelAnimFrame = (function () {
       sidebar.style.transform = '';
       requestAnimationFrame(() => {
         sidebar.style.removeProperty('transition');
+        wrappers.forEach(w => {
+          w.style.removeProperty('transition');
+          w.style.removeProperty('padding-right');
+          w.style.removeProperty('right');
+        });
       });
     };
 
@@ -6616,14 +6672,52 @@ window.cancelAnimFrame = (function () {
   });
   window.addEventListener('resize', syncEdgeZone, { passive: true });
 
-  // Touchend on edgeZone: instant tap-to-toggle (no 300ms synthetic click delay)
+  // Returns true if (clientX, clientY) is within the pill's hit area.
+  // The pill is #sidebar-drag-zone::after — 4×40px, centered on pointer:fine,
+  // right-aligned with padding-right:6px on pointer:coarse.
+  const isWithinPillArea = (clientX, clientY) => {
+    const rect = edgeZone.getBoundingClientRect();
+    const pillH = 40;
+    const hitPad = 12; // generous padding so it's easy to hit
+    // Vertical: pill is always centered in the drag zone
+    const pillCenterY = rect.top + rect.height / 2;
+    if (clientY < pillCenterY - pillH / 2 - hitPad || clientY > pillCenterY + pillH / 2 + hitPad) return false;
+    // Horizontal: right-aligned on touch, centered on mouse
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+    const pillCenterX = isCoarse ? rect.right - 6 - 2 : rect.left + rect.width / 2;
+    return clientX >= pillCenterX - 2 - hitPad && clientX <= pillCenterX + 2 + hitPad;
+  };
+
+  // Touchend: tap on the pill toggles sidebar; rest of drag zone only responds to swipe
   edgeZone.addEventListener('touchend', e => {
-    // Only if it was a clean tap (no significant swipe movement)
     if (Math.abs(swipeRT.xDiff || 0) < 15 && Math.abs(swipeRT.yDiff || 0) < 15) {
-      e.preventDefault();
-      edgeZone.dispatchEvent(new Event('click'));
+      e.preventDefault(); // always prevent 300ms synthetic click
+      const touch = e.changedTouches[0];
+      if (touch && isWithinPillArea(touch.clientX, touch.clientY)) {
+        window.toggleSidebarRight();
+      }
     }
   }, { passive: false });
+
+  // Helper: all layout wrappers that have padding-right animated by sidebar state
+  const getSidebarWrappers = () => {
+    // At ≤999px: sidebar is a pure overlay — only pagination tracks it.
+    if (window.innerWidth <= 599) {
+      return document.querySelectorAll('.pagination-container-fluid');
+    }
+    // At ≥600px: exclude pagewrapper when a dedicated layout wrapper is present.
+    // CSS already zeroes pagewrapper.padding-right via :has on those pages,
+    // so including it here causes double-padding (pagewrapper + index-layout-wrapper both
+    // get 300px snapped, making the grid 600px too narrow, then jumping back on settle).
+    const hasDedicatedWrapper = !!(
+      document.querySelector('.index-layout-wrapper') ||
+      document.querySelector('.item-layout-container')
+    );
+    const sel = hasDedicatedWrapper
+      ? '.index-layout-wrapper, .pagination-container-fluid'
+      : '.pagination-container-fluid, .pagewrapper';
+    return document.querySelectorAll(sel);
+  };
 
   // Smoothly toggle sidebar open/closed
   window.toggleSidebarRight = () => {
@@ -6634,6 +6728,23 @@ window.cancelAnimFrame = (function () {
     const sidebarWidth = sidebar.offsetWidth || 300;
     const targetTranslate = isHidden ? -sidebarWidth : sidebarWidth;
 
+    // At ≤599px the sidebar is a pure overlay — never animate wrapper padding
+    const animateWrappers = window.innerWidth > 599;
+
+    // Grid/pagewrapper: snap instantly in both directions (no animated reflow).
+    // Pagination always animates — it tracks sidebar position with no reflow cost.
+    const wrappers = getSidebarWrappers();
+    if (animateWrappers) {
+      wrappers.forEach(w => {
+        const isPagination = w.classList.contains('pagination-container-fluid');
+        const prop = isPagination ? 'right' : 'padding-right';
+        const targetVal = isHidden ? sidebarWidth + 'px' : '0px';
+        w.style.setProperty('transition', isPagination ? `${prop} 0.3s ease-in-out` : 'none', 'important');
+        w.style.setProperty(prop, targetVal, 'important');
+      });
+      void sidebar.offsetWidth; // settle layout before sidebar transform begins
+    }
+
     sidebar.style.setProperty('transition', 'transform 0.3s ease-in-out', 'important');
     sidebar.style.transform = `translateX(${targetTranslate}px)`;
 
@@ -6641,13 +6752,22 @@ window.cancelAnimFrame = (function () {
     const settle = () => {
       if (settled) return;
       settled = true;
+      // Freeze wrapper transitions so the class commit doesn't re-trigger them
+      wrappers.forEach(w => w.style.setProperty('transition', 'none', 'important'));
       sidebar.style.setProperty('transition', 'none', 'important');
       const toHidden = !isHidden;
       document.body.classList.toggle('sidebar-right-hidden', toHidden);
       localStorage.setItem('sidebarRightHidden', toHidden);
       void sidebar.offsetWidth;
       sidebar.style.transform = '';
-      requestAnimationFrame(() => sidebar.style.removeProperty('transition'));
+      requestAnimationFrame(() => {
+        sidebar.style.removeProperty('transition');
+        wrappers.forEach(w => {
+          w.style.removeProperty('transition');
+          w.style.removeProperty('padding-right');
+          w.style.removeProperty('right');
+        });
+      });
     };
 
     const onEnd = ev => {
@@ -6659,9 +6779,11 @@ window.cancelAnimFrame = (function () {
     setTimeout(settle, 350);
   };
 
-  // Click on edgeZone: smoothly toggle sidebar open/closed
-  edgeZone.addEventListener('click', () => {
-    window.toggleSidebarRight();
+  // Click on edgeZone: only toggle when the click lands on the pill
+  edgeZone.addEventListener('click', (e) => {
+    if (isWithinPillArea(e.clientX, e.clientY)) {
+      window.toggleSidebarRight();
+    }
   });
   // </mouse-sidebar-drag>
 
