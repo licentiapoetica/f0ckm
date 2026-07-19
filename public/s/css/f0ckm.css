@@ -3256,6 +3256,7 @@ body.layout-legacy .scroll-to-bottom svg {
   font-size: 0.9em;
   opacity: 1;
   cursor: pointer;
+  vertical-align: top;
 }
 
 .comment-context-link:hover,
