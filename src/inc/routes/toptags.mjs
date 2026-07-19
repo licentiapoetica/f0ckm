@@ -95,7 +95,7 @@ export default (router, tpl) => {
     if (req.headers['x-requested-with'] === 'XMLHttpRequest' || query.ajax) {
       return res.json({
         success: true,
-        html: tpl.render('tag-cards', { toptags: tags, session: (req.session && req.session.user) ? { ...req.session } : false }, req),
+        html: tpl.render('tag-cards', { toptags: tags, user: req.session?.user ? { user: req.session.user } : null, session: (req.session && req.session.user) ? { ...req.session } : false }, req),
         currentPage: page,
         hasMore: tags.length === TAGS_PER_PAGE
       });
@@ -128,6 +128,7 @@ export default (router, tpl) => {
       phrase,
       tmp: null,
       hidePagination: true,
+      user: req.session?.user ? { user: req.session.user } : null,
       session: (req.session && req.session.user) ? { ...req.session } : false,
       page_meta: {
         title: 'Tags',
