@@ -4427,6 +4427,10 @@ window.cancelAnimFrame = (function () {
             if (window.renderTags) {
               window.renderTags(res.tags);
             }
+            // Evict the cached item HTML so navigating back fetches fresh content
+            if (window.invalidateItemCache) {
+              window.invalidateItemCache(postid);
+            }
           } else {
             revert();
             window.flashMessage('Error: ' + (res.msg || 'Failed to update rating'), 3000, 'error');
