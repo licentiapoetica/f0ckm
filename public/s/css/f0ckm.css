@@ -10208,7 +10208,7 @@ ol {
 }
 
 /* ── Mobile: ≤768px ── */
-@media (max-width: 768px) {
+@media (max-width: 800px) {
 
   /* Show hamburger */
   .navbar-toggler {
