@@ -2173,29 +2173,26 @@ body.layout-modern .global-sidebar-right {
     padding-right: 0;
   }
 
-  /* Item page: extend the desktop grid layout to 600px so the fixed sidebar
-     aligns naturally — col3 width = sidebar width, so content never overlaps. */
+  /* Restore layout-modern item stacking at 600–999px.
+     Its CSS grid only activates at ≥1000px; without flex-column here
+     the layout falls back to broken block flow. */
   body.layout-modern .item-layout-container {
-    display: grid;
-    grid-template-columns: min(260px, 26vw) minmax(0, 1fr) min(280px, 80vw);
-    height: calc(100vh - var(--navbar-h, 50px));
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    overflow: hidden;
-  }
-
-  body.layout-modern.sidebar-right-hidden .item-layout-container {
-    grid-template-columns: min(260px, 26vw) minmax(0, 1fr) 0px;
+    padding: 5px;
   }
 
   body.layout-modern .item-layout-container .item-main-content {
-    grid-column: 2;
+    order: 1;
   }
 
   body.layout-modern .item-sidebar-left {
-    grid-column: 1;
+    order: 2;
+    z-index: 1;
   }
 
-  /* Legacy layout: 2-column grid at this range */
+  /* Legacy layout: 2-column grid with mobile sidebar width. */
   body.layout-legacy .item-layout-container {
     display: grid;
     grid-template-columns: minmax(0, 1fr) min(280px, 80vw);
@@ -2250,6 +2247,13 @@ body.layout-modern .global-sidebar-right {
   .index-sidebar-right,
   .global-sidebar-right {
     transition: none !important;
+  }
+
+  /* layout-modern: force sidebar-right off-screen at ≤599px.
+     JS also adds sidebar-right-hidden, but this CSS rule is a reliable failsafe
+     that matches layout-legacy's always-hidden behavior at this width. */
+  body.layout-modern .item-sidebar-right {
+    right: calc(-1 * min(280px, 80vw)) !important;
   }
 }
 
