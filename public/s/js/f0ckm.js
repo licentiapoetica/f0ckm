@@ -6913,7 +6913,10 @@ window.cancelAnimFrame = (function () {
     // ── Edge zone & sync ────────────────────────────────────────────────────
     const syncLeftEdgeZone = () => {
       const { sb, layout } = getLS();
-      if (!sb || !layout || !document.body.classList.contains('layout-modern')) {
+      // The left drag zone only applies to the 3-column desktop grid (≥1000px).
+      // On mobile the sidebar becomes in-flow, so hide the zone to avoid it
+      // landing next to the right-sidebar drag zone on narrow screens.
+      if (!sb || !layout || !document.body.classList.contains('layout-modern') || window.innerWidth < 1000) {
         leftEdgeZone.style.display = 'none';
         leftEdgeZone.style.pointerEvents = 'none';
         return;
