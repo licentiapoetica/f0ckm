@@ -1727,7 +1727,7 @@ body.layout-modern .global-sidebar-right {
      ---------------------------------------------------------- */
   body.layout-modern .item-layout-container {
     display: grid;
-    grid-template-columns: min(300px, 30vw) minmax(0, 1fr) 300px;
+    grid-template-columns: min(350px, 30vw) minmax(0, 1fr) 350px;
     grid-template-rows: auto;
     flex: 1;
     height: calc(100vh - var(--navbar-h, 50px));
