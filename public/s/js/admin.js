@@ -155,7 +155,13 @@
       postid,
       existingTags: tags,
       anchorEl: anchor,
-      onSubmit: async (tag) => post("/api/v2/tags/" + postid, { tagname: tag }),
+      onSubmit: async (tag) => {
+        const res = await post("/api/v2/tags/" + postid, { tagname: tag });
+        if (res.success && window.invalidateItemCache) {
+          window.invalidateItemCache(postid);
+        }
+        return res;
+      },
       renderTags
     });
   };

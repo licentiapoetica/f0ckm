@@ -6973,6 +6973,19 @@ window.cancelAnimFrame = (function () {
   // Export loaders for external systems (like NotificationSystem)
   window.loadPageAjax = loadPageAjax;
   window.loadItemAjax = loadItemAjax;
+
+  // Invalidate all itemCacheMap entries that contain a given item ID.
+  // Call this after mutating an item (e.g. adding a tag) so the next
+  // AJAX navigation fetches fresh HTML instead of serving stale cache.
+  window.invalidateItemCache = (itemId) => {
+    if (!itemId) return;
+    const needle = `/${itemId}`;
+    for (const key of itemCacheMap.keys()) {
+      if (key.includes(needle)) {
+        itemCacheMap.delete(key);
+      }
+    }
+  };
   // Continued...
 
 const sbtForm = document.getElementById('sbtForm');
