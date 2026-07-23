@@ -13,8 +13,9 @@
 /* Meme Creator Styles */
 
 .meme-creator-container {
+    box-sizing: border-box !important;
     padding: 20px;
-    max-width: 1200px;
+    max-width: 100%;
     width: 100%;
     margin: 0 auto;
     position: relative;
@@ -238,22 +239,49 @@ canvas#memeCanvas {
     color: var(--white, #fff);
 }
 
-/* Mobile Stacking - Simple 2-Row Layout */
+/* Mobile Stacking - Clean Flexbox Column Layout */
 @media (max-width: 950px) {
     .meme-editor-layout {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        grid-template-rows: 0.6fr auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
         gap: 20px;
     }
     .meme-controls {
+        box-sizing: border-box !important;
         width: 100% !important;
-        grid-row: 2;
+        max-width: 100% !important;
         overflow: visible !important;
     }
     .canvas-wrapper {
+        box-sizing: border-box !important;
         width: 100% !important;
-        grid-row: 1;
+        max-width: 100% !important;
+        margin-bottom: 10px;
+        overflow: visible !important;
+        height: auto !important;
+    }
+}
+
+/* Stack early when sidebar is open (sidebar is 300px, so 950 + 300 = 1250px)
+   This prevents the canvas from shrinking too much when the sidebar takes space. */
+@media (max-width: 1250px) {
+    body:not(.sidebar-right-hidden) .meme-editor-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 20px;
+    }
+    body:not(.sidebar-right-hidden) .meme-controls {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+    }
+    body:not(.sidebar-right-hidden) .canvas-wrapper {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        max-width: 100% !important;
         margin-bottom: 10px;
         overflow: visible !important;
         height: auto !important;
@@ -294,20 +322,19 @@ canvas#memeCanvas {
 
 /* Sidebar space reservation for meme pages */
 .meme-layout-wrapper {
+    box-sizing: border-box !important;
     width: 100%;
-    transition: padding-right 0.3s ease-in-out;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1000px) {
     /* Reserve space for the fixed sidebar so content doesn't flow behind it */
-    .meme-layout-wrapper {
+    body:not(.sidebar-right-hidden) .meme-layout-wrapper {
         padding-right: 300px;
     }
-
-    /* Collapse reserved space when sidebar is hidden */
-    body.sidebar-right-hidden .meme-layout-wrapper {
-        padding-right: 0;
-    }
 }
 
+/* Collapse reserved space when sidebar is hidden */
+body.sidebar-right-hidden .meme-layout-wrapper {
+    padding-right: 0 !important;
+}
 

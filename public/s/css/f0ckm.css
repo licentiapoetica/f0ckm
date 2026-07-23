@@ -2252,7 +2252,9 @@ body.layout-modern .global-sidebar-right {
   /* layout-modern: force sidebar-right off-screen at ≤599px.
      JS also adds sidebar-right-hidden, but this CSS rule is a reliable failsafe
      that matches layout-legacy's always-hidden behavior at this width. */
-  body.layout-modern .item-sidebar-right {
+  body.layout-modern .item-sidebar-right,
+  body.layout-modern .index-sidebar-right,
+  body.layout-modern .global-sidebar-right {
     right: calc(-1 * min(280px, 80vw)) !important;
   }
 }
@@ -11507,11 +11509,12 @@ body.layout-legacy .navbar-header {
 }
 
 /* layout-modern: restore sidebar right-padding AND block-flow for generic pages
-   (profile, settings, subscriptions, etc.) — identical behaviour to layout-legacy.
-   Specialized pages (index, item, meme) manage their own layout, so exclude them. */
-@media (min-width: 1200px) {
+   (profile, settings, subscriptions, tags, etc.) — identical behaviour to layout-legacy.
+   Specialized pages (index, item, meme) manage their own layout, so exclude them.
+   Must be ≥1000px so the gap at 1000–1199px is covered. */
+@media (min-width: 1000px) {
   body.layout-modern>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)) {
-    padding-right: 400px;
+    padding-right: 300px;
   }
 
   body.layout-modern.sidebar-right-hidden>.pagewrapper:not(:has(.index-layout-wrapper)):not(:has(.item-layout-container)):not(:has(.meme-layout-wrapper)) {
@@ -13080,59 +13083,45 @@ body.layout-modern .tag-ac-input {
    Full-height chat layout — conversation page
    ══════════════════════════════════════════════════════════ */
 
-/* ── DESKTOP (> 768px): same pattern as the sidebar ───────
-   position:fixed takes it out of flow entirely — no pagewrapper
-   padding, no body scroll involvement, just viewport-anchored. */
-@media (min-width: 769px) {
-  .messages-convo-page {
-    position: fixed !important;
-    top: var(--navbar-h, 50px) !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 1;
-    display: flex !important;
-    flex-direction: column !important;
-    transition: right 0.3s ease-in-out;
-  }
+/* ── UNIVERSAL: position:fixed takes it out of flow entirely ───────
+   No pagewrapper padding, no body scroll involvement, just viewport-anchored. */
+.messages-convo-page {
+  position: fixed !important;
+  top: var(--navbar-h, 50px) !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: right 0.3s ease-in-out;
+}
 
-  @media (min-width: 1200px) {
-    body:not(.sidebar-right-hidden) .messages-convo-page {
-      right: 300px !important;
-    }
-    body.layout-modern:not(.sidebar-right-hidden) .messages-convo-page {
-      right: 400px !important;
-    }
-  }
-
-  /* Kill the layout-legacy pagewrapper min-height:100vh that causes body overflow */
-  body:has(.messages-convo-page) .pagewrapper {
-    min-height: 0 !important;
-    overflow: hidden;
+/* Desktop: 300px reserved space (both layouts) */
+@media (min-width: 1000px) {
+  body:not(.sidebar-right-hidden) .messages-convo-page {
+    right: 300px !important;
   }
 }
 
-/* ── MOBILE (≤ 768px): position:fixed pagewrapper ─────────
-   Works on mobile; locks the pagewrapper to the viewport. */
-@media (max-width: 768px) {
-
-  html:has(.messages-convo-page),
-  body:has(.messages-convo-page) {
-    height: 100%;
-    overflow: hidden;
+/* Attached Mobile: mobile sidebar width reserved space */
+@media (min-width: 600px) and (max-width: 999px) {
+  body:not(.sidebar-right-hidden) .messages-convo-page {
+    right: min(280px, 80vw) !important;
   }
+}
 
-  body:has(.messages-convo-page) .pagewrapper {
-    position: fixed;
-    top: var(--navbar-h, 50px);
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-  }
+/* Kill the pagewrapper min-height and overflow so body doesn't scroll behind it */
+html:has(.messages-convo-page),
+body:has(.messages-convo-page) {
+  height: 100%;
+  overflow: hidden;
+}
+
+body:has(.messages-convo-page) .pagewrapper {
+  min-height: 0 !important;
+  overflow: hidden;
+  padding: 0 !important;
 }
 
 /* ── Shared: convo pane is a flex column ──────────────────
@@ -13142,7 +13131,8 @@ body.layout-modern .tag-ac-input {
   overflow: hidden;
   padding: 0;
   max-width: 720px;
-  width: 100%;
+  /* Removed width: 100% here because it overconstrains the fixed element 
+     against left:0 and right:300px, causing negative margins and overlap. */
   margin: 0 auto;
   display: flex;
   flex-direction: column;

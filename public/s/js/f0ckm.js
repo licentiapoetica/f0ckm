@@ -6711,10 +6711,12 @@ window.cancelAnimFrame = (function () {
     // get 300px snapped, making the grid 600px too narrow, then jumping back on settle).
     const hasDedicatedWrapper = !!(
       document.querySelector('.index-layout-wrapper') ||
-      document.querySelector('.item-layout-container')
+      document.querySelector('.item-layout-container') ||
+      document.querySelector('.meme-layout-wrapper') ||
+      document.querySelector('.messages-convo-page')
     );
     const sel = hasDedicatedWrapper
-      ? '.index-layout-wrapper, .pagination-container-fluid'
+      ? '.index-layout-wrapper, .meme-layout-wrapper, .messages-convo-page, .pagination-container-fluid'
       : '.pagination-container-fluid, .pagewrapper';
     return document.querySelectorAll(sel);
   };
@@ -6737,9 +6739,15 @@ window.cancelAnimFrame = (function () {
     if (animateWrappers) {
       wrappers.forEach(w => {
         const isPagination = w.classList.contains('pagination-container-fluid');
-        const prop = isPagination ? 'right' : 'padding-right';
+        const isMessages = w.classList.contains('messages-convo-page');
+        
+        const prop = (isPagination || isMessages) ? 'right' : 'padding-right';
         const targetVal = isHidden ? sidebarWidth + 'px' : '0px';
-        w.style.setProperty('transition', isPagination ? `${prop} 0.3s ease-in-out` : 'none', 'important');
+        
+        // Lightweight layouts (pagination, messages) animate smoothly.
+        // Heavy/reflow-intensive layouts snap instantly to avoid reflow lag.
+        const shouldAnimate = (isPagination || isMessages);
+        w.style.setProperty('transition', shouldAnimate ? `${prop} 0.3s ease-in-out` : 'none', 'important');
         w.style.setProperty(prop, targetVal, 'important');
       });
       void sidebar.offsetWidth; // settle layout before sidebar transform begins
