@@ -3714,6 +3714,7 @@ html[theme="f0ck95"] img.avatar {
 html[theme="f0ck95"] ._204863 {
   content: " ";
   background: -webkit-linear-gradient(left, #08216b, #a5cef7);
+  background: linear-gradient(90deg, #08216b, #a5cef7);
   text-align: left;
   width: 100%;
   color: white;
@@ -3723,6 +3724,31 @@ html[theme="f0ck95"] ._204863 {
   border-right: outset 2px silver;
   border-bottom: outset 2px silver;
   line-height: 1.7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+  box-sizing: border-box;
+}
+
+html[theme="f0ck95"] ._204863 .location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+html[theme="f0ck95"] ._204863 .location::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-image: url('/s/img/favicon.gif');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  flex-shrink: 0;
 }
 
 html[theme="f0ck95"] .iconset#a_delete {
@@ -3850,6 +3876,7 @@ html[theme="f0ck95d"] ._error_topbar {
 html[theme="f0ck95d"] ._204863 {
   content: " ";
   background: -webkit-linear-gradient(left, #0e111a, #073c71);
+  background: linear-gradient(90deg, #0e111a, #073c71);
   text-align: left;
   width: 100%;
   color: white;
@@ -3859,6 +3886,30 @@ html[theme="f0ck95d"] ._204863 {
   border-right: outset 2px silver;
   border-bottom: outset 2px silver;
   line-height: 1.7;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  box-sizing: border-box;
+}
+
+html[theme="f0ck95d"] ._204863 .location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+html[theme="f0ck95d"] ._204863 .location::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-image: url('/s/img/favicon.gif');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  flex-shrink: 0;
 }
 
 html[theme="f0ck95d"] .embed-responsive-image {
