@@ -3903,6 +3903,8 @@ html[theme="f0ck95d"] .embed-responsive-image {
 html[theme="f0ck95d"] .media-object {
   border-left: 2px solid gray;
   border-right: 2px solid gray;
+  background: black;
+  border-bottom: 2px solid gray;
 }
 
 
