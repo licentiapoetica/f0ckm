@@ -3742,7 +3742,7 @@ html[theme="f0ck95"] ._204863 .location::before {
   display: inline-block;
   width: 16px;
   height: 16px;
-  background-image: url('/s/img/favicon.gif');
+  background-image: var(--favicon-url, url('/s/img/favicon.gif'));
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -3903,7 +3903,7 @@ html[theme="f0ck95d"] ._204863 .location::before {
   display: inline-block;
   width: 16px;
   height: 16px;
-  background-image: url('/s/img/favicon.gif');
+  background-image: var(--favicon-url, url('/s/img/favicon.gif'));
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;

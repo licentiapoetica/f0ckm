@@ -22,6 +22,7 @@
     }
     @endif
     :root {
+      --favicon-url: url('@if(custom_favicon && custom_favicon.length > 0){{ custom_favicon }}@else/s/img/favicon.gif@endif');
       @if(session && session.font)
       --font: 'CustomUserFont', monospace !important;
       @elseif(typeof default_font !== 'undefined' && default_font && default_font.length > 0)
