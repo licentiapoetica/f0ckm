@@ -4819,7 +4819,6 @@ body.layout-modern .pagination-container-fluid {
   /* Reserve space for the fixed sidebar so content doesn't flow behind it */
   .index-layout-wrapper {
     padding-right: 300px;
-    transition: padding-right 0.3s ease-in-out;
   }
 
   /* Modern layout: wider sidebar */
@@ -10042,7 +10041,6 @@ html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
 @media (min-width: 1000px) {
   .pagewrapper {
     padding-right: 300px;
-    transition: padding-right 0.3s ease-in-out;
   }
 
   body.layout-modern .pagewrapper {
