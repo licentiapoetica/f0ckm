@@ -54,7 +54,7 @@ class CommentSystem {
                 document.body.classList.remove('sidebar-left-hidden');
                 const layout = this.container.closest('.item-layout-container');
                 if (layout) layout.classList.remove('sidebar-hidden');
-            } else if (isHidden) {
+            } else if (isHidden && (window.innerWidth >= 1000 || !document.body.classList.contains('layout-modern'))) {
                 this.container.classList.add('faded-out');
                 this.container.style.display = 'none';
                 document.body.classList.add('sidebar-left-hidden');
@@ -3808,9 +3808,12 @@ class CommentSystem {
     toggleComments() {
         if (!this.container) return;
 
-        if (document.body.classList.contains('layout-modern') && typeof window.toggleSidebarLeft === 'function') {
-            window.toggleSidebarLeft();
-            return;
+        if (document.body.classList.contains('layout-modern')) {
+            if (window.innerWidth < 1000) return;
+            if (typeof window.toggleSidebarLeft === 'function') {
+                window.toggleSidebarLeft();
+                return;
+            }
         }
 
         const layout = this.container.closest('.item-layout-container');

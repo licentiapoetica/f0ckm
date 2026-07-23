@@ -6811,7 +6811,9 @@ window.cancelAnimFrame = (function () {
     });
 
     const isLSActive = () =>
-      document.body.classList.contains('layout-modern') && !!document.querySelector('.item-sidebar-left');
+      document.body.classList.contains('layout-modern') &&
+      !!document.querySelector('.item-sidebar-left') &&
+      window.innerWidth >= 1000;
 
     // Prepare sidebar for drag — keeps it in the CSS grid so overflow:hidden clips translateX.
     // OPEN: removes sidebar-hidden/display:none, places sidebar at translateX(-sw), reflows twice.
@@ -7070,6 +7072,7 @@ window.cancelAnimFrame = (function () {
     };
 
     window.toggleSidebarLeft = () => {
+      if (window.innerWidth < 1000) return;
       const { sb, layout } = getLS();
       if (!sb || !layout) return;
       const isHidden = layout.classList.contains('sidebar-hidden');
