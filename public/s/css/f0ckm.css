@@ -2241,23 +2241,9 @@ body.layout-modern .global-sidebar-right {
     right: 0 !important;
     transition: none !important;
   }
-
-  /* All sidebars hide/show instantly at this breakpoint — no slide animation */
-  .item-sidebar-right,
-  .index-sidebar-right,
-  .global-sidebar-right {
-    transition: none !important;
-  }
-
-  /* layout-modern: force sidebar-right off-screen at ≤599px.
-     JS also adds sidebar-right-hidden, but this CSS rule is a reliable failsafe
-     that matches layout-legacy's always-hidden behavior at this width. */
-  body.layout-modern .item-sidebar-right,
-  body.layout-modern .index-sidebar-right,
-  body.layout-modern .global-sidebar-right {
-    right: calc(-1 * min(280px, 80vw)) !important;
-  }
 }
+
+
 
 
 .item-layout-container .item-main-content>._204863,
@@ -3860,8 +3846,8 @@ html[theme='f0ck95d'] {
 
 html[theme="f0ck95d"] .item_title {
   background: black;
-  border-left: inset 3px silver;
-  border-right: outset 3px silver;
+  border-left: 2px solid gray;
+  border-right: 2px solid gray;
 }
 
 html[theme="f0ck95d"] .err {
@@ -3881,10 +3867,7 @@ html[theme="f0ck95d"] ._204863 {
   width: 100%;
   color: white;
   height: auto;
-  border-left: inset 2px silver;
-  border-top: inset 2px silver;
-  border-right: outset 2px silver;
-  border-bottom: outset 2px silver;
+  border: 2px solid gray;
   line-height: 1.7;
   display: flex;
   align-items: center;
@@ -3918,15 +3901,11 @@ html[theme="f0ck95d"] .embed-responsive-image {
 }
 
 html[theme="f0ck95d"] .media-object {
-  border-left: inset 3px silver;
-  border-right: outset 3px silver;
+  border-left: 2px solid gray;
+  border-right: 2px solid gray;
 }
 
-html[theme="f0ck95d"] .embed-responsive.embed-responsive-16by9 {
-  background: black;
-  border-left: inset 1px silver;
-  border-right: outset 1px silver;
-}
+
 
 html[theme="f0ck95d"] .embed-responsive-image {
   border: none;
@@ -4040,6 +4019,11 @@ html[theme="f0ck95d"] .badge-danger {
 
 html[theme="f0ck95d"] .admin-search button {
   color: black;
+}
+
+html[theme="f0ck95d"] .embed-responsive.embed-responsive-16by9 {
+  background: black;
+  border-bottom: 2px solid gray;
 }
 
 /* fullscreen */
@@ -10052,14 +10036,6 @@ html[theme="orange"] .image-brand {
     max-width: 100vw;
     overflow-x: clip;
   }
-}
-
-html[theme="f0ck95d"] .embed-responsive.embed-responsive-16by9 {
-  border-bottom: outset 2px silver;
-}
-
-html[theme="f0ck95"] .embed-responsive.embed-responsive-16by9 {
-  border-bottom: outset 2px silver;
 }
 
 /* Fade in video on page load */
