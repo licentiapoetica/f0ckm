@@ -9636,77 +9636,16 @@ body.layout-legacy .comment-content img.emoji {
   max-width: 200px;
 }
 
-@keyframes flashGreen {
-  0% {
-    background-color: rgba(var(--accent-rgb), 0.3);
-  }
-
-  100% {
-    background-color: var(--item-bg);
-  }
-}
-
-@keyframes newItemFlash {
-  0% {
-    border-left-color: var(--accent);
-    background: rgba(var(--accent-rgb), 0.15);
-  }
-
-  60% {
-    border-left-color: var(--accent);
-    background: rgba(var(--accent-rgb), 0.05);
-  }
-
-  100% {
-    border-left-color: transparent;
-    background: transparent;
-  }
-}
-
 .new-item-fade {
-  animation: newItemFlash 2.5s ease forwards;
-  border-left: 3px solid transparent;
+  box-shadow: inset 3px 0px 0px var(--accent);
 }
 
 .sidebar-activity .new-item-fade {
-  border-left: none;
-  animation: none;
+  box-shadow: none;
 }
 
-/* Comment posted by the current user — fades in + accent border that auto-disappears */
-@keyframes commentEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(6px);
-    border-left-color: var(--accent);
-    background: rgba(var(--accent-rgb), 0.15);
-  }
 
-  20% {
-    opacity: 1;
-    transform: translateY(0);
-    border-left-color: var(--accent);
-    background: rgba(var(--accent-rgb), 0.15);
-  }
 
-  60% {
-    background: rgba(var(--accent-rgb), 0.05);
-  }
-
-  70% {
-    border-left-color: var(--accent);
-    background: transparent;
-  }
-
-  100% {
-    border-left-color: transparent;
-  }
-}
-
-.comment-entering {
-  animation: commentEnter 7.5s ease forwards;
-  border-left: 3px solid transparent;
-}
 
 .comment-highlighted {
   box-shadow: inset 3px 0px 0px var(--accent) !important;

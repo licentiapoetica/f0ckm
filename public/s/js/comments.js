@@ -858,26 +858,14 @@ class CommentSystem {
      * border-right) is fully restored after the effect completes.
      *
      * @param {Element} el       - The .comment element to animate.
-     * @param {boolean} entering - True to also add 'comment-entering' (own post);
-     *                             false for 'new-item-fade' only (live others).
+     * @param {boolean} entering - Unused (kept for compatibility).
      */
     static _animateNewComment(el, entering = false) {
         if (!el) return;
-
-        const classes = entering
-            ? ['comment-entering', 'new-item-fade']
-            : ['new-item-fade'];
-
-        // Reset in case the element already has a stale animation
-        classes.forEach(c => el.classList.remove(c));
-        void el.offsetWidth; // force reflow so re-adding the class restarts the animation
-
-        classes.forEach(c => el.classList.add(c));
-
-        const cleanup = () => {
-            classes.forEach(c => el.classList.remove(c));
-        };
-        el.addEventListener('animationend', cleanup, { once: true });
+        el.classList.add('new-item-fade');
+        setTimeout(() => {
+            el.classList.remove('new-item-fade');
+        }, 2500);
     }
 
 
@@ -893,7 +881,6 @@ class CommentSystem {
             if (el) {
                 // Remove highlight from any previously highlighted or newly-posted comment
                 document.querySelectorAll('.comment-highlighted').forEach(c => c.classList.remove('comment-highlighted'));
-                document.querySelectorAll('.comment-entering').forEach(c => c.classList.remove('comment-entering'));
                 document.querySelectorAll('.new-item-fade').forEach(c => c.classList.remove('new-item-fade'));
 
                 // Always smooth-scroll so there's no jarring jump
@@ -1039,7 +1026,7 @@ class CommentSystem {
         preview.dataset.id = targetId;
 
         // Remove temporary animation/highlight classes
-        preview.classList.remove('new-item-fade', 'comment-highlighted', 'comment-entering');
+        preview.classList.remove('new-item-fade', 'comment-highlighted');
 
         // Remove input forms or action buttons
         const actions = preview.querySelector('.comment-actions');
