@@ -596,7 +596,7 @@ class CommentSystem {
                 if (cached) cached.content = fullContent;
             }
 
-            contentEl.dataset.raw = this.escapeHtml(fullContent);
+            contentEl.dataset.raw = fullContent;
             contentEl.innerHTML = this.renderCommentContent(fullContent, commentId);
             CommentSystem.autoplayConvertedGifs(contentEl);
             CommentSystem.playEmojiVideos(contentEl);
@@ -622,6 +622,7 @@ class CommentSystem {
 
         const contentEl = el.querySelector('.comment-content');
         if (contentEl) {
+            contentEl.dataset.raw = data.content;
             contentEl.innerHTML = this.renderCommentContent(data.content, data.comment_id);
             CommentSystem.autoplayConvertedGifs(contentEl);
             CommentSystem.playEmojiVideos(contentEl);
@@ -1173,7 +1174,12 @@ class CommentSystem {
             const contentEl = body.querySelector('.comment-content');
             if (contentEl) {
                 const LINE_MAX = 200;
-                const rawText = (contentEl.dataset.raw || '').trim();
+                let rawText = (contentEl.dataset.raw || '').trim();
+                if (rawText.includes('&gt;') || rawText.includes('&lt;') || rawText.includes('&amp;')) {
+                    const txt = document.createElement('textarea');
+                    txt.innerHTML = rawText;
+                    rawText = txt.value;
+                }
                 // Preserve all lines but cap any single line exceeding LINE_MAX chars
                 const lines = rawText.split('\n').map(line =>
                     line.length > LINE_MAX ? line.substring(0, LINE_MAX) + '\u2026' : line
@@ -1794,7 +1800,7 @@ class CommentSystem {
                     const renderedContent = quoteEmojis
                         ? quoteContent.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n))
                         : quoteContent;
-                    return `<span class="greentext">&gt;${renderedContent}</span>`;
+                    return `<span class="greentext">&gt;${renderedContent.replace(/>/g, '&gt;')}</span>`;
                 }
 
                 // 2. Per-line limit to prevent marked.parse recursion on single giant lines
@@ -2199,7 +2205,7 @@ class CommentSystem {
         if (!unsafe) return '';
         const div = document.createElement('div');
         div.textContent = unsafe;
-        return div.innerHTML;
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     renderCommentAttachments(files, content = '') {
@@ -3336,9 +3342,15 @@ class CommentSystem {
                     params.append('has_poll', '1');
                 }
 
+                const csrfToken = window.f0ckSession?.csrf_token || '';
+                if (csrfToken) params.append('csrf_token', csrfToken);
+
                 const res = await fetch('/api/comments', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+                    },
                     body: params
                 });
 

@@ -2119,7 +2119,12 @@
     const contentEl = commentEl.querySelector('.comment-content');
     if (!contentEl) return;
 
-    const raw = (contentEl.dataset.raw || '').replace(/<br\s*\/?>/gi, '\n').trim();
+    let raw = (contentEl.dataset.raw || '').replace(/<br\s*\/?>/gi, '\n').trim();
+    if (raw.includes('&gt;') || raw.includes('&lt;') || raw.includes('&amp;')) {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = raw;
+      raw = txt.value;
+    }
     const lines = raw.split('\n');
     const quote = `>>${id}\n${lines.map(line => `>${line}`).join('\n')}\n`;
 
@@ -2787,11 +2792,16 @@
       if (!content || !commentsItemId || commentsPosting) return;
       commentsPosting = true; commentSendBtn.disabled = true;
       try {
+        const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
         let postBody = `item_id=${commentsItemId}&content=${encodeURIComponent(content)}`;
         if (replyToCommentId) postBody += `&parent_id=${replyToCommentId}`;
+        if (csrfToken) postBody += `&csrf_token=${encodeURIComponent(csrfToken)}`;
         const resp = await fetch('/api/comments', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+          },
           body: postBody
         });
         const data = await resp.json();
@@ -3658,7 +3668,11 @@
       if (sMarkAll) {
         sMarkAll.addEventListener('click', async () => {
           try {
-            await fetch('/api/notifications/read', { method: 'POST' });
+            const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
+            await fetch('/api/notifications/read', {
+              method: 'POST',
+              headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) }
+            });
             updateScrollerNotifBadge(0);
             sCachedNotifs = sCachedNotifs.map(n => ({ ...n, is_read: true }));
             updateScrollerTabBadges(sCachedNotifs);
@@ -3673,7 +3687,12 @@
         if (!item) return;
         const nid = item.dataset.id;
         if (nid && item.classList.contains('unread')) {
-          fetch(`/api/notifications/${nid}/read`, { method: 'POST', keepalive: true }).catch(() => {});
+          const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
+          fetch(`/api/notifications/${nid}/read`, {
+            method: 'POST',
+            keepalive: true,
+            headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) }
+          }).catch(() => {});
           item.classList.remove('unread');
           // Update cache
           const cached = sCachedNotifs.find(n => String(n.id) === String(nid));

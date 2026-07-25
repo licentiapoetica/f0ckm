@@ -3144,7 +3144,7 @@ body.layout-legacy .scroll-to-bottom svg {
   color: #888;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   line-height: normal;
   flex-wrap: nowrap;
   gap: 2px 10px;
@@ -3152,8 +3152,9 @@ body.layout-legacy .scroll-to-bottom svg {
 
 .comment-header-left {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 2px 6px;
   min-width: 0;
   flex-shrink: 1;
 }
@@ -3276,9 +3277,13 @@ body.layout-legacy .scroll-to-bottom svg {
 .comment-author {
   font-weight: bold;
   color: var(--accent);
-  margin-right: 8px;
+  margin-right: 2px;
   padding-right: 0 !important;
-  word-break: break-word;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .comment-time {
@@ -3337,6 +3342,7 @@ body.layout-legacy .scroll-to-bottom svg {
   opacity: 1;
   cursor: pointer;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 .comment-context-link:hover,
@@ -3400,10 +3406,7 @@ body.layout-legacy .scroll-to-bottom svg {
 }
 
 .comment-backlinks {
-  display: inline-block;
-  font-size: 0.85em;
-  opacity: 0.8;
-  margin-left: 10px;
+  display: contents;
 }
 
 .comments-header-actions {

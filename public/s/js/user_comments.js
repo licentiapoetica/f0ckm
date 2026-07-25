@@ -306,7 +306,7 @@ if (!window.UserCommentSystem) {
                 const trimmed = line.trimStart();
                 if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     const quoteContent = line.substring(line.indexOf('>') + 1);
-                    return `<span class="greentext">&gt;${quoteContent}</span>`;
+                    return `<span class="greentext">&gt;${quoteContent.replace(/>/g, '&gt;')}</span>`;
                 }
                 
                 // Per-line limit
@@ -450,7 +450,7 @@ if (!window.UserCommentSystem) {
         if (!unsafe) return '';
         const div = document.createElement('div');
         div.textContent = unsafe;
-        return div.innerHTML;
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 }
 }

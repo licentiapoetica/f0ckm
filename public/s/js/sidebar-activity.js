@@ -47,7 +47,7 @@
         if (!unsafe) return '';
         const div = document.createElement('div');
         div.textContent = unsafe;
-        return div.innerHTML;
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     };
 
     const playSidebarEmojiVideos = (container) => {
@@ -271,7 +271,7 @@
                     const rendered = quoteEmojis
                         ? quoteContent.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n))
                         : quoteContent;
-                    return `<span class="greentext">&gt;${rendered}</span>`;
+                    return `<span class="greentext">&gt;${rendered.replace(/>/g, '&gt;')}</span>`;
                 }
 
                 // Per-line limit to prevent marked.parse recursion on single giant lines
