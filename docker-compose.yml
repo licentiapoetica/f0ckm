@@ -99,6 +99,8 @@ services:
     container_name: f0ckm-nginx
     profiles:
       - f0ckm-nginx
+    environment:
+      - ENABLE_IPV6=true
     ports:
       - "80:80"
       - "443:443"
