@@ -16134,12 +16134,21 @@ body.scroller-active #gchat-reopen-bubble {
   color: #ccc;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 0.9em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .info-table td a {
   color: var(--accent, #9f0);
   text-decoration: none;
   font-weight: 600;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+#info-modal .modal-content .info-table td a {
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .info-table td a:hover {

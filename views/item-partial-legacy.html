@@ -296,7 +296,7 @@
                 @if(item.src.short)
                 <tr>
                     <th>{{ t('info_modal.source') || 'Source' }}</th>
-                    <td><a href="{{ item.src.long }}" target="_blank">{{ item.src.short }}</a></td>
+                    <td><a href="{{ item.src.long }}" target="_blank" style="word-break: break-all;">{{ item.src.short }}</a></td>
                 </tr>
                 @endif
             </table>
