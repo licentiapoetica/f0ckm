@@ -456,6 +456,15 @@ process.on('uncaughtException', err => {
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     // Encourage connection reuse — helps external tools like ShareX avoid repeated TCP/TLS handshakes
     res.setHeader('Connection', 'keep-alive');
+
+    // Tor Onion-Location header: advertises .onion service counterpart to Tor Browser users
+    if (cfg.main.onion && !req.headers['host']?.endsWith('.onion')) {
+      const p = req.url?.pathname || '/';
+      const s = req.url?.search || '';
+      const onionHost = cfg.main.onion.replace(/\/+$/, '');
+      res.setHeader('Onion-Location', `${onionHost}${p}${s}`);
+    }
+
     if (isSecure) {
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }

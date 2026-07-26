@@ -5,6 +5,7 @@
       "domain": "example.com",
       "regex": "example\\.com"
     },
+    "onion": "http://your-onion-address.onion",
     "socks": "socks5://127.0.0.1:9050",
     "mail": "admin@example.com",
     "maxfilesize": 104857600,
