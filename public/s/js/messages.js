@@ -1976,6 +1976,73 @@ if (window.__dmLoaded) {
             dmGridArea = document.createElement('div');
             dmGridArea.className = 'emoji-picker-grid';
 
+            // Helper: reliable touch handling for tab buttons on mobile (supports hold-to-action)
+            let lastDmHoldTime = 0;
+            const addDmTabTouch = (btn, cb, onHold) => {
+                let ts = null;
+                let holdTimer = null;
+                let holdFired = false;
+                btn.addEventListener('touchstart', (e) => {
+                    holdFired = false;
+                    ts = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    if (onHold) {
+                        holdTimer = setTimeout(() => {
+                            holdFired = true;
+                            lastDmHoldTime = Date.now();
+                            try { navigator.vibrate?.(40); } catch(err) {}
+                            onHold();
+                        }, 500);
+                    }
+                    e.stopPropagation();
+                }, { passive: true });
+
+                btn.addEventListener('touchmove', (e) => {
+                    if (!ts) return;
+                    const dx = Math.abs(e.touches[0].clientX - ts.x);
+                    const dy = Math.abs(e.touches[0].clientY - ts.y);
+                    if (dx > 10 || dy > 10) {
+                        clearTimeout(holdTimer);
+                        ts = null;
+                    }
+                }, { passive: true });
+
+                btn.addEventListener('touchend', (e) => {
+                    clearTimeout(holdTimer);
+                    if (holdFired) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        holdFired = false;
+                        ts = null;
+                        return;
+                    }
+                    if (!ts) return;
+                    const dx = Math.abs(e.changedTouches[0].clientX - ts.x);
+                    const dy = Math.abs(e.changedTouches[0].clientY - ts.y);
+                    ts = null;
+                    if (dx < 10 && dy < 10) { e.preventDefault(); cb(); }
+                });
+
+                btn.addEventListener('touchcancel', () => {
+                    clearTimeout(holdTimer);
+                    holdFired = false;
+                    ts = null;
+                });
+            };
+
+            const toggleDmFavDefault = (tabEl) => {
+                const KEY = 'f0ck_emoji_default_tab';
+                const isDefault = localStorage.getItem(KEY) === '__favs__';
+                if (isDefault) {
+                    localStorage.removeItem(KEY);
+                    tabEl.classList.remove('ep-tab-default');
+                    window._showEmojiToast?.('Favorites unset as default tab');
+                } else {
+                    localStorage.setItem(KEY, '__favs__');
+                    tabEl.classList.add('ep-tab-default');
+                    window._showEmojiToast?.('Favorites set as default tab');
+                }
+            };
+
             // ── Favorites tab ──
             const favsTab = document.createElement('button');
             favsTab.className = 'ep-tab ep-tab-favs';
@@ -1985,22 +2052,13 @@ if (window.__dmLoaded) {
             favsTab.innerHTML = '<i class="fa-solid fa-star" style="font-size:14px;color:var(--emoji-fav-color,#f5c518);"></i>';
             favsTab.addEventListener('mousedown', e => e.preventDefault());
             favsTab.addEventListener('click', () => showDmTab('__favs__', packs));
+            addDmTabTouch(favsTab, () => showDmTab('__favs__', packs), () => toggleDmFavDefault(favsTab));
             // Right-click on fav tab → set/unset as default
             favsTab.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (navigator.maxTouchPoints > 0) return;
-                const KEY = 'f0ck_emoji_default_tab';
-                const isDefault = localStorage.getItem(KEY) === '__favs__';
-                if (isDefault) {
-                    localStorage.removeItem(KEY);
-                    favsTab.classList.remove('ep-tab-default');
-                    window._showEmojiToast?.('Favorites unset as default tab');
-                } else {
-                    localStorage.setItem(KEY, '__favs__');
-                    favsTab.classList.add('ep-tab-default');
-                    window._showEmojiToast?.('Favorites set as default tab');
-                }
+                if (Date.now() - lastDmHoldTime < 1000) return;
+                toggleDmFavDefault(favsTab);
             });
             // Mark as default if already set
             if (localStorage.getItem('f0ck_emoji_default_tab') === '__favs__') {
@@ -2028,6 +2086,7 @@ if (window.__dmLoaded) {
                 }
                 tab.addEventListener('mousedown', e => e.preventDefault());
                 tab.addEventListener('click', () => showDmTab(pack.id ?? null, packs));
+                addDmTabTouch(tab, () => showDmTab(pack.id ?? null, packs));
                 dmTabBar.appendChild(tab);
             });
 
