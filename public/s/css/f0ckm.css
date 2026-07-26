@@ -4623,14 +4623,15 @@ span.placeholder {
   transition: right 0.3s ease-in-out;
 }
 
-/* Sidebar hidden — reclaim the full width */
-body.sidebar-right-hidden .pagination-container-fluid {
-  right: 0;
-}
-
 /* Modern layout: wider sidebar needs wider offset */
 body.layout-modern .pagination-container-fluid {
   right: 400px;
+}
+
+/* Sidebar hidden — reclaim the full width */
+body.sidebar-right-hidden .pagination-container-fluid,
+body.layout-modern.sidebar-right-hidden .pagination-container-fluid {
+  right: 0;
 }
 
 .bottom-pagination.fixed-pagination {

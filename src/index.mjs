@@ -457,8 +457,8 @@ process.on('uncaughtException', err => {
     // Encourage connection reuse — helps external tools like ShareX avoid repeated TCP/TLS handshakes
     res.setHeader('Connection', 'keep-alive');
 
-    // Tor Onion-Location header: advertises .onion service counterpart to Tor Browser users
-    if (cfg.main.onion && !req.headers['host']?.endsWith('.onion')) {
+    // Tor Onion-Location header: advertises .onion service counterpart to Tor Browser users when enabled
+    if (cfg.websrv?.enable_tor_hs !== false && cfg.main?.onion && !req.headers['host']?.endsWith('.onion')) {
       const p = req.url?.pathname || '/';
       const s = req.url?.search || '';
       const onionHost = cfg.main.onion.replace(/\/+$/, '');
