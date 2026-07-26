@@ -1237,7 +1237,7 @@ html[theme='95'] .item-main-content .metadata {
 
 .notif-count {
   position: absolute;
-  top: -5px;
+  top: 0;
   right: -5px;
   background: var(--badge-nsfw);
   color: white;
