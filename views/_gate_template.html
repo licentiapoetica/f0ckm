@@ -1,4 +1,3 @@
-@if(private_society && !session)
 <!doctype html>
 <html theme="@if(typeof theme !== 'undefined'){{ theme }}@else{{ default_theme || 'amoled' }}@endif">
 <head>
@@ -9,20 +8,18 @@
   <link rel="stylesheet" id="injected-gate-styles" href="/s/css/f0ckm.css?v={{ ts }}">
 </head>
 <body class="{{ default_layout === 'legacy' ? 'layout-legacy' : 'layout-modern' }}">
-
-  <!-- ═══════════════════════════════════════════════
-       YOUR GATE PAGE CONTENT GOES HERE
-       ═══════════════════════════════════════════════ -->
-  <div id="gate-container" style="display:none;">
-    @include(snippets/navbar)
-    @include(snippets/footer)
+       
+  <div class="wrapper" style="text-align: center;">
+      <h2>Example Gate</h2>
+      <button type="button" onclick="openLoginGate();">Login</button>
+      
+      <div id="gate-container" style="display:none;">
+          @include(snippets/navbar)
+          @include(snippets/footer)
+      </div>
   </div>
 
-<input id="clickMe" type="button" value="clickme" onclick="openLoginGate();" />
-
   <script>
-    // Call openLoginGate() from anywhere to show the login/register modal.
-    // The navbar/footer (and their modals) are lazily revealed on demand.
     function openLoginGate() {
       document.getElementById('gate-container').style.display = 'block';
       const tryOpen = () => {
@@ -36,16 +33,3 @@
 
 </body>
 </html>
-@else
-@include(snippets/header)
-<div class="pagewrapper">
-  <div id="main">
-    <!-- ═══════════════════════════════════════════════
-         YOUR PAGE PARTIAL GOES HERE
-         @include(your-partial)
-         ═══════════════════════════════════════════════ -->
-         penis :D
-  </div>
-</div>
-@include(snippets/footer)
-@endif
