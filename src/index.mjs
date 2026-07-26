@@ -345,7 +345,14 @@ const nginx502 = (cfg.websrv.private_society && cfg.websrv.private_society_gate 
   ? null
   : nginx502Fallback;
 
+// Custom gate template — resolved once at boot from config
+// Set private_society_gate: "custom" and private_society_gate_template: "your-template-name" (no .html)
+const _customGateTemplate = (cfg.websrv.private_society && cfg.websrv.private_society_gate === 'custom' && cfg.websrv.private_society_gate_template)
+  ? String(cfg.websrv.private_society_gate_template).replace(/\.html$/i, '')
+  : null;
+
 if (nginx502 === null) console.log('[BOOT] Private society gate: Cloudflare dynamic mode');
+if (_customGateTemplate)  console.log(`[BOOT] Private society gate: Custom template → views/${_customGateTemplate}.html (flummpress resolves extension)`);
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -839,18 +846,21 @@ process.on('uncaughtException', err => {
           req.url.pathname = '/private_society_bypass';
           return;
         }
-        // For page requests, return 502 Bad Gateway for all paths except homepage (which shows the gate)
-        if (req.url.pathname !== '/') {
+        // For page requests, serve the gate for all paths (custom template or fallback)
+        if (_customGateTemplate) {
+          res.writeHead(200, { 'Content-Type': 'text/html' }).end(tpl.render(_customGateTemplate, {}, req));
+        } else if (req.url.pathname !== '/') {
+          // Non-home paths: always show the static/cloudflare gate
           res.writeHead(200, { 'Content-Type': 'text/html' }).end(nginx502 ?? buildGatePage(req));
-          req.url.pathname = '/private_society_bypass';
-          return;
-        }
-        // Homepage: in cloudflare dynamic mode serve gate directly; otherwise fall through to template
-        if (nginx502 === null) {
+        } else if (nginx502 === null) {
+          // Homepage in cloudflare dynamic mode: serve the CF gate directly
           res.writeHead(200, { 'Content-Type': 'text/html' }).end(buildGatePage(req));
-          req.url.pathname = '/private_society_bypass';
+        } else {
+          // Homepage in plain nginx mode: fall through to index.html template
           return;
         }
+        req.url.pathname = '/private_society_bypass';
+        return;
       }
     }
   });

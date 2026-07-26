@@ -1,0 +1,51 @@
+@if(private_society && !session)
+<!doctype html>
+<html theme="@if(typeof theme !== 'undefined'){{ theme }}@else{{ default_theme || 'amoled' }}@endif">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ domain }}</title>
+  <link rel="icon" type="image/gif" href="/s/img/favicon.gif" />
+  <link rel="stylesheet" id="injected-gate-styles" href="/s/css/f0ckm.css?v={{ ts }}">
+</head>
+<body class="{{ default_layout === 'legacy' ? 'layout-legacy' : 'layout-modern' }}">
+
+  <!-- ═══════════════════════════════════════════════
+       YOUR GATE PAGE CONTENT GOES HERE
+       ═══════════════════════════════════════════════ -->
+  <div id="gate-container" style="display:none;">
+    @include(snippets/navbar)
+    @include(snippets/footer)
+  </div>
+
+<input id="clickMe" type="button" value="clickme" onclick="openLoginGate();" />
+
+  <script>
+    // Call openLoginGate() from anywhere to show the login/register modal.
+    // The navbar/footer (and their modals) are lazily revealed on demand.
+    function openLoginGate() {
+      document.getElementById('gate-container').style.display = 'block';
+      const tryOpen = () => {
+        const m = document.getElementById('login-modal');
+        if (m) { m.style.display = 'flex'; }
+        else { setTimeout(tryOpen, 50); }
+      };
+      tryOpen();
+    }
+  </script>
+
+</body>
+</html>
+@else
+@include(snippets/header)
+<div class="pagewrapper">
+  <div id="main">
+    <!-- ═══════════════════════════════════════════════
+         YOUR PAGE PARTIAL GOES HERE
+         @include(your-partial)
+         ═══════════════════════════════════════════════ -->
+         penis :D
+  </div>
+</div>
+@include(snippets/footer)
+@endif
