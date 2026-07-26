@@ -52,6 +52,9 @@ services:
     ports:
       - "9050:9050"
       - "8118:8118"
+    volumes:
+      - ./config/tor:/etc/tor:ro
+      - ./f0ckm-data/tor:/var/lib/tor:Z
     networks:
       - f0ckm-net
     restart: always
