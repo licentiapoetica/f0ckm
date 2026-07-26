@@ -319,7 +319,7 @@
             ModAction.confirm('Verify User', 'Manually verify account for <strong>' + escHTML(userName) + '</strong>?', async () => {
                 var res = await fetch('/api/v2/admin/users/activate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id })
                 });
                 var data = await res.json();
@@ -339,7 +339,7 @@
             ModAction.confirm('Ban User', 'Reason for banning <strong>' + escHTML(userName) + '</strong>?', async (reason) => {
                 var res = await fetch('/api/v2/admin/ban', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id, reason: reason, duration: 'permanent' })
                 });
                 var data = await res.json();
@@ -359,7 +359,7 @@
             ModAction.confirm('Unban User', 'Unban account for <strong>' + escHTML(userName) + '</strong>?', async () => {
                 var res = await fetch('/api/v2/admin/unban', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id })
                 });
                 var data = await res.json();
@@ -379,7 +379,7 @@
             ModAction.confirm('Delete Uploads', 'Are you SURE you want to delete ALL uploads by <strong>' + escHTML(userName) + '</strong>? This cannot be undone.', async () => {
                 var res = await fetch('/api/v2/admin/users/bulk-delete-items', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id, username: btn.dataset.username })
                 });
                 var data = await res.json();
@@ -398,7 +398,7 @@
             ModAction.confirm('Delete Comments', 'Are you SURE you want to delete ALL comments by <strong>' + escHTML(userName) + '</strong>? This will be permanent.', async () => {
                 var res = await fetch('/api/v2/admin/users/bulk-delete-comments', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id, username: btn.dataset.username })
                 });
                 var data = await res.json();
@@ -422,7 +422,7 @@
             ModAction.confirm('Set Display Name', hint, async (newName) => {
                 var res = await fetch('/api/v2/admin/users/set-display-name', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id, display_name: newName || '' })
                 });
                 var data = await res.json();
@@ -457,7 +457,7 @@
                 ModAction.confirm('Unlock Layout', 'Unlock comment layout for <strong>' + escHTML(userName) + '</strong>? They will be able to change it again.', async () => {
                     var res = await fetch('/api/v2/admin/users/lock-layout', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                         body: JSON.stringify({ user_id: id, lock: false })
                     });
                     var data = await res.json();
@@ -481,7 +481,7 @@
                     var mode = document.getElementById('force-mode-select').value;
                     var res = await fetch('/api/v2/admin/users/lock-layout', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                         body: JSON.stringify({ user_id: id, lock: true, mode: mode })
                     });
                     var data = await res.json();
@@ -616,7 +616,7 @@
             try {
                 var res = await fetch('/api/v2/admin/users/create', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ username, email: email || null, password, role })
                 });
                 var data = await res.json();
@@ -662,7 +662,7 @@
                 var role = selectEl.value;
                 var res = await fetch('/api/v2/admin/users/set-role', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
                     body: JSON.stringify({ user_id: id, role })
                 });
                 var data = await res.json();
