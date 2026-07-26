@@ -25,7 +25,8 @@ export default router => {
 
     group.post(/$/, lib.loggedin, async (req, res) => {
       // assign and/or create tag
-      if (!req.params.postid || !req.post.tagname) {
+      const rawTagname = req.post?.tagname || req.body?.tagname;
+      if (!req.params.postid || !rawTagname) {
         return res.json({
           success: false,
           msg: 'missing postid or tag'
@@ -33,7 +34,7 @@ export default router => {
       }
 
       const postid = +req.params.postid;
-      const tagname = req.post.tagname?.trim();
+      const tagname = rawTagname.trim();
       const protectedTags = ['sfw', 'nsfw', 'nsfl'];
 
       if (protectedTags.includes(tagname.toLowerCase())) {

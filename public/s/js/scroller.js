@@ -1000,9 +1000,10 @@
             e.stopPropagation();
             const itemId = slide.dataset.id;
             try {
+              const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
               const resp = await fetch(`/api/v2/tags/${itemId}/${encodeURIComponent(tag)}`, {
                 method: 'DELETE',
-                headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+                headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) }
               });
               const data = await resp.json();
               if (data.success) pill.remove();
@@ -1157,10 +1158,14 @@
       if (nowFaved) flashFav(slide);
     }
     try {
+      const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
       const resp = await fetch('/api/v2/togglefav', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `postid=${id}`
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+        },
+        body: `postid=${id}${csrfToken ? `&csrf_token=${encodeURIComponent(csrfToken)}` : ''}`
       });
       const data = await resp.json();
       // Sync count to server truth (handles race conditions)
@@ -1582,9 +1587,10 @@
           e.stopPropagation();
           const itemId = slide.dataset.id;
           try {
+            const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
             const resp = await fetch(`/api/v2/tags/${itemId}/${encodeURIComponent(t)}`, {
               method: 'DELETE',
-              headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+              headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) }
             });
             const data = await resp.json();
             if (data.success) pill.remove();
@@ -1850,11 +1856,12 @@
     else if (item.external_board === 'gif') rating = 'nsfw';
 
     try {
+      const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
       const resp = await fetch('/api/v2/scroller/rehost', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/x-www-form-urlencoded',
-          'x-csrf-token': window.scrollerCsrf || ''
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
         },
         body: new URLSearchParams({
           url: item.external_media_url || item.dest,
@@ -1966,9 +1973,10 @@
       showShareToast(info.toast);
     }
 
+    const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
     fetch(`/api/v2/tags/${id}/cycle-rating`, {
       method: 'PUT',
-      headers: { 'x-csrf-token': window.scrollerCsrf || '' }
+      headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) }
     })
       .then(r => r.json())
       .then(data => {
@@ -2909,10 +2917,14 @@
     if (addTagSendBtn) addTagSendBtn.disabled = true;
     closeSugg();
     try {
+      const csrfToken = window.f0ckSession?.csrf_token || window.scrollerCsrf || '';
       const resp = await fetch(`/api/v2/tags/${targetId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `tagname=${encodeURIComponent(tag)}`
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+        },
+        body: `tagname=${encodeURIComponent(tag)}${csrfToken ? `&csrf_token=${encodeURIComponent(csrfToken)}` : ''}`
       });
       const data = await resp.json();
       if (data.success) {
