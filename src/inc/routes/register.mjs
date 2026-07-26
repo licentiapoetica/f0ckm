@@ -167,8 +167,8 @@ export default (router, tpl) => {
             const avatarFile = 'default.png';
 
             await db`
-                insert into user_options (user_id, mode, theme, fullscreen, avatar, avatar_file, use_new_layout, disable_autoplay, disable_swiping)
-                values (${userId}, 3, 'amoled', 0, ${avatarId}, ${avatarFile}, ${getDefaultLayout() === 'modern'}, ${cfg.websrv.enable_autoplay === false}, ${cfg.websrv.enable_swiping === false})
+                insert into user_options (user_id, mode, theme, fullscreen, avatar, avatar_file, use_new_layout, disable_autoplay, disable_swiping, use_alternative_infobox)
+                values (${userId}, 3, 'amoled', 0, ${avatarId}, ${avatarFile}, ${getDefaultLayout() === 'modern'}, ${cfg.websrv.enable_autoplay === false}, ${cfg.websrv.enable_swiping === false}, ${cfg.websrv.user_alternative_infobox !== false})
             `;
         } catch (err) {
             console.error(`[REGISTER] DB Error during user creation:`, err);

@@ -1428,8 +1428,8 @@ export default (router, tpl) => {
       const userId = newUser[0].id;
 
       await db`
-        INSERT INTO user_options (user_id, mode, theme, fullscreen, avatar, avatar_file, use_new_layout, disable_autoplay, disable_swiping)
-        VALUES (${userId}, 3, 'amoled', 0, NULL, 'default.png', ${getDefaultLayout() === 'modern'}, ${cfg.websrv.enable_autoplay === false}, ${cfg.websrv.enable_swiping === false})
+        INSERT INTO user_options (user_id, mode, theme, fullscreen, avatar, avatar_file, use_new_layout, disable_autoplay, disable_swiping, use_alternative_infobox)
+        VALUES (${userId}, 3, 'amoled', 0, NULL, 'default.png', ${getDefaultLayout() === 'modern'}, ${cfg.websrv.enable_autoplay === false}, ${cfg.websrv.enable_swiping === false}, ${cfg.websrv.user_alternative_infobox !== false})
       `;
 
       await audit.log(req.session.id, 'admin_create_user', 'user', userId, {
