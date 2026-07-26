@@ -286,16 +286,21 @@ try {
 function buildGatePage(req) {
   if (!_cfRender) return nginx502Fallback;
 
-  let reqHost = cfg.main.url.domain;
+  let reqHost = null;
   if (req && req.headers) {
     const rawHost = req.headers['x-forwarded-host'] || req.headers['host'];
     if (rawHost) {
       const firstHost = rawHost.split(',')[0].trim();
+      let extracted = '';
       if (firstHost.startsWith('[')) {
         const closeBracket = firstHost.indexOf(']');
-        reqHost = closeBracket !== -1 ? firstHost.substring(1, closeBracket) : firstHost;
+        extracted = closeBracket !== -1 ? firstHost.substring(1, closeBracket) : firstHost;
       } else {
-        reqHost = firstHost.split(':')[0].trim();
+        extracted = firstHost.split(':')[0].trim();
+      }
+      const isLocalHost = ['localhost', '127.0.0.1', '::1', 'f0ckm', '0.0.0.0', 'localhost.localdomain'].includes(extracted.toLowerCase());
+      if (extracted && !isLocalHost) {
+        reqHost = extracted;
       }
     }
   }
