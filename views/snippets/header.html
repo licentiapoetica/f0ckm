@@ -2,7 +2,6 @@
 <html lang="{{ lang || 'en' }}" theme="@if(typeof theme !== 'undefined'){{ theme }}@endif" res="@if(typeof fullscreen !== 'undefined'){{ fullscreen == 1 ? 'fullscreen' : '' }}@endif">
 
 <head>
-  @if(enable_tor_hs && onion)<meta http-equiv="onion-location" content="{{ onion }}" />@endif
   @if(typeof page_meta !== 'undefined' && page_meta.title)<title>{{ domain }} - {{ page_meta.title }}</title>@elseif(typeof item !== 'undefined')<title>{{ domain }} - {{ item.id }}</title>@else<title>{{ domain }}</title>@endif
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0096ff">

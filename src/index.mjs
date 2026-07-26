@@ -331,15 +331,6 @@ function buildGatePage(req) {
     '<title>502: Bad Gateway</title>',
     `<title>${reqHost} | 502: Bad gateway</title>`
   );
-  // Inject Onion-Location meta tag into <head> for Tor Browser compatibility
-  if (cfg.websrv?.enable_tor_hs !== false && cfg.main?.onion && req && req.headers && !req.headers['host']?.endsWith('.onion')) {
-    const p = req.url?.pathname || '/';
-    const s = req.url?.search || '';
-    const onionHost = cfg.main.onion.replace(/\/+$/, '');
-    const onionUrl = `${onionHost}${p}${s}`;
-    html = html.replace('<head>', `<head>\n<meta http-equiv="onion-location" content="${onionUrl}">`);
-  }
-
   html = html.replace('</body>', gateLoginInjection + '\n</body>');
   return html;
 }
@@ -1334,8 +1325,6 @@ process.on('uncaughtException', err => {
     show_mime_picker: cfg.websrv.show_mime_picker !== false,
     private_society: cfg.websrv.private_society || false,
     private_society_gate: cfg.websrv.private_society_gate || '',
-    onion: cfg.main.onion || '',
-    enable_tor_hs: cfg.websrv.enable_tor_hs !== false,
     show_content_warning: cfg.websrv.show_content_warning !== false,
     web_url_upload: !!cfg.websrv.web_url_upload,
     enable_youtube_upload: cfg.websrv.enable_youtube_upload !== false,
