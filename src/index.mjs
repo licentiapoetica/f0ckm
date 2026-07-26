@@ -282,11 +282,35 @@ try {
 }
 
 // Called on every gated request — produces a fresh page with unique Ray ID + timestamp
-// Accepts an optional request object to inject the visitor's real IP into the footer reveal.
+// Accepts an optional request object to inject the visitor's real IP into the footer reveal and dynamic host into page text/title.
 function buildGatePage(req) {
   if (!_cfRender) return nginx502Fallback;
 
-  let html = _cfRender({ ...gateOptions, what_can_i_do: gateSignInButton });
+  let reqHost = cfg.main.url.domain;
+  if (req && req.headers) {
+    const rawHost = req.headers['x-forwarded-host'] || req.headers['host'];
+    if (rawHost) {
+      const firstHost = rawHost.split(',')[0].trim();
+      if (firstHost.startsWith('[')) {
+        const closeBracket = firstHost.indexOf(']');
+        reqHost = closeBracket !== -1 ? firstHost.substring(1, closeBracket) : firstHost;
+      } else {
+        reqHost = firstHost.split(':')[0].trim();
+      }
+    }
+  }
+  if (!reqHost) reqHost = cfg.main.url.domain;
+
+  const currentGateOptions = {
+    ...gateOptions,
+    host_status: {
+      ...gateOptions.host_status,
+      location: reqHost,
+    },
+    what_can_i_do: gateSignInButton,
+  };
+
+  let html = _cfRender(currentGateOptions);
 
   // Inject real visitor IP into the footer "Your IP: [Click to reveal]" span
   if (req) {
@@ -305,7 +329,7 @@ function buildGatePage(req) {
   // Patch the <title> to include the domain — matches real Cloudflare behaviour
   html = html.replace(
     '<title>502: Bad Gateway</title>',
-    `<title>${cfg.main.url.domain} | 502: Bad gateway</title>`
+    `<title>${reqHost} | 502: Bad gateway</title>`
   );
   html = html.replace('</body>', gateLoginInjection + '\n</body>');
   return html;
