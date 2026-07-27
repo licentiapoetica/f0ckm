@@ -49,6 +49,8 @@ services:
   tor:
     image: dockurr/tor
     container_name: tor
+    profiles:
+      - tor
     ports:
       - "9050:9050"
       - "8118:8118"

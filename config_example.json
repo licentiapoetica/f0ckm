@@ -62,6 +62,7 @@
     "show_koepfe": false,
     "hide_sidebar_default": true,
     "koepfe": [],
+    "enable_tor_hs": true,
     "enable_global_chat": true,
     "enable_danmaku": true,
     "private_messages": true,
@@ -133,6 +134,8 @@
     "open_registration_require_mail_andor_token": false,
     "private_society": false,
     "private_society_gate": "cloudflare",
+    "private_society_gate_location": "Frankfurt",
+    "private_society_gate_template": "_gate_template",
     "public_nsfw": false,
     "paths": {
       "images": "/b",
