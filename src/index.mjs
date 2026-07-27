@@ -1496,6 +1496,9 @@ process.on('uncaughtException', err => {
     }
 
     if (req) {
+      if (req.headers['host']?.endsWith('.onion')) {
+        data.recaptcha_enabled = false;
+      }
       if (req.mode !== undefined) data.mode = req.mode;
       data.theme = req.theme || req.cookies?.theme || cfg.websrv.theme || 'f0ck';
       if (!data.url) data.url = req.url;

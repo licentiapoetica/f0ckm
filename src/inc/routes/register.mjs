@@ -88,8 +88,9 @@ export default (router, tpl) => {
             return renderError("Passwords do not match.");
         }
 
-        // reCAPTCHA verification
-        if (cfg.recaptcha?.enabled && cfg.recaptcha?.secret_key) {
+        // reCAPTCHA verification (bypassed for .onion requests as Google reCAPTCHA cannot validate .onion domains)
+        const isOnion = req.headers['host']?.endsWith('.onion');
+        if (!isOnion && cfg.recaptcha?.enabled && cfg.recaptcha?.secret_key) {
             const rcToken = req.post['g-recaptcha-response'];
             if (!rcToken) return renderError("Please complete the reCAPTCHA.");
             try {
