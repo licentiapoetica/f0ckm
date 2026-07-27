@@ -49,7 +49,7 @@ const gateOptions = {
   },
   cloudflare_status: {
     status:      'ok',
-    location:    'Frankfurt',
+    location:    cfg.websrv.private_society_gate_location || 'Frankfurt',
     name:        'Cloudflare',
     status_text: 'Working',
   },
@@ -1340,6 +1340,7 @@ process.on('uncaughtException', err => {
     show_mime_picker: cfg.websrv.show_mime_picker !== false,
     private_society: cfg.websrv.private_society || false,
     private_society_gate: cfg.websrv.private_society_gate || '',
+    private_society_gate_location: cfg.websrv.private_society_gate_location || 'Frankfurt',
     show_content_warning: cfg.websrv.show_content_warning !== false,
     web_url_upload: !!cfg.websrv.web_url_upload,
     enable_youtube_upload: cfg.websrv.enable_youtube_upload !== false,
