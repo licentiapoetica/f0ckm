@@ -81,7 +81,7 @@ uncomment in .env # COMPOSE_PROFILES=f0ckm-nginx to enable nginx proxy with auto
 
 ## Tor Hidden Service (.onion)
 
-Tor is bundled in `docker-compose.yml` and preconfigured with a hidden service pointing to the application (`f0ckm:1337`).
+Tor is bundled in `docker-compose.yml` and preconfigured as long as COMPOSE_PROFILES=f0ckm-tor is set with a hidden service pointing to the application (`f0ckm:1337`).
 
 When running `docker compose up -d`, Tor automatically generates a `.onion` address for your node. You can find your onion address by running:
 
@@ -90,6 +90,7 @@ cat ./f0ckm-data/tor/f0ckm_hs/hostname
 ```
 
 ### Automatic Onion-Location Header
+
 To advertise your `.onion` address to Tor Browser users visiting your clearnet site, add your `.onion` address to `config.json`:
 
 ```json
@@ -97,6 +98,3 @@ To advertise your `.onion` address to Tor Browser users visiting your clearnet s
   "onion": "http://yourgeneratedaddress.onion"
 }
 ```
-
-When set, Tor Browser users visiting the HTTPS clearweb site will see a purple **".onion available"** pill in the address bar.
-
