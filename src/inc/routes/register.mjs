@@ -89,7 +89,7 @@ export default (router, tpl) => {
         }
 
         // reCAPTCHA verification (bypassed for .onion requests as Google reCAPTCHA cannot validate .onion domains)
-        const isOnion = req.headers['host']?.endsWith('.onion');
+        const isOnion = lib.isOnionRequest(req);
         if (!isOnion && cfg.recaptcha?.enabled && cfg.recaptcha?.secret_key) {
             const rcToken = req.post['g-recaptcha-response'];
             if (!rcToken) return renderError("Please complete the reCAPTCHA.");

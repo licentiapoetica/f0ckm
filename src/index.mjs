@@ -79,11 +79,13 @@ const nginx502Fallback = `<html>
 </html>`;
 
 // Login + Register modal injected before </body>
-// This string is built at startup so it can reference cfg.recaptcha values.
+// Dynamic function so reCAPTCHA can be bypassed for .onion requests
 const _rcEnabled = !!(cfg.recaptcha && cfg.recaptcha.enabled && cfg.recaptcha.site_key);
 const _rcSiteKey = (cfg.recaptcha && cfg.recaptcha.site_key) || '';
 
-const gateLoginInjection = `
+function getGateLoginInjection(req) {
+  const rcEnabled = _rcEnabled && !lib.isOnionRequest(req);
+  return `
 <div id="hot-corner" style="position:fixed;bottom:0;left:0;width:20px;height:20px;z-index:9999;"></div>
 
 <div id="gate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
@@ -123,7 +125,7 @@ const gateLoginInjection = `
         <input type="text" name="token" placeholder="Invite token" autocomplete="off"
           style="background:white;color:black;border:1px solid #bbb;padding:7px 10px;width:100%;box-sizing:border-box;font-size:14px;font-family:inherit;" />
         <input type="text" name="email_confirm_field" style="display:none !important;" tabindex="-1" autocomplete="off" />
-        ${_rcEnabled ? '<div id="gate-recaptcha" style="margin:4px 0;transform-origin:left top;"></div>' : ''}
+        ${rcEnabled ? '<div id="gate-recaptcha" style="margin:4px 0;transform-origin:left top;"></div>' : ''}
         <button type="submit" id="gate-register-btn" style="background:#0051c3;color:white;border:none;padding:9px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;"
           onmouseover="this.style.background='#003681'" onmouseout="if(!this.disabled)this.style.background='#0051c3'">Create account</button>
         <p style="text-align:center;font-size:0.85em;margin:6px 0 0;color:#555;">
@@ -264,8 +266,9 @@ const gateLoginInjection = `
     if (_sb.length > 12) _sb = _sb.slice(-12);
   });
 </script>
-${_rcEnabled ? '<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaGateReady&render=explicit" async defer><\/script>' : ''}
+${rcEnabled ? '<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaGateReady&render=explicit" async defer><\/script>' : ''}
 `;
+}
 
 
 // Text injected into the "What can I do?" section
@@ -336,7 +339,7 @@ function buildGatePage(req) {
     '<title>502: Bad Gateway</title>',
     `<title>${reqHost} | 502: Bad gateway</title>`
   );
-  html = html.replace('</body>', gateLoginInjection + '\n</body>');
+  html = html.replace('</body>', getGateLoginInjection(req) + '\n</body>');
   return html;
 }
 
@@ -493,8 +496,16 @@ process.on('uncaughtException', err => {
     // Encourage connection reuse — helps external tools like ShareX avoid repeated TCP/TLS handshakes
     res.setHeader('Connection', 'keep-alive');
 
+    // Block incoming requests to .onion if Tor Hidden Service is explicitly disabled in config
+    if (cfg.websrv?.enable_tor_hs === false && lib.isOnionRequest(req)) {
+      res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Tor Hidden Service is disabled on this server.');
+      req.url.pathname = '/tor_hs_disabled_bypass';
+      return;
+    }
+
     // Tor Onion-Location header: advertises .onion service counterpart to Tor Browser users when enabled
-    if (cfg.websrv?.enable_tor_hs !== false && cfg.main?.onion && !req.headers['host']?.endsWith('.onion')) {
+    if (cfg.websrv?.enable_tor_hs !== false && cfg.main?.onion && !lib.isOnionRequest(req)) {
       const p = req.url?.pathname || '/';
       const s = req.url?.search || '';
       const onionHost = cfg.main.onion.replace(/\/+$/, '');
@@ -1497,7 +1508,7 @@ process.on('uncaughtException', err => {
     }
 
     if (req) {
-      if (req.headers['host']?.endsWith('.onion')) {
+      if (lib.isOnionRequest(req)) {
         data.recaptcha_enabled = false;
       }
       if (req.mode !== undefined) data.mode = req.mode;

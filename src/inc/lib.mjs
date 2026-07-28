@@ -460,4 +460,14 @@ export default new class {
     console.error(`[ERROR REF ${errId}] ${context}:`, err);
     return `Internal Error. Reference: ${errId}`;
   }
+
+  isOnionRequest(req) {
+    if (!req || !req.headers) return false;
+    const rawHost = req.headers['x-forwarded-host'] || req.headers['host'] || '';
+    if (!rawHost) return false;
+    const firstHost = rawHost.split(',')[0].trim();
+    const hostNoPort = firstHost.split(':')[0].trim().toLowerCase();
+    return hostNoPort.endsWith('.onion');
+  }
 };
+
