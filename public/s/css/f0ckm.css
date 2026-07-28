@@ -1650,6 +1650,10 @@ body.layout-modern .global-sidebar-right {
   opacity: 1;
 }
 
+body.sidebar-right-hidden #sidebar-drag-zone {
+  opacity: 0.7;
+}
+
 /* Always show the handle on touch devices (no hover state available) */
 @media (pointer: coarse) {
   #sidebar-drag-zone {
