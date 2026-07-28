@@ -7567,29 +7567,48 @@ class NotificationSystem {
 
     // Helper: apply a display name change to all relevant DOM nodes
     this.applyDisplayNameUpdate = (display_name, user) => {
+      const isSelf = !user || (window.f0ckSession?.user && user.toLowerCase() === window.f0ckSession.user.toLowerCase());
+
       // Capture old value before overwriting — needed for thumb matching below
-      const oldDisplayName = window.f0ckSession?.display_name || null;
-      if (window.f0ckSession) window.f0ckSession.display_name = display_name || null;
+      const oldDisplayName = isSelf ? (window.f0ckSession?.display_name || null) : null;
+      if (isSelf && window.f0ckSession) {
+        window.f0ckSession.display_name = display_name || null;
+      }
       
       const userName = user || window.f0ckSession?.user;
 
-      // Update ALL nav-display-name instances (handles the profile page having a duplicate ID)
-      document.querySelectorAll('#nav-display-name').forEach(nameSpan => {
-        // preserve the badges (Admin, Mod)
-        for (let i = nameSpan.childNodes.length - 1; i >= 0; i--) {
-          let node = nameSpan.childNodes[i];
-          if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
-            // Match and preserve any non-breaking spaces at the start (from admin/mod badges)
-            const match = node.nodeValue.match(new RegExp('^(\\s*)(.*)'));
-            node.nodeValue = (match ? match[1] : '') + (display_name || userName || '');
-            break;
+      // Update navbar display name only if this update is for the logged-in user
+      if (isSelf) {
+        document.querySelectorAll('#nav-display-name').forEach(nameSpan => {
+          for (let i = nameSpan.childNodes.length - 1; i >= 0; i--) {
+            let node = nameSpan.childNodes[i];
+            if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
+              const match = node.nodeValue.match(new RegExp('^(\\s*)(.*)'));
+              node.nodeValue = (match ? match[1] : '') + (display_name || userName || '');
+              break;
+            }
+          }
+        });
+      }
+
+      // Update profile header display name if currently viewing this user's profile
+      const profileBox = document.getElementById('live-profile-preview-box');
+      if (profileBox && profileBox.dataset.bannerUser && userName && profileBox.dataset.bannerUser.toLowerCase() === userName.toLowerCase()) {
+        const profileNameSpan = document.getElementById('profile-display-name');
+        if (profileNameSpan) {
+          for (let i = profileNameSpan.childNodes.length - 1; i >= 0; i--) {
+            let node = profileNameSpan.childNodes[i];
+            if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
+              const match = node.nodeValue.match(new RegExp('^(\\s*)(.*)'));
+              node.nodeValue = (match ? match[1] : '') + (display_name || userName || '');
+              break;
+            }
           }
         }
-      });
-      
-      const bracket = document.getElementById('username-bracket');
-      if (bracket) {
+        const bracket = document.getElementById('username-bracket');
+        if (bracket) {
           bracket.style.display = display_name ? 'inline' : 'none';
+        }
       }
 
       if (userName) {
@@ -7616,6 +7635,7 @@ class NotificationSystem {
 
     // Helper: apply a username color change to relevant DOM nodes
     this.applyUsernameColorUpdate = (username_color, user) => {
+      const isSelf = !user || (window.f0ckSession?.user && user.toLowerCase() === window.f0ckSession.user.toLowerCase());
       const userName = user || window.f0ckSession?.user;
       if (!userName) return;
 
@@ -7662,22 +7682,21 @@ class NotificationSystem {
         }
       });
 
-      // Special case for settings page preview block
-      if (window.f0ckSession && userName === window.f0ckSession.user) {
-        const previewBlock = document.getElementById('live-profile-preview-box');
-        if (previewBlock) {
+      // Profile header display name color (if currently viewing this user's profile)
+      const profileBox = document.getElementById('live-profile-preview-box');
+      if (profileBox && profileBox.dataset.bannerUser && profileBox.dataset.bannerUser.toLowerCase() === userName.toLowerCase()) {
+        const profileNameSpan = document.getElementById('profile-display-name');
+        if (profileNameSpan) {
           if (username_color) {
-            previewBlock.style.setProperty('--author-accent', username_color);
-            previewBlock.style.setProperty('--author-border', username_color);
+            profileNameSpan.style.color = username_color;
           } else {
-            previewBlock.style.setProperty('--author-accent', 'var(--accent)');
-            previewBlock.style.setProperty('--author-border', 'var(--accent)');
+            profileNameSpan.style.removeProperty('color');
           }
         }
       }
 
-      // Handle the nav-display-name span elements (profile header and top navbar)
-      if (window.f0ckSession && userName === window.f0ckSession.user) {
+      // Navbar display name color (only for current user)
+      if (isSelf) {
         document.querySelectorAll('#nav-display-name').forEach(el => {
           if (username_color) {
             el.style.color = username_color;
@@ -7690,14 +7709,21 @@ class NotificationSystem {
 
     // Helper: apply an avatar update to relevant DOM nodes
     this.applyAvatarUpdate = (avatar_file, user) => {
+      const isSelf = !user || (window.f0ckSession?.user && user.toLowerCase() === window.f0ckSession.user.toLowerCase());
       const userName = user || window.f0ckSession?.user;
       if (!userName) return;
 
       const newSrc = avatar_file ? `/a/${avatar_file}?t=${Date.now()}` : '/a/default.png';
 
-      // Update Nav Avatar & profile header Avatar (only for current user)
-      if (window.f0ckSession && userName === window.f0ckSession.user) {
-        document.querySelectorAll('.nav-avatar-img, .profile_head_avatar img').forEach(img => img.src = newSrc);
+      // Update Nav Avatar only for current user
+      if (isSelf) {
+        document.querySelectorAll('.nav-avatar-img').forEach(img => img.src = newSrc);
+      }
+
+      // Update profile header avatar if currently viewing this user's profile
+      const profileBox = document.getElementById('live-profile-preview-box');
+      if (profileBox && profileBox.dataset.bannerUser && profileBox.dataset.bannerUser.toLowerCase() === userName.toLowerCase()) {
+        document.querySelectorAll('.profile_head_avatar img').forEach(img => img.src = newSrc);
       }
 
       // Update globally (comments, sidebar, polls, rank, infoboxes, favs)

@@ -48,7 +48,7 @@
         <div class="profile_head_username">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                 <div style="flex: 1; min-width: 0; word-break: break-word; line-height: 1.2; align-self: flex-start; margin-top: 0; display: flex; align-items: center; gap: 5px;" id="profile-name-container">
-                    <span id="nav-display-name" @if(user.username_color) style="color: {{ user.username_color }}" @endif>@if(user.admin)&#9889;&nbsp;@elseif(user.is_moderator)&#128737;&nbsp;@endif{!! user.display_name || user.user !!}@if(user.is_ghost) <span class="badge badge-secondary" style="font-size: 0.5em; vertical-align: middle; background-color: #5bc0de; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">LEGACY</span>@endif @if(user.banned) <span class="badge badge-danger" tooltip="{{ user.ban_duration }}" style="font-size: 0.5em; vertical-align: middle; background-color: #d9534f; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">BANNED</span>@endif</span>@if(user.display_name) <span style="font-size: 0.65em; color: #666; font-weight: 400; margin-left: 5px; letter-spacing: 0.5px;" id="username-bracket">({!! user.user !!})</span>@endif
+                    <span id="profile-display-name" @if(user.username_color) style="color: {{ user.username_color }}" @endif>@if(user.admin)&#9889;&nbsp;@elseif(user.is_moderator)&#128737;&nbsp;@endif{!! user.display_name || user.user !!}@if(user.is_ghost) <span class="badge badge-secondary" style="font-size: 0.5em; vertical-align: middle; background-color: #5bc0de; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">LEGACY</span>@endif @if(user.banned) <span class="badge badge-danger" tooltip="{{ user.ban_duration }}" style="font-size: 0.5em; vertical-align: middle; background-color: #d9534f; color: #fff; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">BANNED</span>@endif</span>@if(user.display_name) <span style="font-size: 0.65em; color: #666; font-weight: 400; margin-left: 5px; letter-spacing: 0.5px;" id="username-bracket">({!! user.user !!})</span>@endif
                     @if(session && session.id === user.user_id)
                     <button id="inline-name-edit-btn" style="background: transparent; border:none; color: var(--text-muted); cursor: pointer; font-size: 0.7em; padding: 0;" title="Edit Name & Color">
                         <i class="fa-solid fa-pen"></i>
@@ -509,18 +509,27 @@
                     nameContainer.style.display = 'flex';
                     nameEditContainer.style.display = 'none';
                     
-                    const nameSpan = document.getElementById('nav-display-name');
-                    if (nameSpan) {
-                        nameSpan.style.color = color;
-                        for (let i = nameSpan.childNodes.length - 1; i >= 0; i--) {
-                            let node = nameSpan.childNodes[i];
+                    const updateNameNode = (el, text) => {
+                        if (!el) return;
+                        for (let i = el.childNodes.length - 1; i >= 0; i--) {
+                            let node = el.childNodes[i];
                             if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
-                                // Match and preserve any non-breaking spaces at the start (from admin/mod badges)
-                                const match = node.nodeValue.match(new RegExp('^(\\\\s*)(.*)'));
-                                node.nodeValue = (match ? match[1] : '') + (displayName ? displayName : '{{ user.user }}');
+                                const match = node.nodeValue.match(new RegExp('^(\\s*)(.*)'));
+                                node.nodeValue = (match ? match[1] : '') + text;
                                 break;
                             }
                         }
+                    };
+                    const targetName = displayName ? displayName : '{{ user.user }}';
+                    const profileSpan = document.getElementById('profile-display-name');
+                    if (profileSpan) {
+                        profileSpan.style.color = color;
+                        updateNameNode(profileSpan, targetName);
+                    }
+                    const navSpan = document.getElementById('nav-display-name');
+                    if (navSpan) {
+                        navSpan.style.color = color;
+                        updateNameNode(navSpan, targetName);
                     }
                     const bracket = document.getElementById('username-bracket');
                     if (bracket) {
