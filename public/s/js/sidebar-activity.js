@@ -268,10 +268,11 @@
                     // Manual greentext handling — apply emoji if the user preference allows it
                     const quoteContent = line.substring(line.indexOf('>') + 1);
                     const quoteEmojis = window.f0ckSession?.quote_emojis === true;
+                    const escapedQuote = quoteContent.replace(/>/g, '&gt;');
                     const rendered = quoteEmojis
-                        ? quoteContent.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n))
-                        : quoteContent;
-                    return `<span class="greentext">&gt;${rendered.replace(/>/g, '&gt;')}</span>`;
+                        ? escapedQuote.replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n))
+                        : escapedQuote;
+                    return `<span class="greentext">&gt;${rendered}</span>`;
                 }
 
                 // Per-line limit to prevent marked.parse recursion on single giant lines

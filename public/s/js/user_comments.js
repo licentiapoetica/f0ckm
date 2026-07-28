@@ -306,7 +306,12 @@ if (!window.UserCommentSystem) {
                 const trimmed = line.trimStart();
                 if (trimmed.startsWith('>') && !trimmed.match(/^>>\d+/)) {
                     const quoteContent = line.substring(line.indexOf('>') + 1);
-                    return `<span class="greentext">&gt;${quoteContent.replace(/>/g, '&gt;')}</span>`;
+                    const quoteEmojis = window.f0ckSession?.quote_emojis === true;
+                    const escapedQuote = quoteContent.replace(/>/g, '&gt;');
+                    const rendered = quoteEmojis
+                        ? escapedQuote.replace(/:([a-z0-9_]+):/g, (m, n) => this.renderEmoji(m, n))
+                        : escapedQuote;
+                    return `<span class="greentext">&gt;${rendered}</span>`;
                 }
                 
                 // Per-line limit
