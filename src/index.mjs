@@ -498,8 +498,7 @@ process.on('uncaughtException', err => {
 
     // Block incoming requests to .onion if Tor Hidden Service is explicitly disabled in config
     if (cfg.websrv?.enable_tor_hs === false && lib.isOnionRequest(req)) {
-      res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Tor Hidden Service is disabled on this server.');
+      res.writeHead(503).end();
       req.url.pathname = '/tor_hs_disabled_bypass';
       return;
     }
