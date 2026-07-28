@@ -153,12 +153,6 @@
     const renderCommentContent = (content, commentId = null, itemId = null) => {
         if (!content) return '';
 
-        // Truncate extremely long comments before any processing to keep the sidebar
-        // fast and the DOM lean, regardless of markdown / regex complexity.
-        if (content.length > SIDEBAR_CONTENT_TRUNCATE) {
-            content = content.substring(0, SIDEBAR_CONTENT_TRUNCATE) + '\u2026';
-        }
-
         if (typeof marked === 'undefined') {
             return escapeHtml(content)
                 .replace(/:([a-z0-9_]+):/g, (m, n) => renderEmoji(m, n));

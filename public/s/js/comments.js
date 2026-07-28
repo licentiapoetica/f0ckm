@@ -1160,17 +1160,13 @@ class CommentSystem {
             const author = openerEl.dataset.display || openerEl.dataset.username || 'System';
             const contentEl = body.querySelector('.comment-content');
             if (contentEl) {
-                const LINE_MAX = 200;
                 let rawText = (contentEl.dataset.raw || '').trim();
                 if (rawText.includes('&gt;') || rawText.includes('&lt;') || rawText.includes('&amp;')) {
                     const txt = document.createElement('textarea');
                     txt.innerHTML = rawText;
                     rawText = txt.value;
                 }
-                // Preserve all lines but cap any single line exceeding LINE_MAX chars
-                const lines = rawText.split('\n').map(line =>
-                    line.length > LINE_MAX ? line.substring(0, LINE_MAX) + '\u2026' : line
-                );
+                const lines = rawText.split('\n');
                 const quote = `>>${id} \n>${author}\n${lines.map(line => `>${line}`).join('\n')}\n`;
 
                 if (isNew) {
@@ -1634,7 +1630,7 @@ class CommentSystem {
         // Truncate extremely long comments before any processing
         let truncated = false;
         if (!bypassTruncation && content.length > CommentSystem.ITEM_VIEW_MAX_CHARS) {
-            content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS) + '\u2026';
+            content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS);
             truncated = true;
         }
 
