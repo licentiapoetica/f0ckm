@@ -1621,17 +1621,25 @@ class CommentSystem {
         syncLevel(roots, list, false);
     }
 
-    // Maximum characters to fully render in the item view per comment
-    static get ITEM_VIEW_MAX_CHARS() { return 2000; }
+    // Maximum characters & lines to fully render in the item view per comment
+    static get ITEM_VIEW_MAX_CHARS() { return 500; }
+    static get ITEM_VIEW_MAX_LINES() { return 6; }
 
     renderCommentContent(content, commentId = null, bypassTruncation = false) {
         if (!content) return '';
 
-        // Truncate extremely long comments before any processing
+        // Truncate long comments before any processing
         let truncated = false;
-        if (!bypassTruncation && content.length > CommentSystem.ITEM_VIEW_MAX_CHARS) {
-            content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS);
-            truncated = true;
+        if (!bypassTruncation) {
+            const lines = content.split('\n');
+            if (lines.length > CommentSystem.ITEM_VIEW_MAX_LINES) {
+                content = lines.slice(0, CommentSystem.ITEM_VIEW_MAX_LINES).join('\n');
+                truncated = true;
+            }
+            if (content.length > CommentSystem.ITEM_VIEW_MAX_CHARS) {
+                content = content.substring(0, CommentSystem.ITEM_VIEW_MAX_CHARS);
+                truncated = true;
+            }
         }
 
         if (typeof marked === 'undefined') {
@@ -3600,9 +3608,9 @@ class CommentSystem {
     // element whenever the raw content exceeds ITEM_VIEW_MAX_CHARS. Called after every
     // optimistic DOM insert to guarantee the button regardless of rendering path.
     _ensureTruncationButton(commentEl, rawContent) {
-        console.log('[ensureBtn] called, rawContent.length:', rawContent?.length, 'threshold:', CommentSystem.ITEM_VIEW_MAX_CHARS);
-        if (!rawContent || rawContent.length <= CommentSystem.ITEM_VIEW_MAX_CHARS) {
-            console.log('[ensureBtn] below threshold, skipping');
+        if (!rawContent) return;
+        const lineCount = rawContent.split('\n').length;
+        if (rawContent.length <= CommentSystem.ITEM_VIEW_MAX_CHARS && lineCount <= CommentSystem.ITEM_VIEW_MAX_LINES) {
             return;
         }
         const contentEl = commentEl.querySelector('.comment-content');
