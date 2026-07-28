@@ -48,7 +48,7 @@ export default (router, tpl) => {
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: errorMsg }));
             }
             return res.reply({
-                body: tpl.render("register", { theme: req.cookies.theme ?? (cfg.websrv.theme || "f0ck"), error: errorMsg, registration_open: getRegistrationOpen() })
+                body: tpl.render("register", { theme: req.cookies?.theme ?? (cfg.websrv.theme || "f0ck"), error: errorMsg, registration_open: getRegistrationOpen() }, req)
             });
         }
 
@@ -58,7 +58,7 @@ export default (router, tpl) => {
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg }));
             }
             return res.reply({
-                body: tpl.render("register", { theme: req.cookies.theme ?? (cfg.websrv.theme || "f0ck"), error: msg, registration_open: getRegistrationOpen() })
+                body: tpl.render("register", { theme: req.cookies?.theme ?? (cfg.websrv.theme || "f0ck"), error: msg, registration_open: getRegistrationOpen() }, req)
             });
         };
 
@@ -67,7 +67,7 @@ export default (router, tpl) => {
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: true, msg }));
             }
             return res.reply({
-                body: tpl.render("register", { theme: req.cookies.theme ?? (cfg.websrv.theme || "f0ck"), success: msg, registration_open: getRegistrationOpen() })
+                body: tpl.render("register", { theme: req.cookies?.theme ?? (cfg.websrv.theme || "f0ck"), success: msg, registration_open: getRegistrationOpen() }, req)
             });
         };
 

@@ -463,9 +463,10 @@ export default new class {
 
   isOnionRequest(req) {
     if (!req || !req.headers) return false;
-    const rawHost = req.headers['x-forwarded-host'] || req.headers['host'] || '';
+    const rawHost = req.headers['x-forwarded-host'] || req.headers['host'] || req.headers['x-forwarded-server'] || '';
     if (!rawHost) return false;
-    const firstHost = rawHost.split(',')[0].trim();
+    const hostStr = Array.isArray(rawHost) ? rawHost[0] : String(rawHost);
+    const firstHost = hostStr.split(',')[0].trim();
     const hostNoPort = firstHost.split(':')[0].trim().toLowerCase();
     return hostNoPort.endsWith('.onion');
   }

@@ -1462,26 +1462,39 @@ process.on('uncaughtException', err => {
       }
     }
 
+    // Resolve per-request recaptcha preference (disabled for .onion requests or when passed false)
+    const effectiveReq = req || (data && data.req);
+    const defaultRecaptcha = !!(cfg.recaptcha && cfg.recaptcha.enabled && cfg.recaptcha.site_key);
+    let perRequestRecaptcha = defaultRecaptcha;
+
+    if (effectiveReq && lib.isOnionRequest(effectiveReq)) {
+      perRequestRecaptcha = false;
+    } else if (data && typeof data.recaptcha_enabled === 'boolean') {
+      perRequestRecaptcha = data.recaptcha_enabled;
+    }
+
     // Build data: globals first, then caller-supplied data, then per-request i18n last
     // so t/lang always reflect the user's language, not the site default.
-    // ALSO mutate globals.t and globals.lang: flummpress spreads this.#globals LAST
+    // ALSO mutate globals.t, globals.lang, globals.recaptcha_enabled: flummpress spreads this.#globals LAST
     // inside render(), so globals must carry the per-request values too.
     globals.t = perRequestT;
     globals.lang = perRequestLang;
+    globals.recaptcha_enabled = perRequestRecaptcha;
 
     // Resolve per-request infobox preference
     // Guests always get false — the alternative infobox is a logged-in user preference only
-    const useAltInfobox = (req && req.session && typeof req.session.use_alternative_infobox === 'boolean') 
-      ? req.session.use_alternative_infobox 
-      : (req && !req.session
+    const activeReq = req || effectiveReq;
+    const useAltInfobox = (activeReq && activeReq.session && typeof activeReq.session.use_alternative_infobox === 'boolean') 
+      ? activeReq.session.use_alternative_infobox 
+      : (activeReq && !activeReq.session
         ? false
         : (data && typeof data.user_alternative_infobox === 'boolean'
           ? data.user_alternative_infobox
           : (cfg.websrv.user_alternative_infobox !== false)));
 
-    const useAltSteuerung = (req && req.session && typeof req.session.use_alternative_steuerung === 'boolean')
-      ? req.session.use_alternative_steuerung
-      : (req && !req.session
+    const useAltSteuerung = (activeReq && activeReq.session && typeof activeReq.session.use_alternative_steuerung === 'boolean')
+      ? activeReq.session.use_alternative_steuerung
+      : (activeReq && !activeReq.session
         ? false
         : (data && typeof data.user_alternative_steuerung === 'boolean'
           ? data.user_alternative_steuerung
@@ -1490,11 +1503,12 @@ process.on('uncaughtException', err => {
     data = Object.assign({}, globals, data || {}, {
       t: perRequestT,
       lang: perRequestLang,
+      recaptcha_enabled: perRequestRecaptcha,
       user_alternative_infobox: useAltInfobox,
       user_alternative_steuerung: useAltSteuerung,
       user_banner_enabled: cfg.websrv.user_banner_enabled !== false,
-      comment_display_mode: (req && req.session && typeof req.session.comment_display_mode === 'number')
-        ? req.session.comment_display_mode
+      comment_display_mode: (activeReq && activeReq.session && typeof activeReq.session.comment_display_mode === 'number')
+        ? activeReq.session.comment_display_mode
         : (data && typeof data.comment_display_mode === 'number'
           ? data.comment_display_mode
           : (cfg.websrv.default_comment_display_mode || 0))
@@ -1506,20 +1520,19 @@ process.on('uncaughtException', err => {
       data.custom_brand_image = brand[Math.floor(Math.random() * brand.length)];
     }
 
-    if (req) {
-      if (lib.isOnionRequest(req)) {
-        data.recaptcha_enabled = false;
-      }
-      if (req.mode !== undefined) data.mode = req.mode;
-      data.theme = req.theme || req.cookies?.theme || cfg.websrv.theme || 'f0ck';
-      if (!data.url) data.url = req.url;
-      data.user_strict_bool = (req.session && req.session.strict_mode) ? true : false;
-      data.user_logged_in_bool = !!req.session;
-      data.csrf_token = req.session?.csrf_token || '';
-      data.max_file_size = lib.formatSize(cfg.main.maxfilesize * (req.session?.admin ? cfg.main.adminmultiplier : 1));
-      data.max_file_size_bytes = Math.floor(cfg.main.maxfilesize * (req.session?.admin ? cfg.main.adminmultiplier : 1));
+    if (activeReq) {
+      data.recaptcha_enabled = perRequestRecaptcha;
+      if (activeReq.mode !== undefined) data.mode = activeReq.mode;
+      data.theme = activeReq.theme || activeReq.cookies?.theme || cfg.websrv.theme || 'f0ck';
+      if (!data.url) data.url = activeReq.url;
+      data.user_strict_bool = (activeReq.session && activeReq.session.strict_mode) ? true : false;
+      data.user_logged_in_bool = !!activeReq.session;
+      data.csrf_token = activeReq.session?.csrf_token || '';
+      data.max_file_size = lib.formatSize(cfg.main.maxfilesize * (activeReq.session?.admin ? cfg.main.adminmultiplier : 1));
+      data.max_file_size_bytes = Math.floor(cfg.main.maxfilesize * (activeReq.session?.admin ? cfg.main.adminmultiplier : 1));
       data.web_url_upload = data.web_url_upload !== undefined ? data.web_url_upload : !!cfg.websrv.web_url_upload;
     } else {
+      data.recaptcha_enabled = perRequestRecaptcha;
       data.theme = data.theme || cfg.websrv.theme || 'f0ck';
       data.user_strict_bool = false;
       data.user_logged_in_bool = false;
