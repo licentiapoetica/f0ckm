@@ -5410,6 +5410,10 @@ html[data-dpr="dpr-110"] body.layout-legacy .embed-responsive-16by9::before {
   padding: 0;
 }
 
+.image-modal-btn:hover {
+  color: var(--accent);
+}
+
 html.image-expand-active .image-modal-btn {
   display: inline-flex;
 }
@@ -16164,6 +16168,26 @@ body.scroller-active #gchat-reopen-bubble {
   font-family: monospace;
   font-size: 0.85em;
   color: #eee;
+}
+
+.info-hash-codeblock {
+  margin: 2px 0;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--text-color, #eee);
+  user-select: all;
+}
+
+.info-hash-codeblock code {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
 }
 
 .info-table tr:last-child th,
