@@ -167,6 +167,8 @@
     "disable_swiping_hint": "Deaktivieren der Wisch-Navigation auf Mobilgeräten",
     "favorites_private": "Private Favoriten",
     "favorites_private_hint": "Nur du und Administratoren können deine Favoritenliste sehen.",
+    "hide_fav_badge": "Herzi-Badge-Avatar versteckeln",
+    "hide_fav_badge_hint": "Zeigt auf Beitragsseiten 1 geiles Geist-Icon an vong Anonymität her",
     "image_expand_on_click": "Bildli beim Klickle inline uffblähe",
     "image_expand_on_click_hint": "Anstatt dat Scroll-Zoom-Moped aufzumache, wird n Bild beim Klickle uff volle Größ im Bereich uffgepumpt.",
     "enable_bg_blur": "Hintergrundunschärfe aktivieren",

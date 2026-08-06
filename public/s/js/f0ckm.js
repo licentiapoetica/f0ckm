@@ -8768,23 +8768,39 @@ class NotificationSystem {
     // Build DOM nodes imperatively (avoids Sanitizer stripping inline border-color)
     const fragment = document.createDocumentFragment();
     data.favs.forEach(fav => {
-      const avatarUrl = fav.avatar_file
-        ? `/a/${fav.avatar_file}`
-        : (fav.avatar ? `/t/${fav.avatar}.webp` : '/a/default.png');
+      if (fav.hide_fav_badge) {
+        const a = document.createElement('a');
+        a.className = 'ghost-fav';
+        a.setAttribute('tooltip', 'Ghost Fav');
+        a.setAttribute('flow', 'up');
+        a.style.cursor = 'default';
 
-      const a = document.createElement('a');
-      a.href = `/user/${fav.user.toLowerCase()}`;
-      a.setAttribute('tooltip', fav.display_name || fav.user);
-      a.setAttribute('flow', 'up');
+        const img = document.createElement('img');
+        img.src = '/s/img/ghost_fav.svg';
+        img.style.height = '32px';
+        img.style.width = '32px';
 
-      const img = document.createElement('img');
-      img.src = avatarUrl;
-      img.style.height = '32px';
-      img.style.width = '32px';
-      if (fav.username_color) img.style.borderColor = fav.username_color;
+        a.appendChild(img);
+        fragment.appendChild(a);
+      } else {
+        const avatarUrl = fav.avatar_file
+          ? `/a/${fav.avatar_file}`
+          : (fav.avatar ? `/t/${fav.avatar}.webp` : '/a/default.png');
 
-      a.appendChild(img);
-      fragment.appendChild(a);
+        const a = document.createElement('a');
+        a.href = `/user/${fav.user.toLowerCase()}`;
+        a.setAttribute('tooltip', fav.display_name || fav.user);
+        a.setAttribute('flow', 'up');
+
+        const img = document.createElement('img');
+        img.src = avatarUrl;
+        img.style.height = '32px';
+        img.style.width = '32px';
+        if (fav.username_color) img.style.borderColor = fav.username_color;
+
+        a.appendChild(img);
+        fragment.appendChild(a);
+      }
     });
 
     favsContainer.innerHTML = '';

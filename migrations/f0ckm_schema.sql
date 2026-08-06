@@ -1499,7 +1499,8 @@ CREATE TABLE public.user_options (
     do_not_disturb boolean DEFAULT false,
     comment_display_mode integer DEFAULT 1,
     force_comment_display_mode integer DEFAULT 0,
-    favorites_private boolean DEFAULT false
+    favorites_private boolean DEFAULT false,
+    hide_fav_badge boolean DEFAULT false
 );
 
 

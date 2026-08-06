@@ -1150,6 +1150,37 @@
         });
     }
 
+    const hideFavBadgeToggle = document.getElementById('hide_fav_badge_toggle');
+    if (hideFavBadgeToggle) {
+        hideFavBadgeToggle.addEventListener('change', async function() {
+            const hide_fav_badge = hideFavBadgeToggle.checked;
+            try {
+                const res = await fetch('/api/v2/settings/hide_fav_badge', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession ? window.f0ckSession.csrf_token : ''
+                    },
+                    body: new URLSearchParams({ hide_fav_badge })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('Hide favorite badge preference updated!', 'success');
+                    if (window.f0ckSession) {
+                        window.f0ckSession.hide_fav_badge = hide_fav_badge;
+                    }
+                } else {
+                    alert(data.msg || 'Error saving preference');
+                    hideFavBadgeToggle.checked = !hide_fav_badge;
+                }
+            } catch (err) {
+                console.error('Update Hide Fav Badge error:', err);
+                alert('Connection error');
+                hideFavBadgeToggle.checked = !hide_fav_badge;
+            }
+        });
+    }
+
     // New Dual Column Layout Toggle
     const layoutToggle = document.getElementById('use_new_layout_toggle');
     if (layoutToggle) {

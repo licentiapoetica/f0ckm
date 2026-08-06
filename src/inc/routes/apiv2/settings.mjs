@@ -334,6 +334,25 @@ export default router => {
       }
     });
 
+    // Update Hide Fav Badge preference
+    group.put(/\/hide_fav_badge/, lib.loggedin, async (req, res) => {
+      const hide_fav_badge = req.post.hide_fav_badge === true || req.post.hide_fav_badge === 'true';
+
+      try {
+        await db`
+          update user_options 
+          set hide_fav_badge = ${hide_fav_badge}
+          where user_id = ${+req.session.id}
+        `;
+        // Sync session immediately
+        if (req.session) req.session.hide_fav_badge = hide_fav_badge;
+        return res.json({ success: true, hide_fav_badge }, 200);
+      } catch (e) {
+        console.error('Update Hide Fav Badge pref error:', e);
+        return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
     // Update Username Color preference
     group.put(/\/username_color/, lib.loggedin, async (req, res) => {
       const { color } = req.post;

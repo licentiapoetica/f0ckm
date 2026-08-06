@@ -326,6 +326,13 @@
               <span>{{ t('settings.favorites_private') }}</span>
             </label>
             <small class="text-muted" style="margin-left: 25px;">{{ t('settings.favorites_private_hint') }}</small>
+            <div class="sub-setting-item" style="margin-left: 25px; margin-top: 10px;">
+              <label for="hide_fav_badge_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="hide_fav_badge_toggle" @if(session.hide_fav_badge===true) checked @endif>
+                <span>{{ t('settings.hide_fav_badge') }}</span>
+              </label>
+              <small class="text-muted" style="margin-left: 25px;">{{ t('settings.hide_fav_badge_hint') }}</small>
+            </div>
           </div>
           <div class="setting-item" style="margin-top: 15px;">
             <label for="show_background_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">

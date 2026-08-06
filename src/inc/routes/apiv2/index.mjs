@@ -1066,7 +1066,7 @@ export default router => {
       }
 
       const favs = await db`
-        select "user".user, "user_options".avatar, "user_options".avatar_file, "user_options".display_name, "user_options".username_color
+        select "user".user, "user_options".avatar, "user_options".avatar_file, "user_options".display_name, "user_options".username_color, "user_options".hide_fav_badge
         from "favorites"
         left join "user" on "user".id = "favorites".user_id
         left join "user_options" on "user_options".user_id = "favorites".user_id

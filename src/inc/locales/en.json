@@ -167,6 +167,8 @@
     "disable_swiping_hint": "Disable swipe-to-navigate on mobile devices",
     "favorites_private": "Private Favorites",
     "favorites_private_hint": "Only you and administrators can view your favorites list.",
+    "hide_fav_badge": "Hide Favorite Badge Avatar",
+    "hide_fav_badge_hint": "Display as a ghost icon on post detail pages without linking to your profile",
     "image_expand_on_click": "Expand images inline on click",
     "image_expand_on_click_hint": "Instead of opening the scroll zoom modal, clicking an image will expand it to full size within the page.",
     "enable_bg_blur": "Enable Background blur",

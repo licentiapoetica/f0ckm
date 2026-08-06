@@ -197,7 +197,11 @@
                 </span>
                 <span class="badge" id="favs" @if(!item.favorites.length) hidden@endif>
                     @each(item.favorites as fav)
+                    @if(fav.hide_fav_badge)
+                    <a class="ghost-fav" tooltip="?" flow="up" style="cursor: default;"><img src="/s/img/ghost_fav.svg" style="height: 32px; width: 32px;" loading="lazy" /></a>
+                    @else
                     <a href="/user/{{ fav.user.toLowerCase() }}" tooltip="{!! fav.display_name || fav.user !!}" flow="up"><img src="@if(fav.avatar_file)/a/{{ fav.avatar_file }}@elseif(fav.avatar)/t/{{ fav.avatar }}.webp@else/a/default.png@endif" style="height: 32px; width: 32px@if(fav.username_color); border-color: {{ fav.username_color }}@endif" loading="lazy" /></a>
+                    @endif
                     @endeach
                 </span>
                 @if(enable_xd_score && item.xd_score > 0)

@@ -167,6 +167,8 @@
     "disable_swiping_hint": "Swipe-to-navigate uitschakelen op mobiele apparaten",
     "favorites_private": "Privé favorieten",
     "favorites_private_hint": "Alleen jij en beheerders kunnen je favorietenlijst bekijken.",
+    "hide_fav_badge": "Favoriet-badge avatar verbergen",
+    "hide_fav_badge_hint": "Toon als een spook-icoon op berichtpagina's zonder koppeling naar je profiel",
     "image_expand_on_click": "Afbeeldingen inline vergroten bij klikken",
     "image_expand_on_click_hint": "In plaats van de scroll-zoom-modal te openen, wordt een afbeelding bij klikken vergroot tot volledige grootte binnen de pagina.",
     "enable_bg_blur": "Achtergrondvervaging inschakelen",

@@ -167,6 +167,8 @@
     "disable_swiping_hint": "Navigation per Wischen auf Mobilgeräten deaktivieren",
     "favorites_private": "Private Favoriten",
     "favorites_private_hint": "Nur du und Administratoren können deine Favoritenliste sehen.",
+    "hide_fav_badge": "Favoriten-Badge-Avatar verbergen",
+    "hide_fav_badge_hint": "Zeigt auf Beitragsseiten stattdessen ein Geist-Icon ohne Profilverlinkung an",
     "image_expand_on_click": "Bilder beim Klicken inline erweitern",
     "image_expand_on_click_hint": "Anstatt das Scroll-Zoom-Modal zu öffnen, wird ein Bild beim Klicken innerhalb der Seite auf volle Größe erweitert.",
     "enable_bg_blur": "Hintergrundunschärfe aktivieren",
