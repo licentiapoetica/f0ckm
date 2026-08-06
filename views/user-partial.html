@@ -142,6 +142,14 @@
     </div>
     @if(!user.is_ghost)
     <div class="favs">
+        @if(favs && favs.is_private)
+        <div class="favs-header">
+            {{ t('profile.favs_label') }}
+        </div>
+        <div class="private-favs-msg" style="text-align: center;">
+            {{ t('profile.private_favorites') }}
+        </div>
+        @else
         <div class="favs-header">
             {{ t('profile.favs_label') }}: {{ count.favs }} <a href="@if(favs.link && favs.link.main){{ favs.link.main }}@else#@endif">{{ t('profile.view_all') }}</a>
         </div>
@@ -163,6 +171,7 @@
         </div>
         @else
         {{ t('profile.no_favs') }}
+        @endif
         @endif
     </div>
     @endif

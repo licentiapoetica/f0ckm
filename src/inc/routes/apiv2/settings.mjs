@@ -315,6 +315,25 @@ export default router => {
       }
     });
 
+    // Update Favorites Privacy preference
+    group.put(/\/favorites_private/, lib.loggedin, async (req, res) => {
+      const favorites_private = req.post.favorites_private === true || req.post.favorites_private === 'true';
+
+      try {
+        await db`
+          update user_options 
+          set favorites_private = ${favorites_private}
+          where user_id = ${+req.session.id}
+        `;
+        // Sync session immediately
+        if (req.session) req.session.favorites_private = favorites_private;
+        return res.json({ success: true, favorites_private }, 200);
+      } catch (e) {
+        console.error('Update Favorites Privacy pref error:', e);
+        return res.json({ success: false, msg: 'Error updating preference' }, 500);
+      }
+    });
+
     // Update Username Color preference
     group.put(/\/username_color/, lib.loggedin, async (req, res) => {
       const { color } = req.post;

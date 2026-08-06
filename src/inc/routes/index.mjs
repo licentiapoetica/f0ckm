@@ -99,8 +99,9 @@ export default (router, tpl) => {
           ratings: ratingsArr,
           mime: mime,
           fav: true,
-          session: !!req.session,
+          session: req.session,
           user_id: req.session?.id,
+          is_admin: req.session?.admin,
           random: isRandom
         });
         if (favs && 'items' in favs) {
@@ -236,8 +237,9 @@ export default (router, tpl) => {
       fav: req.params.mode == 'favs',
       mode: req.mode,
       ratings: (() => { const r = req.cookies.ratings; return r ? decodeURIComponent(r).split(/[|,]/).filter(x => ['sfw','nsfw','nsfl','untagged'].includes(x)) : null; })(),
-      session: !!req.session,
+      session: req.session,
       user_id: req.session?.id,
+      is_admin: req.session?.admin,
       exclude: req.session ? (req.session.excluded_tags || []) : [],
       url: decodeURIComponent(req.url.pathname || req.url),
       strict: !!(req.query?.strict || req.url.qs?.strict || req.session?.strict_mode),
@@ -251,6 +253,20 @@ export default (router, tpl) => {
     console.log(`[${new Date().toISOString()}] [ROUTE] Data fetch complete in ${Date.now() - tRouteStart}ms`);
 
     if (!data.success) {
+      if (data.is_private) {
+        const { t: tErr } = createI18n(req.session?.language || req.lang || 'en');
+        return res.reply({
+          code: 403,
+          body: tpl.render('error', {
+            message: tErr('profile.private_favorites'),
+            domain: cfg.main.url.domain,
+            tmp: null,
+            session: req.session ? { ...req.session } : false,
+            error_filter_hint: null,
+            error_filter_hint_link: null
+          }, req)
+        });
+      }
       // For index/grid views with zero items (empty DB), render an empty grid instead of error
       if (mode !== 'item') {
         data.items = [];

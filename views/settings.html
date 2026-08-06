@@ -321,6 +321,13 @@
             <small class="text-muted" style="margin-left: 25px;">{{ t('settings.disable_swiping_hint') }}</small>
           </div>
           <div class="setting-item" style="margin-top: 15px;">
+            <label for="favorites_private_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="favorites_private_toggle" @if(session.favorites_private===true) checked @endif>
+              <span>{{ t('settings.favorites_private') }}</span>
+            </label>
+            <small class="text-muted" style="margin-left: 25px;">{{ t('settings.favorites_private_hint') }}</small>
+          </div>
+          <div class="setting-item" style="margin-top: 15px;">
             <label for="show_background_toggle" style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
               <input type="checkbox" id="show_background_toggle" @if(session.show_background !==false) checked @endif>
               <span>{{ t('settings.enable_bg_blur') }}</span>

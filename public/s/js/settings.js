@@ -1119,6 +1119,37 @@
         });
     }
 
+    const favsPrivateToggle = document.getElementById('favorites_private_toggle');
+    if (favsPrivateToggle) {
+        favsPrivateToggle.addEventListener('change', async () => {
+            const favorites_private = favsPrivateToggle.checked;
+            try {
+                const res = await fetch('/api/v2/settings/favorites_private', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession ? window.f0ckSession.csrf_token : ''
+                    },
+                    body: new URLSearchParams({ favorites_private })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('Favorites privacy preference updated!', 'success');
+                    if (window.f0ckSession) {
+                        window.f0ckSession.favorites_private = favorites_private;
+                    }
+                } else {
+                    alert(data.msg || 'Error saving preference');
+                    favsPrivateToggle.checked = !favorites_private; // Revert
+                }
+            } catch (err) {
+                console.error('Update Favorites Privacy error:', err);
+                alert('Connection error');
+                favsPrivateToggle.checked = !favorites_private; // Revert
+            }
+        });
+    }
+
     // New Dual Column Layout Toggle
     const layoutToggle = document.getElementById('use_new_layout_toggle');
     if (layoutToggle) {

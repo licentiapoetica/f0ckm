@@ -1498,7 +1498,8 @@ CREATE TABLE public.user_options (
     receive_user_notifications boolean DEFAULT true,
     do_not_disturb boolean DEFAULT false,
     comment_display_mode integer DEFAULT 1,
-    force_comment_display_mode integer DEFAULT 0
+    force_comment_display_mode integer DEFAULT 0,
+    favorites_private boolean DEFAULT false
 );
 
 

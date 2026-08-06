@@ -218,9 +218,10 @@ export default (router, tpl) => {
             mime: query.mime || (req.cookies.mime || null),
             mode: query.mode !== undefined ? +query.mode : req.mode,
             ratings: ratingsArr,
-            session: !!req.session,
-            exclude: req.session ? (req.session.excluded_tags || []) : [],
+            session: req.session,
             user_id: req.session?.id,
+            is_admin: req.session?.admin,
+            exclude: req.session ? (req.session.excluded_tags || []) : [],
             fav: query.fav === 'true',
             random: isRandom,
             strict: query.strict === '1' || query.strict === 'true' || req.session?.strict_mode,
@@ -231,6 +232,19 @@ export default (router, tpl) => {
         });
 
         if (!data.success) {
+            if (data.is_private) {
+                const { t: tErr } = createI18n(req.session?.language || req.lang || 'en');
+                const privateHtml = `<div class="private-favs-msg" style="padding: 30px; text-align: center; color: var(--text-muted); font-size: 1.1em;">${tErr('profile.private_favorites')}</div>`;
+                return res.reply({
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        success: false,
+                        is_private: true,
+                        html: privateHtml,
+                        hasMore: false
+                    })
+                });
+            }
             return res.reply({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -136,8 +136,60 @@ const xdScoreMeta = (score) => {
   return                      { tier: 5, label: 'xDDDDD+' };
 };
 
+async function checkFavoritesAccess(rawUser, { session, user_id, is_admin } = {}) {
+  if (!rawUser) return { isPrivate: false, isAllowed: true };
+  const decodedUser = decodeURI(rawUser);
+  const targetUserRows = await db`
+    select u.id, u."user", u.admin, uo.favorites_private
+    from "user" u
+    left join user_options uo on uo.user_id = u.id
+    where u."user" ilike ${decodedUser} or u.login ilike ${decodedUser}
+    limit 1
+  `;
+  if (!targetUserRows.length || !targetUserRows[0].favorites_private) {
+    return { isPrivate: false, isAllowed: true };
+  }
+
+  const targetUser = targetUserRows[0];
+
+  let reqUserId = user_id;
+  let reqIsAdmin = is_admin;
+
+  if (typeof session === 'object' && session !== null) {
+    if (reqUserId === undefined) reqUserId = session.id;
+    if (reqIsAdmin === undefined) reqIsAdmin = !!session.admin;
+  }
+
+  let isAllowed = false;
+  if (reqUserId) {
+    if (+reqUserId === +targetUser.id) {
+      isAllowed = true;
+    } else if (reqIsAdmin === true) {
+      isAllowed = true;
+    } else if (reqIsAdmin === undefined) {
+      const reqUserRows = await db`select admin from "user" where id = ${+reqUserId} limit 1`;
+      if (reqUserRows.length > 0 && reqUserRows[0].admin) {
+        isAllowed = true;
+      }
+    }
+  }
+
+  return { isPrivate: true, isAllowed };
+}
+
 export default {
-  getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, ratings, fav, session, limit, strict, newer, exclude, user_id, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore, tagger: rawTagger } = {}) => {
+  getf0cks: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, page, mode, ratings, fav, session, limit, strict, newer, exclude, user_id, is_admin, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, minXdScore, tagger: rawTagger } = {}) => {
+    if (fav && rawUser) {
+      const { isPrivate, isAllowed } = await checkFavoritesAccess(rawUser, { session, user_id, is_admin });
+      if (isPrivate && !isAllowed) {
+        return {
+          success: false,
+          is_private: true,
+          message: "private favorites"
+        };
+      }
+    }
+
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
 
     // --- title: prefix — search items.title instead of the tags table ---
@@ -428,7 +480,18 @@ export default {
       view_mode: fav ? 'favs' : 'uploads'
     };
   },
-  getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, ratings, session, strict, exclude, user_id, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, lang } = {}) => {
+  getf0ck: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, itemid: rawItemid, mode, ratings, session, strict, exclude, user_id, is_admin, fav, random, userHall: rawUserHall, userHallOwner: rawUserHallOwner, lang } = {}) => {
+    if (fav && rawUser) {
+      const { isPrivate, isAllowed } = await checkFavoritesAccess(rawUser, { session, user_id, is_admin });
+      if (isPrivate && !isAllowed) {
+        return {
+          success: false,
+          is_private: true,
+          message: "private favorites"
+        };
+      }
+    }
+
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
 
     // --- title: prefix — search items.title instead of the tags table ---
@@ -884,7 +947,14 @@ export default {
       tmp
     };
     return data;
-  }, getRandom: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, mode, ratings, fav, session, strict, exclude, userHall: rawUserHall, userHallOwner: rawUserHallOwner } = {}) => {
+  },
+  getRandom: async ({ user: rawUser, tag: rawTag, hall: rawHall, mime: rawMime, mode, ratings, fav, session, strict, exclude, user_id, is_admin, userHall: rawUserHall, userHallOwner: rawUserHallOwner } = {}) => {
+    if (fav && rawUser) {
+      const { isPrivate, isAllowed } = await checkFavoritesAccess(rawUser, { session, user_id, is_admin });
+      if (isPrivate && !isAllowed) {
+        return null;
+      }
+    }
     const user = rawUser ? lib.escapeLike(decodeURI(rawUser)) : null;
     const hall = rawHall || null;
 
