@@ -88,7 +88,7 @@
       } else {
         contentEl = document.createElement("a");
         contentEl.href = "/tag/" + tag.normalized;
-        contentEl.style = "color: inherit !important";
+        contentEl.className = "tag-name";
         contentEl.textContent = tag.tag;
       }
 
@@ -136,7 +136,7 @@
         delbutton.href = "#";
         delbutton.classList.add("admin-deltag", "removetag");
         delbutton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        span.appendChild(document.createTextNode(" "));
+        span.appendChild(document.createTextNode("\u00A0")); // &nbsp;, same as the server template
         span.appendChild(delbutton);
       }
 

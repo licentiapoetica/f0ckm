@@ -8502,6 +8502,20 @@ span#tags:not(.tags-expanded) .tags-inner>span:nth-child(n+11) {
 a.removetag {
   vertical-align: middle;
   display: inline-flex;
+  transition: color 0.22s ease, filter 0.22s ease;
+}
+
+/* Icons sized to the tag text's cap height (0.714em in the site's monospace font) so they sit level with it.
+   The ban glyph fills its whole em box (0.714em), the xmark only 0.625 of it (0.714 / 0.625 = 1.143em) */
+.tag-badge a.removetag {
+  font-size: 1.143em;
+}
+
+/* Same hover as the exclude button: red with a glow, no size change */
+a.removetag:hover,
+a.removetag:focus-visible {
+  color: #ff4757 !important;
+  filter: drop-shadow(0 0 6px rgba(255, 71, 87, 0.75));
 }
 
 a.removetag i {
@@ -8533,7 +8547,8 @@ a.removetag i {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8em;
+  /* Glyph as tall as the tag text's capitals (see .tag-badge a.removetag) */
+  font-size: 0.714em;
   line-height: 1;
   vertical-align: middle;
   border-radius: 50%;
@@ -8551,7 +8566,6 @@ a.removetag i {
 .tag-badge .tag-exclude-btn:focus-visible {
   opacity: 1;
   color: #ff4757 !important;
-  transform: scale(1.28);
   filter: drop-shadow(0 0 6px rgba(255, 71, 87, 0.75));
 }
 

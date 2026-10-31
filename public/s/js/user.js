@@ -87,7 +87,7 @@
       } else {
         contentEl = document.createElement("a");
         contentEl.href = "/tag/" + tag.normalized;
-        contentEl.style = "color: inherit !important";
+        contentEl.className = "tag-name";
         contentEl.textContent = tag.tag;
       }
 
