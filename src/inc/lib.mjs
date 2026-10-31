@@ -28,6 +28,8 @@ const getDuration = timeAgoInSeconds => {
   }
 };
 
+const processSecret = crypto.randomBytes(32).toString('hex');
+
 export default new class {
   escapeHTML(str) {
     if (!str) return "";
@@ -74,6 +76,11 @@ export default new class {
     const unitKey = interval === 1 ? `timeago.${epoch}` : `timeago.${epoch}s`;
     const timeStr = t(unitKey, { n: interval });
     return t('timeago.ago', { t: timeStr });
+  };
+  // HMAC key for the admin impersonation cookie. Uses main.secret when set;
+  // otherwise a random per-process key, so impersonation ends on restart.
+  impersonationSecret() {
+    return cfg.main.secret || processSecret;
   };
   expiresIn(expiresAt) {
     if (!expiresAt) return null;

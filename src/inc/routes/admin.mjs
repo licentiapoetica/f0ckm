@@ -1067,8 +1067,7 @@ export default (router, tpl) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-    const isDev = cfg.main?.development === true;
-    if (!isDev && (!req.session || !req.session.admin)) {
+    if (!req.session || !req.session.admin) {
       return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: 'Unauthorized' }));
     }
 
@@ -1090,8 +1089,7 @@ export default (router, tpl) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-    const isDev = cfg.main?.development === true;
-    if (!isDev && (!req.session || !req.session.admin)) {
+    if (!req.session || !req.session.admin) {
       return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: 'Unauthorized' }));
     }
 
@@ -2374,7 +2372,7 @@ export default (router, tpl) => {
 
       // Build signed payload: base64(JSON) + "." + HMAC
       const crypto = (await import('crypto')).default || await import('crypto');
-      const secret = cfg.main.secret || cfg.main.url.full || 'f0ckm-impersonate-secret';
+      const secret = lib.impersonationSecret();
       const payload = Buffer.from(JSON.stringify({
         uid: target[0].id,
         orig: lib.sha256(req.cookies.session),

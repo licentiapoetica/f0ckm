@@ -1200,10 +1200,9 @@ process.on('uncaughtException', err => {
         try {
           const [impPayload, impSig] = _impersonateCookie.split('.');
           if (impPayload && impSig) {
-            const { createHmac } = await import('crypto');
-            const _impSecret = cfg.main.secret || cfg.main.url.full || 'f0ckm-impersonate-secret';
-            const expectedSig = createHmac('sha256', _impSecret).update(impPayload).digest('hex');
-            if (impSig === expectedSig) {
+            const { createHmac, timingSafeEqual } = await import('crypto');
+            const expectedSig = createHmac('sha256', lib.impersonationSecret()).update(impPayload).digest('hex');
+            if (impSig.length === expectedSig.length && timingSafeEqual(Buffer.from(impSig), Buffer.from(expectedSig))) {
               const impData = JSON.parse(Buffer.from(impPayload, 'base64url').toString('utf8'));
               // Validate that the original session matches the current admin cookie
               if (impData.orig && impData.orig === lib.sha256(req.cookies.session)) {
