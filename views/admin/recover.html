@@ -1,0 +1,26 @@
+@include(snippets/header)
+<div id="main">
+  <table class="table" style="width: 100%">
+  <thead>
+  <tr>
+    <td></td>
+    <td>ID</td>
+    <td>f0cker</td>
+    <td>mime</td>
+    <td></td>
+  </tr>
+  </thead>
+  <tbody>
+  @each(posts as post)
+  <tr>
+    <td><img src="data:image/webp;base64,{{ post.thumbnail }}" /></td>
+    <td>{{ post.id }}</td>
+    <td>{!! post.username !!}</td>
+    <td>{{ post.mime }}</td>
+    <td><a href="/admin/recover/?id={{ post.id }}">recover</a></td>
+  </tr>
+  @endeach
+  </tbody>
+  </table>
+</div>
+@include(snippets/footer)

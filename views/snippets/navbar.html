@@ -1,0 +1,2072 @@
+@if(session)
+<!-- logged in -->
+<nav class="navbar navbar-expand-lg">
+
+  <!-- Brand: always visible, flush left -->
+  <a class="navbar-brand" href="/">
+    @if(custom_brand_image)
+      <img id="navbar-logo" src="{{ custom_brand_image }}" alt="{{ domain }}" onload="if(window.syncNavbarHeight)window.syncNavbarHeight();" style="max-height: 40px; vertical-align: middle; max-width: 180px; width: auto;">
+    @else
+      <span class="f0ck">{{ custom_navbar_brand_text || domain }}</span>
+    @endif
+  </a>
+
+  <!-- Nav links: desktop always-on, mobile hidden until toggled -->
+  <div class="nav-collapse" id="navbarContent">
+      <div class="nav-links">
+        @if(!session.is_anon || (enable_anonymous_access && anon_permissions.upload))
+        <a id="nav-upload-link" style="cursor:pointer;"><i class="fa-solid fa-angle-up"></i> {{ t('nav.upload') }}</a>
+        @endif
+        @if(meme_creator)
+        <a id="nav-meme-link" href="/meme"><i class="fa-regular fa-image"></i> {{ t('nav.meme') }}</a>
+        @endif
+        @if(halls_enabled)
+        <div class="nav-user-dropdown nav-halls-dropdown">
+          <a href="/halls" class="nav-halls-btn" title="{{ t('nav.halls') }}">
+            <i class="fa-solid fa-layer-group"></i>
+          </a>
+        </div>
+        @endif
+        <a href="/tags" title="{{ t('nav.tags') }}"><i class="fa-solid fa-tags"></i></a>
+        @if(session.can_chan)
+        <a href="/4/wsg/catalogue" id="nav-chan-link" title="4chan Viewer & Rehost" style="color: #4ade80;"><i class="fa-solid fa-clover"></i></a>
+        @endif
+        @if(abyss_enabled)
+        <a href="/abyss" title="{{ t('nav.abyss') }}"><i class="fa-solid fa-dice-d6"></i></a>
+        @endif
+        <a href="#" id="nav-search-btn" title="{{ t('nav.search') }}"><i class="fa-solid fa-magnifying-glass"></i></a>
+      </div>
+    </div>
+
+    <!-- Right controls: always visible, flush right -->
+    <div class="nav-right-group">
+
+      <!-- Avatar dropdown -->
+      <div class="nav-user-dropdown">
+        <button class="nav-user-btn nav-avatar-btn" id="nav-user-toggle">
+          @if(session.is_anon)
+            <img class="nav-avatar-img" src="/a/default.png" onclick="event.stopPropagation(); const u = '{{ session.login.toLowerCase() }}'; if(typeof window.loadPageAjax==='function'){ window.loadPageAjax('/user/' + u, true); } else { window.location.href='/user/' + u; }" title="{{ session.login }}">
+          @elseif(session.avatar_file)
+            <img class="nav-avatar-img" src="/a/{{ session.avatar_file }}" onerror="this.src='/a/default.png'" onclick="event.stopPropagation(); if(typeof window.loadPageAjax==='function'){ window.loadPageAjax('/user/{!! session.user.toLowerCase() !!}', true); } else { window.location.href='/user/{!! session.user.toLowerCase() !!}'; }" title="{{ session.user }}">
+          @elseif(session.avatar && session.avatar > 0)
+            <img class="nav-avatar-img" src="/t/{{ session.avatar }}.webp" onerror="this.src='/a/default.png'" onclick="event.stopPropagation(); if(typeof window.loadPageAjax==='function'){ window.loadPageAjax('/user/{!! session.user.toLowerCase() !!}', true); } else { window.location.href='/user/{!! session.user.toLowerCase() !!}'; }" title="{{ session.user }}">
+          @else
+            <img class="nav-avatar-img" src="/a/default.png" onclick="event.stopPropagation(); if(typeof window.loadPageAjax==='function'){ window.loadPageAjax('/user/{!! session.user.toLowerCase() !!}', true); } else { window.location.href='/user/{!! session.user.toLowerCase() !!}'; }" title="{{ session.user }}">
+          @endif
+          <span class="nav-avatar-name" id="nav-display-name" @if(session.username_color)style="color: {{ session.username_color }}"@endif>{!! session.display_name || session.user !!}</span>
+          <span class="nav-avatar-caret">▾</span>
+        </button>
+        <div class="nav-user-menu" id="nav-user-menu">
+          @if(session.is_anon)
+          <a href="/user/{{ session.login.toLowerCase() }}">{{ t('nav.profile') }}</a>
+          @else
+          <a href="/user/{!! session.user.toLowerCase() !!}">{{ t('nav.profile') }}</a>
+          @if(userhalls_enabled)
+          <a href="/user/{!! session.user.toLowerCase() !!}/halls">{{ t('nav.my_halls') }}</a>
+          @endif
+          @endif
+          <a href="/pending" class="nav-menu-pending">Pending@if(typeof session.own_pending_count === 'number')<span class="nav-menu-count @if(session.own_pending_count === 0)is-zero@endif" title="{{ session.own_pending_count }} upload(s) awaiting approval">{{ session.own_pending_count }}</span>@endif</a>
+          @if(enable_anonymous_access && session.is_anon)
+          <a href="#" id="nav-user-anon-identity-btn" style="white-space: nowrap;" onclick="event.preventDefault(); if(window.f0ckAnonPasskey) { window.f0ckAnonPasskey.openModal(); } else { const m = document.getElementById('anon-passkey-modal'); if (m) m.style.display='flex'; }">Passkey Identity</a>
+          @endif
+          <a href="/user/{{ (session.is_anon && session.login ? session.login : session.user).toLowerCase() }}/favs" class="mobile-only">{{ t('nav.favs') }}</a>
+          <a href="/settings" class="mobile-only" data-page-modal title="{{ t('nav.settings') }}">{{ t('nav.settings') }}</a>
+          <div class="nav-user-divider"></div>
+          <a href="/logout" class="mobile-only">{{ t('nav.logout') }}</a>
+        </div>
+      </div>
+
+      <!-- Notification bell -->
+      <div id="nav-notifications" class="nav-item-rel">
+        <a href="#" id="nav-notif-btn" title="Notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notif-count" style="display:none">0</span>
+        </a>
+        <div id="notif-dropdown" class="notif-dropdown">
+          <div class="notif-header">
+            <div class="notif-tabs">
+              @if(enable_comments)
+              <button class="notif-tab active" data-tab="user">{{ t('nav.notif_tab_user') }} <span class="notif-tab-badge" id="notif-tab-badge-user" style="display:none">0</span></button>
+              <button class="notif-tab" data-tab="system">{{ t('nav.notif_tab_system') }} <span class="notif-tab-badge" id="notif-tab-badge-system" style="display:none">0</span></button>
+              @else
+              <button class="notif-tab active" data-tab="system">{{ t('nav.notif_tab_system') }} <span class="notif-tab-badge" id="notif-tab-badge-system" style="display:none">0</span></button>
+              @endif
+              @if(session && session.admin)
+              <button class="notif-tab" data-tab="admin">Admin <span class="notif-tab-badge" id="notif-tab-badge-admin" style="display:none">0</span></button>
+              @endif
+            </div>
+            <button id="mark-all-read" title="{{ t('nav.mark_all_read') }}"><i class="fa-solid fa-check-double"></i></button>
+          </div>
+          @if(enable_comments)
+          <div class="notif-list" data-active-tab="user">
+          @else
+          <div class="notif-list" data-active-tab="system">
+          @endif
+            <div class="notif-empty">{{ t('nav.no_notifications') }}</div>
+          </div>
+          <div class="notif-footer">
+            <a href="/notifications" class="view-all-notifs">{{ t('nav.view_all_notifications') }}</a>
+          </div>
+          @if(enable_comments)
+          <div class="submanage">
+            <a href="/subscriptions">{{ t('nav.manage_subscriptions') }}</a>
+          </div>
+          @endif
+        </div>
+      </div>
+
+      <!-- Quick Favs -->
+      <a href="/user/{{ (session.is_anon && session.login ? session.login : session.user).toLowerCase() }}/favs" title="Favorites" class="desktop-only"><i class="fa-solid fa-heart"></i></a>
+
+      <!-- DM -->
+      @if(private_messages && !session.is_anon)
+      <div id="nav-dm" class="nav-item-rel">
+        <a href="/messages" id="nav-dm-btn" title="Direct Messages">
+          <i class="fa-solid fa-envelope"></i>
+          <span id="dm-badge" class="notif-count-dm" style="display:none">0</span>
+        </a>
+      </div>
+      @endif
+
+      <!-- Quick Settings -->
+      <a href="/settings" title="Settings" class="desktop-only" data-page-modal><i class="fa-solid fa-gear"></i></a>
+
+      <!-- Filter -->
+      @if(!session.is_anon || (enable_anonymous_access && anon_permissions.filter))
+      <a href="#" id="nav-filter-btn" title="Filter" style="position: relative; display: inline-flex; align-items: center; justify-content: center; z-index: 1000;">
+        <i class="fa-solid fa-filter"></i>
+        @if(session.mode == 0)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-sfw">SFW</span>
+        @elseif(session.mode == 1)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-nsfw">NSFW</span>
+        @elseif(session.mode == 4)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-nsfl">NSFL</span>
+        @elseif(session.mode == 2)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-unt">UNT</span>
+        @elseif(session.mode == 3)
+        <span id="nav-filter-badge" class="filter-badge filter-badge-all">ALL</span>
+        @else
+        <span id="nav-filter-badge" class="filter-badge filter-badge-sfw">SFW</span>
+        @endif
+      </a>
+      @endif
+
+      <!-- Logout -->
+      <a href="/logout" title="Logout" class="desktop-only"><i class="fa-solid fa-right-from-bracket"></i></a>
+
+      <!-- Hamburger: mobile only -->
+      <button class="navbar-toggler" type="button" id="nav-toggler"
+        onclick="document.getElementById('navbarContent').classList.toggle('show'); this.classList.toggle('is-open')">
+        <span></span><span></span><span></span>
+      </button>
+
+  </div><!-- /.nav-right-group -->
+
+  <!-- MOTD: below the nav row -->
+  <div class="motd-container" id="motd-container" @if(typeof motd==='undefined' || motd==='' ) style="display:none" @endif>
+    <span class="motd-content" id="motd-display"></span>
+    <div id="motd-data" style="display:none">@if(typeof motd !== 'undefined'){!! motd !!}@endif</div>
+    <div id="user-pref-show-motd" style="display:none">@if(session.show_motd !== false)true@else false @endif</div>
+  </div>
+
+</nav>
+
+@if(session.admin || session._is_impersonating || session._preview_role)
+<!-- Admin Bar (Bottom, hotkey-activated) -->
+<div class="admin-bar" id="admin-bar" data-preview-role="{{ session._preview_role || 'admin' }}">
+  @if(session._is_impersonating)
+  <!-- Impersonation Banner -->
+  <div class="admin-bar-impersonate-notice">
+    <span class="admin-bar-imp-icon"><i class="fa-solid fa-user-secret"></i></span>
+    <span class="admin-bar-imp-text">Viewing as <strong>{!! session.user !!}</strong></span>
+    <span class="admin-bar-imp-hint">— all actions are performed as this user</span>
+    <button class="admin-bar-exit-btn" id="admin-bar-exit-impersonate" title="Exit impersonation and return to your admin session">
+      <i class="fa-solid fa-door-open"></i> Exit
+    </button>
+    <button class="admin-bar-close-btn" id="admin-bar-close-imp" title="Close admin bar (^ or ~)" aria-label="Close admin bar" style="margin-left: 8px;">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  @else
+  <!-- Normal Admin Bar -->
+  <div class="admin-bar-inner">
+
+    <div class="admin-bar-links">
+      <a href="/admin" class="admin-bar-link" title="Admin panel">
+        <i class="fa-solid fa-cog"></i> Admin
+        @if(typeof session.pending_count !== 'undefined' && session.pending_count > 0)
+        <span class="admin-bar-badge">{{ session.pending_count }}</span>
+        @endif
+      </a>
+      <a href="/admin/approve" class="admin-bar-link" title="Pending approvals">
+        <i class="fa-solid fa-clock"></i> Pending
+        @if(typeof session.pending_count !== 'undefined' && session.pending_count > 0)
+        <span class="admin-bar-badge">{{ session.pending_count }}</span>
+        @endif
+      </a>
+      <a href="/mod" class="admin-bar-link" title="Moderator panel">
+        <i class="fa-solid fa-gavel"></i> Mod
+      </a>
+      <a href="/admin/audit" class="admin-bar-link" title="Audit log">
+        <i class="fa-solid fa-scroll"></i> Audit
+      </a>
+    </div>
+
+    <!-- Preview As role toggle (right-aligned) -->
+    <div class="admin-bar-preview" id="admin-bar-preview-wrap" style="margin-left: auto;">
+      <span class="admin-bar-preview-label"><i class="fa-solid fa-eye" style="opacity:0.6;"></i> Preview:</span>
+      <div class="admin-bar-preview-pills" id="admin-bar-preview-pills">
+        <button class="admin-bar-preview-pill active" data-role="admin" title="View as yourself (admin)">Admin</button>
+        <button class="admin-bar-preview-pill" data-role="mod" title="Simulate moderator view">Mod</button>
+        <button class="admin-bar-preview-pill" data-role="user" title="Simulate regular user view">User</button>
+      </div>
+    </div>
+
+    <button class="admin-bar-close-btn" id="admin-bar-close" title="Close admin bar (^ or ~)" aria-label="Close admin bar">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  @endif
+</div>
+@endif
+
+<!-- Floating exit-preview pill (visible only during role preview) -->
+@if(session.admin || session._preview_role)
+<div id="admin-preview-exit-pill" style="display:none;">
+  <i class="fa-solid fa-eye"></i>
+  <span id="admin-preview-exit-label">Previewing as User</span>
+  <button id="admin-preview-exit-btn" title="Return to admin view"><i class="fa-solid fa-xmark"></i> Exit</button>
+</div>
+@endif
+
+@else
+<!-- not logged in -->
+@if(!private_society)
+<nav class="navbar navbar-expand-lg">
+
+  <a class="navbar-brand" href="/">
+    @if(custom_brand_image)
+      <img id="navbar-logo" src="{{ custom_brand_image }}" alt="{{ domain }}" onload="if(window.syncNavbarHeight)window.syncNavbarHeight();" style="max-height: 40px; vertical-align: middle; max-width: 180px; width: auto;">
+    @else
+      <span class="f0ck">{{ custom_navbar_brand_text || domain }}</span>
+    @endif
+  </a>
+
+  <div class="nav-collapse nav-collapse-guest" id="navbarContent">
+    <div class="nav-links">
+      <a href="/tags" title="Tags"><i class="fa-solid fa-tags"></i></a>
+      @if(halls_enabled)
+      <div class="">
+        <a href="/halls" class="nav-halls-btn" title="Halls">
+          <i class="fa-solid fa-layer-group"></i>
+        </a>
+        <div class="nav-user-menu">
+          <a href="/halls" style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px;"><i class="fa-solid fa-building-columns"></i> Overview</a>
+          @if(typeof halls !== 'undefined' && halls.length > 0)
+            @each(halls as h)
+              <a href="/h/{{ h.slug }}">{{ h.name }}</a>
+            @endeach
+          @else
+            <a href="/h/legendary">Legendary</a>
+          @endif
+        </div>
+      </div>
+      @endif
+      @if(abyss_enabled)
+      <a href="/abyss" title="Abyss"><i class="fa-solid fa-dice-d6"></i></a>
+      @endif
+      <a href="#" id="nav-search-btn" title="Search"><i class="fa-solid fa-magnifying-glass"></i></a>
+
+    </div>
+  </div>
+
+  <div class="nav-right-group">
+    <div class="nav-user-dropdown">
+      <button class="nav-user-btn" id="nav-visitor-toggle">
+        <i id="nav-visitor-icon" class="fa-solid @if(enable_anonymous_access && session && session.is_anon) fa-user-secret @else fa-user @endif"></i>
+        <span id="nav-anon-label">@if(enable_anonymous_access && session && session.is_anon)anonymous@else guest @endif</span>
+        <span class="nav-avatar-caret">▾</span>
+      </button>
+      <div class="nav-user-menu" id="nav-visitor-menu" style="min-width: 100%; width: max-content; white-space: nowrap;">
+        @if(enable_anonymous_access && session && session.is_anon)
+        <a href="/favs" id="nav-guest-favs-link" class="mobile-only">{{ t('nav.favs') }}</a>
+        @endif
+        @if(enable_anonymous_access)
+
+        <a href="#" id="nav-anon-identity-btn" @if(!session || !session.is_anon) style="display:none;" @endif onclick="event.preventDefault(); if(window.f0ckAnonPasskey) { window.f0ckAnonPasskey.openModal(); } else { const m = document.getElementById('anon-passkey-modal'); if (m) m.style.display='flex'; }"><i class="fa-solid fa-fingerprint"></i> Passkey Identity</a>
+        <a href="/settings" id="nav-anon-settings-btn" data-page-modal title="Settings" @if(!session || !session.is_anon) style="display:none;" @endif><i class="fa-solid fa-gear"></i> Settings</a>
+        @endif
+        <a href="#" id="nav-login-btn">{{ t('nav.login') }}</a>
+        @if(registration_open)
+        <a href="#" id="nav-register-btn">{{ t('nav.register') }}</a>
+        @endif
+        @if(enable_anonymous_access)
+        <div class="nav-user-divider" id="nav-anon-divider" @if(!session || !session.is_anon) style="display:none;" @endif></div>
+        <a href="#" id="nav-anon-logout-btn" @if(!session || !session.is_anon) style="display:none;" @endif><i class="fa-solid fa-right-from-bracket"></i> Logout (Guest)</a>
+        @endif
+      </div>
+    </div>
+    @if(enable_anonymous_access && session && session.is_anon)
+    <!-- Quick Favs for Anon -->
+    <a href="/favs" id="nav-guest-favs" title="{{ t('nav.favs') }}" class="desktop-only"><i class="fa-solid fa-heart"></i></a>
+    @endif
+    <button class="navbar-toggler" type="button" id="nav-toggler"
+      onclick="document.getElementById('navbarContent').classList.toggle('show'); this.classList.toggle('is-open')">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <div class="motd-container" id="motd-container" @if(typeof motd==='undefined' || motd==='' ) style="display:none" @endif>
+    <span class="motd-content" id="motd-display"></span>
+    <div id="motd-data" style="display:none">@if(typeof motd !== 'undefined'){!! motd !!}@endif</div>
+  </div>
+
+</nav>
+@endif
+@endif
+
+
+
+<script>
+// Passkey login for registered users — fires only on explicit button click
+async function loginWithPasskey() {
+  const btn = document.getElementById('modal-login-passkey-btn');
+  const errEl = document.getElementById('modal-passkey-error');
+  if (errEl) errEl.style.display = 'none';
+  if (!window.PublicKeyCredential) {
+    if (errEl) { errEl.style.display = ''; errEl.textContent = 'Passkeys are not supported in this browser.'; }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Waiting for passkey...'; }
+
+  function b64urlToArr(s) { return Uint8Array.from(atob(s.split('-').join('+').split('_').join('/')), c=>c.charCodeAt(0)); }
+  function arrToB64url(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))).split('+').join('-').split('/').join('_').replace(/=+$/,''); }
+
+  try {
+    const beginRes = await fetch('/api/v2/settings/passkeys/login/begin', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+    const beginData = await beginRes.json();
+    if (!beginData.success) throw new Error(beginData.msg || 'Server error');
+
+    const opts = beginData.options;
+    const cred = await navigator.credentials.get({ publicKey: {
+      challenge: b64urlToArr(opts.challenge),
+      rpId: opts.rpId,
+      allowCredentials: (opts.allowCredentials || []).map(c => ({ type: c.type, id: b64urlToArr(c.id) })),
+      userVerification: opts.userVerification || 'preferred',
+      timeout: opts.timeout || 60000
+    }});
+
+    const finishRes = await fetch('/api/v2/settings/passkeys/login/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        challenge: opts.challenge,
+        credentialId: arrToB64url(cred.rawId),
+        clientDataJSON: arrToB64url(cred.response.clientDataJSON),
+        authenticatorData: arrToB64url(cred.response.authenticatorData),
+        signature: arrToB64url(cred.response.signature)
+      })
+    });
+    const finishData = await finishRes.json();
+    if (!finishData.success) throw new Error(finishData.msg || 'Authentication failed');
+
+    window.location.reload();
+  } catch (e) {
+    console.warn('[PASSKEY] Login failed:', e);
+    if (errEl) {
+      errEl.style.display = '';
+      if (e && e.name === 'NotAllowedError') {
+        errEl.textContent = 'Passkey request was cancelled or blocked. If Bitwarden or another password manager is locked, please unlock it or check extension permissions.';
+      } else {
+        errEl.textContent = (e && e.message) || 'Passkey login failed.';
+      }
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Use my passkey'; }
+  }
+}
+</script>
+
+<div id="login-modal" style="display: none;">
+  <div class="login-modal-content">
+    <button id="login-modal-close">&times;</button>
+    
+    <!-- Login View -->
+    <div id="modal-login-view">
+      <div class="lm-header">
+        <h2 class="lm-title">{{ t('auth.login_title') }}</h2>
+        <div class="lm-subtitle">{{ domain }}</div>
+      </div>
+
+      <!-- Tab bar -->
+      <div id="login-tabs" class="lm-tabs" role="tablist">
+        <button type="button" id="login-tab-creds" class="lm-tab is-active" role="tab" aria-selected="true" onclick="switchLoginTab('creds')">
+          <i class="fa-solid fa-key"></i>Credentials
+        </button>
+        <button type="button" id="login-tab-passkey" class="lm-tab" role="tab" aria-selected="false" onclick="switchLoginTab('passkey')">
+          <i class="fa-solid fa-fingerprint"></i>Passkey
+        </button>
+      </div>
+
+      <!-- Tab: Credentials -->
+      <div id="login-panel-creds" class="lm-panel">
+        <form class="login-form lm-form" method="post" action="/login" novalidate>
+          <label class="lm-field">
+            <i class="fa-solid fa-user lm-field-icon"></i>
+            <input class="lm-input" type="text" name="username" placeholder="{{ t('auth.username_or_email') }}" aria-label="{{ t('auth.username_or_email') }}" autocomplete="username" autocapitalize="off" spellcheck="false" required />
+          </label>
+          <label class="lm-field">
+            <i class="fa-solid fa-lock lm-field-icon"></i>
+            <input class="lm-input" type="password" name="password" id="modal-login-password" placeholder="{{ t('auth.password_placeholder_min') }}" aria-label="{{ t('auth.password_placeholder_min') }}" autocomplete="current-password" required />
+            <button type="button" class="lm-reveal" onclick="toggleLoginPassword(this)" aria-label="Show password" title="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </label>
+
+          <div class="lm-row">
+            <label class="lm-check" for="kmsi-modal">
+              <input type="checkbox" id="kmsi-modal" name="kmsi" />
+              <span class="lm-check-box"><i class="fa-solid fa-check"></i></span>
+              <span>{{ t('auth.stay_signed_in') }}</span>
+            </label>
+            @if(smtp_enabled)
+            <a href="#" id="modal-forgot-btn" class="lm-link lm-link-muted">{{ t('auth.forgot_password') }}</a>
+            @endif
+          </div>
+
+          <button type="submit" class="lm-btn lm-btn-primary">
+            {{ t('auth.login_title') }} <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Tab: Passkey -->
+      <div id="login-panel-passkey" class="lm-panel lm-panel-passkey" style="display: none;">
+        <button type="button" id="modal-login-passkey-btn" class="lm-btn lm-btn-primary" onclick="loginWithPasskey()">
+          <i class="fa-solid fa-fingerprint"></i> Use my passkey
+        </button>
+        <div id="modal-passkey-error" class="lm-error" style="display:none;"></div>
+      </div>
+
+      @if(enable_anonymous_access)
+      <div class="lm-anon">
+        <div class="lm-divider"><span>or</span></div>
+        <button type="button" id="modal-login-as-anon-btn" class="lm-btn lm-btn-ghost"
+          onclick="event.preventDefault(); if(window.f0ckAnonPasskey) window.f0ckAnonPasskey.openSetupModal(); else { const m=document.getElementById('anon-setup-modal'); if(m) m.style.display='flex'; }">
+          <i class="fa-solid fa-user-secret"></i> Login as Anonymous
+        </button>
+        @if(registration_open)
+        <button type="button" id="modal-login-register-btn" class="lm-btn lm-btn-ghost" style="margin-top: 8px;">
+          <i class="fa-solid fa-user-plus"></i> Register
+        </button>
+        @endif
+      </div>
+      @endif
+
+      @if(registration_open || private_society)
+      <p class="lm-footer">
+        {{ t('auth.no_account') }} <a href="#" id="login-to-register" class="lm-link">{{ t('auth.register_now') }}</a>
+      </p>
+      @endif
+    </div>
+
+    <style>
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) {
+      --lm-accent: var(--accent, #0096ff);
+      --lm-text: var(--text-color, #fff);
+      --lm-muted: var(--text-muted, #8a8f98);
+      --lm-surface: rgba(255, 255, 255, 0.04);
+      --lm-border: rgba(255, 255, 255, 0.1);
+      --lm-radius: 0;
+      padding: 28px 28px 24px;
+      font-family: inherit;
+      color: var(--lm-text);
+    }
+    #login-modal .login-modal-content,
+    #register-modal .login-modal-content { border-radius: 0; }
+
+    /* Header */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-header { text-align: center; margin-bottom: 22px; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-title {
+      margin: 0; font-size: 1.5em; font-weight: 700; letter-spacing: -0.01em; color: var(--lm-text);
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-subtitle {
+      margin-top: 4px; font-size: 0.82em; color: var(--lm-muted); letter-spacing: 0.02em;
+    }
+
+    /* Segmented tabs */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-tabs {
+      display: flex; gap: 4px; padding: 4px; margin-bottom: 20px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--lm-border);
+      border-radius: var(--lm-radius);
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-tab {
+      flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 8px 0; margin: 0;
+      background: transparent; border: 0; border-radius: var(--lm-radius);
+      color: var(--lm-muted); font: inherit; font-size: 0.88em; font-weight: 600;
+      cursor: pointer; transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-tab:hover { color: var(--lm-text); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-tab.is-active {
+      color: var(--lm-text);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-tab.is-active i { color: var(--lm-accent); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-panel { animation: lm-fade 0.2s ease; }
+    @keyframes lm-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* Form */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) form.lm-form {
+      display: flex; flex-direction: column; gap: 12px;
+      padding: 0; margin: 0; background: none; border: 0; box-shadow: none; width: 100%;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-field { position: relative; display: block; margin: 0; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-field-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--lm-muted); font-size: 0.9em; pointer-events: none; transition: color 0.15s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) input.lm-input {
+      width: 100%; box-sizing: border-box; height: 46px; margin: 0;
+      padding: 0 42px 0 40px;
+      background: var(--lm-surface);
+      border: 1px solid var(--lm-border);
+      border-radius: var(--lm-radius);
+      color: var(--lm-text); font: inherit; font-size: 0.95em;
+      outline: none; box-shadow: none;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) input.lm-input::placeholder { color: var(--lm-muted); opacity: 0.8; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) input.lm-input:hover { border-color: rgba(255, 255, 255, 0.18); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) input.lm-input:focus {
+      border-color: var(--lm-accent);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--lm-accent) 22%, transparent);
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-field:focus-within .lm-field-icon { color: var(--lm-accent); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-reveal {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      width: 34px; height: 34px; margin: 0; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 0; border-radius: var(--lm-radius);
+      color: var(--lm-muted); cursor: pointer; transition: color 0.15s, background 0.15s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-reveal:hover { color: var(--lm-text); background: rgba(255, 255, 255, 0.06); }
+
+    /* Remember me + forgot */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      font-size: 0.85em; margin: 2px 0 4px;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check {
+      display: inline-flex; align-items: center; gap: 9px; cursor: pointer; color: var(--lm-muted); user-select: none;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check-box {
+      width: 18px; height: 18px; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.25); border-radius: var(--lm-radius);
+      background: var(--lm-surface); font-size: 0.7em; color: transparent;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check:hover .lm-check-box { border-color: var(--lm-accent); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check input:checked + .lm-check-box { background: var(--lm-accent); border-color: var(--lm-accent); color: #000; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check input:focus-visible + .lm-check-box { box-shadow: 0 0 0 3px color-mix(in srgb, var(--lm-accent) 30%, transparent); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-check input:checked ~ span:last-child { color: var(--lm-text); }
+
+    /* Links */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-link {
+      color: var(--lm-accent); text-decoration: none; font-weight: 600; transition: opacity 0.15s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-link-muted { color: var(--lm-muted); font-weight: 500; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-link-muted:hover { color: var(--lm-text); }
+
+    /* Buttons */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn {
+      width: 100%; height: 46px; margin: 0; padding: 0 16px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      border-radius: var(--lm-radius); font: inherit; font-size: 0.95em; font-weight: 700;
+      cursor: pointer; transition: transform 0.12s, box-shadow 0.18s, background 0.18s, border-color 0.18s, filter 0.18s;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-primary {
+      margin-top: 6px;
+      border: 1px solid var(--lm-accent); color: #000;
+      background: var(--lm-accent);
+      box-shadow: none;
+      text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-primary:hover { background: transparent; color: var(--lm-accent); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-primary:active { transform: translateY(1px); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-primary .fa-arrow-right { font-size: 0.85em; transition: transform 0.18s; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-primary:hover .fa-arrow-right { transform: translateX(3px); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn:disabled { opacity: 0.6; cursor: progress; filter: none; transform: none; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn:focus-visible { outline: 2px solid var(--lm-accent); outline-offset: 2px; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-ghost {
+      background: var(--lm-surface); border: 1px solid var(--lm-border); color: var(--lm-muted); font-weight: 600;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-btn-ghost:hover { color: var(--lm-text); border-color: rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.07); }
+
+    /* Passkey panel */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-panel-passkey { text-align: center; padding-top: 4px; }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-passkey-icon {
+      width: 76px; height: 76px; margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--lm-radius); font-size: 2.2em; color: var(--lm-accent);
+      background: radial-gradient(circle, color-mix(in srgb, var(--lm-accent) 20%, transparent) 0%, transparent 70%);
+      border: 1px solid color-mix(in srgb, var(--lm-accent) 30%, transparent);
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-passkey-text {
+      margin: 0 auto 20px; max-width: 320px; font-size: 0.88em; line-height: 1.6; color: var(--lm-muted);
+    }
+
+    /* Errors (also covers the .flash-error the login JS injects) */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-error,
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .flash-error {
+      margin: 10px 0 0; padding: 10px 12px; text-align: left;
+      font-size: 0.84em; line-height: 1.45; color: #ff8a8a;
+      background: rgba(224, 108, 117, 0.1);
+      border: 1px solid rgba(224, 108, 117, 0.3);
+      border-radius: var(--lm-radius);
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) form .flash-error { margin: 0; }
+    #register-modal #modal-register-view #register-status:empty { display: none; }
+    #register-modal #modal-register-view #register-status.flash-success {
+      padding: 10px 12px; font-size: 0.84em; line-height: 1.45; color: #7ee2a0;
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      border-radius: var(--lm-radius);
+    }
+
+    /* Anon setup */
+    #anon-setup-modal #anon-setup-view .lm-note {
+      margin: 0 0 20px; padding: 9px 12px; text-align: left;
+      font-size: 0.8em; line-height: 1.5; color: var(--lm-muted);
+      background: var(--lm-surface); border: 1px solid var(--lm-border); border-left: 2px solid var(--lm-accent);
+    }
+    #anon-setup-modal #anon-setup-view .lm-note i { color: var(--lm-accent); margin-right: 4px; }
+    #anon-setup-modal #anon-setup-view .lm-title { margin-bottom: 18px; }
+    #anon-setup-modal #anon-setup-view .anon-consent { margin: 0 0 16px; text-align: left; }
+    /* Disabled until the privacy consent is ticked (spinner state keeps the progress cursor) */
+    #anon-setup-modal #anon-setup-view .lm-btn:disabled:not(:has(.fa-spinner)) { cursor: not-allowed; opacity: 0.45; }
+    #anon-setup-modal #anon-setup-view .lm-textbtn {
+      margin: 0; padding: 0; background: none; border: 0;
+      font: inherit; font-weight: 600; color: var(--lm-accent); cursor: pointer;
+    }
+    #anon-setup-modal #anon-setup-view .lm-textbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+    /* Anon passkey identity */
+    #anon-passkey-modal #anon-passkey-view .lm-stat {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin: 0 0 16px; padding: 12px 14px;
+      background: var(--lm-surface); border: 1px solid var(--lm-border);
+    }
+    #anon-passkey-modal #anon-passkey-view .lm-stat-label {
+      font-size: 0.72em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--lm-muted);
+    }
+    #anon-passkey-modal #anon-passkey-view .lm-stat code { color: var(--lm-accent); font-size: 0.95em; }
+
+    /* Register-only */
+    #register-modal #modal-register-view .lm-check-multiline { align-items: flex-start; line-height: 1.5; }
+    #register-modal #modal-register-view .lm-check-multiline .lm-check-box { margin-top: 1px; }
+    #register-modal #modal-register-view .lm-recaptcha { display: flex; justify-content: center; }
+
+    /* Divider + footer */
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-divider {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0 14px;
+      color: var(--lm-muted); font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.12em;
+    }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-divider::before,
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-divider::after { content: ''; flex: 1; height: 1px; background: var(--lm-border); }
+    :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) .lm-footer {
+      margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--lm-border);
+      text-align: center; font-size: 0.88em; color: var(--lm-muted);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      :is(#login-modal #modal-login-view, #register-modal #modal-register-view, #anon-setup-modal #anon-setup-view, #anon-passkey-modal #anon-passkey-view) * { animation: none !important; transition: none !important; }
+    }
+    </style>
+
+    <script>
+    function switchLoginTab(tab) {
+      var isCreds = tab === 'creds';
+      document.getElementById('login-panel-creds').style.display = isCreds ? '' : 'none';
+      document.getElementById('login-panel-passkey').style.display = isCreds ? 'none' : '';
+      [['login-tab-creds', isCreds], ['login-tab-passkey', !isCreds]].forEach(function (t) {
+        var el = document.getElementById(t[0]);
+        if (!el) return;
+        el.classList.toggle('is-active', t[1]);
+        el.setAttribute('aria-selected', t[1] ? 'true' : 'false');
+      });
+    }
+    function toggleLoginPassword(btn) {
+      var input = btn.parentNode.querySelector('input');
+      if (!input) return;
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.innerHTML = show ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      btn.title = show ? 'Hide password' : 'Show password';
+      input.focus();
+    }
+    </script>
+
+
+
+    @if(smtp_enabled)
+    <!-- Forgot Password View -->
+    <div id="modal-forgot-view" style="display: none;">
+      <form class="login-form" id="forgot-password-form" novalidate>
+        <h2 style="text-align: center; margin-bottom: 20px;">{{ t('auth.forgot_title') }}</h2>
+        <p style="text-align: center; margin-bottom: 20px; font-size: 0.9em; color: #ccc;">{{ t('auth.forgot_desc') }}</p>
+        <input type="email" id="forgot-email" placeholder="{{ t('auth.email_address') }}" required />
+        <div id="forgot-status" style="margin-bottom: 15px; text-align: center; font-size: 0.9em;"></div>
+        <button type="submit">{{ t('auth.send_reset') }}</button>
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="#" id="forgot-to-login" style="font-size: 0.9em; color: var(--accent); text-decoration: underline;">{{ t('auth.back_to_login') }}</a>
+        </div>
+      </form>
+    </div>
+    @endif
+
+    <!-- Reset Password View -->
+    <div id="modal-reset-view" style="display: none;">
+      <form class="login-form" id="reset-password-form" novalidate>
+        <h2 style="text-align: center; margin-bottom: 20px;">{{ t('auth.reset_title') }}</h2>
+        <p style="text-align: center; margin-bottom: 20px; font-size: 0.9em; color: #ccc;">{{ t('auth.reset_desc') }}</p>
+        <input type="hidden" id="reset-token" />
+        <input type="password" id="reset-password" placeholder="{{ t('auth.new_password_min') }}" required minlength="20" autocomplete="new-password" />
+        <input type="password" id="reset-password-confirm" placeholder="{{ t('auth.confirm_new_password') }}" required minlength="20" autocomplete="new-password" />
+        <div id="reset-status" style="margin-bottom: 15px; text-align: center; font-size: 0.9em;"></div>
+        <button type="submit">{{ t('auth.update_password') }}</button>
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="#" id="reset-to-login" style="font-size: 0.9em; color: var(--accent); text-decoration: underline; display: none;">{{ t('auth.back_to_login') }}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@if(enable_anonymous_access)
+<!-- Anonymous Passkey Identity Modal -->
+<div id="anon-passkey-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center;">
+  <div style="max-width: 380px; width: 92vw; max-height: 90vh; overflow-y: auto; padding: 0; border: 1px solid var(--accent); border-radius: 0; background: var(--bg); box-shadow: 0 0 20px rgba(0,0,0,0.5); position: relative;">
+    <button id="anon-passkey-modal-close" style="position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--text-muted, #aaa); font-size: 1.3em; cursor: pointer; line-height: 1;">&times;</button>
+
+    <div id="anon-passkey-view">
+      <div class="lm-header">
+        <h2 class="lm-title">Passkeys</h2>
+        <div class="lm-subtitle"><span id="anon-pk-count">–</span> / <span id="anon-pk-max">4</span> in use</div>
+      </div>
+
+      <div class="lm-stat">
+        <span class="lm-stat-label">Fingerprint</span>
+        <code id="anon-pk-fp-display">—</code>
+      </div>
+
+      <button type="button" id="anon-pk-add-btn" class="lm-btn lm-btn-primary">
+        <i class="fa-solid fa-plus"></i> Add passkey
+      </button>
+      <div id="anon-pk-error" class="lm-error" style="display: none;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Keep legacy modal ID working for any nav onclick handlers that reference anon-ssh-modal
+  var legacyAlias = document.getElementById('anon-ssh-modal');
+  if (!legacyAlias) {
+    // Create a minimal alias element that delegates to the passkey modal
+    var alias = document.createElement('div');
+    alias.id = 'anon-ssh-modal';
+    alias.style.display = 'none';
+    Object.defineProperty(alias.style, 'display', {
+      set: function(v) { if (v === 'flex' || v === 'block') { var m = document.getElementById('anon-passkey-modal'); if (m) m.style.display = 'flex'; } }
+    });
+    document.body.appendChild(alias);
+  }
+
+  var modalClose = document.getElementById('anon-passkey-modal-close');
+  if (modalClose) {
+    modalClose.addEventListener('click', function() {
+      var m = document.getElementById('anon-passkey-modal');
+      if (m) m.style.display = 'none';
+    });
+  }
+  var overlay = document.getElementById('anon-passkey-modal');
+  if (overlay) {
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.style.display = 'none'; });
+  }
+})();
+</script>
+@endif
+
+@if(enable_anonymous_access)
+<!-- Anonymous Passkey Setup Modal — shown when user clicks "Login as anonymous" -->
+<div id="anon-setup-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center;">
+  <div style="max-width: 420px; width: 92vw; padding: 0; border: 1px solid var(--accent); border-radius: 0; background: var(--bg); box-shadow: 0 0 20px rgba(0,0,0,0.5); position: relative;">
+    <button id="anon-setup-modal-close" style="position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--text-muted, #aaa); font-size: 1.3em; cursor: pointer; line-height: 1;">&times;</button>
+
+    <div id="anon-setup-view">
+      <!-- New user view (no passkey yet) -->
+      <div id="anon-setup-new" class="lm-panel lm-panel-passkey">
+        <h2 class="lm-title">Create passkey</h2>
+        <div class="lm-row anon-consent">
+          <label class="lm-check lm-check-multiline" for="anon-consent-new">
+            <input type="checkbox" id="anon-consent-new" class="anon-consent-input" />
+            <span class="lm-check-box"><i class="fa-solid fa-check"></i></span>
+            <span>I have read the <a href="/privacy" class="lm-link anon-consent-open">privacy page</a> and accept how my data is processed.</span>
+          </label>
+        </div>
+        <button type="button" id="anon-setup-create-btn" class="lm-btn lm-btn-primary">
+          <i class="fa-solid fa-fingerprint"></i> Create
+        </button>
+        <div id="anon-setup-new-error" class="lm-error" style="display: none;"></div>
+        <p class="lm-footer">
+          <button type="button" id="anon-setup-switch-existing" class="lm-textbtn">Already have one? Use existing passkey</button>
+        </p>
+      </div>
+
+      <!-- Returning user view (has passkey) -->
+      <div id="anon-setup-returning" class="lm-panel lm-panel-passkey" style="display: none;">
+        <h2 class="lm-title">Authenticate with passkey</h2>
+        <button type="button" id="anon-setup-auth-btn" class="lm-btn lm-btn-primary">
+          <i class="fa-solid fa-fingerprint"></i> Authenticate
+        </button>
+        <div id="anon-setup-ret-error" class="lm-error" style="display: none;"></div>
+        <p class="lm-footer">
+          <button type="button" id="anon-setup-switch-new" class="lm-textbtn">Create a new passkey instead</button>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Privacy consent modal: opened from the "Create passkey" consent checkbox; must be read to the end -->
+<div id="privacy-consent-modal" style="display: none;">
+  <div class="pc-content">
+    <div class="pc-header">
+      <h3><i class="fa-solid fa-shield-halved"></i> Privacy</h3>
+      <button type="button" id="privacy-consent-close" class="pc-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="pc-body" id="privacy-consent-body"></div>
+    <div class="pc-footer">
+      <span class="pc-hint" id="privacy-consent-hint">Scroll to the end to accept.</span>
+      <button type="button" id="privacy-consent-accept" class="pc-accept" disabled><i class="fa-solid fa-check"></i> Accept</button>
+    </div>
+  </div>
+</div>
+<style>
+  #privacy-consent-modal {
+    position: fixed; inset: 0; z-index: 100000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px);
+  }
+  #privacy-consent-modal .pc-content {
+    width: 100vw; height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg); border: 0; border-radius: 0;
+  }
+  #privacy-consent-modal .pc-header {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 20px; border-bottom: 1px solid var(--accent);
+  }
+  #privacy-consent-modal .pc-header h3 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.1em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  #privacy-consent-modal .pc-header h3 i { color: var(--accent); }
+  #privacy-consent-modal .pc-close {
+    width: 36px; height: 36px; margin: 0; padding: 0; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 0;
+    color: var(--text-color, #fff); font-size: 1.6em; line-height: 1; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  #privacy-consent-modal .pc-close:hover { color: var(--accent); border-color: var(--accent); }
+  #privacy-consent-modal .pc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #privacy-consent-modal .pc-body .pv { padding-top: 20px; }
+  #privacy-consent-modal .pc-loading { padding: 40px 20px; text-align: center; color: var(--text-muted, #aaa); }
+  #privacy-consent-modal .pc-footer {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 16px;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.2);
+  }
+  #privacy-consent-modal .pc-hint { font-size: 0.85em; color: var(--text-muted, #aaa); }
+  #privacy-consent-modal .pc-accept {
+    height: 42px; padding: 0 22px; margin: 0; font: inherit; font-size: 0.85em; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; border-radius: 0;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #000; border: 1px solid var(--accent); transition: background 0.18s, color 0.18s;
+  }
+  #privacy-consent-modal .pc-accept:hover:not(:disabled) { background: transparent; color: var(--accent); }
+  #privacy-consent-modal .pc-accept:disabled { opacity: 0.4; cursor: not-allowed; }
+  @media (max-width: 600px) {
+    #privacy-consent-modal .pc-footer { flex-direction: column; align-items: stretch; gap: 8px; text-align: center; }
+    #privacy-consent-modal .pc-accept { justify-content: center; }
+  }
+</style>
+<script>
+(function() {
+  function closeSetupModal() {
+    var m = document.getElementById('anon-setup-modal'); if (m) m.style.display = 'none';
+  }
+  var closeBtn = document.getElementById('anon-setup-modal-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeSetupModal);
+  var overlay = document.getElementById('anon-setup-modal');
+  if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSetupModal(); });
+  var switchToExisting = document.getElementById('anon-setup-switch-existing');
+  var switchToNew = document.getElementById('anon-setup-switch-new');
+  if (switchToExisting) switchToExisting.addEventListener('click', function() {
+    document.getElementById('anon-setup-new').style.display = 'none';
+    document.getElementById('anon-setup-returning').style.display = '';
+  });
+  if (switchToNew) switchToNew.addEventListener('click', function() {
+    document.getElementById('anon-setup-returning').style.display = 'none';
+    document.getElementById('anon-setup-new').style.display = '';
+  });
+  // Privacy consent (new passkeys only): the checkbox can only be ticked by reading the privacy page in
+  // the consent modal to the end. Accepting is remembered in localStorage and the checkbox never shows again.
+  var CONSENT_KEY = 'f0ck_privacy_accepted';
+  var consentInput = document.getElementById('anon-consent-new');
+  var hasConsent = function() {
+    try { return !!localStorage.getItem(CONSENT_KEY); } catch (e) { return false; }
+  };
+  var syncConsent = function() {
+    var accepted = hasConsent();
+    document.querySelectorAll('#anon-setup-modal .anon-consent').forEach(function(el) { el.style.display = accepted ? 'none' : ''; });
+    var btn = document.getElementById('anon-setup-create-btn');
+    if (btn && !btn.querySelector('.fa-spinner')) btn.disabled = !(accepted || (consentInput && consentInput.checked));
+  };
+  var recordConsent = function() {
+    if (hasConsent()) return true;
+    if (!consentInput || !consentInput.checked) return false;
+    try { localStorage.setItem(CONSENT_KEY, JSON.stringify({ accepted_at: new Date().toISOString() })); } catch (e) {}
+    return true;
+  };
+
+  var pcModal = document.getElementById('privacy-consent-modal');
+  var pcBody = document.getElementById('privacy-consent-body');
+  var pcAccept = document.getElementById('privacy-consent-accept');
+  var pcHint = document.getElementById('privacy-consent-hint');
+  var pcLoaded = false;
+  var pcCheckEnd = function() {
+    if (!pcLoaded) return;
+    var atEnd = pcBody.scrollTop + pcBody.clientHeight >= pcBody.scrollHeight - 8;
+    if (atEnd) {
+      pcAccept.disabled = false;
+      if (pcHint) pcHint.textContent = 'You reached the end.';
+    }
+  };
+  var loadPrivacy = async function() {
+    if (pcLoaded) return;
+    pcBody.innerHTML = '<div class="pc-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+    try {
+      var r = await fetch('/privacy', { credentials: 'same-origin' });
+      var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      var pv = doc.querySelector('#main .pv');
+      if (!r.ok || !pv) throw new Error('bad response');
+      pcBody.innerHTML = '';
+      doc.querySelectorAll('#main style').forEach(function(st) { pcBody.appendChild(st.cloneNode(true)); });
+      pcBody.appendChild(document.importNode(pv, true));
+      pcBody.querySelectorAll('a[href]').forEach(function(a) { a.target = '_blank'; a.rel = 'noopener'; });
+    } catch (e) {
+      pcBody.innerHTML = '<div class="pc-loading">Could not load the privacy page. <a href="/privacy" target="_blank" class="lm-link">Open it in a new tab</a>.</div>';
+    }
+    pcLoaded = true;
+  };
+  var openConsentModal = async function() {
+    if (!pcModal) return;
+    pcAccept.disabled = true;
+    if (pcHint) pcHint.textContent = 'Scroll to the end to accept.';
+    pcModal.style.display = 'flex';
+    await loadPrivacy();
+    pcBody.scrollTop = 0;
+    // Short content that doesn't scroll counts as read
+    requestAnimationFrame(pcCheckEnd);
+  };
+  var closeConsentModal = function() { if (pcModal) pcModal.style.display = 'none'; };
+  if (pcBody) pcBody.addEventListener('scroll', pcCheckEnd, { passive: true });
+  if (pcAccept) pcAccept.addEventListener('click', function() {
+    if (consentInput) consentInput.checked = true;
+    closeConsentModal();
+    syncConsent();
+  });
+  var pcClose = document.getElementById('privacy-consent-close');
+  if (pcClose) pcClose.addEventListener('click', closeConsentModal);
+
+  if (consentInput) consentInput.addEventListener('click', function(e) {
+    // Ticking goes through the privacy modal; unticking is always allowed
+    if (!consentInput.checked) return syncConsent();
+    e.preventDefault();
+    openConsentModal();
+  });
+  document.querySelectorAll('#anon-setup-modal .anon-consent-open').forEach(function(a) {
+    a.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); openConsentModal(); });
+  });
+
+  syncConsent();
+  // Re-sync whenever the modal is opened (another tab may have accepted meanwhile)
+  if (overlay) new MutationObserver(function() { if (overlay.style.display !== 'none') syncConsent(); }).observe(overlay, { attributes: true, attributeFilter: ['style'] });
+
+  var createBtn = document.getElementById('anon-setup-create-btn');
+  if (createBtn) createBtn.addEventListener('click', async function() {
+    var errEl = document.getElementById('anon-setup-new-error');
+    if (errEl) errEl.style.display = 'none';
+    if (!recordConsent()) return;
+    createBtn.disabled = true;
+    createBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving passkey...';
+    try {
+      await window.f0ckAnonPasskey.doRegister();
+    } catch(e) {
+      console.warn('[ANON_PASSKEY] Registration failed:', e);
+      if (errEl) {
+        errEl.style.display = '';
+        if (e && e.name === 'NotAllowedError') {
+          errEl.textContent = 'Passkey creation was cancelled or blocked. If Bitwarden or another password manager is locked, please unlock it or disable passkey interception.';
+        } else {
+          errEl.textContent = (e && e.message) || 'Something went wrong.';
+        }
+      }
+      createBtn.disabled = false;
+      createBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Create';
+    }
+  });
+  var authBtn = document.getElementById('anon-setup-auth-btn');
+  if (authBtn) authBtn.addEventListener('click', async function() {
+    var errEl = document.getElementById('anon-setup-ret-error');
+    if (errEl) errEl.style.display = 'none';
+    authBtn.disabled = true;
+    authBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Waiting for passkey...';
+    try {
+      await window.f0ckAnonPasskey.doAuthenticate();
+    } catch(e) {
+      console.warn('[ANON_PASSKEY] Authentication failed:', e);
+      if (errEl) {
+        errEl.style.display = '';
+        if (e && e.name === 'NotAllowedError') {
+          errEl.textContent = 'Passkey request was cancelled or blocked. If Bitwarden or another password manager is locked, please unlock it.';
+        } else {
+          errEl.textContent = (e && e.message) || 'Authentication failed.';
+        }
+      }
+      authBtn.disabled = false;
+      authBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Authenticate';
+    }
+  });
+})();
+</script>
+@endif
+
+@if(!private_society || session)
+<!-- Shortcuts Modal -->
+<div id="shortcuts-modal" style="display: none;">
+  <div class="login-modal-content sc-content">
+    <div class="sc-header">
+      <h2><i class="fa-solid fa-keyboard"></i> {{ t('shortcuts.title') }}</h2>
+      <button type="button" id="shortcuts-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="shortcuts-content sc-body">
+      <div class="shortcut-list">
+        <div class="shortcut-item"><span><kbd>k</kbd></span><span>{{ t('shortcuts.search') }}</span></div>
+        <div class="shortcut-item"><span><kbd>m</kbd></span><span>{{ t('shortcuts.main_page') }}</span></div>
+        <div class="shortcut-item"><span><kbd>r</kbd></span><span>{{ t('shortcuts.random') }}</span></div>
+        <div class="shortcut-item"><span><kbd>z</kbd></span><span>{{ t('shortcuts.shuffle') }}</span></div>
+        <div class="shortcut-item"><span><kbd>u</kbd></span><span>{{ t('shortcuts.quick_upload') }}</span></div>
+        <div class="shortcut-item"><span><kbd>c</kbd></span><span>{{ t('shortcuts.toggle_comments') }}</span></div>
+        <div class="shortcut-item"><span><kbd>h</kbd></span><span>{{ t('shortcuts.toggle_sidebar') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Ctrl</kbd> + <kbd>&#46;</kbd></span><span>{{ t('shortcuts.focus_comment') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span><span>{{ t('shortcuts.send_comment') }}</span></div>
+        <div class="shortcut-item"><span><kbd>s</kbd></span><span>{{ t('shortcuts.flash_yank') }}</span></div>
+        @if(square_clicker_active)
+        <div class="shortcut-item"><span><kbd>o</kbd></span><span>{{ t('shortcuts.square_clicker') }}</span></div>
+        @endif
+        @if(session)
+        <div class="shortcut-item"><span><kbd>Shift</kbd> + <kbd>S</kbd></span><span>{{ t('shortcuts.open_settings') }}</span></div>
+        @endif
+        @if(session)
+        <div class="shortcut-item"><span><kbd>e</kbd></span><span>{{ t('shortcuts.tag_exclude') }}</span></div>
+        <div class="shortcut-item"><span><kbd>i</kbd></span><span>{{ t('shortcuts.tag_input') }}</span></div>
+        @endif
+        <div class="shortcut-item"><span><kbd>l</kbd></span><span>{{ t('shortcuts.toggle_bg') }}</span></div>
+        <div class="shortcut-item"><span><kbd id="shortcut-theme">t</kbd></span><span>{{ t('shortcuts.cycle_themes') }}</span></div>
+        @if(session && session.admin)
+        <div class="shortcut-item"><span><kbd>x</kbd></span><span>{{ t('shortcuts.delete') }}</span></div>
+        <div class="shortcut-item"><span><kbd>p</kbd></span><span>{{ t('shortcuts.toggle_rating') }}</span></div>
+        <div class="shortcut-item"><span><kbd>^</kbd> / <kbd>~</kbd></span><span>Toggle Admin Bar</span></div>
+        @endif
+        <div class="shortcut-item"><span><kbd>Space</kbd></span><span>{{ t('shortcuts.play_pause') }}</span></div>
+        <div class="shortcut-item"><span><kbd>←</kbd> <kbd>→</kbd></span><span>{{ t('shortcuts.next_prev') }}</span></div>
+        <div class="shortcut-item"><span><kbd>↑</kbd> <kbd>↓</kbd></span><span>{{ t('shortcuts.volume') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Scroll</kbd></span><span>{{ t('shortcuts.scroll_nav') }}</span></div>
+        <div class="shortcut-item"><span><kbd>Shift</kbd> + <kbd>Scroll</kbd></span><span>{{ t('shortcuts.next_prev') }}</span></div>
+        <div class="shortcut-item"><span><kbd>,</kbd> <kbd>.</kbd></span><span>{{ t('shortcuts.frame_skip') }}</span></div>
+        <div class="shortcut-item"><span><kbd>?</kbd></span><span>{{ t('shortcuts.show_help') }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Keyboard shortcuts modal: style guide (square, flat, accent border), fixed header, only the list scrolls */
+  #shortcuts-modal .sc-content {
+    --sc-muted: var(--text-muted, #8a8f98);
+    --sc-border: rgba(255, 255, 255, 0.1);
+    width: min(520px, 92vw); max-width: none; max-height: min(90vh, 90dvh);
+    display: flex; flex-direction: column; overflow: hidden;
+    margin: 0; padding: 0; text-align: left;
+    background: var(--bg) !important; border: 1px solid var(--accent) !important;
+    border-radius: 0 !important; box-shadow: 0 0 20px rgba(0, 0, 0, 0.5) !important;
+  }
+  #shortcuts-modal .sc-content * { border-radius: 0 !important; }
+  #shortcuts-modal .sc-header {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid var(--sc-border);
+  }
+  #shortcuts-modal .sc-header h2 {
+    display: flex; align-items: center; gap: 10px; margin: 0;
+    font-size: 1.05em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  #shortcuts-modal .sc-header h2 i { color: var(--accent); }
+  #shortcuts-modal #shortcuts-modal-close {
+    position: static; width: 36px; height: 36px; margin: 0; padding: 0; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 1px solid rgba(255, 255, 255, 0.25); color: var(--text-color, #fff);
+    font-size: 1.6em; line-height: 1; opacity: 1; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  #shortcuts-modal #shortcuts-modal-close:hover { color: var(--accent); border-color: var(--accent); }
+  #shortcuts-modal .sc-body {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 6px 20px 16px; scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
+  }
+  #shortcuts-modal .shortcut-list { gap: 0; margin: 0; }
+  #shortcuts-modal .shortcut-item {
+    align-items: center; margin: 0; padding: 10px 0; border-bottom: 1px solid var(--sc-border);
+  }
+  #shortcuts-modal .shortcut-item:last-child { border-bottom: 0; }
+  #shortcuts-modal .shortcut-item span:last-child { color: var(--sc-muted); opacity: 1; }
+  #shortcuts-modal .shortcut-item kbd {
+    display: inline-block; min-width: 22px; padding: 2px 7px; text-align: center;
+    font-size: 0.85em; font-family: inherit; font-weight: 700;
+    background: transparent; border: 1px solid var(--accent); color: var(--accent); box-shadow: none;
+  }
+  @media (max-width: 600px) {
+    #shortcuts-modal { padding: 0 !important; align-items: stretch !important; }
+    #shortcuts-modal .sc-content {
+      width: 100vw; height: 100vh; height: 100dvh; max-height: none;
+      border: 0 !important; box-shadow: none !important;
+    }
+    #shortcuts-modal .sc-body { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  }
+</style>
+<div id="flash-container"></div>
+@endif
+
+<!-- Register Modal -->
+<div id="register-modal" style="display: none;">
+  <div class="login-modal-content">
+    <button id="register-modal-close">&times;</button>
+    <div id="modal-register-view">
+      <div class="lm-header">
+        <h2 class="lm-title">{{ t('auth.register_title') }}</h2>
+        <div class="lm-subtitle">{{ domain }}</div>
+      </div>
+
+      <form class="login-form lm-form" id="modal-register-form" method="post" action="/register" novalidate>
+        <div id="register-status"></div>
+        <label class="lm-field">
+          <i class="fa-solid fa-user lm-field-icon"></i>
+          <input class="lm-input" type="text" name="username" placeholder="{{ t('auth.username_placeholder') }}" aria-label="{{ t('auth.username_placeholder') }}" autocomplete="username" autocapitalize="off" spellcheck="false" required />
+        </label>
+        <label class="lm-field">
+          <i class="fa-solid fa-lock lm-field-icon"></i>
+          <input class="lm-input" type="password" name="password" placeholder="{{ t('auth.password_placeholder') }}" aria-label="{{ t('auth.password_placeholder') }}" autocomplete="new-password" required minlength="20"
+            title="Must be at least 20 characters long." />
+          <button type="button" class="lm-reveal" onclick="toggleLoginPassword(this)" aria-label="Show password" title="Show password">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </label>
+        <label class="lm-field">
+          <i class="fa-solid fa-lock lm-field-icon"></i>
+          <input class="lm-input" type="password" name="password_confirm" placeholder="{{ t('auth.confirm_password') }}" aria-label="{{ t('auth.confirm_password') }}" autocomplete="new-password" required minlength="20" />
+          <button type="button" class="lm-reveal" onclick="toggleLoginPassword(this)" aria-label="Show password" title="Show password">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </label>
+        @if(!registration_open)
+        <label class="lm-field">
+          <i class="fa-solid fa-ticket lm-field-icon"></i>
+          <input class="lm-input" type="text" name="token" placeholder="{{ t('auth.invite_token') }}" aria-label="{{ t('auth.invite_token') }}" autocomplete="off" spellcheck="false" required />
+        </label>
+        @elseif(registration_require_mail_andor_token)
+        <label class="lm-field">
+          <i class="fa-solid fa-envelope lm-field-icon"></i>
+          <input class="lm-input" type="email" name="email" placeholder="{{ t('auth.email_placeholder') }}" aria-label="{{ t('auth.email_placeholder') }}" autocomplete="email" required />
+        </label>
+        @endif
+        <input type="text" name="email_confirm_field" style="display: none !important;" tabindex="-1" autocomplete="off" />
+
+        <div class="lm-row">
+          <label class="lm-check lm-check-multiline" for="tos-modal">
+            <input type="checkbox" id="tos-modal" name="tos" required />
+            <span class="lm-check-box"><i class="fa-solid fa-check"></i></span>
+            <span>@if(private_society){{ t('auth.tos_private') }}@else{{ t('auth.tos_public') }} <a href="/terms" target="_blank" class="lm-link">{{ t('auth.tos_terms') }}</a>, <a href="/rules" target="_blank" class="lm-link">{{ t('auth.tos_rules') }}</a> {{ t('auth.tos_age') }}@endif</span>
+          </label>
+        </div>
+
+        @if(recaptcha_enabled)
+        <div id="modal-register-recaptcha" class="lm-recaptcha"></div>
+        @endif
+
+        <button type="submit" class="lm-btn lm-btn-primary">{{ t('auth.create_account') }}</button>
+      </form>
+
+      <p class="lm-footer">
+        <a href="#" id="register-to-login" class="lm-link">{{ t('auth.back_to_login') }}</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Global Drag & Drop Feature for Logged-in Users -->
+@if(session)
+<!-- Global Drop Overlay -->
+<div id="drop-overlay">
+  <div class="overlay-content">
+    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 5rem;"></i>
+    <h2>{{ t('upload.drop_anywhere') }}</h2>
+  </div>
+</div>
+
+<!-- Upload Drag Modal -->
+<div id="upload-drag-modal">
+  <div class="modal-content">
+    <button class="modal-close" id="drag-modal-close" title="Cancel Upload">&times;</button>
+    <div class="modal-body">
+      <div class="upload-container" style="padding: 0; animation: none; opacity: 1;">
+          <div class="upload-title">
+          <span class="upload-title-text">{{ t('upload.title') }}</span>
+          <div class="upload-limit-info">
+              @if(session.uploads_remaining === undefined)
+              <span class="limit-unlimited"><i class="fa-solid fa-infinity"></i> {{ t('upload.unlimited') }}</span>
+              @elseif(session.uploads_remaining === 0)
+              <span class="limit-exhausted"><i class="fa-solid fa-triangle-exclamation"></i> {{ t('upload.limit_reached') }} (0/{{ upload_limit }})</span>
+              @else
+              <span class="limit-remaining"><i class="fa-solid fa-upload"></i> {{ session.uploads_remaining }}/{{ upload_limit }} {{ t('upload.remaining') }}</span>
+              @endif
+          </div>
+          </div>
+
+          @include(snippets/upload-form)
+      </div>
+    </div>
+  </div>
+</div>
+
+@endif
+
+@if(recaptcha_enabled && (!session || session.is_anon))
+<script>
+(function() {
+  var _rcModalWidgetId = null;
+  var _rcLoaded = false;
+
+  function renderModalRecaptcha() {
+    var el = document.getElementById('modal-register-recaptcha');
+    if (!el || !window.grecaptcha) return;
+    if (_rcModalWidgetId !== null) {
+      try { grecaptcha.reset(_rcModalWidgetId); } catch(e) {}
+    } else {
+      _rcModalWidgetId = grecaptcha.render(el, { sitekey: '{{ recaptcha_site_key }}', theme: 'dark' });
+    }
+  }
+
+  window.onRecaptchaModalReady = function() {
+    _rcLoaded = true;
+    renderModalRecaptcha();
+    if (typeof window.renderReportRecaptcha === 'function') window.renderReportRecaptcha();
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('register-modal');
+    if (!modal) return;
+    var obs = new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        if (m.attributeName === 'style') {
+          if (modal.style.display !== 'none' && _rcLoaded) renderModalRecaptcha();
+        }
+      });
+    });
+    obs.observe(modal, { attributes: true });
+  });
+})();
+</script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaModalReady&render=explicit" async defer></script>
+@endif
+
+@if(session && (session.admin || session._is_impersonating || session._preview_role))
+<style>
+/* ── Admin Bar ──────────────────────────────────────────────────────────────── */
+.admin-bar {
+  position: fixed;
+  bottom: 0;
+  left: var(--admin-bar-left, 0px);
+  right: var(--admin-bar-right, 300px);
+  width: auto;
+  font-family: var(--font, system-ui, sans-serif);
+  font-size: 0.76rem;
+  z-index: 100080 !important;
+  box-shadow: 0 -3px 14px rgba(0, 0, 0, 0.5);
+  border-top: 1px solid rgba(255, 190, 0, 0.28);
+  border-bottom: none;
+  transform: translateY(100%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.22s ease,
+              left 0.3s ease-in-out,
+              right 0.3s ease-in-out;
+}
+
+.admin-bar.open {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body.onara-modal-open .admin-bar {
+  z-index: 100080 !important;
+  filter: none !important;
+}
+
+body.onara-modal-open .admin-bar.open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Sidebar boundaries via CSS */
+body.sidebar-right-hidden .admin-bar {
+  right: 0 !important;
+}
+
+@media (max-width: 999px) {
+  .admin-bar {
+    right: min(280px, 80vw);
+  }
+  body.sidebar-right-hidden .admin-bar {
+    right: 0 !important;
+  }
+}
+
+body:not(:has(.global-sidebar-right, .item-sidebar-right, .index-sidebar-right)) .admin-bar {
+  right: 0 !important;
+}
+
+@media (min-width: 1000px) {
+  body.layout-modern:not(.sidebar-left-hidden):not(.comments-hidden):has(.item-sidebar-left) .admin-bar {
+    left: min(350px, 30vw);
+  }
+  body.layout-modern.sidebar-left-hidden .admin-bar,
+  body.layout-modern.comments-hidden .admin-bar,
+  body:has(.item-layout-container.sidebar-hidden) .admin-bar {
+    left: 0 !important;
+  }
+}
+
+/* Lift bottom pagination smoothly if admin bar is open */
+body.admin-bar-open .pagination-container-fluid {
+  bottom: 32px;
+}
+.pagination-container-fluid {
+  transition: right 0.3s ease-in-out, bottom 0.3s ease-in-out !important;
+}
+
+.admin-bar-close-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 210, 80, 0.45);
+  cursor: pointer;
+  padding: 3px 7px;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.admin-bar-close-btn:hover {
+  color: #ffd844;
+  background: rgba(255, 200, 0, 0.15);
+}
+
+/* Normal admin bar */
+.admin-bar-inner {
+  background: linear-gradient(90deg, #1a1200 0%, #1e1600 40%, #141000 100%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 32px;
+  overflow: hidden;
+}
+
+.admin-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #f5c400;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  padding-right: 4px;
+}
+.admin-bar-brand i { font-size: 0.78rem; }
+
+.admin-bar-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.admin-bar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(255, 210, 80, 0.75) !important;
+  text-decoration: none !important;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.74rem;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  position: relative;
+}
+.admin-bar-link:hover {
+  background: rgba(255, 200, 0, 0.12);
+  color: #ffd844 !important;
+}
+.admin-bar-badge {
+  background: #e05020;
+  color: #fff;
+  border-radius: 9px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 16px;
+  display: inline-block;
+}
+
+.admin-bar-sep {
+  flex: 1;
+  height: 14px;
+  border-left: 1px solid rgba(255, 200, 0, 0.12);
+  margin: 0 4px;
+  flex-basis: 0;
+  min-width: 0;
+}
+
+/* View-as widget */
+.admin-bar-viewas {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.admin-bar-viewas-input-wrap {
+  position: relative;
+}
+.admin-bar-input {
+  background: rgba(255, 200, 0, 0.07);
+  border: 1px solid rgba(255, 200, 0, 0.2);
+  border-radius: 4px;
+  color: #ffd844;
+  font-size: 0.73rem;
+  font-family: var(--font, system-ui, sans-serif);
+  padding: 2px 8px;
+  width: 160px;
+  outline: none;
+  transition: border-color 0.15s, width 0.2s;
+}
+.admin-bar-input::placeholder { color: rgba(255,210,80,0.35); }
+.admin-bar-input:focus {
+  border-color: rgba(255, 200, 0, 0.55);
+  width: 210px;
+}
+.admin-bar-viewas-btn {
+  background: rgba(255, 200, 0, 0.12);
+  border: 1px solid rgba(255, 200, 0, 0.3);
+  border-radius: 4px;
+  color: #ffd844;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  transition: background 0.15s, border-color 0.15s;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.admin-bar-viewas-btn:hover {
+  background: rgba(255, 200, 0, 0.22);
+  border-color: rgba(255, 200, 0, 0.55);
+}
+.admin-bar-viewas-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Autocomplete suggestions */
+.admin-viewas-suggestions {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  background: #1a1600;
+  border: 1px solid rgba(255, 200, 0, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  z-index: 100090 !important;
+  display: none;
+  overflow: hidden;
+  min-width: 180px;
+}
+.admin-viewas-suggestions.open { display: block; }
+.admin-viewas-suggestion {
+  padding: 5px 10px;
+  color: rgba(255, 210, 80, 0.85);
+  cursor: pointer;
+  font-size: 0.76rem;
+  transition: background 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-viewas-suggestion:hover,
+.admin-viewas-suggestion.active {
+  background: rgba(255, 200, 0, 0.14);
+  color: #ffd844;
+}
+.admin-viewas-suggestion i { opacity: 0.5; font-size: 0.72rem; }
+
+/* Impersonation banner */
+.admin-bar-impersonate-notice {
+  background: linear-gradient(90deg, #1a0800 0%, #200c00 40%, #180a00 100%);
+  border-top: 1px solid rgba(255, 120, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: 30px;
+  overflow: hidden;
+  animation: admin-imp-pulse 3s ease-in-out infinite;
+}
+@keyframes admin-imp-pulse {
+  0%, 100% { border-top-color: rgba(255, 120, 0, 0.35); }
+  50%       { border-top-color: rgba(255, 160, 0, 0.7); }
+}
+
+.admin-bar-imp-icon {
+  color: #ff8c00;
+  font-size: 0.85rem;
+  animation: admin-imp-wiggle 4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes admin-imp-wiggle {
+  0%, 90%, 100% { transform: rotate(0deg); }
+  92% { transform: rotate(-8deg); }
+  96% { transform: rotate(8deg); }
+}
+
+.admin-bar-imp-text {
+  color: #ffb84d;
+  font-size: 0.77rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.admin-bar-imp-text strong { color: #ffcc00; }
+.admin-bar-imp-hint {
+  color: rgba(255, 160, 60, 0.55);
+  font-size: 0.71rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-bar-exit-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(255, 80, 0, 0.18);
+  border: 1px solid rgba(255, 100, 0, 0.45);
+  border-radius: 4px;
+  color: #ff8c40;
+  cursor: pointer;
+  padding: 2px 10px;
+  font-size: 0.73rem;
+  font-family: var(--font, system-ui, sans-serif);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+}
+.admin-bar-exit-btn:hover {
+  background: rgba(255, 80, 0, 0.35);
+  border-color: rgba(255, 120, 0, 0.7);
+  color: #ffaa66;
+}
+
+/* Preview As role pills */
+.admin-bar-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.admin-bar-preview-label {
+  color: rgba(255,210,80,0.55);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.admin-bar-preview-pills {
+  display: flex;
+  gap: 2px;
+}
+.admin-bar-preview-pill {
+  background: rgba(255,200,0,0.07);
+  border: 1px solid rgba(255,200,0,0.18);
+  border-radius: 3px;
+  color: rgba(255,210,80,0.55);
+  cursor: pointer;
+  font-size: 0.71rem;
+  font-family: var(--font, system-ui, sans-serif);
+  padding: 1px 7px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.admin-bar-preview-pill:hover {
+  background: rgba(255,200,0,0.16);
+  color: #ffd844;
+  border-color: rgba(255,200,0,0.4);
+}
+.admin-bar-preview-pill.active {
+  background: rgba(255,200,0,0.22);
+  color: #ffd844;
+  border-color: rgba(255,200,0,0.55);
+  font-weight: 600;
+}
+
+/* Floating exit-preview pill */
+#admin-preview-exit-pill {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 99999;
+  background: #1a1200;
+  border: 1px solid rgba(255,200,0,0.45);
+  border-radius: 20px;
+  color: #ffd844;
+  font-size: 0.76rem;
+  font-family: var(--font, system-ui, sans-serif);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  animation: preview-pill-in 0.2s ease;
+}
+@keyframes preview-pill-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#admin-preview-exit-pill span { font-weight: 600; }
+#admin-preview-exit-btn {
+  background: rgba(255,200,0,0.15);
+  border: 1px solid rgba(255,200,0,0.35);
+  border-radius: 10px;
+  color: #ffd844;
+  cursor: pointer;
+  font-size: 0.71rem;
+  font-family: var(--font, system-ui, sans-serif);
+  padding: 1px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s;
+}
+#admin-preview-exit-btn:hover { background: rgba(255,200,0,0.3); }
+
+/* Body class rules: simulate role views */
+body.preview-as-user .admin-bar,
+body.preview-as-mod  .admin-bar { display: none !important; }
+
+/* Hide all owner/admin/mod actions in user preview */
+body.preview-as-user #a_delete,
+body.preview-as-user #a_rethumb,
+body.preview-as-user .removetag,
+body.preview-as-user .can-cycle,
+body.preview-as-user .info-title-edit-wrap,
+body.preview-as-user #info-title-save,
+body.preview-as-user #info-title-status,
+body.preview-as-user #info-visibility-edit-btn,
+body.preview-as-user #info-rethumb-btn,
+body.preview-as-user #info-set-expiry-btn,
+body.preview-as-user .infobox-action-btn,
+body.preview-as-user .btn-infobox-action,
+body.preview-as-user .admin-delete-btn,
+body.preview-as-user .admin-edit-btn,
+body.preview-as-user .admin-pin-btn,
+body.preview-as-user .delete-btn,
+body.preview-as-user .poll-delete-btn { display: none !important; }
+/* Title stays visible but loses its click-to-edit */
+body.preview-as-user .item_title_text { display: inline !important; cursor: default !important; pointer-events: none !important; }
+body.preview-as-user .item_title_text.no-title { display: none !important; }
+
+/* Hide admin-only actions in mod preview (keep delete — mods can delete) */
+body.preview-as-mod #a_rethumb,
+body.preview-as-mod .removetag,
+body.preview-as-mod #info-rethumb-btn,
+body.preview-as-mod .btn-infobox-action { display: none !important; }
+
+@media (max-width: 640px) {
+  .admin-bar-imp-hint { display: none; }
+  .admin-bar-links a span:not(.admin-bar-badge) { display: none; }
+  .admin-bar-input { width: 110px; }
+  .admin-bar-input:focus { width: 140px; }
+  .admin-bar-preview-label { display: none; }
+}
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ── Admin bar: Sidebar Width Awareness & Hotkey Toggle ────────────────── */
+  const adminBar    = document.getElementById('admin-bar');
+  const closeBtn    = document.getElementById('admin-bar-close');
+  const closeImpBtn = document.getElementById('admin-bar-close-imp');
+
+  function syncAdminBarSidebars() {
+    if (!adminBar) return;
+
+    // Right sidebar detection
+    const rightSb = document.querySelector('.global-sidebar-right, .item-sidebar-right, .index-sidebar-right');
+    const isRightHidden = !rightSb ||
+                          document.body.classList.contains('sidebar-right-hidden') ||
+                          window.getComputedStyle(rightSb).display === 'none' ||
+                          window.getComputedStyle(rightSb).visibility === 'hidden';
+
+    let rw = 0;
+    if (!isRightHidden && rightSb) {
+      rw = rightSb.offsetWidth || (window.innerWidth <= 999 ? Math.min(280, Math.round(window.innerWidth * 0.8)) : 300);
+    }
+
+    // Left sidebar detection (modern layout item page)
+    const leftSb = document.querySelector('.item-sidebar-left');
+    const isLeftHidden = !leftSb ||
+                         document.body.classList.contains('sidebar-left-hidden') ||
+                         document.body.classList.contains('comments-hidden') ||
+                         window.innerWidth < 1000 ||
+                         window.getComputedStyle(leftSb).display === 'none' ||
+                         window.getComputedStyle(leftSb).visibility === 'hidden' ||
+                         !!document.querySelector('.item-layout-container.sidebar-hidden');
+
+    let lw = 0;
+    if (!isLeftHidden && leftSb) {
+      lw = leftSb.offsetWidth || Math.min(350, Math.round(window.innerWidth * 0.3));
+    }
+
+    adminBar.style.setProperty('--admin-bar-right', rw + 'px');
+    adminBar.style.setProperty('--admin-bar-left', lw + 'px');
+    adminBar.style.right = rw + 'px';
+    adminBar.style.left = lw + 'px';
+  }
+
+  function openAdminBar() {
+    if (!adminBar) return;
+    syncAdminBarSidebars();
+    adminBar.classList.add('open');
+    document.body.classList.add('admin-bar-open');
+  }
+
+  function closeAdminBar() {
+    if (!adminBar) return;
+    adminBar.classList.remove('open');
+    document.body.classList.remove('admin-bar-open');
+  }
+
+  function toggleAdminBar() {
+    if (!adminBar) return;
+    if (adminBar.classList.contains('open')) {
+      closeAdminBar();
+    } else {
+      openAdminBar();
+    }
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', closeAdminBar);
+  if (closeImpBtn) closeImpBtn.addEventListener('click', closeAdminBar);
+
+  window.addEventListener('keydown', (e) => {
+    // Never trigger if focus is inside an input, textarea, select or contenteditable
+    const target = e.target;
+    const tag = (target && target.tagName) ? target.tagName.toUpperCase() : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (target && target.isContentEditable)) {
+      return;
+    }
+
+    // Hotkey: '^' or '~' (also match Backquote key without modifier keys)
+    const isHotkey = (
+      e.key === '^' ||
+      e.key === '~' ||
+      (e.code === 'Backquote' && !e.ctrlKey && !e.metaKey && !e.altKey)
+    );
+
+    if (isHotkey) {
+      e.preventDefault();
+      toggleAdminBar();
+      return;
+    }
+
+    // Escape closes admin bar if open
+    if (e.key === 'Escape' && adminBar && adminBar.classList.contains('open')) {
+      closeAdminBar();
+    }
+  });
+
+  // Watch body class changes for sidebar toggles
+  if (window.MutationObserver) {
+    const bodyObserver = new MutationObserver(() => {
+      syncAdminBarSidebars();
+    });
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  window.addEventListener('resize', syncAdminBarSidebars, { passive: true });
+  document.addEventListener('f0ck:contentLoaded', syncAdminBarSidebars);
+  document.addEventListener('transitionend', (e) => {
+    if (e.target && (e.target.classList.contains('global-sidebar-right') ||
+                     e.target.classList.contains('item-sidebar-right') ||
+                     e.target.classList.contains('item-sidebar-left'))) {
+      syncAdminBarSidebars();
+    }
+  });
+
+  /* ── Admin bar: View-As (impersonation) ────────────────────────────────── */
+  const input      = document.getElementById('admin-viewas-input');
+  const suggestBox = document.getElementById('admin-viewas-suggestions');
+  const viewAsBtn  = document.getElementById('admin-viewas-btn');
+  const exitBtn    = document.getElementById('admin-bar-exit-impersonate');
+
+  let _suggestTimer = null;
+  let _suggestions  = [];
+  let _activeIdx    = -1;
+
+  function closeSuggestions() {
+    if (suggestBox) { suggestBox.innerHTML = ''; suggestBox.classList.remove('open'); }
+    _suggestions = [];
+    _activeIdx   = -1;
+  }
+
+  function renderSuggestions(list) {
+    if (!suggestBox) return;
+    suggestBox.innerHTML = '';
+    if (!list || list.length === 0) { suggestBox.classList.remove('open'); return; }
+    list.forEach((u, i) => {
+      const el = document.createElement('div');
+      el.className = 'admin-viewas-suggestion';
+      el.innerHTML = '<i class="fa-solid fa-user"></i>' + u.user;
+      el.dataset.username = u.user;
+      el.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(u.user); });
+      el.addEventListener('mouseenter', () => { setActive(i); });
+      suggestBox.appendChild(el);
+    });
+    _suggestions = list;
+    _activeIdx = -1;
+    suggestBox.classList.add('open');
+  }
+
+  function setActive(idx) {
+    const items = suggestBox ? suggestBox.querySelectorAll('.admin-viewas-suggestion') : [];
+    items.forEach((el, i) => el.classList.toggle('active', i === idx));
+    _activeIdx = idx;
+  }
+
+  function selectSuggestion(username) {
+    if (input) input.value = username;
+    closeSuggestions();
+  }
+
+  function fetchSuggestions(q) {
+    if (!q || q.length < 1) { closeSuggestions(); return; }
+    fetch('/api/v2/admin/users/search?q=' + encodeURIComponent(q), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(r => r.json()).then(data => {
+      if (Array.isArray(data)) renderSuggestions(data);
+    }).catch(() => {});
+  }
+
+  if (input) {
+    input.addEventListener('input', () => {
+      clearTimeout(_suggestTimer);
+      const q = input.value.trim();
+      if (!q) { closeSuggestions(); return; }
+      _suggestTimer = setTimeout(() => fetchSuggestions(q), 200);
+    });
+
+    input.addEventListener('keydown', (e) => {
+      const items = suggestBox ? suggestBox.querySelectorAll('.admin-viewas-suggestion') : [];
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActive(Math.min(_activeIdx + 1, items.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActive(Math.max(_activeIdx - 1, -1));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (_activeIdx >= 0 && _suggestions[_activeIdx]) {
+          selectSuggestion(_suggestions[_activeIdx].user);
+        } else {
+          startImpersonation();
+        }
+      } else if (e.key === 'Escape') {
+        closeSuggestions();
+        input.blur();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(closeSuggestions, 150);
+    });
+  }
+
+  function startImpersonation() {
+    const username = input ? input.value.trim() : '';
+    if (!username) return;
+    if (viewAsBtn) { viewAsBtn.disabled = true; }
+
+    const csrf = (typeof window.f0ckSession !== 'undefined' && window.f0ckSession.csrf_token)
+      ? window.f0ckSession.csrf_token
+      : (document.querySelector('meta[name="csrf-token"]')?.content || '');
+
+    const params = new URLSearchParams();
+    params.append('username', username);
+    if (csrf) params.append('csrf_token', csrf);
+
+    fetch('/api/v2/admin/impersonate', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert('Impersonation failed: ' + (data.msg || 'Unknown error'));
+        if (viewAsBtn) viewAsBtn.disabled = false;
+      }
+    }).catch(e => {
+      alert('Network error: ' + e.message);
+      if (viewAsBtn) viewAsBtn.disabled = false;
+    });
+  }
+
+  if (viewAsBtn) {
+    viewAsBtn.addEventListener('click', startImpersonation);
+  }
+
+  /* ── Exit impersonation ─────────────────────────────────────────────────── */
+  if (exitBtn) {
+    exitBtn.addEventListener('click', () => {
+      exitBtn.disabled = true;
+      exitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Exiting…';
+
+      const csrf = (typeof window.f0ckSession !== 'undefined' && window.f0ckSession.csrf_token)
+        ? window.f0ckSession.csrf_token
+        : (document.querySelector('meta[name="csrf-token"]')?.content || '');
+
+      const params = new URLSearchParams();
+      if (csrf) params.append('csrf_token', csrf);
+
+      fetch('/api/v2/admin/stop-impersonate', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      }).then(() => {
+        window.location.reload();
+      }).catch(() => {
+        window.location.reload();
+      });
+    });
+  }
+
+  /* ── Admin bar: Preview As role toggle ──────────────────────────────────── */
+  // The role is applied server-side (cookie preview_role, see src/index.mjs): templates, f0ckSession and
+  // admin/mod-guarded routes all behave as that role. Switching sets the cookie and reloads.
+  (function() {
+    const COOKIE = 'preview_role';
+    const pills       = document.querySelectorAll('.admin-bar-preview-pill');
+    const exitPill    = document.getElementById('admin-preview-exit-pill');
+    const exitLabel   = document.getElementById('admin-preview-exit-label');
+    const exitBtn     = document.getElementById('admin-preview-exit-btn');
+
+    const roleLabels = { admin: 'Admin', mod: 'Moderator', user: 'User' };
+
+    function applyRole(role) {
+      document.body.classList.remove('preview-as-user', 'preview-as-mod');
+      if (role === 'user') document.body.classList.add('preview-as-user');
+      if (role === 'mod')  document.body.classList.add('preview-as-mod');
+
+      // Update active pill
+      pills.forEach(p => p.classList.toggle('active', p.dataset.role === role));
+
+      // Show/hide exit pill
+      if (exitPill) {
+        if (role !== 'admin') {
+          if (exitLabel) exitLabel.textContent = 'Previewing as ' + roleLabels[role];
+          exitPill.style.display = 'flex';
+        } else {
+          exitPill.style.display = 'none';
+        }
+      }
+    }
+
+    function switchRole(role) {
+      const secure = location.protocol === 'https:' ? '; Secure' : '';
+      // No template literals here: the view engine would evaluate the placeholders server-side
+      document.cookie = role === 'admin'
+        ? COOKIE + '=; path=/; max-age=0; SameSite=Lax' + secure
+        : COOKIE + '=' + role + '; path=/; max-age=86400; SameSite=Lax' + secure;
+      location.reload();
+    }
+
+    // The server tells which role this page was rendered as
+    try { localStorage.removeItem('f0ck_preview_role'); } catch {} // old client-only preview
+    const current = (adminBar && adminBar.dataset.previewRole) || 'admin';
+    applyRole(roleLabels[current] ? current : 'admin');
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const role = pill.dataset.role;
+        if (role !== current) switchRole(role);
+      });
+    });
+
+    if (exitBtn) exitBtn.addEventListener('click', () => switchRole('admin'));
+  })();
+
+})();
+</script>
+@endif

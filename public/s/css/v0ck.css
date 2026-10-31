@@ -1,0 +1,860 @@
+.v0ck {
+  position: relative;
+  font-size: 0;
+  overflow: hidden;
+/*  background-color: #000;*/
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+  touch-action: pan-y;
+  z-index: 0;
+}
+
+.v0ck video {
+  display: block;
+}
+
+.v0ck:fullscreen,
+.v0ck.v0ck_fullscreen,
+#main:fullscreen .v0ck.v0ck_fullscreen,
+#onara-modal:fullscreen .v0ck.v0ck_fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  max-width: 100%;
+  height: 100vh;
+  z-index: 2147483647;
+  background-color: #000 !important;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.v0ck:fullscreen video,
+.v0ck.v0ck_fullscreen video,
+#main:fullscreen .v0ck.v0ck_fullscreen video,
+#onara-modal:fullscreen .v0ck.v0ck_fullscreen video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  min-height: 100vh;
+}
+
+/* Audio in fullscreen: hide the invisible audio element, show cover art via background */
+.v0ck:fullscreen audio,
+.v0ck.v0ck_fullscreen audio,
+#main:fullscreen .v0ck.v0ck_fullscreen audio,
+#onara-modal:fullscreen .v0ck.v0ck_fullscreen audio {
+  display: none;
+}
+
+.v0ck canvas.audio-visualizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  pointer-events: none;
+  z-index: 1 !important;
+}
+
+.v0ck_overlay {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  display: none;
+}
+
+.v0ck.v0ck_initial .v0ck_overlay {
+  display: block;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.v0ck_overlay>svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 60px;
+  width: 60px;
+  filter: drop-shadow(0 0 9px var(--accent));
+  stroke: var(--accent);
+  stroke-width: 20px;
+}
+
+.v0ck_player_button {
+  background: none;
+  border: 0;
+  line-height: 1;
+  color: white;
+  text-align: center;
+  outline: 0;
+  padding: 8px 6px; /* Increased hit area height and horizontal spacing */
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 40px; /* Consistent taller height for easier tapping */
+}
+
+.v0ck_fs_btn {
+  max-width: none;
+}
+
+.v0ck_player_button.v0ck_tplay>svg {
+  height: 17px;
+}
+
+.v0ck_player_button svg:hover {
+  filter: drop-shadow(0 0 1px var(--accent));
+  fill: #000;
+  stroke: var(--accent);
+  stroke-width: 30px;
+}
+
+.v0ck_hidden {
+  display: none !important;
+}
+
+.v0ck_player_controls svg {
+  width: 20px;
+  height: 20px;
+  fill: #fff;
+  stroke: #fff;
+  cursor: pointer;
+}
+
+.v0ck_player_controls {
+  display: flex;
+  position: absolute;
+  bottom: -1px;
+  width: 100%;
+  padding: 0;
+  align-items: center;
+  z-index: 2;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.8) 1%, rgba(0, 0, 0, 0) 100%);
+  transition: opacity .3s, transform .3s;
+  flex-wrap: wrap;
+  transform: translateY(100%) translateY(-3px);
+}
+
+.v0ck.v0ck_hover .v0ck_player_controls,
+.v0ck.v0ck_swf_active .v0ck_player_controls {
+  transform: translateY(0);
+}
+
+.v0ck.v0ck_hover .v0ck_progress,
+.v0ck.v0ck_swf_active .v0ck_progress {
+  height: 8px;
+}
+
+
+
+.v0ck_progress {
+  flex: 10;
+  position: relative;
+  display: flex;
+  flex-basis: 100%;
+  height: 5px;
+  transition: height 0.4s;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.v0ck_progress_buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  width: 0%;
+  transition: width 0.2s;
+  z-index: 1;
+}
+
+.v0ck_progress_filled {
+  height: 100%;
+  background: var(--accent);
+  position: relative;
+  z-index: 2;
+  flex-basis: 0%;
+}
+
+.v0ck_player_controls>input[type="range"][name="volume"]::after {
+  position: absolute;
+  top: -2px;
+  text-shadow: 1px 1px 1px 0 rgba(0, 0, 0, 0.5);
+  font-size: 0.8em;
+}
+
+.v0ck_volume_group {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.v0ck_volume_group input[type="range"][name="volume"] {
+  position: relative;
+  height: 5px;
+  margin: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 0;
+  cursor: pointer;
+  border-radius: 0;
+  transition: min-width 0.3s, max-width 0.3s, opacity 0.3s;
+  flex: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .v0ck_volume_group:hover input[type="range"][name="volume"] {
+    min-width: 50px;
+    max-width: 50px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .v0ck_volume_group input[type="range"][name="volume"] {
+    display: none !important;
+  }
+}
+
+.v0ck_player_controls>input[type=range]:focus {
+  outline: none;
+}
+
+.v0ck_player_button.v0ck_playtime {
+  max-width: none;
+  cursor: default;
+  min-width: 100px;
+}
+
+/* Volume/Gesture HUD */
+.v0ck_hud {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 20px;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 100;
+  min-width: 100px;
+}
+
+.v0ck_hud:not(.v0ck_hidden) {
+  opacity: 1;
+}
+
+.v0ck_hud svg {
+  width: 40px;
+  height: 40px;
+  fill: #fff;
+  margin-bottom: 10px;
+}
+
+.v0ck_hud_bar_container {
+  width: 100px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.v0ck_hud_bar {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+}
+
+.v0ck_volume_group input[type="range"][name="volume"]::-webkit-slider-runnable-track {
+  background-color: rgb(65, 65, 65);
+}
+
+.v0ck_volume_group input[type="range"][name="volume"]::-moz-range-track {
+  height: 5px;
+  background-color: rgb(65, 65, 65);
+}
+
+.v0ck_volume_group input[type="range"][name="volume"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: var(--accent);
+  height: 5px;
+  width: 0.1px;
+  border: 0;
+  box-shadow: -100vw 0 0 100vw var(--accent);
+}
+
+.v0ck_volume_group input[type="range"][name="volume"]::-moz-range-thumb {
+  background: var(--accent);
+  height: 5px;
+  width: 0.1px;
+  border: 0;
+  box-shadow: -100vw 0 0 100vw var(--accent);
+}
+
+.v0ck.v0ck_no_transition .v0ck_player_controls,
+.v0ck.v0ck_no_transition .v0ck_progress {
+  transition: none !important;
+}
+
+/* Comment markers (danmaku.js): one tick per timeline comment; click = jump there + show the pill.
+   The layer passes clicks through (normal scrubbing); each tick has a 10px hit area around a 2px line. */
+.danmaku-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.danmaku-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.danmaku-marker::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: width 0.12s, background 0.12s;
+}
+
+/* No own timestamp: placed at a random time on load */
+.danmaku-marker.is-random::before {
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
+}
+
+.danmaku-marker:hover::before {
+  width: 4px;
+  background: #ffd844;
+}
+
+/* Hover preview of a marker's comment (plain text), above the progress bar */
+.danmaku-marker-preview {
+  position: absolute;
+  z-index: 30;
+  max-width: min(320px, 80%);
+  padding: 6px 9px;
+  background: rgba(0, 0, 0, 0.88);
+  border-left: 2px solid var(--accent);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+.danmaku-marker-preview.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.danmaku-marker-preview .dmp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.danmaku-marker-preview .dmp-time {
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.danmaku-marker-preview .dmp-user {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.danmaku-marker-preview .dmp-text {
+  overflow-wrap: anywhere;
+  max-height: 140px;
+  overflow: hidden;
+}
+
+/* Rendered like the flying pills, sized for a small preview */
+.danmaku-marker-preview .dmp-text .dpill-line,
+.danmaku-marker-preview .dmp-text .dpill-greentext {
+  display: block;
+}
+
+.danmaku-marker-preview .dmp-text .dpill-greentext {
+  color: #789922;
+}
+
+.danmaku-marker-preview .dmp-text .dpill-emoji {
+  display: inline-block;
+  height: 1.6em;
+  width: auto;
+  max-width: 4em;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+.danmaku-marker-preview .dmp-text :is(.dpill-img, .dpill-video) {
+  display: block;
+  max-width: 100%;
+  max-height: 90px;
+  width: auto;
+  height: auto;
+  margin-top: 4px;
+  object-fit: contain;
+}
+
+.danmaku-marker-preview .dmp-text .dpill-spoiler:not(.revealed) {
+  background: #000;
+  color: transparent;
+}
+
+.danmaku-marker-preview .dmp-text .dpill-spoiler:not(.revealed) * {
+  visibility: hidden;
+}
+
+.danmaku-marker-preview .dmp-text .dpill-blur:not(.revealed) {
+  filter: blur(6px);
+}
+
+/* Seek Marker Ripple */
+.v0ck_seek_marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.v0ck_seek_marker.active {
+  animation: v0ck-seek-ripple 0.6s ease-out;
+}
+
+@keyframes v0ck-seek-ripple {
+  0% { opacity: 0.8; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(20); }
+}
+
+/* Loading Spinner */
+.v0ck_loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  pointer-events: none;
+}
+
+.v0ck_loader div {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: v0ck-spin 0.8s linear infinite;
+}
+
+@keyframes v0ck-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Danmaku overlay ───────────────────────────────────────── */
+.danmaku-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow-x: clip;
+  overflow-y: visible;
+  z-index: 1;
+  user-select: none;
+}
+
+.danmaku-pill {
+  position: absolute;
+  left: 0;
+  white-space: normal;           /* allow multiline for quotes */
+  max-width: 70vw;               /* prevent full-width wrapping */
+  display: inline-flex;
+  flex-direction: column;        /* stack lines vertically */
+  align-items: flex-start;
+  padding: 2px 4px;
+  font-family: var(--font, inherit);
+  font-size: var(--danmaku-font-size, 35px);
+  font-weight: var(--danmaku-font-weight, 700);
+  line-height: 1.1;
+  gap: 0;
+  color: var(--danmaku-color, #fff);
+  opacity: var(--danmaku-opacity, 1);
+  /* Multi-layer outline shadow for readability over any background */
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 0 6px rgba(0,0,0,0.9),
+     0 0 12px rgba(0,0,0,0.6);
+  will-change: transform;
+  background: none;
+  border: none;
+  text-align: left;
+  transition: opacity 0.15s ease;
+}
+
+/* Pill Background Variations */
+.danmaku-overlay.danmaku-bg-glass .danmaku-pill {
+  background: rgba(10, 10, 14, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.danmaku-overlay.danmaku-bg-capsule .danmaku-pill {
+  background: rgba(18, 18, 24, 0.85);
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb, 153, 255, 0), 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Shadow / Glow Variations */
+.danmaku-overlay.danmaku-glow-neon .danmaku-pill {
+  text-shadow:
+    0 0 8px var(--danmaku-color, #99ff00),
+    0 0 18px var(--danmaku-color, #99ff00),
+    -1px -1px 0 #000,
+     1px  1px 0 #000;
+}
+
+.danmaku-overlay.danmaku-glow-none .danmaku-pill {
+  text-shadow: none;
+}
+
+.danmaku-overlay.danmaku-glow-subtle .danmaku-pill {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.danmaku-pill .dpill-text {
+  font-family: var(--font, inherit);
+  font-size: var(--danmaku-font-size, 35px);
+  font-weight: var(--danmaku-font-weight, 700);
+  white-space: nowrap;
+}
+
+/* Each plain text line inside a multiline pill */
+.danmaku-pill .dpill-line {
+  display: block;
+  white-space: nowrap;
+}
+
+/* Quoted lines > rendered as greentext */
+.danmaku-pill .dpill-greentext {
+  color: #78b87a;
+  display: block;
+  white-space: nowrap;
+}
+
+.danmaku-overlay.danmaku-no-greentext .danmaku-pill .dpill-greentext {
+  color: inherit;
+}
+
+/* Spoiler inside a flying pill — black-on-black, click to reveal */
+.danmaku-pill .dpill-spoiler {
+  background: #000;
+  color: #000 !important;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.15s ease, background 0.15s ease;
+  border-radius: 3px;
+  padding: 0 3px;
+  text-shadow: none;
+}
+/* Hide images/videos (emojis, inline imgs, webm stickers) inside unrevealed spoiler */
+.danmaku-pill .dpill-spoiler img,
+.danmaku-pill .dpill-spoiler video {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.danmaku-pill .dpill-spoiler:hover,
+.danmaku-pill .dpill-spoiler.revealed {
+  color: #fff !important;
+  background: rgba(255,255,255,0.15);
+  text-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000,
+    -1px  1px 0 #000, 1px  1px 0 #000;
+}
+.danmaku-pill .dpill-spoiler:hover img,
+.danmaku-pill .dpill-spoiler.revealed img,
+.danmaku-pill .dpill-spoiler:hover video,
+.danmaku-pill .dpill-spoiler.revealed video {
+  opacity: 1;
+}
+
+/* Blur inside a flying pill — blurred text, click/hover to clear */
+.danmaku-pill .dpill-blur {
+  filter: blur(6px);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: filter 0.25s ease;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.danmaku-pill .dpill-blur:hover,
+.danmaku-pill .dpill-blur.revealed {
+  filter: none;
+}
+
+/* Emoji inline image */
+.danmaku-pill .dpill-emoji {
+  height: 1.3em;
+  width: auto;
+  vertical-align: middle;
+  object-fit: contain;
+  display: inline-block;
+  margin: 0 1px;
+}
+
+/* Inline image URL embedded in pill */
+.danmaku-pill .dpill-img {
+  max-height: var(--danmaku-media-max-h, 80px);
+  max-width: 140px;
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+  object-fit: contain;
+  display: inline-block;
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+/* Inline video (converted GIF) in pill */
+.danmaku-pill .dpill-video {
+  max-height: var(--danmaku-media-max-h, 80px);
+  max-width: 140px;
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+  object-fit: contain;
+  display: inline-block;
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+/* Audio indicator in pill */
+.danmaku-pill .dpill-audio {
+  vertical-align: middle;
+  font-size: 0.9em;
+}
+
+/* ── Danmaku Debug Overlays ────────────────────────────────── */
+.danmaku-lane-guides-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.danmaku-lane-guide {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-top: 1px dashed rgba(var(--accent-rgb, 153, 255, 0), 0.35);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-family: monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.danmaku-lane-guide.occupied {
+  background: rgba(255, 60, 60, 0.12);
+  border-top: 1px dashed rgba(255, 60, 60, 0.65);
+  color: #ff7070;
+}
+
+.danmaku-lane-badge {
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.danmaku-lane-status {
+  font-size: 9px;
+  opacity: 0.9;
+}
+
+/* Diagnostic Live HUD */
+.danmaku-debug-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+  background: rgba(12, 12, 16, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(var(--accent-rgb, 153, 255, 0), 0.45);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #e0e0e0;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.3;
+  min-width: 170px;
+}
+
+.danmaku-debug-hud .hud-title {
+  color: var(--accent, #99ff00);
+  font-weight: 700;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.danmaku-debug-hud .hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.danmaku-debug-hud .hud-val {
+  color: #fff;
+  font-weight: 700;
+}
+
+.danmaku-debug-hud .hud-val.accent {
+  color: var(--accent, #99ff00);
+}
+
+@keyframes danmaku-fly {
+  from { transform: translateX(calc(100vw + 100%)); }
+  to   { transform: translateX(calc(-100% - 200px)); }
+}
+
+/* Speedup 2x HUD Pill */
+.v0ck_speed_indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%, -10px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.v0ck_speed_indicator:not(.v0ck_hidden) {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Hide mouse cursor on inactivity when player controls auto-hide */
+.v0ck:not(.v0ck_hover),
+.v0ck:not(.v0ck_hover) * {
+  cursor: none !important;
+}
+/* Volume: pointer over the whole volume area, not only the 5px slider strip, including the slider's
+   thumb/track parts (Firefox doesn't hand the input's cursor to them). Only while the controls are
+   shown, so the idle cursor auto-hide above still applies. */
+.v0ck.v0ck_hover .v0ck_volume_group,
+.v0ck.v0ck_hover .v0ck_volume_group *,
+.v0ck.v0ck_hover .v0ck_volume_group input[type="range"][name="volume"] {
+  cursor: pointer !important;
+}
+
+/* Vendor pseudo-elements in separate rules: one unknown pseudo-element drops a whole selector list */
+.v0ck.v0ck_hover .v0ck_volume_group input[type="range"][name="volume"]::-webkit-slider-thumb,
+.v0ck.v0ck_hover .v0ck_volume_group input[type="range"][name="volume"]::-webkit-slider-runnable-track {
+  cursor: pointer !important;
+}
+
+.v0ck.v0ck_hover .v0ck_volume_group input[type="range"][name="volume"]::-moz-range-thumb,
+.v0ck.v0ck_hover .v0ck_volume_group input[type="range"][name="volume"]::-moz-range-track {
+  cursor: pointer !important;
+}

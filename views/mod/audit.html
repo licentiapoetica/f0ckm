@@ -1,0 +1,338 @@
+@include(snippets/header)
+<div id="main">
+    @include(snippets/admin-back)
+    <div class="container">
+        <h1>AUDIT LOG</h1>
+        <p>Actions performed by moderators and admins.</p>
+        <hr>
+
+        <!-- Filter bar -->
+        <form id="audit-filter-form" class="audit-filter-bar" method="get" action="/mod/audit">
+            <select name="action" id="audit-filter-action" class="audit-filter-input">
+                <option value="">All actions</option>
+                <optgroup label="Items">
+                    <option value="approve_item" {!! filterAction === 'approve_item' ? 'selected' : '' !!}>approve_item</option>
+                    <option value="deny_item" {!! filterAction === 'deny_item' ? 'selected' : '' !!}>deny_item</option>
+                    <option value="deny_item_multi" {!! filterAction === 'deny_item_multi' ? 'selected' : '' !!}>deny_item_multi</option>
+                    <option value="purge_item" {!! filterAction === 'purge_item' ? 'selected' : '' !!}>purge_item</option>
+                    <option value="purge_item_multi" {!! filterAction === 'purge_item_multi' ? 'selected' : '' !!}>purge_item_multi</option>
+                    <option value="delete_item" {!! filterAction === 'delete_item' ? 'selected' : '' !!}>delete_item</option>
+                    <option value="pin_item" {!! filterAction === 'pin_item' ? 'selected' : '' !!}>pin_item</option>
+                    <option value="unpin_item" {!! filterAction === 'unpin_item' ? 'selected' : '' !!}>unpin_item</option>
+                    <option value="toggle_tag" {!! filterAction === 'toggle_tag' ? 'selected' : '' !!}>toggle_tag</option>
+                </optgroup>
+                <optgroup label="Comments">
+                    <option value="delete_comment" {!! filterAction === 'delete_comment' ? 'selected' : '' !!}>delete_comment</option>
+                    <option value="delete_attachment" {!! filterAction === 'delete_attachment' ? 'selected' : '' !!}>delete_attachment</option>
+                </optgroup>
+                <optgroup label="Halls">
+                    <option value="add_to_hall" {!! filterAction === 'add_to_hall' ? 'selected' : '' !!}>add_to_hall</option>
+                    <option value="remove_from_hall" {!! filterAction === 'remove_from_hall' ? 'selected' : '' !!}>remove_from_hall</option>
+                    <option value="create_hall" {!! filterAction === 'create_hall' ? 'selected' : '' !!}>create_hall</option>
+                    <option value="rename_hall" {!! filterAction === 'rename_hall' ? 'selected' : '' !!}>rename_hall</option>
+                    <option value="update_hall" {!! filterAction === 'update_hall' ? 'selected' : '' !!}>update_hall</option>
+                    <option value="update_hall_metadata" {!! filterAction === 'update_hall_metadata' ? 'selected' : '' !!}>update_hall_metadata</option>
+                </optgroup>
+                <optgroup label="Users">
+                    <option value="ban_user" {!! filterAction === 'ban_user' ? 'selected' : '' !!}>ban_user</option>
+                    <option value="unban_user" {!! filterAction === 'unban_user' ? 'selected' : '' !!}>unban_user</option>
+                    <option value="ban_ip" {!! filterAction === 'ban_ip' ? 'selected' : '' !!}>ban_ip</option>
+                    <option value="unban_ip" {!! filterAction === 'unban_ip' ? 'selected' : '' !!}>unban_ip</option>
+                    <option value="ban_fingerprint" {!! filterAction === 'ban_fingerprint' ? 'selected' : '' !!}>ban_fingerprint</option>
+                    <option value="unban_fingerprint" {!! filterAction === 'unban_fingerprint' ? 'selected' : '' !!}>unban_fingerprint</option>
+                    <option value="ban_hardware" {!! filterAction === 'ban_hardware' ? 'selected' : '' !!}>ban_hardware</option>
+                    <option value="unban_hardware" {!! filterAction === 'unban_hardware' ? 'selected' : '' !!}>unban_hardware</option>
+                    <option value="issue_warning" {!! filterAction === 'issue_warning' ? 'selected' : '' !!}>issue_warning</option>
+                    <option value="admin_set_role" {!! filterAction === 'admin_set_role' ? 'selected' : '' !!}>admin_set_role</option>
+                    <option value="admin_reset_password" {!! filterAction === 'admin_reset_password' ? 'selected' : '' !!}>admin_reset_password</option>
+                    <option value="admin_delete_user" {!! filterAction === 'admin_delete_user' ? 'selected' : '' !!}>admin_delete_user</option>
+                    <option value="admin_rename_user" {!! filterAction === 'admin_rename_user' ? 'selected' : '' !!}>admin_rename_user</option>
+                    <option value="admin_create_user" {!! filterAction === 'admin_create_user' ? 'selected' : '' !!}>admin_create_user</option>
+                    <option value="admin_reassign_uploads" {!! filterAction === 'admin_reassign_uploads' ? 'selected' : '' !!}>admin_reassign_uploads</option>
+                    <option value="admin_bulk_delete_items" {!! filterAction === 'admin_bulk_delete_items' ? 'selected' : '' !!}>admin_bulk_delete_items</option>
+                    <option value="admin_bulk_delete_comments" {!! filterAction === 'admin_bulk_delete_comments' ? 'selected' : '' !!}>admin_bulk_delete_comments</option>
+                    <option value="admin_bulk_delete_halls" {!! filterAction === 'admin_bulk_delete_halls' ? 'selected' : '' !!}>admin_bulk_delete_halls</option>
+                    <option value="manual_verify_user" {!! filterAction === 'manual_verify_user' ? 'selected' : '' !!}>manual_verify_user</option>
+                    <option value="lock_user_layout" {!! filterAction === 'lock_user_layout' ? 'selected' : '' !!}>lock_user_layout</option>
+                    <option value="unlock_user_layout" {!! filterAction === 'unlock_user_layout' ? 'selected' : '' !!}>unlock_user_layout</option>
+                    <option value="admin_set_display_name" {!! filterAction === 'admin_set_display_name' ? 'selected' : '' !!}>admin_set_display_name</option>
+                    <option value="admin_reset_login_attempts" {!! filterAction === 'admin_reset_login_attempts' ? 'selected' : '' !!}>admin_reset_login_attempts</option>
+                </optgroup>
+                <optgroup label="Tags">
+                    <option value="nsfp_add" {!! filterAction === 'nsfp_add' ? 'selected' : '' !!}>nsfp_add</option>
+                    <option value="nsfp_remove" {!! filterAction === 'nsfp_remove' ? 'selected' : '' !!}>nsfp_remove</option>
+                </optgroup>
+                <optgroup label="Reports">
+                    <option value="resolve_report" {!! filterAction === 'resolve_report' ? 'selected' : '' !!}>resolve_report</option>
+                </optgroup>
+                <optgroup label="System">
+                    <option value="purge_trash" {!! filterAction === 'purge_trash' ? 'selected' : '' !!}>purge_trash</option>
+                    <option value="update_motd" {!! filterAction === 'update_motd' ? 'selected' : '' !!}>update_motd</option>
+                    <option value="update_config_file" {!! filterAction === 'update_config_file' ? 'selected' : '' !!}>update_config_file</option>
+                    <option value="run_cleanup_manual" {!! filterAction === 'run_cleanup_manual' ? 'selected' : '' !!}>run_cleanup_manual</option>
+                    <option value="update_about_text" {!! filterAction === 'update_about_text' ? 'selected' : '' !!}>update_about_text</option>
+                    <option value="update_rules_text" {!! filterAction === 'update_rules_text' ? 'selected' : '' !!}>update_rules_text</option>
+                    <option value="update_terms_text" {!! filterAction === 'update_terms_text' ? 'selected' : '' !!}>update_terms_text</option>
+                    <option value="add_wordfilter" {!! filterAction === 'add_wordfilter' ? 'selected' : '' !!}>add_wordfilter</option>
+                    <option value="delete_wordfilter" {!! filterAction === 'delete_wordfilter' ? 'selected' : '' !!}>delete_wordfilter</option>
+                </optgroup>
+            </select>
+            <input
+                type="text"
+                name="user"
+                id="audit-filter-user"
+                class="audit-filter-input"
+                placeholder="Filter by moderator…"
+                value="{!! filterUser !!}"
+                autocomplete="off"
+            >
+            <button type="submit" class="badge badge-secondary audit-filter-btn">Filter</button>
+            @if(filterAction || filterUser)
+            <a href="/mod/audit" class="badge badge-secondary audit-filter-btn audit-filter-clear">✕ Clear</a>
+            @endif
+        </form>
+
+        <div class="audit-grid" id="audit-grid">
+            @each(logs as entry)
+            <div class="audit-card">
+                <div class="audit-card-header">
+                    <div class="audit-card-user">
+                        <a href="/user/{!! entry.username !!}">{!! entry.username !!}</a>
+                    </div>
+                    <div class="audit-card-header-right">
+                        <div class="audit-card-time">{!! entry.created_at_fmt !!}</div>
+                        <span class="audit-entry-id">#<span class="audit-entry-id-val">{!! entry.id !!}</span></span>
+                    </div>
+                </div>
+                <div class="audit-card-body">
+                    <div class="audit-card-row">
+                        <span class="audit-label">Action:</span>
+                        <span class="badge badge-secondary badge-action">{!! entry.action !!}</span>
+                    </div>
+                    <div class="audit-card-row">
+                        <span class="audit-label">Target:</span>
+                        <span class="audit-value">
+                            <strong>{!! entry.target_type !!}</strong>
+                            @if(entry.target_type === 'comment')
+                            @if(entry.item_id)
+                            <a href="/{!! entry.item_id !!}#c{!! entry.target_id !!}">#c{!! entry.target_id !!}</a>
+                            @else
+                            #c{!! entry.target_id !!}
+                            @endif
+                            @else
+                            @if(entry.target_type === 'item')
+                            <a href="/{!! entry.target_id !!}">/{!! entry.target_id !!}</a>
+                            @else
+                            {!! entry.target_id !!}
+                            @endif
+                            @endif
+                        </span>
+                    </div>
+
+                    @if(entry.reason)
+                    <div class="audit-card-row">
+                        <span class="audit-label">Reason:</span>
+                        <span class="audit-value">{!! entry.reason !!}</span>
+                    </div>
+                    @endif
+
+                    @if(entry.uploader_info)
+                    <div class="audit-card-row">
+                        <span class="audit-label">Info:</span>
+                        <span class="audit-value" style="color: #ffb8b8;">{!! entry.uploader_info !!}</span>
+                    </div>
+                    @endif
+
+                    @if(entry.old_content !== null || entry.new_content !== null || entry.details_json)
+                    <div class="audit-card-row" style="margin-top: 5px; flex-direction: column; align-items: stretch;">
+                        <span class="audit-label">Changes:</span>
+                        <div class="audit-diff">
+                            @if(entry.old_content)
+                            <div class="diff-removed">- {!! entry.old_content !!}</div>
+                            @endif
+                            @if(entry.new_content)
+                            <div class="diff-added">+ {!! entry.new_content !!}</div>
+                            @endif
+                            @if(entry.details_json)
+                            <div class="audit-details-json"
+                                style="font-size: 0.85em; color: #aaa; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                                {!! entry.details_json !!}
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+            @endeach
+        </div>
+
+        <div id="audit-loading" style="text-align: center; padding: 20px; display: none;">
+            <span class="loading-spinner">Loading more logs...</span>
+        </div>
+
+        <br>
+        @if(typeof pages !== 'undefined' && pages > 1)
+        <div class="pagination-container" id="audit-pagination"
+            style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+            @if(page > 1)
+            <a href="/mod/audit?page={!! page - 1 !!}" class="badge badge-secondary">&laquo; Prev</a>
+            @endif
+            <span>Page <span id="current-page-display">{!! page !!}</span> of {!! pages !!}</span>
+            @if(page < pages) <a href="/mod/audit?page={!! page + 1 !!}" id="next-page-link" class="badge badge-secondary">Next &raquo;</a>@endif
+        </div>
+        <br>
+        @endif
+        <script>
+            (function () {
+                var grid = document.getElementById('audit-grid');
+                var loader = document.getElementById('audit-loading');
+                var pagination = document.getElementById('audit-pagination');
+
+                var escapeHtml = function (unsafe) {
+                    return (unsafe || '')
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#39;");
+                };
+
+                var renderDiff = function (oldText, newText) {
+                    var isEmpty = function (t) { return !t || t === 'null' || t === 'undefined'; };
+                    if (isEmpty(oldText) && isEmpty(newText)) return '';
+
+                    var html = '<div class="audit-diff">';
+                    if (!isEmpty(oldText)) html += '<div class="diff-removed">- ' + escapeHtml(oldText) + '</div>';
+                    if (!isEmpty(newText)) html += '<div class="diff-added">+ ' + escapeHtml(newText) + '</div>';
+                    html += '</div>';
+                    return html;
+                };
+
+                var currentPage = Number('{{ page }}') || 1;
+                var totalPages = Number('{{ pages }}') || 1;
+                var loading = false;
+                var hasMore = currentPage < totalPages;
+
+                // Read active filters so infinite scroll preserves them
+                var activeFilterAction = '{{ filterAction }}' || '';
+                var activeFilterUser   = '{{ filterUser }}'   || '';
+
+                if (pagination) pagination.style.display = 'none';
+
+                window.addEventListener('scroll', function () {
+                    if (loading || !hasMore) return;
+
+                    var scrollPosition = window.innerHeight + window.scrollY;
+                    var threshold = document.documentElement.scrollHeight - 500;
+
+                    if (scrollPosition > threshold) {
+                        loadMore();
+                    }
+                });
+
+                async function loadMore() {
+                    if (loading || !hasMore) return;
+                    loading = true;
+                    if (loader) loader.style.display = 'block';
+
+                    try {
+                        var next = currentPage + 1;
+                        var url = '/mod/audit?page=' + next;
+                        if (activeFilterAction) url += '&action=' + encodeURIComponent(activeFilterAction);
+                        if (activeFilterUser)   url += '&user='   + encodeURIComponent(activeFilterUser);
+
+                        var res = await fetch(url, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        var data = await res.json();
+
+                        if (data.success && data.logs && data.logs.length) {
+                            data.logs.forEach(function (log) {
+                                var card = document.createElement('div');
+                                card.className = 'audit-card';
+
+                                var reason = log.reason;
+
+                                var html = '<div class="audit-card-header">' +
+                                    '<div class="audit-card-user">' +
+                                    '<a href="/user/' + encodeURIComponent(log.username) + '">' + log.username + '</a>' +
+                                    '</div>' +
+                                    '<div class="audit-card-header-right">' +
+                                    '<div class="audit-card-time">' + (log.created_at || '') + '</div>' +
+                                    '<span class="audit-entry-id">#<span class="audit-entry-id-val">' + (log.id || '') + '</span></span>' +
+                                    '</div>' +
+                                    '</div>' +
+                                    '<div class="audit-card-body">' +
+                                    '<div class="audit-card-row">' +
+                                    '<span class="audit-label">Action:</span>' +
+                                    '<span class="badge badge-secondary badge-action">' + (log.action || '') + '</span>' +
+                                    '</div>' +
+                                    '<div class="audit-card-row">' +
+                                    '<span class="audit-label">Target:</span>' +
+                                    '<span class="audit-value">' +
+                                    '<strong>' + (log.target_type || '') + '</strong> ';
+
+                                if (log.target_type === 'comment') {
+                                    if (log.item_id) {
+                                        html += '<a href="/' + log.item_id + '#c' + log.target_id + '">#c' + log.target_id + '</a>';
+                                    } else {
+                                        html += '#c' + (log.target_id || '');
+                                    }
+                                } else if (log.target_type === 'item') {
+                                    html += '<a href="/' + log.target_id + '">/' + log.target_id + '</a>';
+                                } else {
+                                    html += (log.target_id || '');
+                                }
+                                html += '</span></div>';
+
+                                if (reason) {
+                                    html += '<div class="audit-card-row">' +
+                                        '<span class="audit-label">Reason:</span>' +
+                                        '<span class="audit-value">' + escapeHtml(reason) + '</span>' +
+                                        '</div>';
+                                }
+
+                                if (log.uploader_info) {
+                                    html += '<div class="audit-card-row">' +
+                                        '<span class="audit-label">Info:</span>' +
+                                        '<span class="audit-value" style="color: #ffb8b8;">' + escapeHtml(log.uploader_info) + '</span>' +
+                                        '</div>';
+                                }
+
+                                if (log.old_content || log.new_content || log.details_json) {
+                                    html += '<div class="audit-card-row" style="margin-top: 5px; flex-direction: column; align-items: stretch;">' +
+                                        '<span class="audit-label">Changes:</span>' +
+                                        '<div class="audit-diff">' +
+                                        (log.old_content ? '<div class="diff-removed">- ' + escapeHtml(log.old_content) + '</div>' : '') +
+                                        (log.new_content ? '<div class="diff-added">+ ' + escapeHtml(log.new_content) + '</div>' : '') +
+                                        (log.details_json ? '<div class="audit-details-json" style="font-size: 0.85em; color: #aaa; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">' + escapeHtml(log.details_json) + '</div>' : '') +
+                                        '</div>' +
+                                        '</div>';
+                                }
+
+                                html += '</div>';
+                                card.innerHTML = html;
+                                grid.appendChild(card);
+                            });
+                            currentPage = data.page;
+                            hasMore = data.hasMore;
+                            if (document.getElementById('current-page-display')) {
+                                document.getElementById('current-page-display').innerText = currentPage;
+                            }
+                        } else {
+                            hasMore = false;
+                        }
+                    } catch (err) {
+                        console.error('Audit infinite scroll error:', err);
+                        hasMore = false;
+                    } finally {
+                        loading = false;
+                        if (loader) loader.style.display = 'none';
+                    }
+                }
+            })();
+        </script>
+    </div>
+</div>
+        @include(snippets/footer)

@@ -1,0 +1,19 @@
+@include(snippets/header)
+<div class="pagewrapper">
+  <div id="main" class="item-view">
+    @if(session)
+      @if(session.use_new_layout)
+        @include(item-partial-modern)
+      @else
+        @include(item-partial-legacy)
+      @endif
+    @else
+      @if(default_layout === 'legacy')
+        @include(item-partial-legacy)
+      @else
+        @include(item-partial-modern)
+      @endif
+    @endif
+  </div>
+</div>
+@include(snippets/footer)

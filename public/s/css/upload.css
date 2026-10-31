@@ -1,0 +1,2088 @@
+/* Upload Page Styles */
+.upload-container {
+    max-width: 800px;
+    width: 100%;
+    padding: 0;
+    animation: uploadReveal 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    opacity: 0;
+    margin: 0;
+}
+
+
+@keyframes uploadReveal {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.upload-container h2 {
+    margin-bottom: 0.5rem;
+    color: var(--accent);
+    text-align: center;
+}
+
+/* Title line: title left, upload limit right (wraps under it on narrow screens) */
+.upload-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: x-large;
+}
+
+/* Upload Limit Info (inside the title line; keeps its own small, normal-case text) */
+.upload-limit-info {
+    font-size: 0.9rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    opacity: 0.7;
+}
+
+.upload-title .upload-limit-info {
+    font-size: 0.8rem;
+}
+
+.upload-limit-info i {
+    margin-right: 0.3rem;
+}
+
+.limit-unlimited {
+    color: var(--accent);
+}
+
+.limit-exhausted {
+    color: #ff6b6b;
+    font-weight: 600;
+    opacity: 1;
+}
+
+.limit-remaining {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Upload Form */
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 1rem;
+    border-radius: 0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    gap: 5px;
+}
+
+.form-section label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.required {
+    color: #ff6b6b;
+}
+
+/* Drop Zone */
+.drop-zone {
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+    padding: 5px;
+    text-align: center;
+    transition: all 0.2s;
+    position: relative;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.drop-zone:hover,
+.drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.drop-zone input[type="file"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.drop-zone-prompt {
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+    /* Let input handle clicks */
+}
+
+/* File Preview (Stacked) */
+.file-preview {
+    display: flex;
+    flex-direction: column;
+    /* Stacked */
+    align-items: center;
+    gap: 0.3rem;
+    width: 100%;
+}
+
+.preview-media {
+  max-width: 100%;
+  max-height: 500px;
+}
+
+.file-preview video {
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    outline: none;
+    margin-bottom: 1rem;
+}
+
+.file-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.file-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.5rem 1rem;
+    border-radius: 0;
+}
+
+.file-name {
+    font-weight: 500;
+}
+
+.file-size {
+    opacity: 0.6;
+    font-size: 0.9rem;
+}
+
+.btn-remove {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+    /* remove margin-top as it's now in a flex row */
+}
+
+.btn-remove:hover {
+    background: #fa5252;
+}
+
+/* Default/Non-Shitpost Mode: Centered Card */
+.upload-form:not(.shitpost-mode-active) .file-preview-item {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    padding: 24px;
+}
+
+/* Shitpost Mode: Two-Column Row */
+.upload-form.shitpost-mode-active .file-preview-item {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px;
+}
+
+.file-preview-item {
+    display: flex;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: previewItemIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.file-preview-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+@keyframes previewItemIn {
+    from { opacity: 0; transform: translateX(-15px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.upload-form:not(.shitpost-mode-active) .preview-media-small {
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+}
+
+
+
+.preview-media-small {
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: #000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+
+.upload-form:not(.shitpost-mode-active) .file-meta-row-small {
+    padding-right: 0;
+    align-items: center;
+}
+
+.upload-form.shitpost-mode-active .file-name-small {
+    padding-right: 30px; /* Space for X button */
+}
+
+.file-meta-row-small {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    min-width: 0;
+    width: 100%;
+}
+
+.file-info-small {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    width: 100%;
+    text-align: left;
+}
+
+.file-name-small {
+    font-size: 0.95rem;
+    font-weight: 500;
+    overflow: hidden;
+    color: #fff;
+    max-width: 100%;
+    display: block;
+    word-break: break-all;
+}
+
+.file-size-small {
+    font-size: 0.7rem;
+    opacity: 0.4;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: 0.5px;
+}
+
+.btn-remove-small {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.btn-remove-small:hover {
+    background: #ff6b6b;
+    color: white;
+    border-color: #ff6b6b;
+    transform: rotate(90deg);
+}
+.btn-add-urls {
+    margin-top: 10px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-add-urls:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.add-more-item {
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    border: 1.5px dashed rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    backdrop-filter: none;
+    border-radius: 8px;
+}
+.add-more-item i {
+    font-size: 1.1rem;
+    opacity: 0.8;
+}
+
+.add-more-item:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.05);
+    border-style: solid;
+    transform: none;
+}
+
+.upload-form.shitpost-mode-active .global-rating-section,
+.upload-form.shitpost-mode-active .global-visibility-section,
+.upload-form.shitpost-mode-active .global-expiry-section,
+.upload-form.shitpost-mode-active .global-comment-section,
+.upload-form.shitpost-mode-active .global-tag-section {
+    display: none !important;
+}
+
+.upload-form.shitpost-mode-active.album-mode-active .global-rating-section,
+.upload-form.shitpost-mode-active.album-mode-active .global-visibility-section,
+.upload-form.shitpost-mode-active.album-mode-active .global-expiry-section,
+.upload-form.shitpost-mode-active.album-mode-active .global-comment-section,
+.upload-form.shitpost-mode-active.album-mode-active .global-tag-section,
+.upload-form.shitpost-mode-active.album-mode-active .global-oc-section,
+.upload-form.shitpost-mode-active.album-mode-active .global-title-section {
+    display: block !important;
+}
+
+.upload-form.album-mode-active .drop-zone {
+    border-color: rgba(var(--accent-rgb), 0.45);
+    background: rgba(var(--accent-rgb), 0.03);
+}
+
+.upload-form.album-mode-active .drop-album-hint {
+    font-weight: 600;
+}
+
+/* Per-item Rating Switch */
+.item-rating-container {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.item-rating-option {
+    position: relative;
+    cursor: pointer;
+}
+
+.item-rating-option input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.item-rating-label {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    transition: all 0.2s;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.item-rating-option input:checked + .item-rating-label.sfw {
+    background: var(--badge-sfw, #02500b);
+    color: #fff;
+    border-color: var(--badge-sfw, #02500b);
+}
+
+.item-rating-option input:checked + .item-rating-label.nsfw {
+    background: var(--badge-nsfw, #E10DC3);
+    color: #fff;
+    border-color: var(--badge-nsfw, #E10DC3);
+}
+
+.item-rating-option input:checked + .item-rating-label.nsfl {
+    background: var(--badge-nsfl, #660000);
+    color: #fff;
+    border-color: var(--badge-nsfl, #660000);
+}
+
+/* Visibility Container - Only checked option is colored, unchecked options are gray */
+.item-visibility-container .item-rating-option input:checked + .item-rating-label.sfw {
+    background: rgba(81, 207, 102, 0.2);
+    color: #51cf66;
+    border-color: rgba(81, 207, 102, 0.5);
+}
+
+.item-visibility-container .item-rating-option input:checked + .item-rating-label.nsfw {
+    background: rgba(255, 187, 51, 0.2);
+    color: #ffbb33;
+    border-color: rgba(255, 187, 51, 0.5);
+}
+
+.item-visibility-container .item-rating-option input:checked + .item-rating-label.nsfl {
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff4444;
+    border-color: rgba(255, 68, 68, 0.5);
+}
+
+
+
+
+.item-rating-label:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Bigger Previews in Shitpost Mode */
+.upload-form.shitpost-mode-active .file-preview-item {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 15px;
+    gap: 16px;
+    width: 100%;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.upload-form.shitpost-mode-active .preview-media-small {
+    flex: 0 0 50%;
+    width: 50% !important;
+    max-width: 50% !important;
+    height: 240px !important;
+    max-height: 240px !important;
+    object-fit: contain;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.3);
+    overflow: hidden; /* Clip the video — Chrome cannot expand past this */
+}
+
+/* Inner video inside the wrapper fills the container and cannot resize it */
+.upload-form.shitpost-mode-active .preview-video-wrapper > video {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    display: block;
+    object-fit: contain;
+}
+
+/* Per-item Tags */
+.item-tags-container {
+    margin-top: 10px;
+    width: 100%;
+    position: relative;
+}
+
+.item-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.item-tag-chip {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.item-tag-remove {
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+.item-tag-remove:hover {
+    opacity: 1;
+}
+
+.item-tag-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: #fff;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.item-tag-input:focus {
+    border-color: var(--accent);
+}
+
+.item-meta-suggestions {
+    margin-top: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.item-meta-suggestion {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    word-break: break-all;
+}
+
+.item-meta-suggestion:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent);
+}
+
+.item-meta-suggestion.selected {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent);
+    border-style: solid;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.item-meta-suggestion.selected i {
+    color: var(--accent);
+}
+.item-comment-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: #fff;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-top: 10px;
+    resize: vertical;
+    min-height: 40px;
+    font-family: inherit;
+}
+
+.item-comment-input:focus {
+    border-color: var(--accent);
+}
+
+.item-title-container {
+    margin-top: 6px;
+    width: 100%;
+}
+
+.item-title-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 5px 10px;
+    color: #fff;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.item-title-input::placeholder {
+    color: rgba(255,255,255,0.3);
+    font-style: italic;
+}
+
+.item-title-input:focus {
+    border-color: var(--accent);
+}
+
+.rating-options {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.rating-option input {
+    display: none;
+}
+
+.rating-label {
+    display: block;
+    border-radius: 0;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+}
+
+.rating-label.sfw {
+  background: rgba(6, 115, 24, 0.36);
+  border-color: rgba(19, 134, 38, 0.96);
+  color: #fff;
+  opacity: 0.5;
+}
+
+.rating-label.sfw:hover {
+  background: #04200c9e;
+}
+
+.rating-label.nsfw {
+  background: #cb009866;
+  border-color: rgb(255, 0, 227);
+  color: #f9f9f9;
+  opacity: 0.5;
+}
+
+.rating-label.nsfw:hover {
+  background: rgba(69, 0, 45, 0.74);
+}
+
+.rating-label.nsfl {
+  background: #2b01016e;
+  color: #f2f2f2;
+  border-color: #990000;
+  opacity: 0.5;
+}
+
+.rating-label.nsfl:hover {
+  background: #130101;
+}
+
+.rating-option input:checked + .rating-label.sfw {
+  background: rgba(6, 130, 8, 0.73);
+  border-color: #51cf66;
+  color: var(--white);
+  opacity: 1;
+}
+
+.rating-option input:checked + .rating-label.nsfw {
+  background: #880059;
+  box-shadow: 0 0 0 2px var(--bg-form), 0 0 0 4px #cd0030;
+  color: var(--white);
+  opacity: 1;
+}
+
+.rating-option input:checked + .rating-label.nsfl {
+  background: #500404;
+  box-shadow: 0 0 0 2px var(--bg-form), 0 0 0 4px #660000;
+  color: var(--white);
+  opacity: 1;
+}
+
+/* Global Visibility Section styling - unchecked options stay muted, checked options show colors */
+.global-visibility-section .rating-option input:checked + .rating-label.sfw {
+  background: rgba(81, 207, 102, 0.2);
+  border-color: #51cf66;
+  color: #51cf66;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.global-visibility-section .rating-option input:checked + .rating-label.nsfw {
+  background: rgba(255, 187, 51, 0.2);
+  border-color: #ffbb33;
+  color: #ffbb33;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.global-visibility-section .rating-option input:checked + .rating-label.nsfl {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: #ff4444;
+  color: #ff4444;
+  box-shadow: none;
+  opacity: 1;
+}
+
+
+/* Tags */
+.tag-input-container {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    padding: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    position: relative;
+    gap: 0.5rem;
+    z-index: 10000 !important;
+    margin-bottom: 5px;
+}
+
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--accent);
+    color: #000;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.tag-chip button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.tag-input {
+    flex: 1;
+    min-width: 120px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    padding: 0.5rem;
+    outline: none;
+}
+
+/* Global title input (normal mode) — matches tag-input-container style */
+.upload-title-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    padding: 0.5rem;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.upload-title-input:focus {
+    border-color: var(--accent, #7c5cbf);
+}
+
+.upload-title-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.tag-count {
+    font-weight: normal;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.tag-count.valid {
+    color: #51cf66;
+    font-weight: bold;
+    opacity: 1;
+}
+
+/* Upload Comment */
+.upload-comment-input {
+    position: relative;
+    margin: 0px 0px 5px 0px;
+}
+
+.upload-comment {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    color: inherit;
+    padding: 0.6rem 0.8rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 60px;
+    max-height: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.upload-comment:focus {
+    border-color: var(--accent, #7c5cbf);
+}
+
+.upload-comment::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.upload-comment-input .input-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+}
+
+.upload-comment-input .emoji-picker {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+}
+
+.upload-form .tag-suggestions {
+    position: absolute !important;
+    min-width: 220px;
+    max-width: 320px;
+    max-height: 260px;
+    overflow-y: auto !important;
+    background: var(--dropdown-bg, #1a1a1a) !important;
+    border: 1px solid var(--black, #000) !important;
+    border-radius: 6px !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+    margin-top: 8px !important; /* Spacing from input */
+    display: none; /* Controlled by JS .style.display */
+    z-index: 200000 !important;
+    animation: tagDropIn 0.15s ease-out !important;
+    scrollbar-width: thin !important;
+}
+
+
+
+@keyframes tagDropIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tag-suggestion-item {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+    cursor: pointer !important;
+    transition: background 0.12s !important;
+    box-sizing: border-box !important;
+    user-select: text !important;
+}
+
+#upload-form .tag-suggestion-item:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+#upload-form .tag-suggestion-item:hover, 
+#upload-form .tag-suggestion-item.active {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+#upload-form .tag-suggestion-name {
+    font-size: 14px !important;
+    color: var(--accent, #66d9ef) !important;
+    font-weight: 500 !important;
+}
+
+#upload-form .tag-suggestion-meta {
+    font-size: 11px !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    margin-left: 12px !important;
+    white-space: nowrap !important;
+}
+
+/* Submit Button */
+.btn-upload {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.btn-upload:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
+}
+
+.btn-upload:not(:disabled):hover {
+    filter: brightness(1.1);
+}
+
+/* Progress */
+.upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 0;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.2s;
+}
+
+.progress-text {
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.global-redirect-section {
+    margin: 4px 0 2px 0;
+}
+
+.global-redirect-section .upload-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.85);
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.global-redirect-section .upload-checkbox-label:hover {
+    color: #fff;
+}
+
+.global-redirect-section input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+}
+
+.upload-status {
+    text-align: center;
+    padding: 1rem;
+    font-weight: 600;
+}
+
+/* Groups button + progress + status (pinned in the upload dropdown, see f0ckm.css); same spacing as the form */
+.upload-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Only takes space when there is a message; the progress bar is display:none until an upload runs */
+.upload-status:empty {
+    display: none;
+}
+
+.upload-status.error {
+    color: #ff6b6b;
+}
+
+.upload-status.success {
+    color: #51cf66;
+}
+
+/* Login Required */
+.login-required {
+    text-align: center;
+    padding: 4rem 2rem;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+}
+
+.btn-login {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.75rem 2rem;
+    background: var(--accent);
+    color: #000;
+    text-decoration: none;
+    border-radius: 0;
+    font-weight: 700;
+}
+
+/* Upload Mode Tabs */
+.upload-mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.upload-mode-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.upload-mode-tab:first-child {
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.upload-mode-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.upload-mode-tab.active {
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.upload-mode-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+}
+
+.upload-mode-tab svg {
+    flex-shrink: 0;
+}
+
+/* URL Upload */
+.url-input-container {
+    position: relative;
+}
+
+.url-input-container input[type="url"] {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 1.5rem 1rem;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.url-input-container input[type="url"]:focus {
+    border-color: var(--accent);
+}
+
+.url-input-container input[type="url"]::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.url-type-badge {
+    display: none; /* shown via JS */
+    margin-top: 6px;
+    padding: 5px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 3px;
+    cursor: pointer;
+    pointer-events: auto;
+    width: fit-content;
+}
+
+.url-type-badge.youtube {
+    background: #ff0000;
+    color: #fff;
+}
+
+.url-type-badge.direct {
+    background: var(--accent);
+    color: #000;
+}
+
+.url-type-badge.fetching {
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 12px;
+}
+
+.url-type-badge.success {
+    background: #2b8a3e;
+    color: #fff;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent);
+    animation: metaSpin 0.8s linear infinite;
+}
+
+@keyframes metaSpin {
+    to { transform: rotate(360deg); }
+}
+/* Metadata Sync Spinner */
+.sync-spinner {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin: 5px 0 5px 5px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+}
+
+.sync-spinner.active {
+    display: flex;
+    animation: spinnerReveal 0.3s ease-out;
+}
+
+@keyframes spinnerReveal {
+    from { opacity: 0; transform: translateX(-5px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.sync-spinner .spinner-icon {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: metaSpin 0.8s linear infinite;
+}
+
+.meta-suggestions-container {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(88, 101, 242, 0.05);
+    border: 1px dashed rgba(88, 101, 242, 0.2);
+    border-radius: 8px;
+}
+
+.suggestions-header {
+    font-size: 0.75rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.meta-suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.meta-suggestion {
+    padding: 0.35rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.meta-suggestion i {
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+.meta-suggestion:hover i {
+    opacity: 1;
+}
+
+.meta-suggestion.selected {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.meta-suggestion.selected i {
+    color: var(--accent);
+    opacity: 1;
+}
+
+/* GPS Privacy Warning Banner */
+.gps-privacy-warning {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin: 8px 0;
+    background: rgba(255, 160, 0, 0.12);
+    border: 1px solid rgba(255, 160, 0, 0.4);
+    border-radius: 8px;
+    font-size: 0.85em;
+    color: #ffa500;
+    flex-wrap: wrap;
+}
+.gps-privacy-warning i { flex-shrink: 0; font-size: 1.1em; }
+.gps-privacy-warning span { flex: 1; min-width: 160px; color: var(--text, #ccc); }
+.gps-privacy-warning span strong { color: #ffa500; }
+.gps-strip-btn {
+    background: #ffa500;
+    color: #000;
+    border: none;
+    border-radius: 5px;
+    padding: 4px 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+.gps-strip-btn:hover { background: #ffb733; }
+.gps-strip-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.gps-dismiss-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 0 4px;
+    line-height: 1;
+    margin-left: auto;
+}
+.gps-dismiss-btn:hover { color: #ccc; }
+.gps-privacy-warning.gps-stripped {
+    background: rgba(76, 175, 80, 0.12);
+    border-color: rgba(76, 175, 80, 0.4);
+    color: #4caf50;
+}
+.gps-privacy-warning.gps-stripped i,
+.gps-privacy-warning.gps-stripped span { color: #4caf50; }
+
+.item-meta-suggestion span {
+    user-select: text !important;
+}
+
+.item-comment-container {
+    position: relative;
+    width: 100%;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-comment-input {
+    min-height: 60px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Actions bar sits below the textarea, left-aligned */
+.item-comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.item-emoji-trigger {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 2px 7px;
+    line-height: 1.4;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.item-emoji-trigger:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Picker pops up above the actions row */
+.item-comment-container .item-emoji-picker,
+.item-comment-container .emoji-picker {
+    position: relative;
+    bottom: calc(100% + 4px);
+    left: 0;
+    z-index: 10000;
+}
+
+/* Media column wrapper for URL items in shitpost mode:
+   stacks the embed/icon above the url-type-badge (refetch trigger).
+   Mirrors the flex sizing of .preview-media-small so embed size is unchanged. */
+.item-media-col {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 0 0 50%;
+    width: 50%;
+    min-height: 275px;
+    max-height: 350px;
+}
+
+.item-media-col iframe,
+.item-media-col .generic-file-icon {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: 320px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* Badge inside the col sits flush below the embed, no extra sizing */
+.item-media-col .url-type-badge {
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .upload-form.shitpost-mode-active .file-preview-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+
+    .upload-form.shitpost-mode-active .preview-media-small,
+    .upload-form.shitpost-mode-active .item-media-col {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 auto;
+        min-height: auto;
+    }
+
+    .upload-form.shitpost-mode-active .item-media-col iframe {
+        height: 200px;
+    }
+
+    /* Keep suggestions visible and position them above the tag input */
+    .upload-form.shitpost-mode-active .file-meta-row-small {
+        overflow: visible !important;
+    }
+
+    .upload-form.shitpost-mode-active .tag-suggestions {
+        position: absolute !important;
+        bottom: 100% !important;
+        top: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+        z-index: 200000 !important;
+    }
+}
+
+/* Video thumbnail loading animation */
+.video-thumbnail-loading {
+    animation: thumbPulse 1.5s ease-in-out infinite;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes thumbPulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.4; }
+}
+
+/* ── Ruffle (Flash) Upload Preview ─────────────────────────────────────────── */
+
+/* The container: CSS Grid with 3 rows — player | snapshot preview | button.
+   All rows are auto so the container grows naturally; no overflow clipping. */
+.swf-upload-preview {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    max-height: none !important;
+    background: #000;
+    border-radius: 8px;
+}
+
+/* Normal (non-shitpost) mode: full-width, player drives container height via aspect-ratio */
+.upload-form:not(.shitpost-mode-active) .swf-upload-preview.preview-media-small {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+}
+
+.upload-form:not(.shitpost-mode-active) .swf-upload-preview ruffle-player,
+.upload-form:not(.shitpost-mode-active) .swf-upload-preview ruffle-object {
+    aspect-ratio: 16 / 9;
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Shitpost mode: player row is a fixed height so the snapshot row doesn't steal its space */
+.upload-form.shitpost-mode-active .swf-upload-preview.preview-media-small {
+    width: 45% !important;
+    flex: 0 0 45% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    aspect-ratio: unset;
+}
+
+.upload-form.shitpost-mode-active .swf-upload-preview ruffle-player,
+.upload-form.shitpost-mode-active .swf-upload-preview ruffle-object {
+    width: 100% !important;
+    height: 220px !important;
+    min-height: 220px;
+}
+
+/* Placeholder shown while Ruffle is loading */
+.swf-upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 200px;
+    background: rgba(0, 0, 0, 0.6);
+    animation: thumbPulse 1.8s ease-in-out infinite;
+}
+
+.swf-upload-placeholder-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 200, 0, 0.7));
+}
+
+.swf-upload-placeholder-text {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.5px;
+}
+
+/* ── Ruffle Snapshot Button ─────────────────────────────────────────────────── */
+
+/* The snapshot button lives inside .swf-upload-preview, pinned to the bottom */
+.swf-upload-preview {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-ruffle-snapshot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 0;
+    padding: 8px 16px;
+    background: rgba(255, 200, 0, 0.08);
+    border: none;
+    border-top: 1px solid rgba(255, 200, 0, 0.2);
+    border-radius: 0 0 6px 6px;
+    color: rgba(255, 200, 0, 0.9);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+.btn-ruffle-snapshot:hover:not(:disabled) {
+    background: rgba(255, 200, 0, 0.15);
+    border-top-color: rgba(255, 200, 0, 0.4);
+    color: #ffd700;
+}
+
+.btn-ruffle-snapshot:active:not(:disabled) {
+    background: rgba(255, 200, 0, 0.22);
+}
+
+.btn-ruffle-snapshot:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+/* Snapshot preview: sits in its own grid row, below the player */
+.swf-upload-preview .ruffle-snapshot-preview {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    object-position: center;
+    background: rgba(0, 0, 0, 0.6);
+    border-top: 1px solid rgba(81, 207, 102, 0.3);
+    animation: snapPreviewIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes snapPreviewIn {
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+
+/* =============================================
+   URL Upload Tracker — single persistent panel
+   ============================================= */
+
+#url-upload-tracker {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 9998;
+    width: 320px;
+    background: var(--nav-bg, #1c1c1c);
+    border: 1px solid rgba(var(--accent-rgb, 120,120,120), 0.15);
+    overflow: hidden;
+    font-size: 0.8rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 1.5s ease, transform 1.5s ease;
+    pointer-events: none;
+}
+
+#url-upload-tracker.uut-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+/* ── Header ──────────────────────────────────────── */
+.uut-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 10px 8px 12px;
+    background: rgba(var(--accent-rgb, 120,120,120), 0.07);
+    border-bottom: 1px solid rgba(var(--accent-rgb, 120,120,120), 0.1);
+    user-select: none;
+}
+
+.uut-header > .fa-solid {
+    color: var(--accent);
+    font-size: 11px;
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+
+.uut-title {
+    flex: 1;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--white, #fff);
+    letter-spacing: 0.01em;
+}
+
+.uut-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.uut-actions { display: flex; gap: 2px; }
+
+.uut-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--white, #fff);
+    opacity: 0.3;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1;
+    transition: opacity 0.15s, background 0.15s;
+}
+.uut-btn:hover { opacity: 0.8; background: rgba(var(--accent-rgb,120,120,120),0.12); }
+
+/* ── Body (scrollable) ───────────────────────────── */
+.uut-body {
+    max-height: 340px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--accent-rgb,120,120,120), 0.25) transparent;
+}
+
+/* ── Active job rows ─────────────────────────────── */
+.uut-job {
+    padding: 8px 12px 6px;
+    border-bottom: 1px solid rgba(var(--accent-rgb,120,120,120), 0.06);
+    transition: opacity 0.3s;
+}
+
+.uut-job--fading { opacity: 0; }
+
+.uut-job-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.uut-spinner {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    margin-top: 3px;
+    border: 1.5px solid rgba(var(--accent-rgb,120,120,120), 0.18);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: uutSpin 0.75s linear infinite;
+}
+@keyframes uutSpin { to { transform: rotate(360deg); } }
+
+.uut-job-info { flex: 1; min-width: 0; }
+
+.uut-url {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--white, #fff);
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.uut-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.uut-stage {
+    font-size: 0.71rem;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.uut-speed {
+    font-size: 0.67rem;
+    color: var(--white, #fff);
+    opacity: 0.38;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+/* Progress bar */
+.uut-bar {
+    height: 2px;
+    background: rgba(var(--accent-rgb,120,120,120), 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.uut-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.65s ease;
+    background-image: linear-gradient(90deg, var(--accent) 0%, rgba(255,255,255,0.4) 50%, var(--accent) 100%);
+    background-size: 200% 100%;
+    animation: uutShimmer 1.6s linear infinite;
+}
+@keyframes uutShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ==========================================================================
+   ALBUM UPLOAD STYLES
+   ========================================================================== */
+
+.album-choice-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--nav-border-color, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.album-choice-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #eee;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.album-choice-title i {
+    color: var(--accent);
+}
+
+.album-choice-options {
+    display: flex;
+    gap: 8px;
+}
+
+.album-choice-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #ccc;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.album-choice-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.album-choice-btn.active {
+    background: var(--accent);
+    color: #111;
+    font-weight: 700;
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(var(--accent-rgb, 31, 178, 176), 0.4);
+}
+
+.album-staging-container {
+    width: 100%;
+    margin-top: 14px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.album-staging-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.album-staging-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #eee;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.album-staging-title i {
+    color: var(--accent);
+}
+
+.btn-add-album-pics {
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #eee;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.btn-add-album-pics:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb, 31, 178, 176), 0.1);
+}
+
+.album-staging-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+    gap: 10px;
+}
+
+.album-stage-card {
+    position: relative;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.album-stage-card:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.album-stage-card.is-cover {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(var(--accent-rgb, 31, 178, 176), 0.35);
+}
+
+.album-stage-card img,
+.album-stage-card video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.album-stage-audio-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    text-align: center;
+    color: var(--accent);
+}
+
+.album-stage-audio-preview i {
+    font-size: 1.8rem;
+}
+
+.album-stage-audio-name {
+    font-size: 0.65rem;
+    color: #ccc;
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.album-stage-mime-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.album-stage-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 5;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+}
+
+.album-stage-card.is-cover .album-stage-badge {
+    background: var(--accent);
+    color: #111;
+    border-color: var(--accent);
+    font-weight: 800;
+}
+
+.album-stage-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 60%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 10px 4px 4px 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 6;
+}
+
+.album-stage-card:hover .album-stage-actions {
+    opacity: 1;
+}
+
+.album-action-btn {
+    width: 25px;
+    height: 25px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.16);
+    border: none;
+    color: #fff;
+    font-size: 0.72rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.album-action-btn:hover {
+    background: var(--accent);
+    color: #111;
+    transform: scale(1.1);
+}
+
+.album-action-btn.btn-album-remove:hover {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.album-stage-card.album-stage-add-more {
+    border-style: dashed;
+    border-color: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    flex-direction: column;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.album-stage-card.album-stage-add-more:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb, 31, 178, 176), 0.08);
+}
+
+.album-add-icon {
+    font-size: 1.4rem;
+}
+
+.album-add-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.album-add-sub {
+    font-size: 0.65rem;
+    opacity: 0.7;
+}
+
+.album-stage-tags-wrap {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.album-stage-tags-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 0.68rem;
+    color: #fff;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.album-stage-tags-input:focus {
+    border-color: var(--accent);
+    background: rgba(0, 0, 0, 0.65);
+}
+

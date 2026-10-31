@@ -1,0 +1,264 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+    @include(snippets/admin-back)
+<div class="container">
+        <div class="admin-header-flex">
+            <h2>Invite Tokens</h2>
+            <button id="generate-token" class="btn-upload" style="width: auto; padding: 10px 20px;">Generate New Token</button>
+        </div>
+
+        <!-- ═══════════════════ Invite Requests ═══════════════════ -->
+        <div id="invite-requests" style="margin-bottom: 30px; scroll-margin-top: calc(var(--navbar-h, 50px) + 16px);">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <i class="fa-solid fa-inbox" style="color: var(--accent);"></i> Invite Requests
+                <span id="invite-req-count" style="display: none; background: #ff6b6b; color: white; font-size: 0.7em; padding: 2px 8px; border-radius: 10px; font-weight: 600;"></span>
+            </h3>
+            <div class="upload-form">
+                <table class="responsive-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Reviewed By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invite-req-list">
+                        <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <i class="fa-solid fa-ticket" style="color: var(--accent);"></i> Token List
+        </h3>
+        <div class="upload-form">
+            <table class="responsive-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Used By</th>
+                        <th>Created</th>
+                        <th>Used At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="token-list">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+
+    <script>
+        window.f0ckDebug = window.f0ckDebug || (() => {});
+
+        // ═══════════════════ Invite Requests ═══════════════════
+        window.loadInviteRequests = async () => {
+            const tbody = document.getElementById('invite-req-list');
+            try {
+                const res = await fetch('/api/v2/admin/invite-requests');
+                const data = await res.json();
+                if (data.success) {
+                    const countBadge = document.getElementById('invite-req-count');
+                    if (!tbody) return;
+
+                    const pendingCount = data.requests.filter(r => r.status === 'pending').length;
+                    if (countBadge) {
+                        if (pendingCount > 0) {
+                            countBadge.textContent = pendingCount;
+                            countBadge.style.display = '';
+                        } else {
+                            countBadge.style.display = 'none';
+                        }
+                    }
+
+                    if (data.requests.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No invite requests yet.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = data.requests.map(r => {
+
+                        const reason = r.reason ? '<span title="' + r.reason.replace(/"/g, '&quot;') + '">' + (r.reason.length > 60 ? r.reason.slice(0, 60) + '…' : r.reason) + '</span>' : '<span style="color: var(--text-muted); font-style: italic;">No reason given</span>';
+
+                        let statusBadge;
+                        if (r.status === 'pending') {
+                            statusBadge = '<span style="color: #ffc107; font-weight: 600;"><i class="fa-solid fa-clock"></i> Pending</span>';
+                        } else if (r.status === 'approved') {
+                            statusBadge = '<span style="color: #51cf66; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Approved</span>';
+                        } else if (r.status === 'revoked') {
+                            statusBadge = '<span style="color: #e67700; font-weight: 600;"><i class="fa-solid fa-ban"></i> Revoked</span>';
+                        } else {
+                            statusBadge = '<span style="color: #ff6b6b; font-weight: 600;"><i class="fa-solid fa-circle-xmark"></i> Denied</span>';
+                        }
+
+                        let actions = '';
+                        if (r.status === 'pending') {
+                            actions =
+                                '<div style="display: flex; gap: 6px; flex-wrap: wrap;">' +
+                                    '<button onclick="approveInviteReq(' + r.id + ')" class="btn-upload" style="padding: 5px 12px; font-size: 0.8em; background: #51cf66; border-color: #51cf66;"><i class="fa-solid fa-check"></i> Approve</button>' +
+                                    '<button onclick="denyInviteReq(' + r.id + ')" class="btn-remove" style="padding: 5px 12px; font-size: 0.8em;"><i class="fa-solid fa-xmark"></i> Deny</button>' +
+                                '</div>';
+                        } else {
+                            actions = '<span style="color: var(--text-muted); font-size: 0.85em;">' + (r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : '') + '</span>';
+                        }
+
+                        const username = r.requester_login || r.requester_name || (r.fingerprint ? r.fingerprint.slice(0, 12) + '…' : '—');
+                        const userCell = r.requester_login
+                            ? '<a href="/user/' + r.requester_login + '" style="color: #5bc0be; text-decoration: none; font-weight: 600;">' + username + '</a>'
+                            : '<span style="color: var(--text-muted);">' + username + '</span>';
+
+                        return '<tr' + (r.status === 'pending' ? ' style="background: rgba(255,193,7,0.04);"' : '') + '>' +
+                            '<td data-label="User">' + userCell + '</td>' +
+                            '<td data-label="Reason" style="max-width: 250px;">' + reason + '</td>' +
+                            '<td data-label="Status">' + statusBadge + '</td>' +
+                            '<td data-label="Submitted">' + new Date(r.created_at).toLocaleString() + '</td>' +
+                            '<td data-label="Reviewed By">' + (r.reviewed_by_name || '—') + '</td>' +
+                            '<td data-label="Actions">' + actions + '</td>' +
+                            '</tr>';
+                    }).join('');
+                } else {
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Failed to load invite requests.</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to load invite requests:', e);
+                if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Failed to load invite requests.</td></tr>';
+            }
+        };
+
+        window.approveInviteReq = async (id) => {
+            if (!confirm('Approve this invite request? A token will be generated and sent to the user.')) return;
+            try {
+                const res = await fetch('/api/v2/admin/invite-requests/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.loadInviteRequests();
+                    window.loadTokens();
+                } else {
+                    alert('Failed: ' + (data.msg || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window.denyInviteReq = async (id) => {
+            if (!confirm('Deny this invite request?')) return;
+            try {
+                const res = await fetch('/api/v2/admin/invite-requests/deny', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.loadInviteRequests();
+                } else {
+                    alert('Failed: ' + (data.msg || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error: ' + e.message);
+            }
+        };
+
+        // ═══════════════════ Tokens ═══════════════════
+        window.loadTokens = async () => {
+            const tbody = document.getElementById('token-list');
+            try {
+                window.f0ckDebug('Loading tokens...');
+                const res = await fetch('/api/v2/admin/tokens');
+                const data = await res.json();
+                window.f0ckDebug('Tokens data:', data);
+                if (data.success) {
+                    if (!tbody) return;
+                    tbody.innerHTML = data.tokens.map(t =>
+                        '<tr>' +
+                        '<td data-label="Token" style="font-family: monospace; font-size: 1.1em; color: var(--accent);">' + t.token + '</td>' +
+                        '<td data-label="Status">' +
+                        (t.is_used ? '<span style="color: #ff6b6b">Used</span>' : '<span style="color: #51cf66">Available</span>') +
+                        '</td>' +
+                        '<td data-label="Source">' +
+                        (t.created_by_matrix ? '<span style="color: #0DBD8B">[Matrix] ' + t.created_by_matrix + '</span>' :
+                         (t.created_by_discord ? '<span style="color: #5865F2"><i class="fab fa-discord"></i> ' + t.created_by_discord + '</span>' :
+                          (t.created_by_name ? '<span style="color: var(--accent)">' + t.created_by_name + '</span>' : '<span style="color: var(--text-muted)">Admin</span>'))) +
+                        '</td>' +
+                        '<td data-label="Used By">' + (t.used_by_name || '—') + '</td>' +
+                        '<td data-label="Created">' + (t.created_at ? new Date(parseInt(t.created_at) * 1000).toLocaleString() : '—') + '</td>' +
+                        '<td data-label="Used At">' + (t.used_at ? new Date(t.used_at).toLocaleString() : '—') + '</td>' +
+                        '<td data-label="Actions">' +
+                        (!t.is_used ? '<button onclick="deleteToken(' + t.id + ')" class="btn-remove" style="padding: 5px 10px; font-size: 0.8em;">Delete</button>' : '') +
+                        '</td>' +
+                        '</tr>'
+                    ).join('');
+                } else {
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Failed to load tokens.</td></tr>';
+                }
+            } catch (e) {
+                console.error(e);
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Failed to load tokens.</td></tr>';
+            }
+        };
+
+        window.generateToken = async () => {
+            window.f0ckDebug('Generating...');
+            try {
+                const res = await fetch('/api/v2/admin/tokens/create', { 
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': window.f0ckSession?.csrf_token }
+                });
+                const data = await res.json();
+                window.f0ckDebug('Gen result:', data);
+                if (data.success) {
+                    window.loadTokens();
+                } else {
+                    alert('Failed: ' + data.msg);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error: ' + e.message);
+            }
+        };
+
+        window.deleteToken = async (id) => {
+            if (!confirm('Delete this token?')) return;
+            const res = await fetch('/api/v2/admin/tokens/delete', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': window.f0ckSession?.csrf_token
+                },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.loadTokens();
+            }
+        };
+
+        const btnGenToken = document.getElementById('generate-token');
+        if (btnGenToken) btnGenToken.addEventListener('click', window.generateToken);
+        window.loadTokens();
+        window.loadInviteRequests();
+    </script>
+</div>
+</div>
+</div>
+@include(snippets/footer)

@@ -1,0 +1,173 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <style>
+    /* No blurred item backdrop here: the #bg canvas keeps the last item's image after AJAX navigation.
+       Lives in this page's <style>, so it is gone again as soon as another page is loaded. */
+    body:has(#main > .container.adm.up) #bg { opacity: 0 !important; visibility: hidden !important; }
+  </style>
+  <div class="container adm up">
+
+    <header class="adm-header">
+      <div>
+        <h1 class="adm-title">My uploads</h1>
+        <div class="adm-subtitle">Status of your last {{ items.length }} upload@if(items.length !== 1)s@endif.</div>
+      </div>
+      <a href="/upload" class="adm-btn adm-btn-ghost"><i class="fa-solid fa-angle-up"></i> Upload</a>
+    </header>
+
+    @if(manual_approval_on)
+    <div class="up-notice"><i class="fa-solid fa-hourglass-half"></i> Manual approval is on: new uploads appear on the site once a moderator approves them.</div>
+    @endif
+
+    <section class="adm-section">
+      <div class="adm-stats">
+        <div class="adm-stat @if(counts.pending > 0) is-hot @endif"><span class="adm-stat-num" id="up-pending-count">{{ counts.pending }}</span><span class="adm-stat-label">Pending</span></div>
+        <div class="adm-stat"><span class="adm-stat-num">{{ counts.live }}</span><span class="adm-stat-label">Live</span></div>
+        <div class="adm-stat"><span class="adm-stat-num">{{ counts.denied + counts.removed }}</span><span class="adm-stat-label">Denied / removed</span></div>
+      </div>
+    </section>
+
+    <section class="adm-section">
+      <h2 class="adm-section-title"><i class="fa-solid fa-list"></i> Recent uploads</h2>
+      @if(items.length > 0)
+      <div class="up-list">
+        @each(items as it)
+        <div class="up-row is-{!! it.status !!}" id="i{!! it.id !!}">
+          <div class="up-thumb">
+            @if(it.thumb)
+            <img src="{!! it.thumb !!}" alt="" loading="lazy">
+            @else
+            <i class="fa-solid fa-ban"></i>
+            @endif
+          </div>
+          <div class="up-info">
+            <div class="up-name">
+              @if(it.status === 'live')<a href="/{!! it.path !!}">{!! it.title || ('#' + it.id) !!}</a>@else{!! it.title || ('#' + it.id) !!}@endif
+              @if(it.is_album)<span class="up-album"><i class="fa-solid fa-images"></i> {!! it.album_count !!}</span>@endif
+            </div>
+            <div class="up-meta">
+              <span>#{!! it.id !!}</span>
+              <span>{!! it.mime !!}</span>
+              @if(it.size_fmt)<span>{!! it.size_fmt !!}</span>@endif
+              @if(it.time_ago)<span tooltip="{!! it.time_full !!}">{!! it.time_ago !!}</span>@endif
+            </div>
+            @if(it.reason)
+            <div class="up-reason"><strong>Reason:</strong> {!! it.reason !!}</div>
+            @endif
+          </div>
+          <div class="up-status">
+            @if(it.status === 'pending')<span class="up-badge"><i class="fa-solid fa-hourglass-half"></i> Pending</span><button type="button" class="up-del" data-id="{!! it.id !!}" title="Delete this upload"><i class="fa-solid fa-trash"></i> <span>Delete</span></button>@endif
+            @if(it.status === 'live')<a href="/{!! it.path !!}" class="up-badge"><i class="fa-solid fa-check"></i> Live</a>@endif
+            @if(it.status === 'denied')<span class="up-badge"><i class="fa-solid fa-xmark"></i> Denied</span>@endif
+            @if(it.status === 'removed')<span class="up-badge"><i class="fa-solid fa-trash"></i> Removed</span>@endif
+          </div>
+        </div>
+        @endeach
+      </div>
+      @else
+      <div class="up-empty">You haven't uploaded anything yet.</div>
+      @endif
+    </section>
+  </div>
+
+  @include(snippets/adm-dashboard-style)
+  <style>
+    .up-notice {
+      display: flex; align-items: center; gap: 10px; margin: -8px 0 22px; padding: 10px 14px;
+      font-size: 0.85em; color: var(--adm-text); background: var(--adm-surface);
+      border: 1px solid var(--adm-border); border-left: 3px solid var(--adm-accent);
+    }
+    .up-notice i { color: var(--adm-accent); }
+    .up-list { display: flex; flex-direction: column; border: 1px solid var(--adm-border); }
+    .up-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; background: var(--adm-surface); scroll-margin-top: 90px; transition: background 0.3s; }
+    .up-row + .up-row { border-top: 1px solid var(--adm-border); }
+    .up-row:target, .up-row.is-target { background: color-mix(in srgb, var(--adm-accent) 12%, transparent); box-shadow: inset 3px 0 0 var(--adm-accent); }
+    .up-thumb { width: 64px; height: 64px; flex-shrink: 0; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--adm-muted); }
+    .up-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .up-row.is-denied .up-thumb, .up-row.is-removed .up-thumb { color: #ff5c5c; }
+    .up-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .up-name { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92em; overflow: hidden; }
+    .up-name a { color: var(--adm-text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .up-name a:hover { color: var(--adm-accent); }
+    .up-album { flex-shrink: 0; font-size: 0.78em; font-weight: 700; color: var(--adm-muted); }
+    .up-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 0.76em; color: var(--adm-muted); }
+    .up-reason { font-size: 0.8em; color: #ffb8b8; }
+    .up-status { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+    .up-del {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; margin: 0; font: inherit; font-size: 0.72em; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; border-radius: 0;
+      background: transparent; color: var(--adm-muted); border: 1px solid var(--adm-border); transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .up-del:hover { color: #ff5c5c; border-color: rgba(255, 92, 92, 0.5); }
+    .up-del.is-armed { color: #000; background: #ff5c5c; border-color: #ff5c5c; }
+    .up-del:disabled { opacity: 0.6; cursor: progress; }
+    .up-row.is-gone { opacity: 0; transition: opacity 0.25s; }
+    .up-badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.72em; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.08em; text-decoration: none; border: 1px solid var(--adm-border); color: var(--adm-muted);
+    }
+    .up-row.is-pending .up-badge { color: #ffb020; border-color: rgba(255, 176, 32, 0.5); background: rgba(255, 176, 32, 0.1); }
+    .up-row.is-live .up-badge { color: #000; background: var(--adm-accent); border-color: var(--adm-accent); }
+    .up-row.is-live .up-badge:hover { background: transparent; color: var(--adm-accent); }
+    .up-row.is-denied .up-badge, .up-row.is-removed .up-badge { color: #ff5c5c; border-color: rgba(255, 92, 92, 0.5); background: rgba(255, 92, 92, 0.08); }
+    .up-empty { padding: 40px 20px; text-align: center; color: var(--adm-muted); border: 1px dashed var(--adm-border); }
+    @media (max-width: 600px) {
+      .up-row { flex-wrap: wrap; }
+      .up-status { width: 100%; padding-left: 78px; }
+    }
+  </style>
+  <script>
+    (() => {
+      // Highlight + scroll to #i<id> (AJAX navigation uses pushState, which doesn't trigger :target)
+      const focusRow = () => {
+        document.querySelectorAll('.up-row.is-target').forEach(r => r.classList.remove('is-target'));
+        const id = (location.hash || '').slice(1);
+        const row = id && document.getElementById(id);
+        if (!row || !row.classList.contains('up-row')) return;
+        row.classList.add('is-target');
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      };
+      setTimeout(focusRow, 50);
+      window.addEventListener('hashchange', focusRow);
+
+      // Withdraw a pending upload: first click arms the button, second click deletes
+      const csrf = () => (window.f0ckSession && window.f0ckSession.csrf_token) || document.querySelector('meta[name="csrf-token"]')?.content || '';
+      const disarm = (btn) => { btn.classList.remove('is-armed'); btn.querySelector('span').textContent = 'Delete'; };
+      document.querySelectorAll('.up-del').forEach(btn => {
+        let timer = null;
+        btn.addEventListener('click', async () => {
+          if (!btn.classList.contains('is-armed')) {
+            btn.classList.add('is-armed');
+            btn.querySelector('span').textContent = 'Confirm';
+            timer = setTimeout(() => disarm(btn), 4000);
+            return;
+          }
+          clearTimeout(timer);
+          btn.disabled = true;
+          try {
+            const r = await fetch('/pending/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrf() },
+              body: JSON.stringify({ id: btn.dataset.id })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || !data.success) throw new Error(data.msg || 'Delete failed');
+            const row = btn.closest('.up-row');
+            row.classList.add('is-gone');
+            setTimeout(() => row.remove(), 250);
+            const cnt = document.getElementById('up-pending-count');
+            if (cnt) cnt.textContent = Math.max(0, (+cnt.textContent || 0) - 1);
+            if (typeof window.flashMessage === 'function') window.flashMessage('Upload deleted', 2000, 'success');
+          } catch (e) {
+            btn.disabled = false;
+            disarm(btn);
+            if (typeof window.flashMessage === 'function') window.flashMessage(e.message, 3000, 'error'); else alert(e.message);
+          }
+        });
+      });
+    })();
+  </script>
+</div>
+</div>
+@include(snippets/footer)

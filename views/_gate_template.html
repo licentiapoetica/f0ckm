@@ -1,0 +1,35 @@
+<!doctype html>
+<html theme="@if(typeof theme !== 'undefined'){{ theme }}@else{{ default_theme || 'amoled' }}@endif">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ domain }}</title>
+  <link rel="icon" type="image/gif" href="/s/img/favicon.gif" />
+  <link rel="stylesheet" id="injected-gate-styles" href="/s/css/f0ckm.css?v={{ ts }}">
+</head>
+<body class="{{ default_layout === 'legacy' ? 'layout-legacy' : 'layout-modern' }}">
+       
+  <div class="wrapper" style="text-align: center;">
+      <h2>Example Gate</h2>
+      <button type="button" onclick="openLoginGate();">Login</button>
+      
+      <div id="gate-container" style="display:none;">
+          @include(snippets/navbar)
+          @include(snippets/footer)
+      </div>
+  </div>
+
+  <script>
+    function openLoginGate() {
+      document.getElementById('gate-container').style.display = 'block';
+      const tryOpen = () => {
+        const m = document.getElementById('login-modal');
+        if (m) { m.style.display = 'flex'; }
+        else { setTimeout(tryOpen, 50); }
+      };
+      tryOpen();
+    }
+  </script>
+
+</body>
+</html>

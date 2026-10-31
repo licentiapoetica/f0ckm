@@ -1,0 +1,309 @@
+main:
+  url:
+    full: https://example.com
+    domain: example.com
+    regex: example\.com
+  onion: http://your-onion-address.onion
+  socks: socks5://127.0.0.1:9050
+  mail: admin@example.com
+  maxfilesize: 104857600
+  adminmultiplier: 3.5
+  upload_limit: 300
+  ignored:
+    - example.net
+    - example.org
+  invite_secret: YOUR_SECRET_HERE
+  # IP hashing secret. Prefer the IP_HASH_SECRET environment variable (.env) so it isn't stored next to the data.
+  # Falls back to invite_secret when neither is set.
+  ip_hash_secret: ""
+  # Previous IP hash secrets, only used to match bans hashed before a rotation (invite_secret is added automatically)
+  ip_hash_legacy_secrets: []
+  hide_comments_from_public: false
+  guest_anonymize: false
+  anon_anonymize: false
+  timezone: UTC
+  development: true
+allowedModes:
+  - sfw
+  - nsfw
+  - untagged
+  - all
+  - nsfl
+enable_pdf: false
+enable_nsfl: false
+enable_comments: true
+enable_private_uploads: true
+enable_expiring_uploads: true
+default_upload_visibility: 0
+allow_user_upload_visibility: true
+enable_item_slugs: true
+enable_anonymous_access: true
+anonymous_permissions:
+  upload: false
+  comment: true
+  comment_attachments: false
+  comment_vote: true
+  poll_vote: true
+  tag: true
+  tag_vote: true
+  favorite: true
+  rate_item: false
+  filter: true
+  exclude_tags: true
+  chan: false
+  anonymize_users: false
+  allowed_modes:
+    - sfw
+    - nsfw
+    - untagged
+    - all
+    - nsfl
+  allowed_mimes:
+    - image
+    - video
+    - audio
+    - flash
+    - pdf
+onara: false
+nsfl_tag_id: 4
+allowedMimes:
+  - audio
+  - image
+  - video
+  - application/x-shockwave-flash
+  - application/vnd.adobe.flash.movie
+  - application/zip
+  - application/x-zip-compressed
+  - application/x-rar-compressed
+  - application/vnd.rar
+  - application/x-rar
+  - application/rar
+  - application/x-rar-archive
+  - application/x-7z-compressed
+  - application/x-tar
+  - application/gzip
+  - application/x-bzip2
+  - application/x-xz
+nsfp:
+  - 2
+  - 3
+  - 4
+websrv:
+  port: "1337"
+  language: en
+  allow_language_change: true
+  cache: false
+  eps: 155
+  default_thumb_size: m
+  background: true
+  log_user_ips: false
+  hash_user_ips: true
+  # Device fingerprint of anonymous users (hashed in the browser, used only to enforce bans).
+  # false = never computed or stored; already stored fingerprints are purged. Shown on /privacy.
+  anon_hw_fingerprint: true
+  # Data retention in days (0 = keep forever). Shown to users on /privacy.
+  retention_ip_days: 30              # stored IPs: user_ips rows deleted, IP columns elsewhere set to NULL
+  retention_activity_log_days: 90    # anonymous activity log (actions, IP, fingerprints)
+  retention_login_attempts_days: 30  # failed/successful login attempts (hashed IP + username)
+  retention_sessions_days: 365       # sessions unused this long are deleted
+  retention_fingerprint_days: 365    # device fingerprint of anonymous identities inactive this long
+  description: Example Description
+  themes:
+    - amoled
+  theme: amoled
+  default_font: ""
+  default_layout: legacy
+  custom_favicon: /s/img/favicon.gif
+  custom_brand_image: []
+  custom_navbar_brand_text: ""
+  show_koepfe: false
+  hide_sidebar_default: true
+  koepfe: []
+  enable_tor_hs: true
+  enable_global_chat: true
+  enable_danmaku: true
+  private_messages: true
+  dm_attachments: true
+  dm_unencrypted: false
+  dm_attachment_expiry_days: 90
+  # Temporary chat file hosting for external clients, keys via scripts/chat-upload-key.mjs
+  chat_uploads: true
+  chat_upload_max_bytes: 104857600
+  chat_upload_expiry_days: 30
+  chat_upload_max_expiry_days: 30
+  chat_upload_rate_per_minute: 30
+  # Link previews for chat clients, fetched by this server (needs a chat upload key)
+  chat_link_previews: true
+  # Optional: allowed types for chat uploads, same format as allowedMimes (defaults to allowedMimes)
+  # chat_upload_mimes:
+  #   - image
+  #   - video
+  #   - audio
+  halls_enabled: true
+  userhalls_enabled: true
+  # Square Clicker: audio/video items become playable rhythm-game maps (hotkey o); false turns it off
+  square_clicker_enabled: true
+  enable_userhall_image_upload: true
+  enable_oc: true
+  abyss_enabled: true
+  meme_creator: true
+  enable_cleanup: false
+  enable_data_export: true
+  inactivity_ban_days: 60
+  enable_user_api_keys: true
+  enable_user_invites: true
+  user_invite_slots: 2
+  invite_criteria:
+    uploads: 10
+    age_days: 10
+    comments: 10
+    tags: 10
+  cleanup_timeframe_days: 30
+  web_url_upload: true
+  enable_youtube_upload: true
+  web_meta_extraction: true
+  bypass_duplicate_check: true
+  shitpost_mode: false
+  shitpost_require_rating: false
+  shitpost_min_tags: 0
+  protect_files: false
+  enable_dynamic_thumbs: false
+  allowed_comment_images:
+    - i.imgur.com
+    - tenor.com
+    - giphy.com
+  show_mime_picker: true
+  embed_youtube_in_comments: true
+  allow_fileupload_comments: true
+  allow_comment_deletion: false
+  enable_comment_polls: false
+  fileupload_comments_multifile: true
+  fileupload_comments_size: 104857600
+  fileupload_comments_max: 5
+  fileupload_comments_mode: attachment
+  fileupload_comments_mimes:
+    - image
+    - video
+    - audio
+  show_content_warning: true
+  default_comment_display_mode: 1
+  phrases:
+    - Hello World
+  ban_video: ""
+  enable_xd_score: false
+  enable_autoplay: false
+  enable_swiping: true
+  enable_profile_description: true
+  user_alternative_infobox: false
+  user_banner_enabled: true
+  comment_banner_enabled: true
+  comment_banner_max_height: 300
+  user_alternative_steuerung: false
+  expose_repost_links_to_guests: false
+  enable_swf: false
+  swf_thumb: /s/img/swf.png
+  enable_archive: true
+  archive_thumb: /s/img/archive.webp
+  enable_item_title: true
+  open_registration: true
+  open_registration_web_toggle: false
+  open_registration_require_mail_andor_token: false
+  private_society: false
+  private_society_gate: cloudflare
+  private_society_gate_location: Frankfurt
+  private_society_gate_template: _gate_template
+  public_nsfw: false
+  public_untagged: false
+  paths:
+    images: /b
+    thumbnails: /t
+    coverarts: /ca
+    emojis: /emojis
+    memes: /memes
+clients:
+  - type: tg
+    enabled: false
+    token: ""
+    pollrate: 1001
+  - type: matrix
+    enabled: false
+    baseUrl: https://matrix.org
+    token: ""
+    userId: "@user:matrix.org"
+    channels: []
+    upload_channel_id: ""
+    notification_channel_id: ""
+  - type: irc
+    enabled: false
+    network: example
+    host: irc.example.net
+    port: 6697
+    ssl: true
+    selfSigned: true
+    sasl: false
+    nickname: bot
+    username: bot
+    password: ""
+    realname: bot
+    channels:
+      - "#example"
+sql:
+  host: localhost
+  port: 5432
+  user: f0ckm
+  password: f0ckm
+  database: f0ckm
+  multipleStatements: true
+  max: 50
+admins:
+  - {}
+mimes:
+  image/png: png
+  video/webm: webm
+  image/gif: gif
+  image/jpg: jpg
+  image/jpeg: jpeg
+  image/webp: webp
+  video/mp4: mp4
+  video/quicktime: mp4
+  audio/mpeg: mpg
+  audio/mp3: mp3
+  audio/ogg: ogg
+  audio/opus: opus
+  audio/flac: flac
+  audio/x-flac: flac
+  audio/mp4: m4a
+  audio/x-m4a: m4a
+  audio/aac: m4a
+  video/x-m4v: mp4
+  video/x-matroska: mkv
+  video/mpeg: mp4
+  application/x-shockwave-flash: swf
+  application/vnd.adobe.flash.movie: swf
+  application/pdf: pdf
+  application/zip: zip
+  application/x-zip-compressed: zip
+  application/x-rar-compressed: rar
+  application/vnd.rar: rar
+  application/x-rar: rar
+  application/rar: rar
+  application/x-rar-archive: rar
+  application/x-7z-compressed: 7z
+  application/x-tar: tar
+  application/gzip: gz
+  application/x-bzip2: bz2
+  application/x-xz: xz
+apis: {}
+smtp:
+  enabled: false
+  host: smtp.example.com
+  port: 465
+  secure: true
+  user: smtp_user
+  password: smtp_password
+  from: admin@example.com
+  mail_reset_password: false
+recaptcha:
+  enabled: false
+  site_key: YOUR_RECAPTCHA_V2_SITE_KEY
+  secret_key: YOUR_RECAPTCHA_V2_SECRET_KEY

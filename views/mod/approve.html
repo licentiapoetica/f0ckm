@@ -1,0 +1,268 @@
+@include(snippets/header)
+
+<div class="pagewrapper">
+<div id="main">
+    @include(snippets/admin-back)
+    <div class="container mq mq-review">
+        <header class="mq-header">
+            <div>
+                <h1 class="mq-title">Approval Queue</h1>
+                <div class="mq-subtitle">{{ total }} upload@if(total !== 1)s@endif waiting for approval.</div>
+            </div>
+        </header>
+
+
+        @if(pending.length > 0)
+        <div class="mq-grid">
+            @each(pending as post)
+            <article class="mq-card" data-id="{!! post.id !!}" data-media="{!! post.media_json !!}">
+                <div class="mq-media">
+                    <div class="mq-viewer">
+                        @if(post.kind === 'youtube')
+                        <iframe src="https://www.youtube.com/embed/{!! post.dest.replace('yt:', '') !!}" frameborder="0" allowfullscreen loading="lazy"></iframe>
+                        @elseif(post.kind === 'video')
+                        <video controls loop muted preload="none" poster="/mod/pending/t/{!! post.id !!}.webp"><source src="/mod/pending/b/{!! post.dest !!}" type="{!! post.mime !!}"></video>
+                        @elseif(post.kind === 'pdf')
+                        <iframe src="/mod/pending/b/{!! post.dest !!}#toolbar=0" loading="lazy"></iframe>
+                        @elseif(post.kind === 'audio')
+                        <div class="mq-audio"><img src="/mod/pending/t/{!! post.id !!}.webp" alt="" loading="lazy"><audio controls preload="none" src="/mod/pending/b/{!! post.dest !!}"></audio></div>
+                        @else
+                        <img src="/mod/pending/t/{!! post.id !!}.webp" data-full="/mod/pending/b/{!! post.dest !!}" alt="Preview" loading="lazy">
+                        @endif
+                    </div>
+                    <span class="mq-badge mq-badge-rating is-{!! post.rating !!}">{!! post.rating === 'untagged' ? '?' : post.rating.toUpperCase() !!}</span>
+                    <span class="mq-badge mq-badge-kind">@if(post.is_album_view)<i class="fa-solid fa-images"></i> Album · <span class="mq-current">1</span> / {!! post.media.length !!}@else{!! post.kind !!}@endif</span>
+                </div>
+
+                @if(post.is_album_view)
+                <div class="mq-strip" data-no-swipe>
+                    @each(post.media as m)
+                    <div class="mq-strip-item@if(m.index === 1) is-active@endif" data-index="{!! m.index !!}">
+                        <button type="button" class="mq-strip-select" title="Show item {!! m.index !!}">
+                            <img src="{!! m.thumb !!}" alt="" loading="lazy">
+                            @if(m.kind === 'video')<i class="fa-solid fa-play"></i>@endif
+                        </button>
+                        @if(m.aid)
+                        <button type="button" class="mq-strip-deny" data-item-id="{!! post.id !!}" data-aid="{!! m.aid !!}" title="Deny only this item"><i class="fa-solid fa-xmark"></i></button>
+                        @endif
+                    </div>
+                    @endeach
+                </div>
+                @endif
+
+                <div class="mq-body">
+                    @if(post.title)
+                    <div class="mq-item-title">{!! post.title !!}</div>
+                    @endif
+                    <div class="mq-meta">
+                        <span><strong>#{!! post.id !!}</strong></span>
+                        <span><i class="fa-solid fa-user"></i> <strong>{!! post.username !!}</strong></span>
+                        @if(post.time_ago)<span tooltip="{!! post.time_full !!}"><i class="fa-regular fa-clock"></i> {!! post.time_ago !!}</span>@endif
+                    </div>
+                    <div class="mq-meta mq-meta-file">
+                        <span>{!! post.mime !!}</span>
+                        @if(post.size_fmt)<span>{!! post.size_fmt !!}</span>@endif
+                        @if(post.dims)<span>{!! post.dims !!}</span>@endif
+                        @if(post.original_filename)<span class="mq-filename" title="{!! post.original_filename !!}">{!! post.original_filename !!}</span>@endif
+                    </div>
+                    <div class="mq-tags">
+                        @each(post.tags as tag)
+                        <span class="badge {!! tag.badge !!}">{!! tag.tag !!}</span>
+                        @endeach
+                    </div>
+                    <div class="mq-actions">
+                        <button type="button" data-id="{!! post.id !!}" class="mq-btn mq-btn-primary btn-approve-async"><i class="fa-solid fa-check"></i> Approve</button>
+                        <button type="button" data-id="{!! post.id !!}" class="mq-btn mq-btn-danger btn-deny-async"><i class="fa-solid fa-xmark"></i> Deny</button>
+                        <button type="button" data-id="{!! post.id !!}" class="mq-btn mq-btn-ghost mq-btn-rating btn-rating-toggle-async"><i class="fa-solid fa-shield-halved"></i> Toggle rating</button>
+                    </div>
+                </div>
+            </article>
+            @endeach
+        </div>
+        @else
+        <div class="mq-empty"><strong>No pending uploads.</strong>Go touch grass?</div>
+        @endif
+
+        @if(pages > 1)
+        <div class="mq-pager">
+            @if(page > 1)
+            <a href="/mod/approve?page={!! page - 1 !!}" class="mq-btn mq-btn-ghost">&laquo; Prev</a>
+            @endif
+            <span>Page {!! page !!} of {!! pages !!}</span>
+            @if(page < pages)
+            <a href="/mod/approve?page={!! page + 1 !!}" class="mq-btn mq-btn-ghost">Next &raquo;</a>
+            @endif
+        </div>
+        @endif
+    </div>
+    {{-- Inside #main so AJAX navigation (which only swaps #main) brings the styles, modal and scripts along --}}
+    @include(snippets/mod-cards)
+    <style>
+      /* Review cards (approval queue) */
+      .mq-review .mq-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+      .mq-review .mq-media { aspect-ratio: 4 / 3; }
+      .mq-review .mq-viewer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+      .mq-review .mq-viewer > img, .mq-review .mq-viewer > video, .mq-review .mq-viewer > iframe { width: 100%; height: 100%; object-fit: contain; border: 0; display: block; }
+      .mq-review .mq-viewer > img[data-full] { cursor: zoom-in; }
+      .mq-review .mq-audio { width: 100%; height: 100%; display: flex; flex-direction: column; }
+      .mq-review .mq-audio img { flex: 1; min-height: 0; object-fit: contain; }
+      .mq-review .mq-audio audio { width: 100%; }
+      .mq-review .mq-badge {
+        position: absolute; z-index: 2; padding: 2px 7px; font-size: 0.68em; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.6; pointer-events: none;
+        background: rgba(0, 0, 0, 0.75); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+      .mq-review .mq-badge-rating { top: 8px; left: 8px; }
+      .mq-review .mq-badge-rating.is-sfw { background: var(--badge-sfw, #02500b); }
+      .mq-review .mq-badge-rating.is-nsfw { background: var(--badge-nsfw, #E10DC3); }
+      .mq-review .mq-badge-rating.is-nsfl { background: var(--badge-nsfl, #660000); }
+      .mq-review .mq-badge-rating.is-untagged { background: #555; }
+      .mq-review .mq-badge-kind { top: 8px; right: 8px; }
+      .mq-review .mq-badge-kind i { margin-right: 3px; color: var(--mq-accent); }
+      .mq-review .mq-badge-kind .mq-current { font-variant-numeric: tabular-nums; }
+      .mq-review .mq-strip {
+        display: flex; gap: 4px; padding: 6px; overflow-x: auto; overscroll-behavior-x: contain;
+        background: rgba(0, 0, 0, 0.35); border-top: 1px solid var(--mq-border);
+        scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+      }
+      .mq-review .mq-strip-item { position: relative; flex: 0 0 56px; height: 56px; }
+      .mq-review .mq-strip-select {
+        position: relative; width: 100%; height: 100%; padding: 0; margin: 0; cursor: pointer;
+        background: #000; border: 1px solid var(--mq-border); opacity: 0.55; transition: opacity 0.15s, border-color 0.15s;
+      }
+      .mq-review .mq-strip-select img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .mq-review .mq-strip-select i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.8em; text-shadow: 0 1px 3px #000; }
+      .mq-review .mq-strip-item:hover .mq-strip-select { opacity: 0.85; }
+      .mq-review .mq-strip-item.is-active .mq-strip-select { opacity: 1; border-color: var(--mq-accent); }
+      .mq-review .mq-strip-deny {
+        position: absolute; top: 0; right: 0; width: 20px; height: 20px; padding: 0; margin: 0; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; font-size: 0.7em;
+        background: rgba(0, 0, 0, 0.8); color: var(--mq-danger); border: 1px solid rgba(255, 92, 92, 0.5);
+        opacity: 0; transition: opacity 0.15s, background 0.15s;
+      }
+      .mq-review .mq-strip-item:hover .mq-strip-deny, .mq-review .mq-strip-deny:focus-visible { opacity: 1; }
+      .mq-review .mq-strip-deny:hover { background: var(--mq-danger); color: #000; }
+      @media (hover: none) { .mq-review .mq-strip-deny { opacity: 1; } }
+      .mq-review .mq-item-title { font-weight: 700; font-size: 0.95em; overflow-wrap: anywhere; }
+      .mq-review .mq-meta i { color: var(--mq-muted); margin-right: 2px; }
+      .mq-review .mq-meta-file { font-size: 0.74em; }
+      .mq-review .mq-filename { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mq-review .mq-actions .mq-btn { height: 38px; }
+    </style>
+    <script>
+      (() => {
+        // Album viewer: swap the main viewer to the clicked strip item
+        const buildViewer = (m) => {
+          if (m.kind === 'video') {
+            const v = document.createElement('video');
+            v.controls = true; v.loop = true; v.muted = true; v.preload = 'metadata'; v.poster = m.thumb;
+            const src = document.createElement('source'); src.src = m.src; src.type = m.mime; v.appendChild(src);
+            return v;
+          }
+          if (m.kind === 'audio') {
+            const wrap = document.createElement('div'); wrap.className = 'mq-audio';
+            const img = document.createElement('img'); img.src = m.thumb; img.alt = '';
+            const a = document.createElement('audio'); a.controls = true; a.src = m.src;
+            wrap.append(img, a); return wrap;
+          }
+          if (m.kind === 'pdf') {
+            const f = document.createElement('iframe'); f.src = m.src + '#toolbar=0'; return f;
+          }
+          const img = document.createElement('img');
+          img.src = m.kind === 'image' ? m.src : m.thumb; img.alt = 'Preview'; img.dataset.full = m.src;
+          return img;
+        };
+
+        document.querySelectorAll('.mq-review .mq-card').forEach(card => {
+          let media = [];
+          try { media = JSON.parse(card.dataset.media || '[]'); } catch (e) {}
+          const viewer = card.querySelector('.mq-viewer');
+          const current = card.querySelector('.mq-current');
+          card.querySelectorAll('.mq-strip-item').forEach(itemEl => {
+            itemEl.querySelector('.mq-strip-select')?.addEventListener('click', () => {
+              const m = media.find(x => String(x.index) === itemEl.dataset.index);
+              if (!m || !viewer) return;
+              viewer.querySelectorAll('video, audio').forEach(el => { try { el.pause(); } catch (e) {} });
+              viewer.replaceChildren(buildViewer(m));
+              card.querySelectorAll('.mq-strip-item').forEach(b => b.classList.toggle('is-active', b === itemEl));
+              if (current) current.textContent = m.index;
+            });
+          });
+          // Deny a single album item (the rest stays; one item left → becomes a single post)
+          card.querySelectorAll('.mq-strip-deny').forEach(btn => {
+            btn.addEventListener('click', e => {
+              e.stopPropagation();
+              const left = card.querySelectorAll('.mq-strip-item').length - 1;
+              mq.confirm({
+                heading: 'Deny album item',
+                body: left <= 1
+                  ? 'Deny only this item? The album will become a single post with the remaining item.'
+                  : 'Deny only this item? ' + left + ' items stay in the album.',
+                confirmLabel: 'Deny item',
+                withReason: true,
+                action: async (reason) => {
+                  await mq.post('/mod/album-item/deny', { item_id: btn.dataset.itemId, album_item_id: btn.dataset.aid, reason });
+                  mq.flash(left <= 1 ? 'Item denied, album is now a single post' : 'Album item denied', 'success');
+                  const here = location.pathname + location.search;
+                  if (window.loadPageAjax) window.loadPageAjax(here, true, { skipCache: true });
+                  else location.reload();
+                }
+              });
+            });
+          });
+          // Click a still image to open the full file
+          if (viewer) viewer.addEventListener('click', e => {
+            const img = e.target.closest('img[data-full]');
+            if (img) window.open(img.dataset.full, '_blank', 'noopener');
+          });
+          // Keep the rating badge in sync after "Toggle rating" (tags are re-rendered by mod-cards)
+          const badge = card.querySelector('.mq-badge-rating');
+          const tags = card.querySelector('.mq-tags');
+          if (badge && tags) new MutationObserver(() => {
+            const names = Array.from(tags.querySelectorAll('.badge')).map(b => b.textContent.trim().toLowerCase());
+            const r = names.includes('nsfl') ? 'nsfl' : names.includes('nsfw') ? 'nsfw' : names.includes('sfw') ? 'sfw' : 'untagged';
+            badge.className = 'mq-badge mq-badge-rating is-' + r;
+            badge.textContent = r === 'untagged' ? '?' : r.toUpperCase();
+          }).observe(tags, { childList: true });
+        });
+      })();
+    </script>
+    <script>
+      (() => {
+        // Approve → public
+        document.querySelectorAll('.btn-approve-async').forEach(btn => {
+          btn.addEventListener('click', async e => {
+            e.preventDefault();
+            btn.disabled = true;
+            try {
+              await mq.post('/mod/approve', { id: btn.dataset.id });
+              mq.flash('{!! t('toast.approve_success') !!}', 'success');
+              mq.removeCard(btn.closest('.mq-card'));
+            } catch (err) {
+              mq.flash(err.message || '{!! t('toast.approve_error') !!}', 'error');
+              btn.disabled = false;
+            }
+          });
+        });
+        // Deny → soft deleted (uploader is notified with the reason)
+        document.querySelectorAll('.btn-deny-async').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.preventDefault();
+            mq.confirm({
+              heading: 'Deny upload',
+              body: 'Deny this upload? It moves to Soft Deleted and the uploader is notified with your reason.',
+              confirmLabel: 'Deny',
+              withReason: true,
+              action: async (reason) => {
+                await mq.post('/mod/deny', { id: btn.dataset.id, reason });
+                mq.flash('Upload denied', 'success');
+                mq.removeCard(btn.closest('.mq-card'));
+              }
+            });
+          });
+        });
+      })();
+    </script>
+</div>
+</div>
+@include(snippets/footer)

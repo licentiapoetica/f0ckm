@@ -1,0 +1,970 @@
+@include(snippets/header)
+
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+    @include(snippets/admin-back)
+    <style>
+        .admin-users-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            color: var(--white);
+        }
+        .admin-users-table th {
+            padding: 15px;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: #888;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .admin-users-table tr {
+            transition: all 0.2s ease;
+        }
+        .admin-users-table tbody tr {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .admin-users-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .admin-users-table td {
+            padding: 15px;
+            vertical-align: middle;
+        }
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .status-active { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; }
+        .status-pending { background: linear-gradient(135deg, #f08c00, #ffc107); color: #000; }
+        .status-banned { background: linear-gradient(135deg, #e03131, #f03e3e); color: #fff; }
+        .status-system { background: #5c0a0a; color: #ffb3b3; border: 1px solid #8b1a1a; }
+        
+        .method-tag {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            background: rgba(var(--accent-rgb, 0, 150, 255), 0.1);
+            border: 1px solid rgba(var(--accent-rgb, 0, 150, 255), 0.2);
+            color: var(--accent);
+            border-radius: 4px;
+        }
+        
+        .stat-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+            color: #ccc;
+            transition: color 0.2s, transform 0.1s;
+        }
+        .stat-box:hover {
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+        .stat-box svg { opacity: 0.6; }
+
+        .btn-modern {
+            border: 0;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: #fff;
+            white-space: nowrap;
+        }
+        .btn-modern:hover { opacity: 0.8; }
+        .btn-ban { background: #e03131; }
+        .btn-unban { background: #28a745; }
+        .btn-files { background: #f08c00; }
+        .btn-comms { background: #4dabf7; }
+        .btn-verify { background: #5c7cfa; }
+        .btn-create { background: linear-gradient(135deg, #5c7cfa, #339af0); }
+        .btn-role   { background: rgba(180, 100, 255, 0.15); color: #c084fc; border: 1px solid rgba(180, 100, 255, 0.3); }
+        .btn-role:hover { background: rgba(180, 100, 255, 0.25); opacity: 1; }
+
+        .legacy-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 0 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #aaa;
+            white-space: nowrap;
+            user-select: none;
+            transition: all 0.2s ease;
+            height: 42px;
+            box-sizing: border-box;
+        }
+        .legacy-filter-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        .legacy-filter-btn.active {
+            background: rgba(var(--accent-rgb, 0, 150, 255), 0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .legacy-filter-btn input {
+            cursor: pointer;
+            accent-color: var(--accent);
+            width: 15px;
+            height: 15px;
+            margin: 0;
+        }
+
+        .admin-select-filter {
+            padding: 0 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #ccc;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 42px;
+            box-sizing: border-box;
+        }
+        .admin-select-filter:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        .admin-select-filter:focus {
+            border-color: var(--accent);
+        }
+        .admin-select-filter.active {
+            background: rgba(var(--accent-rgb, 0, 150, 255), 0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .admin-select-filter option {
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .admin-select-filter:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .btn-filter-reset {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #aaa;
+            padding: 0 14px;
+            height: 42px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+        .btn-filter-reset:hover {
+            background: rgba(255, 60, 60, 0.15);
+            border-color: rgba(255, 60, 60, 0.3);
+            color: #ff6b6b;
+        }
+
+        /* Create User Modal */
+        #create-user-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+        }
+        #create-user-modal.open { display: flex; }
+        .cum-box {
+            background: #141414;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            position: relative;
+            animation: cum-in 0.2s ease;
+        }
+        @keyframes cum-in {
+            from { transform: translateY(-16px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+        .cum-box h3 {
+            margin: 0 0 20px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--white);
+        }
+        .cum-field {
+            margin-bottom: 14px;
+        }
+        .cum-field label {
+            display: block;
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 5px;
+        }
+        .cum-field input,
+        .cum-field select {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .cum-field input:focus,
+        .cum-field select:focus {
+            border-color: var(--accent);
+        }
+        .cum-field select option { background: #1a1a1a; }
+        .cum-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .cum-close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.2rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .cum-close-btn:hover { color: #fff; }
+        #cum-error {
+            font-size: 0.8rem;
+            color: #ff6b6b;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #333, #111);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 1.2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+
+    <!-- Create User Modal -->
+    <div id="create-user-modal">
+        <div class="cum-box">
+            <button class="cum-close-btn" onclick="closeCreateUserModal()" title="Close">&times;</button>
+            <h3><i class="fa fa-user-plus" style="margin-right: 8px; color: var(--accent);"></i>Create New User</h3>
+
+            <div class="cum-field">
+                <label for="cum-username">Username <span style="color:#e03131">*</span></label>
+                <input type="text" id="cum-username" placeholder="e.g. john_doe" autocomplete="off">
+            </div>
+            <div class="cum-field">
+                <label for="cum-email">Email <span style="color:#666">(optional)</span></label>
+                <input type="email" id="cum-email" placeholder="user@example.com" autocomplete="off">
+            </div>
+            <div class="cum-field">
+                <label for="cum-password">Password <span style="color:#e03131">*</span> <span style="color:#666;font-size:0.7rem">(min 20 chars)</span></label>
+                <input type="password" id="cum-password" placeholder="Strong password…" autocomplete="new-password">
+            </div>
+            <div class="cum-field">
+                <label for="cum-role">Role</label>
+                <select id="cum-role">
+                    <option value="user">User</option>
+                    <option value="mod">Moderator</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+
+            <div id="cum-error"></div>
+
+            <div class="cum-actions">
+                <button class="btn-modern" style="background:#333;" onclick="closeCreateUserModal()">Cancel</button>
+                <button class="btn-modern btn-create" id="cum-submit-btn" onclick="submitCreateUser()">
+                    <i class="fa fa-plus"></i> Create User
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- .container: the admin skin's 1200px column, same width and gutters as the back bar above -->
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; gap: 20px; flex-wrap: wrap;">
+            <div>
+                <h2 style="margin: 0; font-weight: 800; letter-spacing: -0.5px;">User Management</h2>
+                <p style="color: #888; margin: 5px 0 0 0;">Administration hub for <span id="total-count">{!! total !!}</span> <span id="total-label">{{ totalLabel }}</span>.</p>
+            </div>
+            <div>
+                <button class="btn-modern btn-create" onclick="openCreateUserModal()" style="padding: 11px 18px; font-size: 0.85rem; white-space: nowrap; height: 42px;" title="Create new user">
+                    <i class="fa fa-user-plus"></i> Create User
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 25px; flex-wrap: wrap;">
+            <div style="flex-grow: 1; min-width: 240px; position: relative;">
+                <input type="text" id="user-search" placeholder='Search by name or email… use "exact" for exact match' 
+                       style="width: 100%; height: 42px; padding: 0 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none; transition: border-color 0.2s; box-sizing: border-box;"
+                       value="{{ q }}">
+                <div id="search-spinner" style="position: absolute; right: 15px; top: 11px; display: none;">
+                    <svg class="spinner" width="20" height="20" viewBox="0 0 50 50" style="animation: rotate 2s linear infinite;">
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="90,150" stroke-dashoffset="0" style="stroke-linecap: round;"></circle>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Status Filter -->
+            <select id="status-filter" class="admin-select-filter {{ status ? 'active' : '' }}" {{ onlyLegacy ? 'disabled' : '' }} title="Filter by account status">
+                <option value="">All Statuses</option>
+                <option value="banned" {{ status === 'banned' ? 'selected' : '' }}>⛔ Banned</option>
+                <option value="active" {{ status === 'active' ? 'selected' : '' }}>🟢 Active</option>
+                <option value="pending" {{ status === 'pending' ? 'selected' : '' }}>⏳ Pending</option>
+            </select>
+
+            <!-- Role Filter -->
+            <select id="role-filter" class="admin-select-filter {{ role ? 'active' : '' }}" {{ onlyLegacy ? 'disabled' : '' }} title="Filter by user role">
+                <option value="">All Roles</option>
+                <option value="staff" {{ role === 'staff' ? 'selected' : '' }}>Staff (All)</option>
+                <option value="admin" {{ role === 'admin' ? 'selected' : '' }}>Admins</option>
+                <option value="mod" {{ role === 'mod' ? 'selected' : '' }}>Moderators</option>
+                <option value="user" {{ role === 'user' ? 'selected' : '' }}>Regular Users</option>
+            </select>
+
+            <!-- Legacy Only Toggle -->
+            <label id="legacy-filter-label" class="legacy-filter-btn {{ onlyLegacy ? 'active' : '' }}" title="Toggle to only show legacy ghost users">
+                <input type="checkbox" id="legacy-filter" {{ onlyLegacy ? 'checked' : '' }}>
+                <span><i class="fa fa-ghost" style="opacity: 0.8; margin-right: 4px;"></i>Only legacy</span>
+            </label>
+
+            <!-- Reset Filters Button -->
+            <button id="reset-filters-btn" class="btn-filter-reset" style="display: {{ (q || status || role || onlyLegacy) ? 'inline-flex' : 'none' }};" title="Reset all filters and search">
+                <i class="fa fa-rotate-left"></i> Reset
+            </button>
+        </div>
+
+        <div class="upload-form">
+            <table class="admin-users-table responsive-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Activity</th>
+                        <th>Date</th>
+                        <th>Age</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table-body">
+                    @include(admin/users_list)
+                </tbody>
+            </table>
+            <div id="loading-trigger" style="height: 20px; margin-top: 10px;"></div>
+            <div id="no-users-msg" style="display: {{ users.length === 0 ? 'block' : 'none' }}; padding: 40px; text-align: center; color: #666;">
+                {{ emptyMsg }}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateUI(id, data, action) {
+            var rowId = id ? id : ('ghost-' + data.username);
+            var statusCell = document.getElementById('status-cell-' + rowId);
+            var actionsDiv = document.getElementById('actions-' + rowId);
+            if (!statusCell || !actionsDiv) return console.error('UI elements not found for ID', rowId);
+
+            if (action === 'activate') {
+                statusCell.innerHTML = '<span class="status-badge status-active">Active</span>';
+                var verifyBtn = actionsDiv.querySelector('.btn-verify');
+                if (verifyBtn) verifyBtn.remove();
+            } else if (action === 'ban') {
+                statusCell.innerHTML = '<span class="status-badge status-banned">Banned</span>';
+                var banBtn = actionsDiv.querySelector('.btn-ban');
+                if (banBtn) {
+                    banBtn.textContent = 'Unban';
+                    banBtn.className = 'btn-modern btn-unban';
+                    // We re-bind the onclick via HTML because simple assignment doesn't preserve the 'this' context in the same way with these handlers
+                }
+                var verifyBtn = actionsDiv.querySelector('.btn-verify');
+                if (verifyBtn) verifyBtn.remove();
+            } else if (action === 'unban') {
+                statusCell.innerHTML = '<span class="status-badge status-active">Active</span>';
+                var unbanBtn = actionsDiv.querySelector('.btn-unban');
+                if (unbanBtn) {
+                    unbanBtn.textContent = 'Ban';
+                    unbanBtn.className = 'btn-modern btn-ban';
+                }
+            }
+        }
+
+        async function activateUser(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Verify User', 'Manually verify account for <strong>' + escHTML(userName) + '</strong>?', async () => {
+                var res = await fetch('/api/v2/admin/users/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                    updateUI(id, data, 'activate');
+                } else {
+                    throw new Error(data.msg || 'Failed to verify user');
+                }
+            }, { hideReason: true });
+        }
+
+        async function banUser(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Ban User', 'Reason for banning <strong>' + escHTML(userName) + '</strong>?', async (reason) => {
+                var res = await fetch('/api/v2/admin/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id, reason: reason, duration: 'permanent' })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash('User ' + escHTML(userName) + ' banned.', 'success');
+                    updateUI(id, data, 'ban');
+                } else {
+                    throw new Error(data.msg || 'Failed to ban user');
+                }
+            }, { hideReason: false, confirmText: 'Ban User' });
+        }
+
+        async function unbanUser(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Unban User', 'Unban account for <strong>' + escHTML(userName) + '</strong>?', async () => {
+                var res = await fetch('/api/v2/admin/unban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash('User ' + escHTML(userName) + ' unbanned.', 'success');
+                    updateUI(id, data, 'unban');
+                } else {
+                    throw new Error(data.msg || 'Failed to unban user');
+                }
+            }, { hideReason: true });
+        }
+
+        async function deleteUploads(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Delete Uploads', 'Are you SURE you want to delete ALL uploads by <strong>' + escHTML(userName) + '</strong>? This cannot be undone.', async () => {
+                var res = await fetch('/api/v2/admin/users/bulk-delete-items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id, username: btn.dataset.username })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                } else {
+                    throw new Error(data.msg || 'Deletion failed');
+                }
+            }, { hideReason: true, confirmText: 'Delete Everything' });
+        }
+
+        async function deleteComments(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            
+            ModAction.confirm('Delete Comments', 'Are you SURE you want to delete ALL comments by <strong>' + escHTML(userName) + '</strong>? This will be permanent.', async () => {
+                var res = await fetch('/api/v2/admin/users/bulk-delete-comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id, username: btn.dataset.username })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                } else {
+                    throw new Error(data.msg || 'Deletion failed');
+                }
+            }, { hideReason: true, confirmText: 'Delete All Comments' });
+        }
+
+        async function adminSetDisplayName(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var currentDisplay = btn.dataset.display || '';
+
+            var hint = currentDisplay
+                ? 'Current nick: <strong style="color: var(--accent);">' + escHTML(currentDisplay) + '</strong><br>Enter a new stylized name, or leave empty to clear it.'
+                : 'Enter a stylized display name for <strong>' + escHTML(userName) + '</strong>. Leave empty to clear.';
+
+            ModAction.confirm('Set Display Name', hint, async (newName) => {
+                var res = await fetch('/api/v2/admin/users/set-display-name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id, display_name: newName || '' })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg || 'Display name updated.', 'success');
+                    // Update button data attribute for next edit
+                    btn.dataset.display = data.display_name || '';
+                    // Refresh the row name link in the table
+                    var rowId = 'user-row-' + id;
+                    var row = document.getElementById(rowId);
+                    if (row) {
+                        var link = row.querySelector('.user-info-cell a');
+                        if (link && data.display_name) {
+                            link.innerHTML = '<span style="color: var(--accent);">' + escHTML(data.display_name) + '</span> <span style="font-size: 0.75em; color: #666;">(' + escHTML(userName) + ')</span>';
+                        } else if (link) {
+                            link.textContent = userName;
+                        }
+                    }
+                } else {
+                    throw new Error(data.msg || 'Failed to set display name');
+                }
+            }, { hideReason: false, singleLine: true, allowEmpty: true, confirmText: 'Set Nick', placeholder: currentDisplay || 'Set nickname' });
+        }
+
+        async function adminLockLayout(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var isLocked = btn.dataset.locked === '1';
+            var currentMode = btn.dataset.mode || '0';
+
+            if (isLocked) {
+                ModAction.confirm('Unlock Layout', 'Unlock comment layout for <strong>' + escHTML(userName) + '</strong>? They will be able to change it again.', async () => {
+                    var res = await fetch('/api/v2/admin/users/lock-layout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                        body: JSON.stringify({ user_id: id, lock: false })
+                    });
+                    var data = await res.json();
+                    if (data.success) {
+                        showFlash('Layout unlocked for ' + escHTML(userName), 'success');
+                        btn.dataset.locked = '0';
+                        btn.innerHTML = '<i class="fa fa-lock"></i> Lock';
+                        btn.title = 'Lock Layout';
+                    } else {
+                        throw new Error(data.msg || 'Failed to unlock layout');
+                    }
+                }, { hideReason: true });
+            } else {
+                var hint = 'Select comment display mode to force for <strong>' + escHTML(userName) + '</strong>:<br><br>' +
+                           '<select id="force-mode-select" class="input" style="width: 100%; padding: 8px;">' +
+                           '<option value="0" ' + (currentMode == '0' ? 'selected' : '') + '>Tree</option>' +
+                           '<option value="1" ' + (currentMode == '1' ? 'selected' : '') + '>Linear</option>' +
+                           '</select>';
+
+                ModAction.confirm('Lock Layout', hint, async () => {
+                    var mode = document.getElementById('force-mode-select').value;
+                    var res = await fetch('/api/v2/admin/users/lock-layout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                        body: JSON.stringify({ user_id: id, lock: true, mode: mode })
+                    });
+                    var data = await res.json();
+                    if (data.success) {
+                        showFlash('Layout locked to ' + (mode == '0' ? 'Tree' : 'Linear') + ' for ' + escHTML(userName), 'success');
+                        btn.dataset.locked = '1';
+                        btn.dataset.mode = mode;
+                        btn.innerHTML = '<i class="fa fa-lock-open"></i> Unlock';
+                        btn.title = 'Unlock Layout';
+                    } else {
+                        throw new Error(data.msg || 'Failed to lock layout');
+                    }
+                }, { hideReason: true, confirmText: 'Lock & Apply' });
+            }
+        }
+
+        var currentPage = {!! page !!};
+        var hasMore = {!! hasMore ? 'true' : 'false' !!};
+        var isLoading = false;
+        var searchQuery = '{{ q }}';
+        var onlyLegacy = {!! onlyLegacy ? 'true' : 'false' !!};
+        var currentStatus = '{{ status }}';
+        var currentRole = '{{ role }}';
+
+        var searchInput = document.getElementById('user-search');
+        var statusFilter = document.getElementById('status-filter');
+        var roleFilter = document.getElementById('role-filter');
+        var legacyFilter = document.getElementById('legacy-filter');
+        var legacyFilterLabel = document.getElementById('legacy-filter-label');
+        var resetFiltersBtn = document.getElementById('reset-filters-btn');
+        var totalLabel = document.getElementById('total-label');
+        var tableBody = document.getElementById('user-table-body');
+        var loadingTrigger = document.getElementById('loading-trigger');
+        var noUsersMsg = document.getElementById('no-users-msg');
+        var spinner = document.getElementById('search-spinner');
+        var countSpan = document.getElementById('total-count');
+
+        function updateUrlAndControls() {
+            var urlParams = new URLSearchParams();
+            if (searchQuery) urlParams.set('q', searchQuery);
+            if (onlyLegacy) {
+                urlParams.set('legacy', '1');
+            } else {
+                if (currentStatus) urlParams.set('status', currentStatus);
+                if (currentRole) urlParams.set('role', currentRole);
+            }
+            var newUrl = window.location.pathname + (urlParams.toString() ? ('?' + urlParams.toString()) : '');
+            window.history.replaceState({}, '', newUrl);
+
+            // Update reset button
+            var hasFilter = !!(searchQuery || onlyLegacy || currentStatus || currentRole);
+            if (resetFiltersBtn) resetFiltersBtn.style.display = hasFilter ? 'inline-flex' : 'none';
+
+            // Update control states
+            if (statusFilter) {
+                statusFilter.disabled = onlyLegacy;
+                statusFilter.classList.toggle('active', !!currentStatus && !onlyLegacy);
+            }
+            if (roleFilter) {
+                roleFilter.disabled = onlyLegacy;
+                roleFilter.classList.toggle('active', !!currentRole && !onlyLegacy);
+            }
+            if (legacyFilterLabel) {
+                legacyFilterLabel.classList.toggle('active', onlyLegacy);
+            }
+        }
+
+        async function fetchUsers(page, q, append) {
+            if (isLoading) return;
+            isLoading = true;
+            if (!append) spinner.style.display = 'block';
+
+            try {
+                var params = new URLSearchParams();
+                params.set('page', page);
+                if (q) params.set('q', q);
+                if (onlyLegacy) {
+                    params.set('legacy', '1');
+                } else {
+                    if (currentStatus) params.set('status', currentStatus);
+                    if (currentRole) params.set('role', currentRole);
+                }
+
+                var url = '/admin/users?' + params.toString();
+                var res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                
+                // Update state from headers
+                var total = res.headers.get('X-Total-Count');
+                var hasMoreHeader = res.headers.get('X-Has-More');
+                var totalLabelHeader = res.headers.get('X-Total-Label');
+                var emptyMsgHeader = res.headers.get('X-Empty-Msg');
+                
+                if (total !== null) countSpan.textContent = total;
+                if (totalLabelHeader && totalLabel) totalLabel.textContent = totalLabelHeader;
+                if (emptyMsgHeader && noUsersMsg) noUsersMsg.textContent = emptyMsgHeader;
+                if (hasMoreHeader !== null) hasMore = (hasMoreHeader === 'true');
+
+                var html = await res.text();
+                
+                if (append) {
+                    tableBody.insertAdjacentHTML('beforeend', html);
+                } else {
+                    tableBody.innerHTML = html;
+                }
+                
+                noUsersMsg.style.display = (tableBody.children.length === 0) ? 'block' : 'none';
+            } catch (e) {
+                console.error('Fetch failed', e);
+            } finally {
+                isLoading = false;
+                spinner.style.display = 'none';
+            }
+        }
+
+        // Search Input Handling (Debounced)
+        var searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                searchQuery = searchInput.value.trim();
+                currentPage = 1;
+                updateUrlAndControls();
+                fetchUsers(1, searchQuery, false);
+            }, 300);
+        });
+
+        // Status Filter Handling
+        if (statusFilter) {
+            statusFilter.addEventListener('change', function() {
+                currentStatus = this.value;
+                if (currentStatus && onlyLegacy) {
+                    onlyLegacy = false;
+                    if (legacyFilter) legacyFilter.checked = false;
+                }
+                updateUrlAndControls();
+                currentPage = 1;
+                fetchUsers(1, searchQuery, false);
+            });
+        }
+
+        // Role Filter Handling
+        if (roleFilter) {
+            roleFilter.addEventListener('change', function() {
+                currentRole = this.value;
+                if (currentRole && onlyLegacy) {
+                    onlyLegacy = false;
+                    if (legacyFilter) legacyFilter.checked = false;
+                }
+                updateUrlAndControls();
+                currentPage = 1;
+                fetchUsers(1, searchQuery, false);
+            });
+        }
+
+        // Legacy Only Filter Handling
+        if (legacyFilter) {
+            legacyFilter.addEventListener('change', function() {
+                onlyLegacy = this.checked;
+                if (onlyLegacy) {
+                    currentStatus = '';
+                    currentRole = '';
+                    if (statusFilter) statusFilter.value = '';
+                    if (roleFilter) roleFilter.value = '';
+                }
+                updateUrlAndControls();
+                currentPage = 1;
+                fetchUsers(1, searchQuery, false);
+            });
+        }
+
+        // Reset All Filters
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', function() {
+                searchQuery = '';
+                searchInput.value = '';
+                onlyLegacy = false;
+                currentStatus = '';
+                currentRole = '';
+                if (legacyFilter) legacyFilter.checked = false;
+                if (statusFilter) statusFilter.value = '';
+                if (roleFilter) roleFilter.value = '';
+                updateUrlAndControls();
+                currentPage = 1;
+                fetchUsers(1, '', false);
+            });
+        }
+
+        // Infinite Scroll
+        var observer = new IntersectionObserver(function(entries) {
+            if (entries[0].isIntersecting && hasMore && !isLoading) {
+                currentPage++;
+                fetchUsers(currentPage, searchQuery, true);
+            }
+        }, { threshold: 0.1 });
+        observer.observe(loadingTrigger);
+
+        // Styling for spinner
+        var style = document.createElement('style');
+        style.innerHTML = '@keyframes rotate { 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+
+        // --- Create User Modal ---
+        var createUserModal = document.getElementById('create-user-modal');
+
+        function openCreateUserModal() {
+            document.getElementById('cum-username').value = '';
+            document.getElementById('cum-email').value = '';
+            document.getElementById('cum-password').value = '';
+            document.getElementById('cum-role').value = 'user';
+            document.getElementById('cum-error').style.display = 'none';
+            document.getElementById('cum-error').textContent = '';
+            createUserModal.classList.add('open');
+            setTimeout(function() { document.getElementById('cum-username').focus(); }, 80);
+        }
+
+        function closeCreateUserModal() {
+            createUserModal.classList.remove('open');
+        }
+
+        // Close on backdrop click
+        createUserModal.addEventListener('click', function(e) {
+            if (e.target === createUserModal) closeCreateUserModal();
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && createUserModal.classList.contains('open')) closeCreateUserModal();
+        });
+
+        async function submitCreateUser() {
+            var btn = document.getElementById('cum-submit-btn');
+            var errEl = document.getElementById('cum-error');
+            var username = document.getElementById('cum-username').value.trim();
+            var email    = document.getElementById('cum-email').value.trim();
+            var password = document.getElementById('cum-password').value;
+            var role     = document.getElementById('cum-role').value;
+
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+
+            if (!username) { errEl.textContent = 'Username is required.'; errEl.style.display = 'block'; return; }
+            if (!password) { errEl.textContent = 'Password is required.'; errEl.style.display = 'block'; return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating…';
+
+            try {
+                var res = await fetch('/api/v2/admin/users/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ username, email: email || null, password, role })
+                });
+                var data = await res.json();
+
+                if (data.success) {
+                    closeCreateUserModal();
+                    showFlash(data.msg, 'success');
+                    // If we were filtering by legacy or banned, reset filter so admin can see newly created user
+                    if (onlyLegacy || currentStatus === 'banned') {
+                        onlyLegacy = false;
+                        currentStatus = '';
+                        if (legacyFilter) legacyFilter.checked = false;
+                        if (statusFilter) statusFilter.value = '';
+                        updateUrlAndControls();
+                    }
+                    // Refresh the table from page 1
+                    currentPage = 1;
+                    fetchUsers(1, searchQuery, false);
+                    // Update counter
+                    var cnt = parseInt(countSpan.textContent) || 0;
+                    countSpan.textContent = cnt + 1;
+                } else {
+                    errEl.textContent = data.msg || 'Failed to create user.';
+                    errEl.style.display = 'block';
+                }
+            } catch (e) {
+                errEl.textContent = 'Network error: ' + e.message;
+                errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-plus"></i> Create User';
+            }
+        }
+        async function adminSetRole(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var currentRole = btn.dataset.role || 'user';
+
+            var hint = 'Select the new role for <strong>' + escHTML(userName) + '</strong>:<br><br>' +
+                       '<select id="set-role-select" class="input" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff;">' +
+                       '<option value="user"'   + (currentRole === 'user'  ? ' selected' : '') + '>User (no special permissions)</option>' +
+                       '<option value="mod"'    + (currentRole === 'mod'   ? ' selected' : '') + '>Moderator</option>' +
+                       '<option value="admin"'  + (currentRole === 'admin' ? ' selected' : '') + '>Admin (full access)</option>' +
+                       '</select>';
+
+            ModAction.confirm('Set Role', hint, async () => {
+                // Use querySelector as fallback since Sanitizer may strip the id attribute
+                var selectEl = document.getElementById('set-role-select') ||
+                               document.querySelector('#mod-action-content select');
+                if (!selectEl) throw new Error('Role selector not found in modal.');
+                var role = selectEl.value;
+                var res = await fetch('/api/v2/admin/users/set-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id, role })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                    // Update button state in place
+                    btn.dataset.role = role;
+                    var labelMap = { user: 'User', mod: 'Mod', admin: 'Admin' };
+                    var labelEl = document.querySelector('.role-label-' + id);
+                    if (labelEl) labelEl.textContent = labelMap[role] || role;
+                } else {
+                    throw new Error(data.msg || 'Failed to set role');
+                }
+            }, { hideReason: true, confirmText: 'Apply Role', unsafeContent: true });
+        }
+
+        async function adminSetGroups(btn) {
+            var id = btn.dataset.id;
+            var userName = btn.dataset.name;
+            var currentGroups = (btn.dataset.groups || '').split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+            var is4chan = currentGroups.indexOf('4chan') !== -1;
+
+            var hint = 'Manage groups for <strong>' + escHTML(userName) + '</strong>:<br><br>' +
+                       '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;background:rgba(255,255,255,0.05);border-radius:6px;border:1px solid rgba(255,255,255,0.1);">' +
+                       '<input type="checkbox" id="group-4chan-checkbox" value="4chan"' + (is4chan ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:#4ade80;cursor:pointer;">' +
+                       '<span><strong style="color:#4ade80;">🍀 4chan</strong> — Grants access to the 4chan catalogue, thread viewer, and rehosting</span>' +
+                       '</label>';
+
+            ModAction.confirm('Manage Groups', hint, async () => {
+                var chk = document.getElementById('group-4chan-checkbox') || document.querySelector('#mod-action-content input[type="checkbox"]');
+                var newGroups = [];
+                if (chk && chk.checked) newGroups.push('4chan');
+
+                var res = await fetch('/api/v2/admin/users/set-groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.f0ckSession?.csrf_token },
+                    body: JSON.stringify({ user_id: id, groups: newGroups })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showFlash(data.msg, 'success');
+                    btn.dataset.groups = newGroups.join(',');
+                    var labelEl = document.querySelector('.groups-label-' + id);
+                    if (labelEl) labelEl.textContent = newGroups.indexOf('4chan') !== -1 ? '4chan' : 'Groups';
+                } else {
+                    throw new Error(data.msg || 'Failed to update groups');
+                }
+            }, { hideReason: true, confirmText: 'Save Groups', unsafeContent: true });
+        }
+    </script>
+</div>
+</div>
+
+@include(snippets/footer)

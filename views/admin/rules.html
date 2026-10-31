@@ -1,0 +1,70 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+    @include(snippets/admin-back)
+    <div class="container">
+        <h2>Rules Page Content</h2>
+        <p style="color: #ccc; margin-bottom: 20px;">This text is displayed on the <strong>/rules</strong> page. Supports Markdown. Leave empty to show the default static rules template.</p>
+
+        <div class="admin-motd-form">
+            <form id="rules-form" action="/admin/rules" method="POST" onsubmit="event.preventDefault(); savePage(this, 'rules');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div style="margin-bottom: 20px;">
+                    <label for="rules-text" style="display: block; margin-bottom: 8px; color: var(--accent);">Rules Page Content (Markdown supported)</label>
+                    <textarea id="rules-text" name="rules_text" style="width: 100%; min-height: 300px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 15px; border-radius: 4px; font-family: inherit; font-size: 1.1em; resize: vertical;"></textarea>
+                    <script>document.getElementById('rules-text').value = new TextDecoder('utf-8').decode(Uint8Array.from(atob('{{ rules_text_b64 }}'), function(c) { return c.charCodeAt(0); }));</script>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="submit" class="btn-primary" style="width: auto; padding: 10px 30px;">Save</button>
+                    <button type="button" class="btn-remove" style="width: auto; padding: 10px 20px;" onclick="document.getElementById('rules-text').value=''; savePage(document.getElementById('rules-form'), 'rules');">Clear</button>
+                    <span id="rules-status" style="margin-left: 10px; font-weight: bold; display: none;"></span>
+                </div>
+            </form>
+        </div>
+
+        <div style="margin-top: 40px; padding: 20px; background: rgba(0,0,0,0.2); border-left: 4px solid var(--accent); border-radius: 4px;">
+            <h4 style="color: var(--accent); margin-top: 0;">Tips</h4>
+            <p style="margin-bottom: 0;">Use <strong>Markdown</strong> syntax like <code># Header</code>, <code>**bold**</code>, <code>[links](url)</code>, or plain HTML.<br>
+            If empty, the default static rules page is shown instead.</p>
+        </div>
+    </div>
+
+    <script>
+        async function savePage(form, page) {
+            const statusId = page + '-status';
+            const status = document.getElementById(statusId);
+
+            status.textContent = 'Saving...';
+            status.style.color = 'var(--accent)';
+            status.style.display = 'inline';
+
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': window.f0ckSession?.csrf_token
+                    },
+                    body: new URLSearchParams(new FormData(form))
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    status.textContent = 'Saved!';
+                    status.style.color = '#28a745';
+                    setTimeout(() => { status.style.display = 'none'; }, 2000);
+                } else {
+                    throw new Error(data.msg || 'Unknown error');
+                }
+            } catch (err) {
+                console.error('Save Error:', err);
+                status.textContent = 'Error: ' + err.message;
+                status.style.color = '#d9534f';
+            }
+        }
+    </script>
+</div>
+</div>
+@include(snippets/footer)

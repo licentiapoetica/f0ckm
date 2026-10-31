@@ -1,0 +1,423 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main">
+  <div class="container adm">
+
+    <!-- Header -->
+    <header class="adm-header">
+      <div>
+        <h1 class="adm-title">Admin</h1>
+        <div class="adm-subtitle">Signed in as <strong>{{ session.user }}</strong></div>
+      </div>
+      <a href="/mod" class="adm-btn adm-btn-ghost"><i class="fa-solid fa-gavel"></i> Moderator panel</a>
+    </header>
+
+    <!-- Overview -->
+    <section class="adm-section">
+      <h2 class="adm-section-title"><i class="fa-solid fa-chart-simple"></i> Overview</h2>
+      @if(typeof totals !== "undefined")
+      <div class="adm-stats">
+        <div class="adm-stat"><span class="adm-stat-num">{{ totals.total }}</span><span class="adm-stat-label">Posts</span></div>
+        <div class="adm-stat"><span class="adm-stat-num">{{ totals.sfw }}</span><span class="adm-stat-label">SFW</span></div>
+        <div class="adm-stat"><span class="adm-stat-num">{{ totals.nsfw }}</span><span class="adm-stat-label">NSFW</span></div>
+        @if(enable_nsfl)
+        <div class="adm-stat"><span class="adm-stat-num">{{ totals.nsfl }}</span><span class="adm-stat-label">NSFL</span></div>
+        @endif
+        <div class="adm-stat"><span class="adm-stat-num">{{ totals.untagged }}</span><span class="adm-stat-label">Untagged</span></div>
+        <a href="/admin/approve" class="adm-stat adm-stat-link @if(totals.pending > 0) is-hot @endif"><span class="adm-stat-num">{{ totals.pending }}</span><span class="adm-stat-label">Pending approval</span></a>
+        <a href="/mod/trash" class="adm-stat adm-stat-link"><span class="adm-stat-num">{{ dash.trash }}</span><span class="adm-stat-label">Soft deleted</span></a>
+        <a href="/mod/reports" class="adm-stat adm-stat-link @if(dash.open_reports > 0) is-hot @endif"><span class="adm-stat-num">{{ dash.open_reports }}</span><span class="adm-stat-label">Open reports</span></a>
+        <a href="/admin/tokens#invite-requests" class="adm-stat adm-stat-link @if(dash.invite_requests > 0) is-hot @endif"><span class="adm-stat-num">{{ dash.invite_requests }}</span><span class="adm-stat-label">Token requests</span></a>
+        <a href="/admin/users" class="adm-stat adm-stat-link"><span class="adm-stat-num">{{ dash.users }}</span><span class="adm-stat-label">Users <small>+{{ dash.anon_users }} anon</small></span></a>
+      </div>
+      @endif
+    </section>
+
+    <!-- Tools -->
+    <section class="adm-section">
+      <h2 class="adm-section-title"><i class="fa-solid fa-screwdriver-wrench"></i> Tools</h2>
+
+      <h3 class="adm-group-title">Moderation</h3>
+      <div class="adm-tools">
+        <a href="/admin/approve" class="adm-tool">
+          <i class="fa-solid fa-clock"></i>
+          <span class="adm-tool-text"><strong>Approval Queue @if(totals.pending > 0)<span class="adm-count">{{ totals.pending }}</span>@endif</strong><span>Review uploads waiting for approval</span></span>
+        </a>
+        <a href="/mod/trash" class="adm-tool">
+          <i class="fa-solid fa-trash-can"></i>
+          <span class="adm-tool-text"><strong>Soft Deleted @if(dash.trash > 0)<span class="adm-count">{{ dash.trash }}</span>@endif</strong><span>Restore or permanently purge removed items</span></span>
+        </a>
+        <a href="/mod/reports" class="adm-tool">
+          <i class="fa-solid fa-flag"></i>
+          <span class="adm-tool-text"><strong>User Reports @if(dash.open_reports > 0)<span class="adm-count">{{ dash.open_reports }}</span>@endif</strong><span>Reported posts, comments and users</span></span>
+        </a>
+        <a href="/mod/audit" class="adm-tool">
+          <i class="fa-solid fa-scroll"></i>
+          <span class="adm-tool-text"><strong>Audit Log</strong><span>Every moderation and admin action</span></span>
+        </a>
+      </div>
+
+      <h3 class="adm-group-title">Users &amp; access</h3>
+      <div class="adm-tools">
+        <a href="/admin/users" class="adm-tool">
+          <i class="fa-solid fa-users"></i>
+          <span class="adm-tool-text"><strong>User Manager</strong><span>Accounts, roles and groups</span></span>
+        </a>
+        <a href="/admin/bans" class="adm-tool">
+          <i class="fa-solid fa-ban"></i>
+          <span class="adm-tool-text"><strong>Bans &amp; Fingerprints</strong><span>IP, hardware and passkey bans</span></span>
+        </a>
+        <a href="/admin/sessions" class="adm-tool">
+          <i class="fa-solid fa-key"></i>
+          <span class="adm-tool-text"><strong>Sessions</strong><span>Active logins across all users</span></span>
+        </a>
+        <a href="/admin/tokens" class="adm-tool">
+          <i class="fa-solid fa-ticket"></i>
+          <span class="adm-tool-text"><strong>Invite Tokens @if(dash.invite_requests > 0)<span class="adm-count">{{ dash.invite_requests }}</span>@endif</strong><span>Create and revoke invites, review token requests</span></span>
+        </a>
+      </div>
+
+      <h3 class="adm-group-title">Content</h3>
+      <div class="adm-tools">
+        <a href="/admin/halls" class="adm-tool">
+          <i class="fa-solid fa-layer-group"></i>
+          <span class="adm-tool-text"><strong>Halls</strong><span>Curated collections</span></span>
+        </a>
+        <a href="/admin/emojis" class="adm-tool">
+          <i class="fa-solid fa-face-smile"></i>
+          <span class="adm-tool-text"><strong>Emojis</strong><span>Custom emojis and sticker packs</span></span>
+        </a>
+        <a href="/admin/memes" class="adm-tool">
+          <i class="fa-regular fa-image"></i>
+          <span class="adm-tool-text"><strong>Memes</strong><span>Meme creator templates</span></span>
+        </a>
+        <a href="/admin/koepfe" class="adm-tool">
+          <i class="fa-solid fa-masks-theater"></i>
+          <span class="adm-tool-text"><strong>Köpfe</strong><span>Floating head images</span></span>
+        </a>
+        <a href="/admin/nsfp" class="adm-tool">
+          <i class="fa-solid fa-eye-slash"></i>
+          <span class="adm-tool-text"><strong>NSFP Tags</strong><span>Tags hidden from the public</span></span>
+        </a>
+        <a href="/admin/wordfilter" class="adm-tool">
+          <i class="fa-solid fa-filter"></i>
+          <span class="adm-tool-text"><strong>Wordfilter</strong><span>Replace words in comments</span></span>
+        </a>
+        @if(enable_cleanup)
+        <a href="/admin/cleanup" class="adm-tool">
+          <i class="fa-solid fa-broom"></i>
+          <span class="adm-tool-text"><strong>Cleanup</strong><span>Remove old unengaged uploads</span></span>
+        </a>
+        @endif
+      </div>
+
+      <h3 class="adm-group-title">Site</h3>
+      <div class="adm-tools">
+        <a href="/admin/motd" class="adm-tool">
+          <i class="fa-solid fa-bullhorn"></i>
+          <span class="adm-tool-text"><strong>MOTD</strong><span>Message of the day banner</span></span>
+        </a>
+        <a href="/admin/about" class="adm-tool">
+          <i class="fa-solid fa-circle-info"></i>
+          <span class="adm-tool-text"><strong>About Page</strong><span>Edit /about</span></span>
+        </a>
+        <a href="/admin/rules" class="adm-tool">
+          <i class="fa-solid fa-list-check"></i>
+          <span class="adm-tool-text"><strong>Rules Page</strong><span>Edit /rules</span></span>
+        </a>
+        <a href="/admin/terms" class="adm-tool">
+          <i class="fa-solid fa-file-contract"></i>
+          <span class="adm-tool-text"><strong>ToS Page</strong><span>Edit /terms</span></span>
+        </a>
+        @if(enable_global_chat)
+        <a href="/admin/chat" class="adm-tool">
+          <i class="fa-solid fa-comments"></i>
+          <span class="adm-tool-text"><strong>Global Chat</strong><span>Moderate the site chat</span></span>
+        </a>
+        @endif
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="adm-section">
+      <div class="adm-section-head">
+        <h2 class="adm-section-title"><i class="fa-solid fa-sliders"></i> Settings</h2>
+        <span id="settings-status" class="adm-status"></span>
+      </div>
+
+      <h3 class="adm-group-title">Uploads</h3>
+      <div class="adm-panel">
+        <div class="adm-row">
+          <div class="adm-row-text">
+            <label for="manual_approval_toggle">Manual upload approval</label>
+            <p>If enabled, mods must approve every upload.</p>
+          </div>
+          <label class="adm-switch">
+            <input type="checkbox" id="manual_approval_toggle" {{ manual_approval ? 'checked' : '' }} onchange="saveAdminSettings()">
+            <span class="adm-slider"></span>
+          </label>
+        </div>
+        <div class="adm-row">
+          <div class="adm-row-text">
+            <label for="min_tags_input">Minimum tags</label>
+            <p>Minimum number of tags required per upload.</p>
+          </div>
+          <input type="number" id="min_tags_input" class="adm-number" value="{{ min_tags }}" min="0" max="20" onchange="saveAdminSettings()">
+        </div>
+        <div class="adm-row">
+          <div class="adm-row-text">
+            <label for="trusted_uploads_input">Trusted upload threshold</label>
+            <p>Users with fewer approved uploads than this still need manual approval, even if the toggle above is off. 0 disables it.</p>
+          </div>
+          <input type="number" id="trusted_uploads_input" class="adm-number" value="{{ trusted_uploads }}" min="0" max="999" onchange="saveAdminSettings()">
+        </div>
+      </div>
+
+      @if(registration_web_toggle_enabled)
+      <h3 class="adm-group-title">Registration</h3>
+      <div class="adm-panel">
+        <div class="adm-row">
+          <div class="adm-row-text">
+            <label for="registration_open_toggle">Open registration</label>
+            <p>Allow registration without invite tokens. Requires email activation.</p>
+          </div>
+          <label class="adm-switch">
+            <input type="checkbox" id="registration_open_toggle" {{ registration_open ? 'checked' : '' }} onchange="saveAdminSettings()">
+            <span class="adm-slider"></span>
+          </label>
+        </div>
+      </div>
+      @endif
+
+      <h3 class="adm-group-title">Branding</h3>
+      <div class="adm-panel" id="brand-image-section">
+        <div class="adm-row adm-row-wrap">
+          <div class="adm-row-text">
+            <label>Navbar brand image</label>
+            <p>Shown in the navbar instead of the site name. gif, jpg, png, webp or svg, max 5&nbsp;MB.</p>
+          </div>
+          <div class="adm-brand">
+            <div id="brand-preview-wrap" class="adm-brand-preview">
+              @if(current_brand_image)
+              <img id="brand-preview" src="{{ current_brand_image }}" alt="current brand">
+              @else
+              <span id="brand-preview" class="adm-muted">No image set</span>
+              @endif
+            </div>
+            <label for="brand-file-input" class="adm-btn adm-btn-primary">Choose image</label>
+            <input type="file" id="brand-file-input" accept="image/gif,image/jpeg,image/png,image/webp,image/svg+xml" hidden onchange="uploadBrandImage(this)">
+            <button type="button" id="brand-remove-btn" class="adm-btn adm-btn-danger" onclick="removeBrandImage()" @if(!current_brand_image) disabled @endif>Remove</button>
+          </div>
+        </div>
+        <span id="brand-status" class="adm-status adm-status-row"></span>
+      </div>
+
+      <h3 class="adm-group-title">Maintenance</h3>
+      <div class="adm-panel">
+        <div class="adm-row">
+          <div class="adm-row-text">
+            <label>Tag image cache</label>
+            <p>Regenerate thumbnails for the /tags page. Runs in the background and may take a while.</p>
+          </div>
+          <button type="button" onclick="regenerateTagImages()" id="regen_tag_btn" class="adm-btn adm-btn-ghost">Regenerate all</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  @include(snippets/adm-dashboard-style)
+
+  <script>
+
+    async function saveAdminSettings() {
+      const status = document.getElementById('settings-status');
+      const approvalToggle = document.getElementById('manual_approval_toggle');
+      const registrationToggle = document.getElementById('registration_open_toggle');
+      const minTagsInput = document.getElementById('min_tags_input');
+      const trustedUploadsInput = document.getElementById('trusted_uploads_input');
+
+      status.textContent = 'Saving...';
+      status.style.color = 'var(--accent)';
+
+      try {
+        const csrfToken = (window.f0ckSession && window.f0ckSession.csrf_token) || '{{ csrf_token }}';
+        if (!csrfToken || csrfToken.startsWith('{')) {
+          status.textContent = 'CSRF token missing. Please refresh the page.';
+          status.style.color = '#d9534f';
+          return;
+        }
+        const res = await fetch('/admin/settings', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': csrfToken
+          },
+          body: new URLSearchParams({
+            manual_approval: approvalToggle ? (approvalToggle.checked ? 'on' : 'off') : 'off',
+            ...(registrationToggle ? { registration_open: registrationToggle.checked ? 'on' : 'off' } : {}),
+            min_tags: minTagsInput ? minTagsInput.value : '3',
+            trusted_uploads: trustedUploadsInput ? trustedUploadsInput.value : '3',
+            csrf_token: csrfToken
+          }).toString()
+        });
+
+        if (!res.ok) {
+          if (res.status === 403) {
+            throw new Error('CSRF validation failed or session expired. Please reload the page.');
+          }
+          throw new Error('Server returned ' + res.status);
+        }
+
+        const data = await res.json();
+        if (data.success) {
+          status.textContent = 'Saved!';
+          status.style.color = '#28a745';
+          setTimeout(() => { status.textContent = ''; }, 2000);
+        } else {
+          throw new Error(data.msg || 'Save failed');
+        }
+      } catch (err) {
+        console.error('Settings save error:', err);
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = '#d9534f';
+      }
+    }
+
+    async function regenerateTagImages() {
+      const btn = document.getElementById('regen_tag_btn');
+      const status = document.getElementById('settings-status');
+
+      if (!confirm('Are you sure you want to trigger a full regeneration of all tag images? This will run in the background.')) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      status.textContent = 'Triggering regeneration...';
+      status.style.color = 'var(--accent)';
+
+      try {
+        const res = await fetch('/admin/tag_image/regenerate_all', {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          status.textContent = data.message;
+          status.style.color = '#28a745';
+          btn.textContent = 'Started!';
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = 'Regenerate all';
+            status.textContent = '';
+          }, 5000);
+        } else {
+          throw new Error(data.msg || 'Action failed');
+        }
+      } catch (err) {
+        console.error('Regeneration error:', err);
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = '#d9534f';
+        btn.disabled = false;
+        btn.textContent = 'Regenerate all';
+      }
+    }
+
+    async function uploadBrandImage(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const status = document.getElementById('brand-status');
+      const removeBtn = document.getElementById('brand-remove-btn');
+      status.textContent = 'Uploading…';
+      status.style.color = 'var(--accent)';
+
+      const csrfToken = (window.f0ckSession && window.f0ckSession.csrf_token) || '{{ csrf_token }}';
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        const res = await fetch('/admin/brand_image/upload', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': csrfToken
+          },
+          body: fd
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.msg || 'Upload failed');
+
+        status.textContent = '✓ Brand image updated!';
+        status.style.color = '#28a745';
+
+        // Update preview
+        const wrap = document.getElementById('brand-preview-wrap');
+        let preview = document.getElementById('brand-preview');
+        if (!preview || preview.tagName !== 'IMG') {
+          wrap.innerHTML = '';
+          preview = document.createElement('img');
+          preview.id = 'brand-preview';
+          preview.alt = 'current brand';
+          wrap.appendChild(preview);
+        }
+        preview.src = data.url;
+
+        // Immediately update navbar brand logo
+        if (window.updateBrandImage) window.updateBrandImage(data.url);
+
+        removeBtn.disabled = false;
+
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = '#d9534f';
+      } finally {
+        input.value = '';
+      }
+    }
+
+    async function removeBrandImage() {
+      const status = document.getElementById('brand-status');
+      const removeBtn = document.getElementById('brand-remove-btn');
+
+      if (!confirm('Remove the custom brand image? The navbar will revert to text.')) return;
+
+      status.textContent = 'Removing…';
+      status.style.color = 'var(--accent)';
+
+      const csrfToken = (window.f0ckSession && window.f0ckSession.csrf_token) || '{{ csrf_token }}';
+
+      try {
+        const res = await fetch('/admin/brand_image/delete', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': csrfToken
+          }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.msg || 'Remove failed');
+
+        status.textContent = '✓ Brand image removed.';
+        status.style.color = '#28a745';
+
+        // Reset preview
+        const wrap = document.getElementById('brand-preview-wrap');
+        wrap.innerHTML = '<span id="brand-preview" class="adm-muted">No image set</span>';
+
+        // Immediately update navbar brand logo (revert to text)
+        if (window.updateBrandImage) window.updateBrandImage(null);
+
+        removeBtn.disabled = true;
+
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = '#d9534f';
+      }
+    }
+
+  </script>
+</div>
+</div>
+@include(snippets/footer)

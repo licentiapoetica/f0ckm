@@ -1,0 +1,157 @@
+services:
+  f0ckm:
+    container_name: f0ckm
+    user: "${UID:-1000}:${GID:-1000}"
+    image: ${f0ckm_IMAGE:-f0ckm}:${f0ckm_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - GIT_HASH=${GIT_HASH:-unknown}
+    networks:
+      - f0ckm-net
+    volumes:
+      - ./config.json:/opt/f0ckm/config.json:ro,Z
+      - ./src/:/opt/f0ckm/src/:Z
+      - ./views/:/opt/f0ckm/views/:Z
+      - ./scripts/:/opt/f0ckm/scripts/:Z
+      - ./f0ckm-data/a/:/opt/f0ckm/public/a/:Z
+      - ./f0ckm-data/b/:/opt/f0ckm/public/b/:Z
+      - ./f0ckm-data/c/:/opt/f0ckm/public/c/:Z
+      - ./f0ckm-data/e/:/opt/f0ckm/public/e/:Z
+      - ./f0ckm-data/cu/:/opt/f0ckm/public/cu/:Z
+      - ./f0ckm-data/t/:/opt/f0ckm/public/t/:Z
+      - ./f0ckm-data/deleted/:/opt/f0ckm/deleted/:Z
+      - ./f0ckm-data/pending/:/opt/f0ckm/pending/:Z
+      - ./f0ckm-data/emojis/:/opt/f0ckm/public/s/emojis/:Z
+      - ./f0ckm-data/memes/:/opt/f0ckm/public/memes/:Z
+      - ./f0ckm-data/ca/:/opt/f0ckm/public/ca/:Z
+      - ./f0ckm-data/tmp/:/opt/f0ckm/tmp/:Z
+      - ./f0ckm-data/logs/:/opt/f0ckm/logs/:Z
+      - ./f0ckm-data/tag_cache/:/opt/f0ckm/public/tag_cache/:Z
+      - ./f0ckm-data/fonts/:/opt/f0ckm/public/s/fonts/:Z
+      - ./f0ckm-data/hall_cache/:/opt/f0ckm/public/hall_cache/:Z
+      - ./f0ckm-data/hall_custom/:/opt/f0ckm/public/hall_custom/:Z
+      - ./f0ckm-data/koepfe/:/opt/f0ckm/public/s/koepfe/:Z
+      - ./f0ckm-data/import/:/opt/f0ckm/f0ckm-data/import/:Z
+      - ./f0ckm-data/manifest.json:/opt/f0ckm/public/manifest.json:Z
+      - ./f0ckm-data/s/img/navbar/:/opt/f0ckm/public/s/img/navbar/:Z
+
+    environment:
+      - GIT_HASH=${f0ckm_TAG:-unknown}
+      - VIRTUAL_HOST=${VIRTUAL_HOST:-localhost}
+      - VIRTUAL_PORT=1337
+      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST:-}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-}
+      - DB_HOST=f0ckm-db
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER:-f0ckm}
+      - DB_PASS=${POSTGRES_PASSWORD:-f0ckm}
+      - DB_NAME=${POSTGRES_DB:-f0ckm}
+      - NODE_ENV=production
+      # Dedicated secret for IP hashing (HMAC). Set in .env, keep it out of config.json and DB backups.
+      - IP_HASH_SECRET=${IP_HASH_SECRET:-}
+    ports:
+      - "1337:1337"
+    restart: unless-stopped
+    depends_on:
+      f0ckm-db:
+        condition: service_healthy
+
+  tor:
+    image: dockurr/tor
+    container_name: tor
+    profiles:
+      - tor
+    ports:
+      - "127.0.0.1:9050:9050"
+      - "127.0.0.1:8118:8118"
+    volumes:
+      - ./config/tor:/etc/tor:ro
+      - ./f0ckm-data/tor:/var/lib/tor:Z
+    networks:
+      - f0ckm-net
+    restart: always
+
+  f0ckm-db:
+    container_name: f0ckm-db
+    image: postgres:17
+    environment:
+      POSTGRES_DB: f0ckm
+      POSTGRES_USER: f0ckm
+      POSTGRES_PASSWORD: f0ckm
+      PGDATA: /data/postgres
+    volumes:
+      - ./f0ckm-data/postgres:/data/postgres:Z
+    ports:
+      - "5454:5432"
+    networks:
+      - f0ckm-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # anubis:
+  #   image: ghcr.io/techarohq/anubis:latest
+  #   container_name: anubis
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - BIND=:3000
+  #     - TARGET=http://f0ckm:1337
+  #     - DIFFICULTY=15
+  #     - POLICY_FNAME=/policy.yaml
+  #   volumes:
+  #     - ./botPolicy.yaml:/policy.yaml:ro
+  #   networks:
+  #     - f0ckm-net
+  #   restart: unless-stopped
+
+  f0ckm-nginx:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: f0ckm-nginx
+    network_mode: "host"
+    profiles:
+      - f0ckm-nginx
+    environment:
+      - ENABLE_IPV6=true
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d:rw
+      - html:/usr/share/nginx/html:rw
+      - ./config/nginx/f0ck.conf:/etc/nginx/conf.d/f0ckm.conf:ro
+    restart: unless-stopped
+
+  acme-companion:
+    image: nginxproxy/acme-companion:latest
+    container_name: f0ckm-acme-companion
+    profiles:
+      - f0ckm-nginx
+    environment:
+      - NGINX_PROXY_CONTAINER=f0ckm-nginx
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs:rw
+      - vhost:/etc/nginx/vhost.d:rw
+      - html:/usr/share/nginx/html:rw
+      - acme:/etc/acme.sh:rw
+    depends_on:
+      - f0ckm-nginx
+    networks:
+      - f0ckm-net
+    restart: unless-stopped
+
+networks:
+  f0ckm-net:
+    driver: bridge
+
+volumes:
+  certs:
+  vhost:
+  html:
+  acme:

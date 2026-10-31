@@ -1,0 +1,9 @@
+# Tor configuration for f0ckm
+
+# Enable SOCKS proxy for internal container & external connections
+SocksPort 0.0.0.0:9050
+
+# Tor Hidden Service (v3 Onion Service) configuration
+# Tor will automatically generate private keys and hostnames in /var/lib/tor/f0ckm_hs/
+HiddenServiceDir /var/lib/tor/f0ckm_hs/
+HiddenServicePort 80 f0ckm:1337

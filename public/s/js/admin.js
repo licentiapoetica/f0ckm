@@ -1,0 +1,1066 @@
+(async () => {
+  // Helper to get dynamic context
+  const getContext = () => {
+    const commentsEl = document.querySelector("#comments-container");
+    const favoEl = document.querySelector("#a_favo");
+    const infoEl = document.querySelector("#a_info");
+    const idLinkEl = document.querySelector("a.id-link");
+
+    const rawId = favoEl?.dataset?.localId || commentsEl?.dataset?.itemId || favoEl?.dataset?.itemId || infoEl?.dataset?.itemId || idLinkEl?.dataset?.itemId || idLinkEl?.innerText;
+    if (!rawId) return null;
+
+    const tagsContainer = document.querySelector("#tags");
+    const inner = tagsContainer ? (tagsContainer.querySelector(".tags-inner") || tagsContainer) : null;
+    const usernameEl = document.querySelector("a#a_username");
+    const currentSub = (window.albumGallery && typeof window.albumGallery.getCurrentSubf0ck === 'function')
+      ? window.albumGallery.getCurrentSubf0ck()
+      : null;
+    const subf0ck_id = currentSub ? (currentSub.slug || currentSub.id) : (tagsContainer?.dataset?.subf0ckSlug || tagsContainer?.dataset?.subf0ckId || null);
+
+    return {
+      postid: /^\d+$/.test(String(rawId).trim()) ? parseInt(rawId, 10) : rawId.trim(),
+      subf0ck_id,
+      // data-username holds the raw DB username; data-author-id holds the user's numeric ID.
+      // Never fall back to innerText — it may be a display name or the literal string 'unknown'.
+      poster: (usernameEl?.dataset?.username || '').trim() || null,
+      authorId: (usernameEl?.dataset?.authorId || '').trim() || null,
+      tags: inner ? [...inner.querySelectorAll(".badge")].map(t => t.innerText.slice(0, -2)) : []
+    };
+  };
+
+  const queryapi = async (url, data, method = 'GET') => {
+    let req;
+    if (method == 'POST') {
+      req = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": window.f0ckSession?.csrf_token
+        },
+        body: JSON.stringify(data)
+      });
+    }
+    else {
+      let s = [];
+      for (const [key, val] of Object.entries(data))
+        s.push(encodeURIComponent(key) + "=" + encodeURIComponent(val));
+      req = await fetch(url + '?' + s.join('&'));
+    }
+    return await req.json();
+  };
+
+  const get = async (url, data) => queryapi(url, data, 'GET');
+  const post = async (url, data) => queryapi(url, data, 'POST');
+
+  const renderTags = (_tags, highlightTag = null) => {
+    const tagsContainer = document.querySelector("#tags");
+    if (!tagsContainer) return;
+    const inner = tagsContainer.querySelector(".tags-inner") || tagsContainer;
+    const activePostId = tagsContainer.dataset.itemId || (typeof window.getCurrentItemId === 'function' ? window.getCurrentItemId() : null);
+
+    const canManage = !!(
+      document.querySelector('#tags[data-can-manage="true"]') ||
+      (window.f0ckSession && (window.f0ckSession.is_admin || window.f0ckSession.is_moderator)) ||
+      (window.f0ckSession && window.f0ckSession.user && document.querySelector('#a_username[data-username]')?.dataset?.username?.toLowerCase() === window.f0ckSession.user.toLowerCase())
+    );
+
+    // Only remove existing dynamically generated tags
+    [...inner.querySelectorAll(".badge")].forEach(tag => {
+      // Don't remove the one containing the add/toggle buttons, and don't remove the autocomplete input itself
+      if (!tag.querySelector('#a_addtag') && !tag.querySelector('#a_toggle') && !tag.classList.contains('tag-ac-wrapper')) {
+        tag.parentElement.removeChild(tag);
+      }
+    });
+
+    // Deduplicate: ensure only at most ONE rating tag exists in the tags list
+    const ratingTags = _tags.filter(t => ['sfw', 'nsfw', 'nsfl'].includes(t.normalized));
+    const lastRatingTag = ratingTags.length ? ratingTags[ratingTags.length - 1] : null;
+    const cleanTags = _tags.filter(t => !['sfw', 'nsfw', 'nsfl'].includes(t.normalized) || t === lastRatingTag);
+
+    const tagsCopy = [...cleanTags];
+    tagsCopy.reverse().forEach(tag => {
+      const isRating = ['sfw', 'nsfw', 'nsfl'].includes(tag.normalized);
+      let contentEl;
+      if (isRating) {
+        contentEl = document.createElement("span");
+        contentEl.className = "rating-label";
+        contentEl.textContent = tag.tag;
+      } else {
+        contentEl = document.createElement("a");
+        contentEl.href = "/tag/" + tag.normalized;
+        contentEl.style = "color: inherit !important";
+        contentEl.textContent = tag.tag;
+      }
+
+      const span = document.createElement("span");
+      span.classList.add("badge");
+      if (highlightTag && (tag.tag === highlightTag || tag.normalized === highlightTag)) {
+        span.classList.add('new-tag-glow');
+      }
+
+      tag.badge.split(" ").forEach(b => span.classList.add(b));
+
+      if (isRating) {
+        span.classList.add('rating-tag', `is-${tag.normalized}`);
+        span.dataset.rating = tag.normalized;
+        if (activePostId) span.dataset.itemId = activePostId;
+        if (canManage) {
+          span.classList.add('can-cycle');
+        }
+      } else {
+        span.classList.add('tag-badge');
+        span.setAttribute('data-tag-id', tag.id || '');
+        span.setAttribute('data-tag', tag.tag);
+        span.setAttribute('data-tag-normalized', tag.normalized);
+        if (!window.f0ckSession?.is_anonymized && window.f0ckSession?.logged_in && !window.f0ckSession?.is_anon && (tag.display_name || tag.user)) {
+          span.setAttribute("tooltip", tag.display_name || tag.user);
+        }
+        const isExcl = !!tag.is_excluded;
+        if (isExcl) span.classList.add('tag-is-excluded');
+      }
+
+      span.appendChild(contentEl);
+
+      if (!isRating && tag.can_exclude) {
+        const excludeBtn = document.createElement("button");
+        excludeBtn.type = "button";
+        excludeBtn.className = "tag-exclude-btn";
+        excludeBtn.setAttribute("title", tag.is_excluded ? "Excluded (click to unexclude)" : "Exclude tag");
+        excludeBtn.setAttribute("aria-label", "Exclude tag");
+        excludeBtn.innerHTML = `<i class="fa-solid ${tag.is_excluded ? 'fa-circle-check' : 'fa-ban'}"></i>`;
+        span.appendChild(excludeBtn);
+      }
+
+      if (!isRating) {
+        const delbutton = document.createElement("a");
+        delbutton.href = "#";
+        delbutton.classList.add("admin-deltag", "removetag");
+        delbutton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        span.appendChild(document.createTextNode(" "));
+        span.appendChild(delbutton);
+      }
+
+      inner.insertAdjacentElement("afterbegin", span);
+    });
+
+    const hasRating = !!lastRatingTag;
+    if (!hasRating) {
+      const untaggedSpan = document.createElement("span");
+      untaggedSpan.className = `badge badge-untagged rating-tag is-untagged${canManage ? ' can-cycle' : ''}`;
+      untaggedSpan.dataset.rating = 'untagged';
+      if (activePostId) untaggedSpan.dataset.itemId = activePostId;
+      const lbl = document.createElement("span");
+      lbl.className = "rating-label";
+      lbl.textContent = "unrated";
+      untaggedSpan.appendChild(lbl);
+      inner.insertAdjacentElement("afterbegin", untaggedSpan);
+    }
+
+    // Safeguard: remove any extra rating tags in DOM
+    const allRatingEls = inner.querySelectorAll('.rating-tag, .badge-success, .badge-danger, .badge-nsfl, .badge-untagged, [data-rating]');
+    if (allRatingEls.length > 1) {
+      for (let i = 1; i < allRatingEls.length; i++) {
+        allRatingEls[i].remove();
+      }
+    }
+
+    // Update thumbnail data-mode in background grid (ensures div.posts > a > p::before updates in Onara)
+    if (activePostId) {
+      const modeAttr = lastRatingTag ? lastRatingTag.normalized : 'null';
+      document.querySelectorAll(`.posts > a.thumb[data-item-id="${activePostId}"], .posts a[data-item-id="${activePostId}"], .posts a[href$="/${activePostId}"]`).forEach(th => {
+        th.setAttribute('data-mode', modeAttr);
+      });
+      if (document.body.classList.contains('onara-modal-open')) {
+        const onaraThumb = document.querySelector('.posts > a.thumb.onara-active');
+        if (onaraThumb) onaraThumb.setAttribute('data-mode', modeAttr);
+      }
+    }
+
+    // Handle show more/less toggle visibility and count
+    const allBadges = [...inner.querySelectorAll(".badge")];
+    const realTags = allBadges.filter(b => !b.querySelector('#a_addtag') && !b.querySelector('#a_toggle') && !b.classList.contains('tag-ac-wrapper'));
+    
+    let toggle = tagsContainer.querySelector(".show-tags-toggle");
+    
+    if (realTags.length > 10) {
+      if (!toggle) {
+        toggle = document.createElement("a");
+        toggle.href = "#";
+        toggle.className = "show-tags-toggle";
+        tagsContainer.appendChild(toggle);
+      }
+      const hiddenCount = realTags.length - 10;
+      toggle.dataset.count = hiddenCount;
+      
+      // Auto-expand when rendering new tags (e.g. after adding one) as requested
+      tagsContainer.classList.add('tags-expanded');
+      toggle.textContent = "show less";
+
+    } else if (toggle) {
+      toggle.remove();
+      tagsContainer.classList.remove('tags-expanded');
+    }
+  };
+
+  window.renderTags = renderTags;
+
+  const deleteEvent = async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const ctx = getContext();
+    if (!ctx) return;
+    const { postid, subf0ck_id } = ctx;
+
+    let target = e.target;
+    if (target.nodeType === 3) target = target.parentElement;
+
+    const badge = target.closest('.badge');
+    if (!badge) return;
+    const tagLink = badge.querySelector('a[href*="/tag/"], a:first-of-type');
+    const tagname = tagLink ? tagLink.innerText.trim() : null;
+    if (!tagname) return;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm((window.f0ckI18n && window.f0ckI18n.tag_delete_title) || 'Delete Tag', `${(window.f0ckI18n && window.f0ckI18n.tag_delete_confirm) || 'Are you sure you want to delete the tag'} <strong style="color:#d9534f">${tagname}</strong>?`, async (reason) => {
+      const qs = new URLSearchParams();
+      if (reason) qs.set('reason', reason);
+      if (subf0ck_id) qs.set('subf0ck_id', subf0ck_id);
+      const qsStr = qs.toString();
+
+      const res = await (await fetch("/api/v2/tags/" + postid + "/" + encodeURIComponent(tagname) + (qsStr ? "?" + qsStr : ""), {
+        method: 'DELETE',
+        headers: { "X-CSRF-Token": window.f0ckSession?.csrf_token }
+      })).json();
+
+      if (!res.success) {
+        throw new Error(res.msg || "Error deleting tag");
+      }
+      if (window.albumGallery && typeof window.albumGallery.getCurrentSubf0ck === 'function') {
+        const cur = window.albumGallery.getCurrentSubf0ck();
+        if (cur && res.tags) cur.tags = res.tags;
+      }
+      renderTags(res.tags);
+      if (window.flashMessage) window.flashMessage((window.f0ckI18n?.tag_deleted_success) || 'Tag deleted', 2500, 'success');
+    }, { allowEmpty: window.f0ckSession?.is_admin });
+  };
+
+  const addtagClick = (e) => {
+    if (e) e.preventDefault();
+    const ctx = getContext();
+    if (!ctx) return;
+    const { postid, subf0ck_id, tags } = ctx;
+    const anchor = document.querySelector("a#a_addtag");
+    if (!anchor) return;
+
+    TagAutocomplete.open({
+      postid,
+      existingTags: tags,
+      anchorEl: anchor,
+      onSubmit: async (tag) => {
+        const payload = { tagname: tag };
+        if (subf0ck_id) payload.subf0ck_id = subf0ck_id;
+        const res = await post("/api/v2/tags/" + postid, payload);
+        if (res.success) {
+          if (window.albumGallery && typeof window.albumGallery.getCurrentSubf0ck === 'function') {
+            const cur = window.albumGallery.getCurrentSubf0ck();
+            if (cur && res.tags) cur.tags = res.tags;
+          }
+          if (window.invalidateItemCache) {
+            window.invalidateItemCache(postid);
+          }
+        }
+        return res;
+      },
+      renderTags: (newTags, hl) => {
+        if (window.albumGallery && typeof window.albumGallery.getCurrentSubf0ck === 'function') {
+          const cur = window.albumGallery.getCurrentSubf0ck();
+          if (cur) cur.tags = newTags;
+        }
+        renderTags(newTags, hl);
+      }
+    });
+  };
+
+
+  let favSeq = 0;
+
+  const toggleFavEvent = async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    if (window.f0ckSession?.is_anon && window.f0ckSession?.anon_permissions && window.f0ckSession.anon_permissions.favorite === false) {
+      if (typeof window.flashMessage === 'function') {
+        window.flashMessage('Anonymous favoriting is disabled.', 3000, 'error');
+      }
+      return;
+    }
+    const favoBtns = document.querySelectorAll("#a_favo");
+    if (!favoBtns.length) return;
+    const firstFavoBtn = favoBtns[0];
+    const chanRehostBtn = document.querySelector('#chan-item-rehost-btn');
+    const isChan = firstFavoBtn?.dataset?.isChan === 'true' || !!chanRehostBtn;
+    const chanUrl = firstFavoBtn?.dataset?.chanUrl || chanRehostBtn?.dataset?.url;
+    let localId = firstFavoBtn?.dataset?.localId;
+
+    const ctx = getContext();
+    const postid = localId ? Number(localId) : ctx?.postid;
+    if (!postid && !chanUrl) return;
+
+    const wasAlreadyFav = favoBtns[0].classList.contains('fa-solid') && !favoBtns[0].classList.contains('fa-spinner');
+    const isNowFav = !wasAlreadyFav;
+
+    const setFavoUi = (isFav) => {
+      favoBtns.forEach(btn => {
+        btn.classList.remove('fa-spinner', 'fa-spin');
+        btn.classList.add('iconset', 'fa-heart');
+        btn.classList.toggle('fa-solid', isFav);
+        btn.classList.toggle('fa-regular', !isFav);
+        btn.title = isFav ? (window.f0ckI18n?.fav_remove || 'Remove from favorites') : (window.f0ckI18n?.fav_add || 'Favorite');
+      });
+    };
+
+    // 1. Instantly apply client UI
+    setFavoUi(isNowFav);
+
+    // Micro-animation for tactile pop
+    favoBtns.forEach(btn => {
+      btn.classList.remove('fav-pop');
+      void btn.offsetWidth;
+      btn.classList.add('fav-pop');
+    });
+
+    // Instant flash message & vibration feedback
+    window.flashMessage((window.f0ckI18n && (isNowFav ? window.f0ckI18n.fav_added : window.f0ckI18n.fav_removed)) || (isNowFav ? 'ADDED TO FAVORITES' : 'REMOVED FROM FAVORITES'));
+    if (navigator.vibrate) navigator.vibrate(50);
+
+    if (postid && window.invalidateItemCache) {
+      window.invalidateItemCache(postid);
+    }
+
+    // Optimistically update #favs badge list
+    const favcontainer = document.querySelector('#favs');
+    const prevFavsHtml = favcontainer ? favcontainer.innerHTML : '';
+    const prevFavsHidden = favcontainer ? favcontainer.hidden : true;
+
+    if (favcontainer) {
+      const currentUser = (window.f0ckSession?.user || '').toLowerCase();
+      const isAnon = !!(window.f0ckSession?.is_anon || window.f0ckSession?.user === 'anonymous');
+      const isAnonymized = !!(window.f0ckSession?.is_anonymized ?? (window.f0ckSession?.guest_anonymize && !window.f0ckSession?.logged_in) ?? (window.f0ckSession?.is_anon && window.f0ckSession?.anon_anonymize));
+
+      const findSelfBadge = () => {
+        const selfBadges = favcontainer.querySelectorAll('[data-self="true"]');
+        if (selfBadges.length) return selfBadges[0];
+        if (currentUser && currentUser !== 'anonymous') {
+          const links = favcontainer.querySelectorAll('a[href]');
+          for (const a of links) {
+            const path = a.getAttribute('href') || '';
+            if (path.toLowerCase().endsWith('/user/' + currentUser)) return a;
+          }
+        }
+        return null;
+      };
+
+      if (!isNowFav) {
+        const selfBadge = findSelfBadge();
+        if (selfBadge) selfBadge.remove();
+        if (favcontainer.children.length === 0) {
+          favcontainer.hidden = true;
+        }
+      } else {
+        let selfBadge = findSelfBadge();
+        if (!selfBadge) {
+          selfBadge = document.createElement('a');
+          selfBadge.dataset.self = 'true';
+          selfBadge.setAttribute('flow', 'up');
+          if (isAnonymized || isAnon) {
+            selfBadge.className = 'ghost-fav';
+            selfBadge.setAttribute('tooltip', 'anonymous');
+            selfBadge.style.cursor = 'default';
+            const img = document.createElement('img');
+            img.src = '/a/default.png';
+            img.style.height = "32px";
+            img.style.width = "32px";
+            selfBadge.appendChild(img);
+          } else {
+            selfBadge.href = `/user/${currentUser}`;
+            selfBadge.setAttribute('tooltip', window.f0ckSession?.display_name || window.f0ckSession?.user || 'anonymous');
+            const img = document.createElement('img');
+            const avatarFile = window.f0ckSession?.avatar_file;
+            const avatar = window.f0ckSession?.avatar;
+            img.src = avatarFile ? `/a/${avatarFile}` : (avatar ? `/t/${avatar}.webp` : '/a/default.png');
+            img.style.height = "32px";
+            img.style.width = "32px";
+            if (window.f0ckSession?.username_color) img.style.borderColor = window.f0ckSession.username_color;
+            selfBadge.appendChild(img);
+          }
+          favcontainer.appendChild(selfBadge);
+        }
+        favcontainer.hidden = false;
+      }
+    }
+
+    const mySeq = ++favSeq;
+
+    // 2. Run server operation in background — can take as long as it needs
+    (async () => {
+      try {
+        // If viewing un-rehosted 4chan post, auto-rehost first
+        if (isChan && !localId && chanUrl) {
+          if (mySeq !== favSeq) return;
+          const csrfToken = window.f0ckSession?.csrf_token || '';
+          const rehostResp = await fetch('/api/v2/scroller/rehost', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
+            },
+            body: new URLSearchParams({
+              url: chanUrl,
+              original_filename: firstFavoBtn?.dataset?.filename || chanRehostBtn?.dataset?.filename || '',
+              width: firstFavoBtn?.dataset?.width || chanRehostBtn?.dataset?.width || '',
+              height: firstFavoBtn?.dataset?.height || chanRehostBtn?.dataset?.height || ''
+            })
+          });
+          const rehostData = await rehostResp.json();
+          if (rehostData.success && rehostData.item_id) {
+            localId = rehostData.item_id;
+            favoBtns.forEach(btn => {
+              btn.dataset.itemId = localId;
+              btn.dataset.localId = localId;
+            });
+            const commentsEl = document.querySelector("#comments-container");
+            if (commentsEl) commentsEl.dataset.itemId = localId;
+            const infoEl = document.querySelector("#a_info");
+            if (infoEl) infoEl.dataset.itemId = localId;
+
+            const timeEl = document.querySelector('time.timeago');
+            if (timeEl) {
+              const nowIso = new Date().toISOString();
+              timeEl.dataset.iso = nowIso;
+              const fullDate = typeof window.f0ckFormatDateFull === 'function' ? window.f0ckFormatDateFull(nowIso) : new Date().toLocaleString();
+              timeEl.setAttribute('tooltip', fullDate);
+              timeEl.textContent = (window.f0ckTimeAgo ? window.f0ckTimeAgo(nowIso) : (window.f0ckI18n?.timeago_just_now || 'just now'));
+            }
+
+            if (chanRehostBtn) {
+              chanRehostBtn.classList.add('rehosted');
+              chanRehostBtn.outerHTML = `
+                <span class="chan-rehosted-wrap" style="display:inline-flex;gap:4px;align-items:center;">
+                  <a href="/${localId}" class="chan-rehost-action-btn rehosted" title="Already rehosted on f0ckm (Post #${localId})" style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:0.8rem;background:rgba(74,222,128,0.2);color:#4ade80;border:1px solid rgba(74,222,128,0.4);text-decoration:none;font-weight:600;"><i class="fa-solid fa-check"></i> #${localId}</a>
+                  <button type="button" class="chan-rehost-edit-btn" data-item-id="${localId}" title="Edit rating" style="display:inline-flex;align-items:center;padding:3px 7px;border-radius:6px;font-size:0.8rem;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+                </span>
+              `;
+            }
+          } else {
+            throw new Error(rehostData.msg || 'Rehost failed');
+          }
+        }
+
+        const effectivePostId = localId ? Number(localId) : (postid || getContext()?.postid);
+        if (!effectivePostId) {
+          throw new Error('Missing post ID');
+        }
+
+        if (mySeq !== favSeq) return;
+
+        const res = await post('/api/v2/togglefav', {
+          postid: effectivePostId,
+          chan_url: chanUrl,
+          action: isNowFav ? 'add' : 'delete',
+          favorited: isNowFav
+        });
+
+        if (mySeq !== favSeq) return;
+
+        if (res && res.success) {
+          if (window.invalidateItemCache) {
+            window.invalidateItemCache(effectivePostId);
+          }
+          const finalIsFav = (res.favorited !== undefined) ? !!res.favorited : isNowFav;
+          setFavoUi(finalIsFav);
+
+          const curFavContainer = document.querySelector('#favs');
+          if (curFavContainer && Array.isArray(res.favs)) {
+            curFavContainer.innerHTML = "";
+            if (res.favs.length > 0) {
+              const isAnonymized = !!(window.f0ckSession?.is_anonymized ?? (window.f0ckSession?.guest_anonymize && !window.f0ckSession?.logged_in) ?? (window.f0ckSession?.is_anon && window.f0ckSession?.anon_anonymize));
+              const fragment = document.createDocumentFragment();
+              res.favs.forEach(f => {
+                const isSelf = window.f0ckSession && (
+                  (window.f0ckSession.id && f.user_id && Number(window.f0ckSession.id) === Number(f.user_id)) ||
+                  (window.f0ckSession.user && f.user && window.f0ckSession.user.toLowerCase() === f.user.toLowerCase()) ||
+                  (window.f0ckSession.login && f.login && window.f0ckSession.login.toLowerCase() === f.login.toLowerCase())
+                );
+                const isFavAnon = f.is_anon || f.user === 'anonymous' || (typeof f.user === 'string' && f.user.startsWith('anon_'));
+
+                if (f.hide_fav_badge && !isSelf) {
+                  const a = document.createElement('a');
+                  a.className = 'ghost-fav';
+                  a.setAttribute('tooltip', '?');
+                  a.setAttribute('flow', 'up');
+                  a.style.cursor = 'default';
+
+                  const img = document.createElement('img');
+                  img.src = '/s/img/ghost_fav.svg';
+                  img.style.height = "32px";
+                  img.style.width = "32px";
+
+                  a.appendChild(img);
+                  fragment.appendChild(a);
+                } else if (isAnonymized || isFavAnon) {
+                  const a = document.createElement('a');
+                  a.className = 'ghost-fav';
+                  if (isSelf) a.dataset.self = 'true';
+                  a.setAttribute('tooltip', 'anonymous');
+                  a.setAttribute('flow', 'up');
+                  a.style.cursor = 'default';
+
+                  const img = document.createElement('img');
+                  img.src = '/a/default.png';
+                  img.style.height = "32px";
+                  img.style.width = "32px";
+
+                  a.appendChild(img);
+                  fragment.appendChild(a);
+                } else {
+                  const a = document.createElement('a');
+                  if (isSelf) a.dataset.self = 'true';
+                  a.href = `/user/${(f.user || '').toLowerCase()}`;
+                  a.setAttribute('tooltip', f.display_name || f.user || 'anonymous');
+                  a.setAttribute('flow', 'up');
+
+                  const img = document.createElement('img');
+                  img.src = f.avatar_file ? `/a/${f.avatar_file}` : (f.avatar ? `/t/${f.avatar}.webp` : '/a/default.png');
+                  img.style.height = "32px";
+                  img.style.width = "32px";
+                  if (f.username_color) img.style.borderColor = f.username_color;
+
+                  a.appendChild(img);
+                  fragment.appendChild(a);
+                }
+              });
+              curFavContainer.appendChild(fragment);
+              curFavContainer.hidden = false;
+            } else {
+              curFavContainer.hidden = true;
+            }
+          }
+        } else {
+          if (mySeq !== favSeq) return;
+          setFavoUi(wasAlreadyFav);
+          const curFavContainer = document.querySelector('#favs');
+          if (curFavContainer) {
+            curFavContainer.innerHTML = prevFavsHtml;
+            curFavContainer.hidden = prevFavsHidden;
+          }
+          const errMsg = (res && (res.msg || res.error)) || 'Anonymous favoriting is disabled.';
+          if (typeof window.flashMessage === 'function') {
+            window.flashMessage(errMsg, 3000, 'error');
+          }
+        }
+      } catch (err) {
+        console.error('[CHAN-FAV-ADMIN] Error during background favorite sync:', err);
+        if (mySeq !== favSeq) return;
+        setFavoUi(wasAlreadyFav);
+        const curFavContainer = document.querySelector('#favs');
+        if (curFavContainer) {
+          curFavContainer.innerHTML = prevFavsHtml;
+          curFavContainer.hidden = prevFavsHidden;
+        }
+        if (typeof window.flashMessage === 'function') {
+          window.flashMessage('Failed to update favorite.', 3000, 'error');
+        }
+      }
+    })();
+  };
+
+  const deleteSubItemEvent = async (subf0ck, postid) => {
+    if (!subf0ck || !postid) return;
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    const subDesc = subf0ck.display_index
+      ? `Slide #${subf0ck.display_index}`
+      : `Slide (${subf0ck.slug || subf0ck.id})`;
+
+    ModAction.confirm(
+      'Delete Slide from Album',
+      `Are you sure you want to delete <strong style="color:#d9534f">${subDesc}</strong> from this album?<br><small style="opacity:0.8;">The rest of the album will remain intact.</small>`,
+      async (reason) => {
+        const res = await post("/api/v2/admin/delete-album-item", {
+          postid: postid,
+          sub_id: subf0ck.id,
+          sub_slug: subf0ck.slug,
+          order_index: subf0ck.order_index,
+          reason: reason
+        });
+        if (!res.success) {
+          throw new Error(res.msg || 'Failed to delete album item');
+        }
+        if (res.post_deleted) {
+          if (window.flashMessage) window.flashMessage('Album deleted (no remaining items)', 2500, 'info');
+          const mediaObj = document.querySelector('.media-object');
+          if (mediaObj) {
+            mediaObj.innerHTML = '<div style="padding: 100px; text-align: center; color: #d9534f;"><h1>Album Deleted</h1><p>The album has been removed.</p></div>';
+          }
+        } else {
+          if (window.albumGallery && typeof window.albumGallery.removeSubf0ck === 'function') {
+            window.albumGallery.removeSubf0ck(subf0ck.id || subf0ck.slug || subf0ck.order_index);
+          } else {
+            window.location.reload();
+          }
+          if (window.flashMessage) window.flashMessage('Slide deleted from album', 2500, 'success');
+        }
+      },
+      { allowEmpty: window.f0ckSession?.is_admin, confirmText: 'Delete Slide' }
+    );
+  };
+
+  const deleteEntirePost = (postid, poster, authorId) => {
+    const i18n = window.f0ckI18n || {};
+    const confirmTitle = i18n.item_delete_title || 'Delete Item';
+    const posterStr = poster
+      ? (authorId ? `${poster} (${authorId})` : poster)
+      : 'unknown';
+    const confirmMsg = (i18n.item_delete_confirm || 'Are you sure you want to delete item {id} by {user}?')
+      .replace('{id}', postid)
+      .replace('{user}', posterStr);
+
+    ModAction.confirm(confirmTitle, confirmMsg, async (reason) => {
+      // Flag immediately so the SSE delete_item handler skips navigation
+      window._adminJustDeletedItem = postid;
+      const res = await post("/api/v2/admin/deletepost", {
+        postid: postid,
+        reason: reason
+      });
+      if (!res.success) {
+        window._adminJustDeletedItem = null;
+        throw new Error(res.msg || "Error deleting item");
+      }
+      const mediaObj = document.querySelector('.media-object');
+      if (mediaObj) {
+        mediaObj.innerHTML = '<div style="padding: 100px; text-align: center; color: #d9534f;"><h1>Item Deleted</h1><p>The item has been successfully removed.</p></div>';
+      }
+      if (window.flashMessage) window.flashMessage((window.f0ckI18n?.item_deleted_success) || 'Item deleted', 2500, 'success');
+      // Clear flag after a short delay (SSE has surely arrived by then)
+      setTimeout(() => { window._adminJustDeletedItem = null; }, 3000);
+    }, { allowEmpty: window.f0ckSession?.is_admin });
+  };
+
+  const deleteButtonEvent = async e => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
+    const ctx = getContext();
+    if (!ctx) return;
+    const { postid, poster, authorId } = ctx;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    const isAlbum = !!(window.albumGallery && typeof window.albumGallery.getCurrentSubf0ck === 'function');
+    const curSub = isAlbum ? window.albumGallery.getCurrentSubf0ck() : null;
+
+    if (isAlbum && curSub) {
+      const subDesc = curSub.display_index ? `Slide ${curSub.display_index}` : 'Current Slide';
+      const choiceHtml = `
+        <div style="margin-bottom: 15px; font-size: 1.05rem;">
+          This post is an album containing multiple slides. What would you like to delete?
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <button type="button" id="btn-choice-delete-sub" class="btn btn-warning" style="padding: 8px 16px; font-weight: 600; cursor: pointer;">
+            <i class="fa-solid fa-trash-can"></i> Delete ${subDesc} Only
+          </button>
+          <button type="button" id="btn-choice-delete-album" class="btn btn-danger" style="padding: 8px 16px; font-weight: 600; cursor: pointer;">
+            <i class="fa-solid fa-layer-group"></i> Delete Entire Album
+          </button>
+        </div>
+      `;
+
+      ModAction.confirm('Delete Options', choiceHtml, () => {}, {
+        hideReason: true,
+        hideConfirm: true,
+        unsafeContent: true,
+        cancelText: 'Cancel'
+      });
+
+      setTimeout(() => {
+        const modal = document.getElementById('mod-action-modal');
+        if (!modal) return;
+        const subBtn = modal.querySelector('#btn-choice-delete-sub');
+        const albumBtn = modal.querySelector('#btn-choice-delete-album');
+        if (subBtn) {
+          subBtn.onclick = () => {
+            modal.style.display = 'none';
+            deleteSubItemEvent(curSub, postid);
+          };
+        }
+        if (albumBtn) {
+          albumBtn.onclick = () => {
+            modal.style.display = 'none';
+            deleteEntirePost(postid, poster, authorId);
+          };
+        }
+      }, 50);
+      return;
+    }
+
+    deleteEntirePost(postid, poster, authorId);
+  };
+
+  let tmptt = null;
+  const editTagEvent = async e => {
+    e.preventDefault();
+    if (e.detail === 2) { // Double click
+      clearTimeout(tmptt);
+      const old = e.target;
+      const parent = e.target.parentElement;
+      const oldtag = e.target.innerText;
+
+      const textfield = document.createElement('input');
+      textfield.value = e.target.innerText;
+      textfield.size = 10;
+
+      parent.insertAdjacentElement('afterbegin', textfield);
+      textfield.focus();
+      parent.removeChild(e.target);
+      // Hide delete button while editing
+      const delBtn = parent.querySelector('a:last-child');
+      if (delBtn) delBtn.style.display = 'none';
+
+      textfield.addEventListener("keydown", async e => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+          parent.removeChild(textfield);
+          let res = await fetch('/api/v2/tags/rename/' + encodeURIComponent(oldtag), {
+            method: 'PUT',
+            headers: { 
+              "Content-Type": "application/json",
+              "X-CSRF-Token": window.f0ckSession?.csrf_token
+            },
+            body: JSON.stringify({ newtag: textfield.value })
+          });
+          const status = res.status;
+          res = await res.json();
+          switch (status) {
+            case 200:
+            case 201:
+              parent.insertAdjacentElement('afterbegin', old);
+              if (delBtn) delBtn.style.display = '';
+              old.href = `/tag/${res.tag}`;
+              old.innerText = res.tag.trim();
+              break;
+            default:
+              window.f0ckDebug(res);
+              break;
+          }
+        }
+        else if (e.key === 'Escape') {
+          parent.removeChild(textfield);
+          parent.insertAdjacentElement('afterbegin', old);
+          if (delBtn) delBtn.style.display = '';
+        }
+      });
+    }
+    else
+      tmptt = setTimeout(() => location.href = e.target.href, 250);
+    return false;
+  };
+
+  // Event Delegation
+  document.addEventListener("click", e => {
+    const target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+
+    if (target.closest("a#a_addtag")) {
+      addtagClick(e);
+    } else if (target.closest("#a_delete")) {
+      deleteButtonEvent(e);
+    } else if (target.closest(".album-sub-delete-btn, #a_delete_sub")) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      const ctx = getContext();
+      const curSub = (window.albumGallery && typeof window.albumGallery.getCurrentSubf0ck === 'function')
+        ? window.albumGallery.getCurrentSubf0ck()
+        : null;
+      if (ctx && curSub) {
+        deleteSubItemEvent(curSub, ctx.postid);
+      }
+    } else if (target.matches('#tags .badge > a[href*="/tag/"]')) {
+      editTagEvent(e);
+    } else if (target.closest('.admin-deltag') || target.closest('.removetag')) {
+      deleteEvent(e);
+    } else if (target.closest("#a_pin")) {
+      pinButtonEvent(e);
+    } else if (target.closest("#a_unavailable")) {
+      unavailableButtonEvent(e);
+    } else if (target.closest("#a_favo")) {
+      toggleFavEvent(e);
+    }
+  });
+
+  const unavailableButtonEvent = async e => {
+    if (e) e.preventDefault();
+    const ctx = getContext();
+    if (!ctx) return;
+    const { postid } = ctx;
+
+    const unavBtn = document.querySelector('#a_unavailable');
+    if (!unavBtn) return;
+
+    const currentVis = parseInt(unavBtn.getAttribute('data-visibility') || '0', 10);
+    const willBeUnavailable = currentVis !== 3;
+    const targetVis = willBeUnavailable ? 3 : 0;
+    const actionText = willBeUnavailable ? 'Make Unavailable (serves HTTP 451 to non-logged in visitors)' : 'Make Available (Public)';
+
+    const proceed = async () => {
+      try {
+        const res = await (await fetch('/api/v2/item/visibility', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': window.f0ckSession?.csrf_token 
+          },
+          body: new URLSearchParams({ postid, id: postid, visibility: targetVis })
+        })).json();
+
+        if (res.success) {
+          const isNowUnav = res.visibility === 3;
+          unavBtn.setAttribute('data-visibility', res.visibility);
+          unavBtn.classList.toggle('active', isNowUnav);
+          unavBtn.style.color = isNowUnav ? 'var(--danger, #ff4444)' : '';
+          unavBtn.setAttribute('title', isNowUnav ? 'Make Available (Public)' : 'Make Unavailable (451)');
+
+          const infoVisLabel = document.getElementById('info-visibility-label');
+          if (infoVisLabel) {
+            infoVisLabel.innerHTML = isNowUnav
+              ? '<i class="fa-solid fa-ban" style="color: var(--color-danger, #ff4444);"></i> Unavailable (451)'
+              : '<i class="fa-solid fa-globe" style="color: var(--color-success, #00C851);"></i> Public';
+          }
+          const infoVisBtn = document.getElementById('info-visibility-edit-btn');
+          if (infoVisBtn) infoVisBtn.dataset.visibility = res.visibility;
+
+          window.flashMessage(isNowUnav ? 'ITEM MARKED UNAVAILABLE (451)' : 'ITEM RESTORED TO PUBLIC');
+        } else {
+          alert('Error: ' + (res.msg || 'Failed to update visibility'));
+        }
+      } catch (err) {
+        console.error('Unavailable error:', err);
+      }
+    };
+
+    if (typeof ModAction !== 'undefined' && ModAction.confirm) {
+      ModAction.confirm('Item Visibility', `${actionText} for post <strong>#${postid}</strong>?`, proceed);
+    } else if (confirm(`${actionText} for post #${postid}?`)) {
+      proceed();
+    }
+  };
+
+  const pinButtonEvent = async e => {
+    if (e) e.preventDefault();
+    const ctx = getContext();
+    if (!ctx) return;
+    const { postid } = ctx;
+
+    const pinBtn = document.querySelector('#a_pin');
+    if (!pinBtn) return;
+
+    const isPinned = pinBtn.getAttribute('data-pinned') === 'true';
+    const url = isPinned ? `/mod/unpin?id=${postid}` : `/mod/pin?id=${postid}`;
+
+    try {
+      const res = await (await fetch(url, {
+        method: 'POST',
+        headers: { "X-CSRF-Token": window.f0ckSession?.csrf_token }
+      })).json();
+
+      if (res.success) {
+        const newState = res.pinned;
+        const title = newState ? 'Unpin from main' : 'Pin to main';
+        const currentBtn = document.querySelector('#a_pin');
+        if (currentBtn) {
+          currentBtn.setAttribute('data-pinned', newState);
+          currentBtn.setAttribute('title', title);
+          currentBtn.classList.toggle('active', newState);
+        }
+        window.flashMessage(newState ? (window.f0ckI18n?.item_pinned || 'ITEM PINNED') : (window.f0ckI18n?.item_unpinned || 'ITEM UNPINNED'));
+      } else {
+        alert('Error: ' + res.msg);
+      }
+    } catch (err) {
+      console.error('Pin error:', err);
+    }
+  };
+
+  document.addEventListener("keyup", e => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    const ctx = getContext();
+    if (!ctx) return;
+
+    // 'f' and 'i' handled by f0ckm.js keybindings via programmatic click
+    if (e.key === "x") deleteButtonEvent();
+    else if (e.key === "g") pinButtonEvent();
+  });
+
+  window.adminSetPassword = async (btn) => {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    const hint =
+      'Set a new password for <strong>' + escHTML(name) + '</strong>. Must be at least 20 characters.<br><br>' +
+      '<input type="password" id="admin-pw-new" class="input" placeholder="New password (min 20 chars)" style="width:100%;margin-bottom:8px;" autocomplete="new-password">' +
+      '<input type="password" id="admin-pw-confirm" class="input" placeholder="Confirm new password" style="width:100%;" autocomplete="new-password">';
+
+    ModAction.confirm('Set Password', hint, async () => {
+      const password = document.getElementById('admin-pw-new')?.value || '';
+      const confirm = document.getElementById('admin-pw-confirm')?.value || '';
+      if (password.length < 20) throw new Error('Password must be at least 20 characters.');
+      if (password !== confirm) throw new Error('Passwords do not match.');
+      const data = await post('/api/v2/admin/users/set-password', { user_id: id, password });
+      if (data.success) {
+        showFlash(data.msg, 'success');
+      } else {
+        throw new Error(data.msg || 'Failed to set password');
+      }
+    }, { hideReason: true, confirmText: 'Set Password', unsafeContent: true });
+  };
+
+  window.adminRenameUser = async (btn) => {
+    const id = btn.dataset.id;
+    const currentName = btn.dataset.name;
+    const currentUsername = btn.dataset.username;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Rename User',
+      'Enter a new login name for <strong>' + escHTML(currentName) + '</strong>.<br>' +
+      '<small style="color:#888;">Current login: <code>' + escHTML(currentUsername) + '</code> — All uploads will be reassigned. User sessions will be invalidated. And the user has to login with the NEW name from now on.</small>',
+      async (newUsername) => {
+        const data = await post('/api/v2/admin/users/rename', { user_id: id, new_username: newUsername });
+        if (data.success) {
+          showFlash(data.msg, 'success');
+          // Update the row in-place: links, text, and all button data attributes
+          const row = document.getElementById('user-row-' + id);
+          if (row) {
+            // Update the name link
+            const link = row.querySelector('.user-info-cell a');
+            if (link) {
+              link.href = '/user/' + data.new_login;
+              // Only overwrite text if there's no display_name (plain username link)
+              if (!link.querySelector('span[style*="accent"]')) {
+                link.textContent = data.new_user;
+              }
+            }
+            // Update all buttons in the row with the new name/username
+            row.querySelectorAll('[data-username]').forEach(el => { el.dataset.username = data.new_login; });
+            row.querySelectorAll('[data-name]').forEach(el => { el.dataset.name = data.new_user; });
+            // Update activity stat links
+            row.querySelectorAll('a[href^="/user/"]').forEach(a => {
+              a.href = a.href.replace(/\/user\/[^/]+/, '/user/' + data.new_login);
+            });
+          }
+        } else {
+          throw new Error(data.msg || 'Rename failed');
+        }
+      },
+      { hideReason: false, singleLine: true, confirmText: 'Rename', placeholder: 'new username' }
+    );
+  };
+
+  window.adminDeleteUser = async (btn) => {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Delete User',
+      '<strong style="color:#d9534f">CRITICAL ACTION</strong>: Permanently delete user <strong>' + escHTML(name) + '</strong>?<br><br>All their uploads and comments will be reassigned to <code>deleted_user</code>. <strong>This cannot be undone.</strong>',
+      async () => {
+        const data = await post('/api/v2/admin/users/delete', { user_id: id });
+        if (data.success) {
+          showFlash(data.msg, 'success');
+          document.getElementById(`user-row-${id}`)?.remove();
+        } else {
+          throw new Error(data.msg || 'Failed to delete user');
+        }
+      },
+      { hideReason: true, confirmText: 'Delete User' }
+    );
+  };
+
+  window.adminResetLoginAttempts = async (btn) => {
+    const username = btn.dataset.username;
+    if (!confirm(`Are you sure you want to reset login attempts for ${username}?`)) return;
+
+    try {
+      const data = await post('/api/v2/admin/users/reset-login-attempts', { username });
+      if (data.success) {
+        showFlash(data.msg, 'success');
+        // Remove the failed attempt badges and reset button from the row in-place
+        const row = btn.closest('tr');
+        if (row) {
+          row.querySelectorAll('.status-badge[style*="ffcc00"], .status-badge[style*="ff4d4d"]').forEach(el => el.remove());
+        }
+        btn.remove();
+      } else {
+        alert(data.msg || 'Failed to reset attempts');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
+  window.adminBulkDeleteHalls = async (btn) => {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Delete All Halls',
+      'Permanently delete <strong>ALL halls</strong> for <strong>' + escHTML(name) + '</strong>? <strong>This cannot be undone.</strong>',
+      async () => {
+        const data = await post('/api/v2/admin/users/bulk-delete-halls', { user_id: id });
+        if (data.success) {
+          showFlash(data.msg, 'success');
+        } else {
+          throw new Error(data.msg || 'Failed to delete halls');
+        }
+      },
+      { hideReason: true, confirmText: 'Delete Everything' }
+    );
+  };
+
+  window.adminReassignUploads = async (btn) => {
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+    const username = btn.dataset.username;
+
+    if (typeof ModAction === 'undefined') return alert('Error: ModAction module not loaded');
+
+    ModAction.confirm(
+      'Reassign Uploads',
+      'Enter the <strong>target username</strong> to transfer all uploads from <strong style="color:var(--accent)">' + escHTML(name) + '</strong> to:',
+      async (targetUsername) => {
+        const payload = { target_username: targetUsername };
+        if (id) {
+          payload.source_user_id = id;
+        } else {
+          payload.source_username = username;
+        }
+        const res = await post('/api/v2/admin/users/reassign-uploads', payload);
+        if (res.success) {
+          showFlash(res.msg, 'success');
+        } else {
+          throw new Error(res.msg || 'Reassignment failed');
+        }
+      },
+      { hideReason: false, singleLine: true, confirmText: 'Reassign', placeholder: 'target username' }
+    );
+  };
+
+})();
+

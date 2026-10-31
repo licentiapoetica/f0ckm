@@ -1,0 +1,82 @@
+@include(snippets/header)
+<div class="pagewrapper">
+<div id="main" class="notifications-page">
+    <div class="notif-history-container">
+        <div class="notif-page-header">
+            <h2>{{ t('notifications.page_title') }}</h2>
+            <button id="mark-all-read-page" class="btn-small">{{ t('notifications.mark_all_read') }}</button>
+        </div>
+        <div class="notif-page-tabs">
+            @if(enable_comments)
+            <button class="notif-page-tab @if(activeTab === 'user') active @endif" data-tab="user">{{ t('nav.notif_tab_user') }}</button>
+            <button class="notif-page-tab @if(activeTab === 'system') active @endif" data-tab="system">{{ t('nav.notif_tab_system') }}</button>
+            @else
+            <button class="notif-page-tab active" data-tab="system">{{ t('nav.notif_tab_system') }}</button>
+            @endif
+            @if(session && session.admin)
+            <button class="notif-page-tab @if(activeTab === 'admin') active @endif" data-tab="admin">Admin</button>
+            @endif
+        </div>
+        <div id="notifications-container" class="posts notifications-list-full" data-page="{{ pagination.page }}" data-tab="{{ activeTab }}">
+            @include(snippets/notifications-list)
+        </div>
+        @if(pagination.next)
+        <div id="footbar" data-end-msg="You reached the end" style="text-align: center; padding: 20px;">
+            <span class="loading-spinner" style="color: #888;">{{ t('notifications.scroll_for_more') }}</span>
+        </div>
+        @endif
+        <script>
+            // Tab switching for notification history page
+            (function () {
+                const USER_TYPES = ['comment_reply', 'subscription', 'mention', 'upload_comment'];
+                const tabs = document.querySelectorAll('.notif-page-tab');
+                const container = document.getElementById('notifications-container');
+
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', async () => {
+                        tabs.forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        const tabName = tab.dataset.tab;
+                        container.dataset.tab = tabName;
+                        container.dataset.page = '1';
+
+                        // Load first page for this tab
+                        try {
+                            const res = await fetch('/ajax/notifications?page=1&tab=' + tabName);
+                            const data = await res.json();
+                            if (data.success) {
+                                container.innerHTML = data.html || '<div class="notif-empty">' + (window.f0ckI18n?.no_notifications || 'No new notifications') + '</div>';
+                                if (window.applyNotifThumbBlur) window.applyNotifThumbBlur(container);
+                                const footbar = document.getElementById('footbar');
+                                if (footbar) {
+                                    footbar.style.display = data.hasMore ? '' : 'none';
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to load notifications tab', e);
+                        }
+                    });
+                });
+
+                // Mark all read (current tab only)
+                const btn = document.getElementById('mark-all-read-page');
+                if (btn) {
+                    btn.onclick = async () => {
+                        const activeTabEl = document.querySelector('.notif-page-tab.active');
+                        const tab = activeTabEl ? activeTabEl.dataset.tab : container.dataset.tab;
+                        const res = await fetch('/api/notifications/read?tab=' + encodeURIComponent(tab), { method: 'POST' });
+                        const data = await res.json();
+                        if (data.success) {
+                            document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+                            if (window.NotificationSystemInstance) {
+                                window.NotificationSystemInstance.markAllReadUI(tab);
+                            }
+                        }
+                    };
+                }
+            })();
+        </script>
+    </div>
+</div>
+</div>
+@include(snippets/footer)

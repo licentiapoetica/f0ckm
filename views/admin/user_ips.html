@@ -1,0 +1,57 @@
+@include(snippets/header)
+
+<div class="pagewrapper">
+<div id="main" class="admin-container">
+    @include(snippets/admin-back)
+    <div class="container">
+        <div style="margin-bottom: 30px;">
+            <a href="/admin/users" style="color: #888; text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 15px;">
+                <i class="fa fa-arrow-left"></i> Back to User Manager
+            </a>
+            <h2 style="margin: 0; font-weight: 800; letter-spacing: -0.5px;">IP History: {!! targetUser.user !!}</h2>
+            <p style="color: #888; margin: 5px 0 0 0;">Historical IP addresses associated with this account.</p>
+        </div>
+
+        <div class="upload-form">
+            <table class="admin-ips-table responsive-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>First Seen</th>
+                        <th>Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if(ips && ips.length > 0)
+                        @each(ips as row)
+                        <tr>
+                            <td data-label="IP Address"><span class="ip-badge">{{ row.ip }}</span></td>
+                            <td data-label="First Seen">
+                                <div class="date-cell">
+                                    <span class="date-label">Initial</span>
+                                    {{ new Date(row.first_seen).toLocaleString() }}
+                                </div>
+                            </td>
+                            <td data-label="Last Seen">
+                                <div class="date-cell">
+                                    <span class="date-label">Most Recent</span>
+                                    {{ new Date(row.last_seen).toLocaleString() }}
+                                </div>
+                            </td>
+                        </tr>
+                        @endeach
+                    @else
+                        <tr>
+                            <td colspan="3" style="text-align: center; padding: 40px; color: #666;">
+                                No IP history records found for this user.
+                            </td>
+                        </tr>
+                    @endif
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
+
+@include(snippets/footer)
