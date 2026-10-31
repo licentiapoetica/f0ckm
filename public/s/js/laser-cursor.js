@@ -17,7 +17,7 @@
   const LEGACY_KEY = 'f0ck_laser_cursor'; // old on/off switch
 
   const DEFAULTS = {
-    enabled: 1,
+    enabled: 0,
     useAccent: 1,        // 1 = theme accent colour, 0 = custom colour below
     color: '#99ff00',
     hotCore: 1,          // white-hot centre on the beam and dot
@@ -74,7 +74,7 @@
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (saved && typeof saved === 'object') Object.keys(DEFAULTS).forEach(k => { if (saved[k] !== undefined) S[k] = saved[k]; });
-    else if (localStorage.getItem(LEGACY_KEY) === 'false') S.enabled = 0;
+    else if (localStorage.getItem(LEGACY_KEY) === 'true') S.enabled = 1;
   } catch (_) {}
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (_) {} };
   const coerce = (key, val) => {
