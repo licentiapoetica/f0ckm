@@ -1699,7 +1699,7 @@ export default (router, tpl) => {
       if (!target.length) throw new Error('User not found');
       if (target[0].login === 'deleted_user') throw new Error('The deleted_user account is protected and cannot be deleted.');
 
-      // Get deleted_user info (created on first use; see migrations/add_deleted_user_ghost.sql)
+      // Get deleted_user info (created on first use, so it never takes an id before the admin)
       const ghost = await ensureGhostUser();
 
       const targetId = target[0].id;
