@@ -269,7 +269,7 @@ export const setHashUserIps = (val) => {}; // No-op, strictly config-based
 export const getAllowCommentDeletion = () => !!cfg.websrv.allow_comment_deletion;
 export const setAllowCommentDeletion = (val) => {}; // No-op, strictly config-based
 
-// Live-editable NSFP tag ID list — seeded from config.json, can be overridden by DB setting
+// Live-editable NSFP tag ID list — seeded from config.yaml, can be overridden by DB setting
 let nsfp_ids = Array.isArray(cfg.nsfp) ? [...cfg.nsfp.map(Number).filter(n => !isNaN(n))] : [];
 
 export const getNsfpIds = () => nsfp_ids;
@@ -279,7 +279,7 @@ export const setNsfpIds = (ids) => {
     cfg.nsfp = [...nsfp_ids];
 };
 
-// Brand image URL — stored in site_settings DB, not config.json
+// Brand image URL — stored in site_settings DB, not config.yaml
 // Falls back to cfg.websrv.custom_brand_image (array or string) on first boot
 let brand_image_url = (() => {
     const raw = cfg.websrv?.custom_brand_image;

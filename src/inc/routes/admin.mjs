@@ -8,7 +8,7 @@ import { setMotd } from "../motd.mjs";
 import { setAboutText, setRulesText, setTermsText } from "../page_texts.mjs";
 import { exec } from "child_process";
 import { promises as fs } from "fs";
-import cfg from "../config.mjs";
+import cfg, { configFilePath, writeConfigFile, reloadConfig } from "../config.mjs";
 import security from "../security.mjs";
 import crypto from "crypto";
 import path from "path";
@@ -1072,11 +1072,9 @@ export default (router, tpl) => {
     }
 
     try {
-      const configPath = path.resolve(process.cwd(), "config.json");
-      const raw = await fs.readFile(configPath, "utf-8");
-      const json = JSON.parse(raw);
-      if (res.json) return res.json({ success: true, config: json });
-      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: true, config: json }));
+      const config = YAML.parse(await fs.readFile(configFilePath, "utf-8"));
+      if (res.json) return res.json({ success: true, config });
+      return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: true, config }));
     } catch (err) {
       if (res.json) return res.json({ success: false, msg: err.message });
       return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ success: false, msg: err.message }));
@@ -1098,26 +1096,9 @@ export default (router, tpl) => {
       if (typeof updatedConfig === 'string') {
         updatedConfig = JSON.parse(updatedConfig);
       }
-      if (!updatedConfig || typeof updatedConfig !== 'object') {
-        throw new Error('Invalid configuration payload');
-      }
-
-      const configPath = path.resolve(process.cwd(), "config.json");
-      
-      // Write formatted JSON to config.json on disk
-      await fs.writeFile(configPath, JSON.stringify(updatedConfig, null, 2) + "\n", "utf-8");
-
-      // Also update config.yaml if it exists
-      const configYamlPath = path.resolve(process.cwd(), "config.yaml");
-      try {
-        const yamlDoc = new YAML.Document(updatedConfig);
-        await fs.writeFile(configYamlPath, String(yamlDoc), "utf-8");
-      } catch (yamlErr) {
-        console.warn('[ADMIN] Could not sync config.yaml:', yamlErr.message);
-      }
-
-      // Mutate in-memory cfg object so changes apply immediately
-      Object.assign(cfg, updatedConfig);
+      // Saved to config.yaml with its comments kept, then applied to the running config
+      writeConfigFile(updatedConfig);
+      reloadConfig();
 
       if (getEnableItemSlugs()) {
         ensureAllItemsHaveSlugs();
@@ -1128,7 +1109,7 @@ export default (router, tpl) => {
         await audit.log(req.session.id, 'update_config_file', 'system', 0, { updatedKeys: Object.keys(updatedConfig) });
       }
 
-      const response = { success: true, message: 'Configuration saved to config.json' };
+      const response = { success: true, message: 'Configuration saved to config.yaml' };
       if (res.json) return res.json(response);
       return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(response));
     } catch (err) {

@@ -18,7 +18,7 @@ import { readOsz, saveDiffs, setTitle } from "./inc/beatmap.mjs";
 
 
 // Derive archive MIME types from cfg.mimes — any application/* that isn't swf or pdf.
-// Adding a new archive type to config.json is sufficient; no code change needed.
+// Adding a new archive type to config.yaml is sufficient; no code change needed.
 const ARCHIVE_MIMES = new Set(
     Object.entries(cfg.mimes)
         .filter(([mime, ext]) => mime.startsWith('application/') && !['swf', 'pdf'].includes(ext))

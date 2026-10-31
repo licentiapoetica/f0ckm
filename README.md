@@ -4,7 +4,7 @@ Happy to finally bring you f0ckm! The long awaited imageboard solution that you 
 
 It features extensive tagging, searching, filtering and a variety of options.
 
-The software is mostly generic, it can be modified easily via `config.yaml` (or `config.json`) to suit your communities needs. Most things can be enabled/disabled very easily and modified to needs.
+The software is mostly generic, it can be modified easily via `config.yaml` to suit your communities needs. Most things can be enabled/disabled very easily and modified to needs.
 
 The software comes without any warranties or entitlements of any kind! The developer is not responsible for anything you do with the use of this software.
 
@@ -20,27 +20,22 @@ first things
 
 fill with for example: f0ckm (prefilled)
 
-Copy example configuration and customize:
+Copy the example configuration and customize it:
 
 `cp config_example.yaml config.yaml`
-`npm run config:gen`
-
-(Or `cp config_example.json config.json` if configuring directly in JSON)
 
 Edit to needs, for sql you can do this:
 
 host can either be localhost or the docker containers hostname, when running via docker this must be the dockers hostname, if you choose localhost you wont need to add the ENV `DB_HOST=localhost` and if you also change the port to be `DB_PORT=5454` you wont need this ENV either, but then Docker wont find the DB.
 
-```
-"sql": {
-  "host": "f0ckm-db",
-  "port": 5432,
-  "user": "f0ckm",
-  "password": "f0ckm",
-  "database": "f0ckm",
-  "multipleStatements": true,
-  "max": 50
-},
+```yaml
+sql:
+  host: f0ckm-db
+  port: 5432
+  user: f0ckm
+  password: f0ckm
+  database: f0ckm
+  max: 50
 ```
 
 `docker compose up -d`
@@ -65,6 +60,7 @@ NOTE: when developing locally it might be necessary to run commands with `DB_HOS
 
 on dev machine:
 
+`cp config_example.yaml config.yaml`
 `npm i`
 `npm run dev`
 
@@ -80,12 +76,23 @@ Create admin user in dev env
 
 now visit http://localhost:1337 in your browser, you can develop without needing to rebuild the docker image for every change
  
-## Configuration Management
+## Configuration
 
-You can manage configuration in YAML (`config.yaml`) or JSON (`config.json`):
-- `npm run config:gen`: Compiles `config.yaml` to `config.json`. Automatically runs before `npm run dev` and `npm start`.
-- `npm run config:watch`: Watches `config.yaml` for edits and recompiles `config.json` automatically on save.
-- `npm run config:to-yaml`: Converts existing `config.json` into `config.yaml`.
+All configuration lives in one file, `config.yaml` (start from `config_example.yaml`). Edits are picked up while the app is running; settings that are only read at startup need a restart. Every option is documented in the [wiki](https://github.com/licentiapoetica/f0ckm/wiki/Configuration).
+
+### Upgrading from config.json
+
+Older versions used `config.json`. Convert it once, then delete it:
+
+`npm run config:migrate`
+
+With Docker and no Node.js on the host, convert before deploying. Otherwise Docker creates an empty `config.yaml` directory when it starts the new version:
+
+```bash
+docker build -t f0ckm .
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/host" --entrypoint node f0ckm scripts/config-migrate.mjs /host/config.json /host/config.yaml
+bash build.bash master
+```
 
 ## NGINX
 
@@ -93,7 +100,7 @@ uncomment in .env # COMPOSE_PROFILES=f0ckm-nginx to enable nginx proxy with auto
 
 ## Tor Hidden Service (.onion)
 
-Tor is bundled in `docker-compose.yml` and preconfigured as long as COMPOSE_PROFILES=f0ckm-tor is set with a hidden service pointing to the application (`f0ckm:1337`).
+Tor is bundled in `docker-compose.yml` and preconfigured as long as COMPOSE_PROFILES=tor is set with a hidden service pointing to the application (`f0ckm:1337`).
 
 When running `docker compose up -d`, Tor automatically generates a `.onion` address for your node. You can find your onion address by running:
 
@@ -103,12 +110,11 @@ cat ./f0ckm-data/tor/f0ckm_hs/hostname
 
 ### Automatic Onion-Location Header
 
-To advertise your `.onion` address to Tor Browser users visiting your clearnet site, add your `.onion` address to `config.json`:
+To advertise your `.onion` address to Tor Browser users visiting your clearnet site, add your `.onion` address to `config.yaml`:
 
-```json
-"main": {
-  "onion": "http://yourgeneratedaddress.onion"
-}
+```yaml
+main:
+  onion: http://yourgeneratedaddress.onion
 ```
 
 ## Credits

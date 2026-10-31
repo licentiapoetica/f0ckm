@@ -8,7 +8,7 @@ const MAX_ATTEMPTS = 5;
 /**
  * IP hash secrets.
  *   current: IP_HASH_SECRET env var > main.ip_hash_secret > main.invite_secret (legacy fallback).
- *            Kept out of config.json / DB dumps when set via the environment, so a leaked dump can't be reversed.
+ *            Kept out of config.yaml / DB dumps when set via the environment, so a leaked dump can't be reversed.
  *   legacy:  secrets used before a rotation. Only used to *match* old hashes (bans), never to write new ones.
  *            main.ip_hash_legacy_secrets (array); the invite_secret is added automatically when a dedicated
  *            secret is set, so bans hashed with it keep working until they expire.

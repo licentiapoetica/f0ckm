@@ -11,7 +11,7 @@ services:
     networks:
       - f0ckm-net
     volumes:
-      - ./config.json:/opt/f0ckm/config.json:ro,Z
+      - ./config.yaml:/opt/f0ckm/config.yaml:ro,Z
       - ./src/:/opt/f0ckm/src/:Z
       - ./views/:/opt/f0ckm/views/:Z
       - ./scripts/:/opt/f0ckm/scripts/:Z
@@ -49,7 +49,7 @@ services:
       - DB_PASS=${POSTGRES_PASSWORD:-f0ckm}
       - DB_NAME=${POSTGRES_DB:-f0ckm}
       - NODE_ENV=production
-      # Dedicated secret for IP hashing (HMAC). Set in .env, keep it out of config.json and DB backups.
+      # Dedicated secret for IP hashing (HMAC). Set in .env, keep it out of config.yaml and DB backups.
       - IP_HASH_SECRET=${IP_HASH_SECRET:-}
     ports:
       - "1337:1337"

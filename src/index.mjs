@@ -1899,7 +1899,7 @@ process.on('uncaughtException', err => {
     console.warn(`[BOOT] Trusted Uploads fetch failed:`, e.message);
   }
 
-  // Fetch brand_image_url setting (DB overrides config.json — no writes to config.json at runtime)
+  // Fetch brand_image_url setting (DB overrides config.yaml, which is never written at runtime)
   try {
     const biSetting = await db`SELECT value FROM site_settings WHERE key = 'brand_image_url' LIMIT 1`;
     if (biSetting.length > 0) {
@@ -1952,35 +1952,35 @@ process.on('uncaughtException', err => {
     setEnableCleanup(!!cfg.websrv.enable_cleanup);
   }
 
-  // Load bypass_duplicate_check from config.json (static — not a DB setting)
+  // Load bypass_duplicate_check from config.yaml (static — not a DB setting)
   if (cfg.websrv.bypass_duplicate_check === true) {
     setBypassDuplicateCheck(true);
-    console.log(`[BOOT] Duplicate check bypass ENABLED via config.json`);
+    console.log(`[BOOT] Duplicate check bypass ENABLED via config.yaml`);
   }
 
-  // Load protect_files from config.json (static — not a DB setting)
+  // Load protect_files from config.yaml (static — not a DB setting)
   if (cfg.websrv.protect_files === true) {
     setProtectFiles(true);
-    console.log(`[BOOT] File protection ENABLED via config.json — direct file links require login`);
+    console.log(`[BOOT] File protection ENABLED via config.yaml — direct file links require login`);
   }
 
   // Load active private items into memory cache
   await initPrivateItems();
 
-  // Load private_messages from config.json (static — not a DB setting)
+  // Load private_messages from config.yaml (static — not a DB setting)
   // Default is true; set to false to fully disable private messaging
   setPrivateMessages(cfg.websrv.private_messages !== false);
   console.log(`[BOOT] Private messaging: ${cfg.websrv.private_messages !== false ? 'ENABLED' : 'DISABLED'}`);
 
-  // Load dm_attachments from config.json (static — not a DB setting)
+  // Load dm_attachments from config.yaml (static — not a DB setting)
   // Default is true; requires private_messages to also be enabled
   setDmAttachments(cfg.websrv.dm_attachments !== false);
   console.log(`[BOOT] DM attachments: ${cfg.websrv.dm_attachments !== false ? 'ENABLED' : 'DISABLED'}`); 
 
-  // Load dm_unencrypted from config.json (static — not a DB setting)
+  // Load dm_unencrypted from config.yaml (static — not a DB setting)
   setDmUnencrypted(!!cfg.websrv.dm_unencrypted);
   console.log(`[BOOT] DM unencrypted: ${cfg.websrv.dm_unencrypted ? 'ENABLED' : 'DISABLED'}`);
-  // Load default_layout from config.json (static)
+  // Load default_layout from config.yaml (static)
   if (cfg.websrv.default_layout) {
     setDefaultLayout(cfg.websrv.default_layout);
     console.log(`[BOOT] Default layout set to: ${getDefaultLayout()}`);
@@ -2019,7 +2019,7 @@ process.on('uncaughtException', err => {
     console.warn(`[BOOT] Terms text fetch failed:`, e.message);
   }
 
-  // Fetch nsfp (NSFP tag IDs) setting — overrides config.json if set in DB
+  // Fetch nsfp (NSFP tag IDs) setting — overrides config.yaml if set in DB
   try {
     const nsfpSetting = await db`SELECT value FROM site_settings WHERE key = 'nsfp' LIMIT 1`;
     if (nsfpSetting.length > 0) {
@@ -2029,7 +2029,7 @@ process.on('uncaughtException', err => {
         console.log(`[BOOT] NSFP tag IDs loaded from DB: [${getNsfpIds().join(', ')}]`);
       }
     } else {
-      console.log(`[BOOT] No NSFP setting in DB, using config.json: [${getNsfpIds().join(', ')}]`);
+      console.log(`[BOOT] No NSFP setting in DB, using config.yaml: [${getNsfpIds().join(', ')}]`);
     }
   } catch (e) {
     console.warn(`[BOOT] NSFP setting fetch failed:`, e.message);
@@ -2308,7 +2308,7 @@ process.on('uncaughtException', err => {
     globals.is_anonymized = isAnonymized;
     globals.anon_anonymize = anonAnonymize;
 
-    // Brand image per-render — sourced from live in-memory setting (DB-backed, not config.json)
+    // Brand image per-render — sourced from live in-memory setting (DB-backed, not config.yaml)
     const brandUrl = getBrandImageUrl();
     if (brandUrl) {
       data.custom_brand_image = brandUrl;

@@ -12,6 +12,7 @@ node_modules
 Dockerfile
 
 # Config (mounted at runtime)
+config.yaml
 config.json
 
 # Development

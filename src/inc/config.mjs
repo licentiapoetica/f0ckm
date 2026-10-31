@@ -1,32 +1,51 @@
-import _config from "../../config.json" with { type: "json" };
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import YAML from "yaml";
 
-let config = JSON.parse(JSON.stringify(_config));
+const base = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../");
+export const configFilePath = path.resolve(base, "config.yaml");
 
-// Environment variable overrides for database connection
-config.sql.host = process.env.DB_HOST || process.env.POSTGRES_HOST || process.env.PGHOST || config.sql.host;
-config.sql.port = parseInt(process.env.DB_PORT || process.env.POSTGRES_PORT || process.env.PGPORT || config.sql.port, 10);
-config.sql.user = process.env.DB_USER || process.env.POSTGRES_USER || process.env.PGUSER || config.sql.user;
-config.sql.password = process.env.DB_PASS || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || config.sql.password;
-config.sql.database = process.env.DB_NAME || process.env.POSTGRES_DB || process.env.PGDATABASE || config.sql.database;
-
-const isDocker = process.env.DB_HOST === 'f0ckm-db' || config.sql.host === 'f0ckm-db' || process.env.CONTAINER === 'true';
-if (process.env.NODE_ENV === 'production' || isDocker) {
-    config.main.development = false;
-}
-
-if (config.main.development) {
-    if (!process.env.DB_HOST && (config.sql.host === 'f0ckm-db' || !config.sql.host)) {
-        config.sql.host = 'localhost';
+const readConfigFile = () => {
+    let raw;
+    try {
+        raw = fs.readFileSync(configFilePath, "utf8");
+    } catch (err) {
+        const hint = fs.existsSync(path.resolve(base, "config.json"))
+            ? "An old config.json was found: convert it once with `npm run config:migrate`."
+            : "Create it from the example: `cp config_example.yaml config.yaml`.";
+        throw new Error(`[CONFIG] Cannot read ${configFilePath} (${err.code || err.message}). ${hint}`);
     }
-    if (!process.env.DB_PORT && config.sql.port === 5432) {
-        config.sql.port = 5454;
+    const parsed = YAML.parse(raw);
+    if (!parsed || typeof parsed !== "object") throw new Error(`[CONFIG] ${configFilePath} is empty or not a YAML mapping`);
+    return parsed;
+};
+
+// Values that come from the environment, not the file. Applied at startup and after every reload.
+const applyOverrides = (cfg) => {
+    cfg.sql = cfg.sql || {};
+    cfg.main = cfg.main || {};
+    cfg.sql.host = process.env.DB_HOST || process.env.POSTGRES_HOST || process.env.PGHOST || cfg.sql.host;
+    cfg.sql.port = parseInt(process.env.DB_PORT || process.env.POSTGRES_PORT || process.env.PGPORT || cfg.sql.port, 10);
+    cfg.sql.user = process.env.DB_USER || process.env.POSTGRES_USER || process.env.PGUSER || cfg.sql.user;
+    cfg.sql.password = process.env.DB_PASS || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || cfg.sql.password;
+    cfg.sql.database = process.env.DB_NAME || process.env.POSTGRES_DB || process.env.PGDATABASE || cfg.sql.database;
+
+    const isDocker = process.env.DB_HOST === 'f0ckm-db' || cfg.sql.host === 'f0ckm-db' || process.env.CONTAINER === 'true';
+    if (process.env.NODE_ENV === 'production' || isDocker) {
+        cfg.main.development = false;
     }
-    if (!process.env.STORAGE_DIR) {
-        process.env.STORAGE_DIR = 'f0ckm-data';
+    if (cfg.main.development) {
+        if (!process.env.DB_HOST && (cfg.sql.host === 'f0ckm-db' || !cfg.sql.host)) cfg.sql.host = 'localhost';
+        if (!process.env.DB_PORT && cfg.sql.port === 5432) cfg.sql.port = 5454;
     }
+};
+
+let config = readConfigFile();
+applyOverrides(config);
+
+if (config.main.development && !process.env.STORAGE_DIR) {
+    process.env.STORAGE_DIR = 'f0ckm-data';
 }
 
 // Set timezone from config if not already set via environment variable
@@ -34,7 +53,6 @@ if (!process.env.TZ && config.main.timezone) {
     process.env.TZ = config.main.timezone;
 }
 
-const base = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../");
 const storage = process.env.STORAGE_DIR;
 
 const resolvePath = (defaultRel) => {
@@ -101,33 +119,63 @@ config.paths = {
     import: resolveImportPath()
 };
 
-const configFilePath = path.resolve(base, "config.json");
+// Re-read config.yaml into the live config object (top-level sections are replaced; settings read once
+// at boot still need a restart). Throws when the file can't be read or parsed; the running config is kept then.
+export const reloadConfig = () => {
+    const updated = readConfigFile();
+    const paths = config.paths;
+    Object.assign(config, updated);
+    config.paths = paths;
+    applyOverrides(config);
+};
+
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// Bring a YAML document in line with a plain object, touching only what differs so comments and order survive
+const syncNode = (doc, keyPath, value) => {
+    const node = keyPath.length ? doc.getIn(keyPath, true) : doc.contents;
+    if (isPlainObject(value) && YAML.isMap(node)) {
+        for (const item of [...node.items]) {
+            const key = YAML.isScalar(item.key) ? item.key.value : item.key;
+            if (!Object.prototype.hasOwnProperty.call(value, key)) node.delete(key);
+        }
+        for (const [key, val] of Object.entries(value)) syncNode(doc, [...keyPath, key], val);
+        return;
+    }
+    const current = YAML.isNode(node) ? node.toJSON() : node;
+    if (JSON.stringify(current) !== JSON.stringify(value)) {
+        if (keyPath.length) doc.setIn(keyPath, value);
+        else doc.contents = doc.createNode(value);
+    }
+};
+
+// Save a full config object to config.yaml, keeping the file's comments and layout
+export const writeConfigFile = (newConfig) => {
+    if (!isPlainObject(newConfig)) throw new Error('Invalid configuration payload');
+    const doc = YAML.parseDocument(fs.readFileSync(configFilePath, 'utf8'));
+    if (doc.errors.length) throw new Error(`config.yaml has syntax errors: ${doc.errors[0].message}`);
+    syncNode(doc, [], newConfig);
+    fs.writeFileSync(configFilePath, String(doc), 'utf8');
+};
+
+// Live reload: edits to config.yaml apply without a restart. A file that fails to parse is ignored.
 let watchDebounceTimer = null;
 try {
-    if (fs.existsSync(configFilePath)) {
-        const watcher = fs.watch(configFilePath, (eventType) => {
-            if (eventType === 'change' || eventType === 'rename') {
-                if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
-                watchDebounceTimer = setTimeout(() => {
-                    try {
-                        const raw = fs.readFileSync(configFilePath, 'utf8');
-                        const updated = JSON.parse(raw);
-                        Object.assign(config, updated);
-                        if (config.sql) {
-                            config.sql.host = process.env.DB_HOST || process.env.POSTGRES_HOST || process.env.PGHOST || config.sql.host;
-                            config.sql.port = parseInt(process.env.DB_PORT || process.env.POSTGRES_PORT || process.env.PGPORT || config.sql.port, 10);
-                            config.sql.user = process.env.DB_USER || process.env.POSTGRES_USER || process.env.PGUSER || config.sql.user;
-                            config.sql.password = process.env.DB_PASS || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || config.sql.password;
-                            config.sql.database = process.env.DB_NAME || process.env.POSTGRES_DB || process.env.PGDATABASE || config.sql.database;
-                        }
-                        console.log('[CONFIG] config.json reloaded dynamically');
-                    } catch (_) {}
-                }, 100);
-                if (watchDebounceTimer.unref) watchDebounceTimer.unref();
+    // Watch the directory, not the file: editors that save by rename would end a file watch
+    const watcher = fs.watch(base, (_event, filename) => {
+        if (filename !== path.basename(configFilePath)) return;
+        if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
+        watchDebounceTimer = setTimeout(() => {
+            try {
+                reloadConfig();
+                console.log('[CONFIG] config.yaml reloaded');
+            } catch (err) {
+                console.error(`[CONFIG] config.yaml reload failed, keeping the running config: ${err.message}`);
             }
-        });
-        if (watcher.unref) watcher.unref();
-    }
+        }, 100);
+        if (watchDebounceTimer.unref) watchDebounceTimer.unref();
+    });
+    if (watcher.unref) watcher.unref();
 } catch (_) {}
 
 export default config;

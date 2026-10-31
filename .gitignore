@@ -15,7 +15,6 @@ tools
 public/a
 public/tag_cache
 .env
-config.json
 bundle.css
 public/s/fonts/impact.woff
 f0ck-svelte/*
