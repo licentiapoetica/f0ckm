@@ -26,9 +26,15 @@
   const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
   const animate = (el, frames, opts) => (typeof el.animate === 'function' && !reduceMotion.matches) ? el.animate(frames, opts) : null;
   const pathOf = (href) => { try { return new URL(href, location.origin).pathname.replace(/\/+$/, '') || '/'; } catch { return null; } };
-  // Sidebar/footer entries of the page that is open get .is-active (a second click on it closes the page)
+  // Page being shown: the one open in the modal, else the current page when it is one of the modal pages
+  // (direct visit, or a reload while the modal had put its URL in the address bar)
+  const shownPath = () => {
+    if (isOpen && currentUrl) return pathOf(currentUrl);
+    return MODAL_PAGES.test(location.pathname) ? pathOf(location.pathname) : null;
+  };
+  // Sidebar/footer entries of the page being shown get .is-active (a second click on a modal entry closes it)
   const markActive = () => {
-    const cur = isOpen && currentUrl ? pathOf(currentUrl) : null;
+    const cur = shownPath();
     document.querySelectorAll('a[data-page-modal]').forEach((a) => {
       a.classList.toggle('is-active', !!cur && pathOf(a.getAttribute('href')) === cur);
     });
@@ -251,10 +257,10 @@
     if (!a) return;
 
     if (a.hasAttribute('data-page-modal')) {
-      // Already on that page (e.g. the gear on /settings): plain link, never the same page twice
-      if (!isOpen && pathOf(a.getAttribute('href')) === pathOf(location.pathname)) return;
       e.preventDefault();
       e.stopPropagation();
+      // Already on that page (e.g. the gear on /settings): its entry is highlighted, never open the same page twice
+      if (!isOpen && pathOf(a.getAttribute('href')) === pathOf(location.pathname)) return;
       // Same page already open: the entry works as a toggle
       if (isOpen && currentUrl && pathOf(currentUrl) === pathOf(a.getAttribute('href'))) {
         close();
@@ -299,7 +305,17 @@
 
   modal.querySelector('.pgm-close').addEventListener('click', () => close());
   // Back/forward changes the page underneath: don't leave the modal covering it
-  window.addEventListener('popstate', () => { if (isOpen) close(false); });
+  window.addEventListener('popstate', () => { if (isOpen) close(false); else markActive(); });
+  // AJAX navigation (push/replaceState) can enter or leave a modal page: keep the highlight in step
+  for (const fn of ['pushState', 'replaceState']) {
+    const orig = history[fn];
+    history[fn] = function (...args) {
+      const r = orig.apply(this, args);
+      if (!isOpen) markActive();
+      return r;
+    };
+  }
+  markActive();
   // Capture phase + stop: the page sits on top (e.g. over the Onara viewer), so Escape closes only it
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !isOpen) return;
