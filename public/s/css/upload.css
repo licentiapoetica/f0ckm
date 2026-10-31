@@ -77,6 +77,11 @@
     gap: 5px;
 }
 
+/* Title sits between the mode tabs and the drop zone */
+.global-title-section {
+    margin-bottom: 1rem;
+}
+
 .form-section label {
     display: block;
     margin-bottom: 0.5rem;
@@ -642,8 +647,15 @@
 
 .rating-options {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     justify-content: center;
+}
+
+.rating-option .rating-label {
+    padding: 8px 20px;
+    min-width: 72px;
+    box-sizing: border-box;
 }
 
 .rating-option input {
@@ -713,32 +725,6 @@
   color: var(--white);
   opacity: 1;
 }
-
-/* Global Visibility Section styling - unchecked options stay muted, checked options show colors */
-.global-visibility-section .rating-option input:checked + .rating-label.sfw {
-  background: rgba(81, 207, 102, 0.2);
-  border-color: #51cf66;
-  color: #51cf66;
-  box-shadow: none;
-  opacity: 1;
-}
-
-.global-visibility-section .rating-option input:checked + .rating-label.nsfw {
-  background: rgba(255, 187, 51, 0.2);
-  border-color: #ffbb33;
-  color: #ffbb33;
-  box-shadow: none;
-  opacity: 1;
-}
-
-.global-visibility-section .rating-option input:checked + .rating-label.nsfl {
-  background: rgba(255, 68, 68, 0.2);
-  border-color: #ff4444;
-  color: #ff4444;
-  box-shadow: none;
-  opacity: 1;
-}
-
 
 /* Tags */
 .tag-input-container {
@@ -865,11 +851,11 @@
     margin-top: 4px;
 }
 
+/* In the normal flow so it pushes the form down and scrolls above the pinned upload footer
+   instead of floating underneath it */
 .upload-comment-input .emoji-picker {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 100;
+    position: relative;
+    z-index: 1;
 }
 
 .upload-form .tag-suggestions {

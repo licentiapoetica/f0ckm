@@ -17,6 +17,13 @@
             @endif
         </div>
 
+        @if(enable_item_title)
+        <div class="form-section global-title-section" @if(shitpost_mode) style="display:none;" @endif>
+            <label>Title <span style="opacity: 0.5; font-weight: normal;">{{ t('upload.comment_optional') }}</span></label>
+            <input type="text" name="title" class="upload-title-input" placeholder="Add a title for this item…" maxlength="500" autocomplete="off">
+        </div>
+        @endif
+
         <!-- File input area -->
         <div class="upload-mode-content" id="mode-file">
             <div class="drop-zone" id="upload-form-drop-zone">
@@ -71,13 +78,6 @@
         <input type="file" name="thumbnail" id="upload-thumbnail-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
     </div>
 
-    @if(enable_item_title)
-    <div class="form-section global-title-section" @if(shitpost_mode) style="display:none;" @endif>
-        <label>Title <span style="opacity: 0.5; font-weight: normal;">{{ t('upload.comment_optional') }}</span></label>
-        <input type="text" name="title" class="upload-title-input" placeholder="Add a title for this item…" maxlength="500" autocomplete="off">
-    </div>
-    @endif
-
     <div class="form-section global-rating-section">
         <label>{{ t('upload.rating') }} <span class="required">*</span></label>
         <div class="rating-options">
@@ -100,19 +100,19 @@
 
     @if(enable_private_uploads !== false && allow_user_upload_visibility !== false)
     <div class="form-section global-visibility-section">
-        <label>{{ t('upload.visibility') || 'Visibility' }}</label>
+        <label>{{ t('visibility.label') }}</label>
         <div class="visibility-options rating-options">
             <label class="rating-option">
                 <input type="radio" name="visibility" value="0" {{ ((session.default_upload_visibility !== undefined && session.default_upload_visibility !== null ? session.default_upload_visibility : default_upload_visibility) === 0) ? 'checked' : '' }}>
-                <span class="rating-label sfw" style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-globe"></i> {{ t('common.public') || 'Public' }}</span>
+                <span class="rating-label sfw" style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-globe"></i> {{ t('visibility.public') }}</span>
             </label>
             <label class="rating-option">
                 <input type="radio" name="visibility" value="1" {{ ((session.default_upload_visibility !== undefined && session.default_upload_visibility !== null ? session.default_upload_visibility : default_upload_visibility) === 1) ? 'checked' : '' }}>
-                <span class="rating-label nsfw" style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-link"></i> {{ t('common.unlisted') || 'Unlisted' }}</span>
+                <span class="rating-label nsfw" style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-link"></i> {{ t('visibility.unlisted') }}</span>
             </label>
             <label class="rating-option">
                 <input type="radio" name="visibility" value="2" {{ ((session.default_upload_visibility !== undefined && session.default_upload_visibility !== null ? session.default_upload_visibility : default_upload_visibility) === 2) ? 'checked' : '' }}>
-                <span class="rating-label nsfl" style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-lock"></i> {{ t('common.private') || 'Private' }}</span>
+                <span class="rating-label nsfl" style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="fa-solid fa-lock"></i> {{ t('visibility.private') }}</span>
             </label>
         </div>
     </div>

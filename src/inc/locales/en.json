@@ -479,7 +479,7 @@
     "recent_comments": "Recent Comments",
     "recommendations": "Recommendations",
     "recommended_videos": "Recommended Videos",
-    "no_recommendations": "No recommendations found.",
+    "no_recommendations": "No video recommendations found.",
     "loading_activity": "Loading activity...",
     "no_activity": "No recent activity.",
     "failed_to_load": "Failed to load.",
@@ -490,7 +490,6 @@
     "see_less": "see less",
     "show_full_comment": "show full comment",
     "loading_recommendations": "Loading recommendations...",
-    "no_recommendations": "No video recommendations found.",
     "refresh_recommendations": "Refresh recommendations"
   },
   "subscriptions": {
@@ -829,13 +828,7 @@
     "delete_confirm": "Delete this invite token?",
     "slot_refreshes_on": "slot refreshes on {date}",
     "slot_refreshed": "slot refreshed",
-    "admin_desc": "You are an admin, go ahead.",
-    "visibility": {
-      "public": "Public",
-      "unlisted": "Unlisted",
-      "private": "Private",
-      "change_visibility": "Change Visibility"
-    }
+    "admin_desc": "You are an admin, go ahead."
   },
   "album": {
     "title": "Album",
@@ -857,5 +850,12 @@
     "min_pictures": "Add at least 2 subf0cks for an album",
     "subf0ck_tags": "Tags for this subf0ck",
     "subf0ck_tags_placeholder": "Tags for this subf0ck (optional)"
+  },
+  "visibility": {
+    "label": "Visibility",
+    "public": "Public",
+    "unlisted": "Unlisted",
+    "private": "Private",
+    "change_visibility": "Change Visibility"
   }
 }

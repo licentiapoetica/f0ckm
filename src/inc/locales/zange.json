@@ -847,5 +847,12 @@
     "min_pictures": "Mindestens 2 Bildnisse fürs Album nötig",
     "subf0ck_tags": "Tags für dies Unterf0ck",
     "subf0ck_tags_placeholder": "Tags für dies Unterf0ck (optional)"
+  },
+  "visibility": {
+    "label": "Sichtbarkeit",
+    "public": "Öffentlich",
+    "unlisted": "Ungelistet",
+    "private": "Privat",
+    "change_visibility": "Sichtbarkeit ändern"
   }
 }

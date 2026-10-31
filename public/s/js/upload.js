@@ -1629,7 +1629,7 @@ window.initUploadForm = (selector) => {
         selectedFiles.forEach((item, index) => {
             if (item._rendered) return; // already in DOM, don't touch it
             const isUrl = isShitpost && item.type === 'url';
-            const file = isUrl ? null : (isShitpost ? item.file : item);
+            const file = isUrl ? null : (item.file || item);
             const previewItem = document.createElement('div');
             previewItem.className = 'file-preview-item' + (isUrl ? ' url-item' : '');
             
@@ -3206,7 +3206,7 @@ window.initUploadForm = (selector) => {
                 const globalVisEl = form.querySelector('input[name="visibility"]:checked');
                 const globalExpiryEl = form.querySelector('select[name="expiry"], input[name="expiry"]');
                 const isUrlItem = isShitpost && item.type === 'url';
-                const file = !isUrlItem ? (isShitpost ? item.file : item) : null;
+                const file = !isUrlItem ? (item.file || item) : null;
                 const fileRating = isShitpost ? item.rating : (globalRatingEl ? globalRatingEl.value : 'sfw');
                 const fileVisibility = isShitpost ? (item.visibility || globalVisEl?.value || '0') : (globalVisEl?.value || '0');
                 const fileExpiry = isShitpost ? (item.expiry || globalExpiryEl?.value || 'permanent') : (globalExpiryEl?.value || 'permanent');

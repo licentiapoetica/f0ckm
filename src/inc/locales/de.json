@@ -829,13 +829,7 @@
     "delete_confirm": "Diesen Einladungstoken löschen?",
     "slot_refreshes_on": "Slot erneuert sich am {date}",
     "slot_refreshed": "Slot erneuert",
-    "admin_desc": "Du bist Admin, leg los.",
-    "visibility": {
-      "public": "Öffentlich",
-      "unlisted": "Nicht gelistet",
-      "private": "Privat",
-      "change_visibility": "Sichtbarkeit ändern"
-    }
+    "admin_desc": "Du bist Admin, leg los."
   },
   "album": {
     "title": "Album",
@@ -857,5 +851,12 @@
     "min_pictures": "Mindestens 2 Subf0cks für ein Album erforderlich",
     "subf0ck_tags": "Tags für diesen Subf0ck",
     "subf0ck_tags_placeholder": "Tags für diesen Subf0ck (optional)"
+  },
+  "visibility": {
+    "label": "Sichtbarkeit",
+    "public": "Öffentlich",
+    "unlisted": "Nicht gelistet",
+    "private": "Privat",
+    "change_visibility": "Sichtbarkeit ändern"
   }
 }

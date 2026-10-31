@@ -6666,6 +6666,19 @@ div.posts {
   margin-bottom: 35px;
 }
 
+/* Empty-state message: span the whole grid row instead of one thumb column */
+div.posts > .no-results {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Nothing to scroll through, so no infinite-scroll indicator */
+div.posts:has(> .no-results) + #footbar {
+  display: none;
+}
+
 /* Mobile: Ensure at least 3 columns for S/M, and at least 2 columns for L/XL */
 @media (max-width: 600px) {
   html:not([data-thumb-size="l"]):not([data-thumb-size="xl"]) div.posts {
@@ -17593,7 +17606,6 @@ body.layout-legacy .gapRight>.iconset {
   background: var(--navigation-links-bg, rgba(255, 255, 255, 0.08));
   color: var(--white, #fff);
   fill: var(--white, #fff);
-  font-family: inherit;
   font-size: 13px;
   font-weight: bold;
   line-height: 1;
@@ -17604,6 +17616,12 @@ body.layout-legacy .gapRight>.iconset {
   vertical-align: middle;
   text-decoration: none;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+/* Buttons don't inherit the page font by default. Not set on the icons above: it would beat
+   Font Awesome's own .fa-solid/.fa-regular font and the glyphs would render as empty boxes */
+.gapRight button:not([class*="fa-"]) {
+  font-family: inherit;
 }
 
 .gapRight i.iconset.fa-regular,

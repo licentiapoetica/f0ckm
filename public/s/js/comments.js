@@ -5019,7 +5019,13 @@ class CommentSystem {
                     done = true;
                     const MARGIN = 24;
                     const sc = window._f0ckScrollerFor ? window._f0ckScrollerFor(picker) : null;
-                    const view = sc ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+                    const scRect = sc ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+                    const view = { top: scRect.top, bottom: scRect.bottom };
+                    // A sticky footer (upload modal's submit bar) covers the bottom of the scroll area
+                    const footer = picker.closest('form')?.querySelector('.upload-footer');
+                    if (footer && getComputedStyle(footer).position === 'sticky') {
+                        view.bottom = Math.min(view.bottom, footer.getBoundingClientRect().top);
+                    }
                     const r = picker.getBoundingClientRect();
                     let delta = r.bottom + MARGIN - view.bottom;
                     // Never push the picker's own top out of view (very short viewports)

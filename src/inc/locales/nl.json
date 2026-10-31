@@ -847,5 +847,12 @@
     "min_pictures": "Voeg minimaal 2 afbeeldingen toe voor een album",
     "subf0ck_tags": "Tags voor deze subf0ck",
     "subf0ck_tags_placeholder": "Tags voor deze subf0ck (optioneel)"
+  },
+  "visibility": {
+    "label": "Zichtbaarheid",
+    "public": "Openbaar",
+    "unlisted": "Niet vermeld",
+    "private": "Privé",
+    "change_visibility": "Zichtbaarheid wijzigen"
   }
 }

@@ -649,6 +649,24 @@ export default (router, tpl) => {
                     })
                 });
             }
+        }
+
+        // An empty first page is still a valid grid: keep the page-1 pagination
+        // and show the empty-state message (matches the full-page index route).
+        // Later pages and "newer" polls keep failing so infinite scroll just stops.
+        if (!data.success && page === 1 && !query.newer) {
+            data.items = [];
+            data.pagination = { start: 1, end: 1, current: 1, page: 1, cheat: [1], prev: null, next: null };
+            data.total = 0;
+            data.success = true;
+            if (!data.link) {
+                if (query.hall) data.link = { main: '/h/' + encodeURIComponent(query.hall) + '/', path: 'p/', suffix: '' };
+                else if (query.tag) data.link = { main: '/tag/' + encodeURIComponent(query.tag) + '/', path: 'p/', suffix: '' };
+                else data.link = { main: '/', path: 'p/', suffix: '' };
+            }
+        }
+
+        if (!data.success) {
             return res.reply({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -660,10 +678,9 @@ export default (router, tpl) => {
         }
 
         // Render just the thumbnail items
-        const itemsHtml = tpl.render('snippets/items-grid', {
-            items: data.items,
-            link: data.link
-        }, req);
+        const itemsHtml = data.items.length
+            ? tpl.render('snippets/items-grid', { items: data.items, link: data.link }, req)
+            : '<div class="no-results">No f0cks found :(</div>';
 
         // Render pagination
         const paginationHtml = tpl.render('snippets/pagination', {
