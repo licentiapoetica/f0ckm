@@ -2,8 +2,8 @@ import db from "../src/inc/sql.mjs";
 
 const SETTINGS = [
   { key: 'motd', value: 'Hello World!' },
-  { key: 'manual_approval', value: 'true' },
-  { key: 'min_tags', value: '3' },
+  { key: 'manual_approval', value: 'false' },
+  { key: 'min_tags', value: '0' },
   { key: 'registration_open', value: 'true' }, // this means open reg with email, false would mean open reg with invite token
   { key: 'trusted_uploads', value: '3' },
   { key: 'about_text', value: '' },

@@ -1857,8 +1857,8 @@ process.on('uncaughtException', err => {
       setManualApproval(approvalSetting[0].value === 'true');
       console.log(`[BOOT] Manual Approval setting loaded: ${getManualApproval()}`);
     } else {
-      console.log(`[BOOT] No Manual Approval setting found, defaulting to true`);
-      setManualApproval(true);
+      console.log(`[BOOT] No Manual Approval setting found, defaulting to false`);
+      setManualApproval(false);
     }
   } catch (e) {
     console.warn(`[BOOT] Manual Approval fetch failed:`, e.message);
@@ -1871,8 +1871,8 @@ process.on('uncaughtException', err => {
       setMinTags(parseInt(mtSetting[0].value));
       console.log(`[BOOT] Min Tags setting loaded: ${getMinTags()}`);
     } else {
-      console.log(`[BOOT] No Min Tags setting found, defaulting to 3`);
-      setMinTags(3); // Match default in settings.mjs
+      console.log(`[BOOT] No Min Tags setting found, defaulting to 0`);
+      setMinTags(0); // Match default in settings.mjs
     }
   } catch (e) {
     console.warn(`[BOOT] Min Tags fetch failed:`, e.message);

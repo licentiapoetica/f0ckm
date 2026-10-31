@@ -99,8 +99,8 @@ websrv:
   log_user_ips: false
   hash_user_ips: true
   # Device fingerprint of anonymous users (hashed in the browser, used only to enforce bans).
-  # false = never computed or stored; already stored fingerprints are purged. Shown on /privacy.
-  anon_hw_fingerprint: true
+  # Off by default. false = never computed or stored; already stored fingerprints are purged. Shown on /privacy.
+  anon_hw_fingerprint: false
   # Data retention in days (0 = keep forever). Shown to users on /privacy.
   retention_ip_days: 30              # stored IPs: user_ips rows deleted, IP columns elsewhere set to NULL
   retention_activity_log_days: 90    # anonymous activity log (actions, IP, fingerprints)

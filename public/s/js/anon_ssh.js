@@ -34,8 +34,8 @@
   // ─── Hardware fingerprint (kept for ban enforcement) ──────────────────────
 
   async function getHardwareFingerprint() {
-    // Disabled by the operator (websrv.anon_hw_fingerprint: false): compute nothing, forget any cached value
-    if (window.f0ckHwFingerprint === false) {
+    // Off unless the operator enabled it (websrv.anon_hw_fingerprint: true): compute nothing, forget any cached value
+    if (window.f0ckHwFingerprint !== true) {
       try { localStorage.removeItem('f0ck_anon_hw_fp'); } catch (e) {}
       return null;
     }

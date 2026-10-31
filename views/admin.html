@@ -256,7 +256,7 @@
           body: new URLSearchParams({
             manual_approval: approvalToggle ? (approvalToggle.checked ? 'on' : 'off') : 'off',
             ...(registrationToggle ? { registration_open: registrationToggle.checked ? 'on' : 'off' } : {}),
-            min_tags: minTagsInput ? minTagsInput.value : '3',
+            min_tags: minTagsInput ? minTagsInput.value : '0',
             trusted_uploads: trustedUploadsInput ? trustedUploadsInput.value : '3',
             csrf_token: csrfToken
           }).toString()

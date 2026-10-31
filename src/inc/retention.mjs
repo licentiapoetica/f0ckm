@@ -13,7 +13,7 @@ import { getHwFingerprintEnabled } from "./settings.mjs";
  *   retention_sessions_days        sessions unused for this long are deleted (logs that device out)
  *   retention_fingerprint_days     hardware fingerprint is cleared from anonymous identities inactive this long
  *
- * With websrv.anon_hw_fingerprint: false, every stored device fingerprint (identities and activity log) is
+ * Unless websrv.anon_hw_fingerprint is true, every stored device fingerprint (identities and activity log) is
  * cleared on each run, regardless of age.
  *
  * Active bans (banned_ips / banned_fingerprints / banned_hardware_fingerprints) are not touched: they are kept

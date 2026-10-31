@@ -1027,7 +1027,7 @@ export default (router, tpl) => {
   router.post(/^\/admin\/settings\/?$/, lib.auth, async (req, res) => {
     const manual_approval = req.post.manual_approval === 'on' ? 'true' : 'false';
     const registration_open = req.post.registration_open === 'on' ? 'true' : 'false';
-    const min_tags = isNaN(parseInt(req.post.min_tags)) ? 3 : Math.max(0, parseInt(req.post.min_tags));
+    const min_tags = isNaN(parseInt(req.post.min_tags)) ? 0 : Math.max(0, parseInt(req.post.min_tags));
     const trusted_uploads = Math.max(0, parseInt(req.post.trusted_uploads) ?? 3);
 
     await db`INSERT INTO site_settings (key, value) VALUES ('manual_approval', ${manual_approval}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;

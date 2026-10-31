@@ -2,8 +2,8 @@ import cfg from "./config.mjs";
 import db from "./sql.mjs";
 import lib from "./lib.mjs";
 
-let manual_approval = true;
-let min_tags = 3;
+let manual_approval = false;
+let min_tags = 0;
 let registration_open = false;
 let trusted_uploads = 0;
 let bypass_duplicate_check = false;
@@ -216,7 +216,7 @@ export const setManualApproval = (val) => manual_approval = !!val;
 export const getMinTags = () => min_tags;
 export const setMinTags = (val) => {
     const parsed = parseInt(val);
-    min_tags = isNaN(parsed) ? 3 : Math.max(0, parsed);
+    min_tags = isNaN(parsed) ? 0 : Math.max(0, parsed);
 };
 
 export const getRegistrationOpen = () => {
@@ -262,8 +262,8 @@ export const getLogUserIps = () => !!cfg.websrv.log_user_ips;
 export const setLogUserIps = (val) => {}; // No-op, strictly config-based
 
 export const getHashUserIps = () => !!cfg.websrv.hash_user_ips;
-// Device (hardware) fingerprinting of anonymous users for ban enforcement. On unless explicitly disabled.
-export const getHwFingerprintEnabled = () => cfg.websrv.anon_hw_fingerprint !== false;
+// Device (hardware) fingerprinting of anonymous users for ban enforcement. Off unless explicitly enabled.
+export const getHwFingerprintEnabled = () => cfg.websrv.anon_hw_fingerprint === true;
 export const setHashUserIps = (val) => {}; // No-op, strictly config-based
 
 export const getAllowCommentDeletion = () => !!cfg.websrv.allow_comment_deletion;

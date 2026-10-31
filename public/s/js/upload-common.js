@@ -13,7 +13,7 @@ window.F0ckUpload = class {
         
         this.selectedFile = null;
         this.tags = [];
-        this.minTags = options.minTags || 3;
+        this.minTags = options.minTags ?? 0;
         
         this.init();
     }

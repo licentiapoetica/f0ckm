@@ -511,7 +511,7 @@ window.initUploadForm = (selector) => {
     const ytRegex = /(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\/?\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/i;
 
     // Dynamically get min tags requirement from DOM
-    const minTags = parseInt(form.getAttribute('data-min-tags') || '3');
+    const minTags = parseInt(form.getAttribute('data-min-tags') || '0');
     const commentMaxLenAttr = form.getAttribute('data-comment-max-length');
     const commentMaxLen = (commentMaxLenAttr && commentMaxLenAttr !== 'null') ? parseInt(commentMaxLenAttr) : null;
 
